@@ -25,6 +25,8 @@ type Result struct {
 	Predictability string                 `json:"predictability"`
 	Context        map[string]interface{} `json:"context,omitempty"`
 	Warnings       []string               `json:"warnings,omitempty"`
+	StabilityRatio float64                `json:"stability_ratio,omitempty"`
+	StaleWIPCount  int                    `json:"stale_wip_count,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -135,6 +137,69 @@ func (e *Engine) assessPredictability(res *Result) {
 		// 2. Data Volume Warning
 		if analyzed, ok := e.histogram.Meta["issues_analyzed"].(int); ok && analyzed < 30 {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("Small sample size (%d items). Statistical confidence is low.", analyzed))
+		}
+	}
+}
+
+// AnalyzeWIPStability performs deep analysis of current WIP vs historical performance.
+func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes []float64, backlogSize int) {
+	if len(cycleTimes) == 0 {
+		return
+	}
+
+	// 1. WIP Aging Analysis
+	sort.Float64s(cycleTimes)
+	n := len(cycleTimes)
+	p85 := cycleTimes[int(float64(n)*0.85)]
+	p95 := cycleTimes[int(float64(n)*0.95)]
+
+	staleCount := 0
+	for _, age := range wipAges {
+		if age > p85 {
+			staleCount++
+		}
+	}
+	res.StaleWIPCount = staleCount
+
+	if len(wipAges) > 0 {
+		staleRate := float64(staleCount) / float64(len(wipAges))
+		if staleRate > 0.3 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("%.0f%% of your current WIP is 'stale' (older than historical P85 of %.1f days). Forecast may be optimistic.", staleRate*100, p85))
+		}
+		if staleCount > 0 {
+			// Find oldest
+			maxAge := 0.0
+			for _, a := range wipAges {
+				if a > maxAge {
+					maxAge = a
+				}
+			}
+			if maxAge > p95 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Critical Outlier: At least one item in progress is %.1f days old (historical P95 is %.1f days).", maxAge, p95))
+			}
+		}
+	}
+
+	// 2. Little's Law Stability Index (WIP = TH * CT)
+	if e.histogram.Meta != nil {
+		th, ok1 := e.histogram.Meta["throughput_overall"].(float64)
+		sumCT := 0.0
+		for _, ct := range cycleTimes {
+			sumCT += ct
+		}
+		avgCT := sumCT / float64(len(cycleTimes))
+
+		if ok1 && th > 0 && avgCT > 0 {
+			expectedWIP := th * avgCT
+			currentWIP := float64(len(wipAges))
+			ratio := currentWIP / expectedWIP
+			res.StabilityRatio = math.Round(ratio*100) / 100
+
+			if res.StabilityRatio > 1.3 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Clogged System (Stability Index %.2f): You have %.0f%% more WIP than your historical capacity supports. Lead times will likely increase.", res.StabilityRatio, (res.StabilityRatio-1)*100))
+			} else if res.StabilityRatio < 0.7 && currentWIP > 0 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Starving System (Stability Index %.2f): You have significantly less WIP than historical levels. Throughput may drop unless more work is started.", res.StabilityRatio))
+			}
 		}
 	}
 }

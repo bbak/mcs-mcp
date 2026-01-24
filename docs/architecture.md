@@ -103,6 +103,34 @@ To ensure the forecast reflects actual delivery capacity, the server supports fi
 - **Status Filter**: Alternatively, the server can filter by the final Jira `status` name if resolutions are not used consistently.
 - **Reporting**: The `get_data_metadata` tool provides the distribution of these fields in a sample to help the user configure the simulation correctly.
 
+## Reliability Engineering (Assumption Validation)
+
+To move beyond simple "math" and provide contextual confidence, the server implements "First Principle" checks to validate that the Monte Carlo assumptions hold true for the current system state.
+
+### 1. WIP Aging Analysis
+
+Detects if currently active work is "stalling" compared to historical performance.
+
+- **Mechanism**: Calculates the age of all items currently past the Commitment Point.
+- **Reference**: Compares current age against historical **P85/P95 Cycle Time** percentiles.
+- **Warning**: Flags items that are "stale," signaling that the historical throughput may be an optimistic representation of current reality.
+
+### 2. Little's Law Stability Index
+
+Validates the fundamental relationship: `WIP = Throughput × Cycle Time`.
+
+- **Mechanism**: Calculates the **Stability Ratio** (`Current WIP / Expected WIP`).
+- **Interpretation**:
+    - **Balanced (0.8 - 1.2)**: system is in equilibrium with its historical capacity.
+    - **Clogged (> 1.3)**: system is carrying excessive WIP; delivery times are virtually guaranteed to slip regardless of simulation results.
+
+### 3. Transition Reachability
+
+Identifies if a chosen Commitment Point is an "honest" gate.
+
+- **Mechanism**: Analyzes the percentage of historical items that actually passed through a given status.
+- **Selection Support**: Helps users avoid selecting "phantom" statuses that are frequently skipped in the real-world workflow.
+
 ## Project Structure
 
 - `cmd/mcs-mcp`: Entry point and CLI/MCP command handling.

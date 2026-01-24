@@ -164,9 +164,9 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	// Probe: Fetch last 200 resolved items to analyze data quality
+	// Probe: Fetch last 200 resolved items to analyze data quality (with history for reachability)
 	probeJQL := fmt.Sprintf("(%s) AND resolution is not EMPTY ORDER BY resolutiondate DESC", jql)
-	issues, total, err := s.jira.SearchIssues(probeJQL, 0, 200)
+	issues, total, err := s.jira.SearchIssuesWithHistory(probeJQL, 0, 200)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +221,8 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 	log.Debug().Str("jql", ingestJQL).Msg("Starting historical ingestion for simulation")
 
 	var issues []jira.Issue
-	// Use history only if needed for cycle time analysis (Single Item mode)
-	if mode == "single" {
+	// Use history if needed for cycle time analysis OR WIP aging
+	if mode == "single" || startStatus != "" || includeWIP {
 		issues, _, err = s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
 	} else {
 		issues, _, err = s.jira.SearchIssues(ingestJQL, 0, 1000)
@@ -242,8 +242,6 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 	case "single":
 		log.Info().Str("startStatus", startStatus).Msg("Running Cycle Time Analysis (Single Item)")
 
-		// Workflow Discovery: Fetch status categories to determine logical order
-		statusWeights := make(map[string]int)
 		projectKey := ""
 		if len(issues) > 0 {
 			parts := strings.Split(issues[0].Key, "-")
@@ -252,84 +250,8 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 			}
 		}
 
-		if projectKey != "" {
-			if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-				// Parse Jira status categories: new (1) < indeterminate (2) < done (3)
-				for _, itm := range statuses.([]interface{}) {
-					issueTypeMap := itm.(map[string]interface{})
-					statusList := issueTypeMap["statuses"].([]interface{})
-					for _, sObj := range statusList {
-						sMap := sObj.(map[string]interface{})
-						name := sMap["name"].(string)
-						cat := sMap["statusCategory"].(map[string]interface{})
-						key := cat["key"].(string)
-
-						weight := 1
-						if key == "indeterminate" {
-							weight = 2
-						} else if key == "done" {
-							weight = 3
-						}
-						statusWeights[name] = weight
-					}
-				}
-			}
-		}
-
-		// Determine commitment point weight
-		commitmentWeight := 2 // Default to 'In Progress' category
-		if startStatus != "" {
-			if w, ok := statusWeights[startStatus]; ok {
-				commitmentWeight = w
-			} else {
-				log.Warn().Str("status", startStatus).Msg("Start status not found in workflow, defaulting to first 'In Progress' transition")
-			}
-		}
-
-		var cycleTimes []float64
-		resMap := make(map[string]bool)
-		for _, r := range resolutions {
-			resMap[r] = true
-		}
-
-		for _, issue := range issues {
-			if issue.ResolutionDate == nil {
-				continue
-			}
-			if len(resolutions) > 0 && !resMap[issue.Resolution] {
-				continue
-			}
-
-			// Clock starts at earliest transition to startStatus OR any status with weight >= commitmentWeight
-			clockStart := issue.Created
-			var earliestCommitment *time.Time
-
-			for _, trans := range issue.Transitions {
-				weight, ok := statusWeights[trans.ToStatus]
-				// If we explicitly asked for a status, we prioritze that transition
-				// Otherwise, we take any transition that meets the weight threshold
-				if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
-					if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
-						t := trans.Date
-						earliestCommitment = &t
-					}
-				}
-			}
-
-			if earliestCommitment != nil {
-				clockStart = *earliestCommitment
-			} else if startStatus != "" {
-				// If specifically looking for startStatus but never found, skip or use creation?
-				// User says "as soon as it transitions into that or any PAST this one".
-				// If not found, it means it was never in that phase.
-				continue
-			}
-
-			ct := issue.ResolutionDate.Sub(clockStart).Hours() / 24.0
-			if ct >= 0 {
-				cycleTimes = append(cycleTimes, ct)
-			}
-		}
+		statusWeights := s.getStatusWeights(projectKey)
+		cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
 
 		if len(cycleTimes) == 0 {
 			return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
@@ -353,48 +275,22 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 
 		actualBacklog := backlogSize
 		wipCount := 0
+		var wipAges []float64
+
+		projectKey := ""
+		if len(issues) > 0 {
+			parts := strings.Split(issues[0].Key, "-")
+			if len(parts) > 1 {
+				projectKey = parts[0]
+			}
+		}
+		statusWeights := s.getStatusWeights(projectKey)
+
 		if includeWIP {
-			// WIP Detection: Items that are 'In Progress' (category 2) but not 'Done' (category 3)
-			// based on the discovered status weights.
-
-			// We need history to identify CURRENT status for ALL items in the project/source
-			// Not just the resolved ones.
 			wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
-			wipIssues, _, err := s.jira.SearchIssues(wipJQL, 0, 1000)
+			// Fetch WIP with history for aging analysis
+			wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 			if err == nil {
-				// We reuse the weight logic to count items that have passed the commitment point
-				// First, discover weights (same as 'single' mode but outside)
-				projectKey := ""
-				if len(issues) > 0 {
-					parts := strings.Split(issues[0].Key, "-")
-					if len(parts) > 1 {
-						projectKey = parts[0]
-					}
-				}
-
-				statusWeights := make(map[string]int)
-				if projectKey != "" {
-					if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-						for _, itm := range statuses.([]interface{}) {
-							issueTypeMap := itm.(map[string]interface{})
-							statusList := issueTypeMap["statuses"].([]interface{})
-							for _, sObj := range statusList {
-								sMap := sObj.(map[string]interface{})
-								name := sMap["name"].(string)
-								cat := sMap["statusCategory"].(map[string]interface{})
-								key := cat["key"].(string)
-								weight := 1
-								if key == "indeterminate" {
-									weight = 2
-								} else if key == "done" {
-									weight = 3
-								}
-								statusWeights[name] = weight
-							}
-						}
-					}
-				}
-
 				commitmentWeight := 2
 				if startStatus != "" {
 					if w, ok := statusWeights[startStatus]; ok {
@@ -403,13 +299,34 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 				}
 
 				for _, wIssue := range wipIssues {
-					if weight, ok := statusWeights[wIssue.Status]; ok {
-						if weight >= commitmentWeight {
-							wipCount++
-						}
+					// Detect if past commitment point
+					isWIP := false
+					clockStart := wIssue.Created
+					var earliestCommitment *time.Time
+
+					if weight, ok := statusWeights[wIssue.Status]; ok && weight >= commitmentWeight {
+						isWIP = true
 					} else if startStatus == "" {
-						// Default fallback for Option A: anything not 'To Do' is WIP
+						isWIP = true
+					}
+
+					if isWIP {
+						// Find actual start date for aging
+						for _, trans := range wIssue.Transitions {
+							weight, ok := statusWeights[trans.ToStatus]
+							if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
+								if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
+									t := trans.Date
+									earliestCommitment = &t
+								}
+							}
+						}
+						if earliestCommitment != nil {
+							clockStart = *earliestCommitment
+						}
+
 						wipCount++
+						wipAges = append(wipAges, time.Since(clockStart).Hours()/24.0)
 					}
 				}
 				log.Info().Int("wip", wipCount).Int("origBacklog", backlogSize).Msg("Adjusting backlog for Option A (WIP)")
@@ -421,6 +338,11 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, resolutions)
 		engine = simulation.NewEngine(h)
 		resObj := engine.RunDurationSimulation(actualBacklog, 10000)
+
+		// Add Advanced Reliability Analysis
+		cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
+		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, backlogSize)
+
 		if includeWIP && wipCount > backlogSize*3 {
 			resObj.Warnings = append(resObj.Warnings, fmt.Sprintf("High system load detected: current WIP (%d) is significantly larger than your initiative backlog (%d). Historical throughput may drop.", wipCount, backlogSize))
 		}
@@ -557,4 +479,82 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 func (s *Server) formatResult(data interface{}) string {
 	out, _ := json.MarshalIndent(data, "", "  ")
 	return string(out)
+}
+
+func (s *Server) getStatusWeights(projectKey string) map[string]int {
+	weights := make(map[string]int)
+	if projectKey == "" {
+		return weights
+	}
+
+	if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+		for _, itm := range statuses.([]interface{}) {
+			issueTypeMap := itm.(map[string]interface{})
+			statusList := issueTypeMap["statuses"].([]interface{})
+			for _, sObj := range statusList {
+				sMap := sObj.(map[string]interface{})
+				name := sMap["name"].(string)
+				cat := sMap["statusCategory"].(map[string]interface{})
+				key := cat["key"].(string)
+
+				weight := 1
+				if key == "indeterminate" {
+					weight = 2
+				} else if key == "done" {
+					weight = 3
+				}
+				weights[name] = weight
+			}
+		}
+	}
+	return weights
+}
+
+func (s *Server) getCycleTimes(issues []jira.Issue, startStatus string, statusWeights map[string]int, resolutions []string) []float64 {
+	commitmentWeight := 2
+	if startStatus != "" {
+		if w, ok := statusWeights[startStatus]; ok {
+			commitmentWeight = w
+		}
+	}
+
+	resMap := make(map[string]bool)
+	for _, r := range resolutions {
+		resMap[r] = true
+	}
+
+	var cycleTimes []float64
+	for _, issue := range issues {
+		if issue.ResolutionDate == nil {
+			continue
+		}
+		if len(resolutions) > 0 && !resMap[issue.Resolution] {
+			continue
+		}
+
+		clockStart := issue.Created
+		var earliestCommitment *time.Time
+
+		for _, trans := range issue.Transitions {
+			weight, ok := statusWeights[trans.ToStatus]
+			if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
+				if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
+					t := trans.Date
+					earliestCommitment = &t
+				}
+			}
+		}
+
+		if earliestCommitment != nil {
+			clockStart = *earliestCommitment
+		} else if startStatus != "" {
+			continue
+		}
+
+		ct := issue.ResolutionDate.Sub(clockStart).Hours() / 24.0
+		if ct >= 0 {
+			cycleTimes = append(cycleTimes, ct)
+		}
+	}
+	return cycleTimes
 }
