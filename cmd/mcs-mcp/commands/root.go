@@ -47,9 +47,7 @@ using Monte-Carlo-Simulation based on Jira data.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("MCP Server starting Stdio loop")
 		server := mcp.NewServer(jiraClient)
-		if err := server.Serve(); err != nil {
-			log.Fatal().Err(err).Msg("MCP Server execution failed")
-		}
+		server.Start()
 	},
 }
 
