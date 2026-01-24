@@ -1,0 +1,44 @@
+package commands
+
+import (
+	"mcs-mcp/internal/logging"
+
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
+)
+
+var (
+	// Version, Commit, and BuildDate are set at build time via ldflags.
+	Version   = "dev"
+	Commit    = "none"
+	BuildDate = "unknown"
+
+	verbose bool
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "mcs-mcp",
+	Short: "MCS-MCP is a Monte-Carlo-Simulation MCP Server for Jira",
+	Long: `A specialized MCP Server that provides statistical forecasting (throughput histograms, fat-tail analysis)
+using Monte-Carlo-Simulation based on Jira data.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		logging.Init(verbose)
+		log.Info().
+			Str("version", Version).
+			Str("commit", Commit).
+			Str("buildDate", BuildDate).
+			Msg("MCS-MCP starting")
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		log.Info().Msg("MCP Server operational")
+		// The actual MCP loop will be started here later
+	},
+}
+
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
+}

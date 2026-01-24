@@ -1,0 +1,37 @@
+{
+    "FixedFileInfo": {
+        "FileVersion": {
+            "Major": 0,
+            "Minor": 1,
+            "Patch": 0,
+            "Build": 0
+        },
+        "ProductVersion": {
+            "Major": 0,
+            "Minor": 1,
+            "Patch": 0,
+            "Build": 0
+        },
+        "FileFlagsMask": "3f",
+        "FileFlags": "00",
+        "FileOS": "040004",
+        "FileType": "01",
+        "FileSubType": "00"
+    },
+    "StringFileInfo": {
+        "CompanyName": "MCS MCP",
+        "FileDescription": "Monte-Carlo-Simulation MCP Server",
+        "FileVersion": "0.1.0",
+        "InternalName": "mcs-mcp",
+        "LegalCopyright": "Copyright (c) 2026",
+        "OriginalFilename": "mcs-mcp.exe",
+        "ProductName": "MCS MCP",
+        "ProductVersion": "0.1.0"
+    },
+    "VarFileInfo": {
+        "Translation": {
+            "LangID": "0409",
+            "CharsetID": "04b0"
+        }
+    }
+}
