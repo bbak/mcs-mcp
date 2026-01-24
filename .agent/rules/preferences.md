@@ -19,3 +19,11 @@ description: General user preferences and coding guidelines for the agent to fol
 - Given that we are on Windows and the Terminal is Powershell, we don't have Unix tools like `grep` and others available. Use their Powershell counterparts.
 
 - Refer to `docs\charter.md` for the Project Charter.
+
+- Use Conventional Commits for git commit messages with the following prefixes:
+    - `feat`: A new feature
+    - `fix`: A bug fix
+    - `refactor`: Code refactoring
+    - `docs`: Documentation changes
+    - `chore`: Maintenance, scaffolding, or project setup
+    - `build`: Build system changes
