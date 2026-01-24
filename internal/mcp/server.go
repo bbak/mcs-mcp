@@ -147,6 +147,7 @@ func (s *Server) listTools() interface{} {
 						"backlog_size": map[string]interface{}{"type": "integer", "description": "Number of items (for 'duration' mode)."},
 						"target_days":  map[string]interface{}{"type": "integer", "description": "Number of days (for 'scope' mode)."},
 						"start_status": map[string]interface{}{"type": "string", "description": "Optional: Commitment Point status. Used to identify WIP for Option A."},
+						"issue_types":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story'])."},
 						"include_wip":  map[string]interface{}{"type": "boolean", "description": "Optional: If true, adds current in-progress items to the backlog (Option A)."},
 						"resolutions":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' (e.g., ['Resolved'])."},
 					},
@@ -205,7 +206,7 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	return summary, nil
 }
 
-func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogSize int, targetDays int, startStatus string, includeWIP bool, resolutions []string) (interface{}, error) {
+func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogSize int, targetDays int, startStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
 	// 1. Get JQL
 	jql, err := s.getJQL(sourceID, sourceType)
 	if err != nil {
@@ -333,14 +334,15 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 		if len(cycleTimes) == 0 {
 			return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
 		}
+		engine = simulation.NewEngine(&simulation.Histogram{})
 		return engine.RunCycleTimeAnalysis(cycleTimes), nil
 
 	case "scope":
 		if targetDays <= 0 {
 			return nil, fmt.Errorf("target_days must be > 0 for scope simulation")
 		}
-		log.Info().Int("days", targetDays).Msg("Running Scope Simulation")
-		h := simulation.NewHistogram(issues, startTime, time.Now(), resolutions)
+		log.Info().Int("days", targetDays).Any("types", issueTypes).Msg("Running Scope Simulation")
+		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, resolutions)
 		engine = simulation.NewEngine(h)
 		return engine.RunScopeSimulation(targetDays, 10000), nil
 
@@ -350,6 +352,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 		}
 
 		actualBacklog := backlogSize
+		wipCount := 0
 		if includeWIP {
 			// WIP Detection: Items that are 'In Progress' (category 2) but not 'Done' (category 3)
 			// based on the discovered status weights.
@@ -399,7 +402,6 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 					}
 				}
 
-				wipCount := 0
 				for _, wIssue := range wipIssues {
 					if weight, ok := statusWeights[wIssue.Status]; ok {
 						if weight >= commitmentWeight {
@@ -415,18 +417,22 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 			}
 		}
 
-		log.Info().Int("backlog", actualBacklog).Msg("Running Duration Simulation")
-		h := simulation.NewHistogram(issues, startTime, time.Now(), resolutions)
+		log.Info().Int("backlog", actualBacklog).Any("types", issueTypes).Msg("Running Duration Simulation")
+		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, resolutions)
 		engine = simulation.NewEngine(h)
-		return engine.RunDurationSimulation(actualBacklog, 10000), nil
+		resObj := engine.RunDurationSimulation(actualBacklog, 10000)
+		if includeWIP && wipCount > backlogSize*3 {
+			resObj.Warnings = append(resObj.Warnings, fmt.Sprintf("High system load detected: current WIP (%d) is significantly larger than your initiative backlog (%d). Historical throughput may drop.", wipCount, backlogSize))
+		}
+		return resObj, nil
 
 	default:
 		// Auto-detect if mode not explicitly provided
 		if targetDays > 0 {
-			return s.handleRunSimulation(sourceID, sourceType, "scope", 0, targetDays, "", false, resolutions)
+			return s.handleRunSimulation(sourceID, sourceType, "scope", 0, targetDays, "", nil, false, resolutions)
 		}
 		if backlogSize > 0 {
-			return s.handleRunSimulation(sourceID, sourceType, "duration", backlogSize, 0, "", false, resolutions)
+			return s.handleRunSimulation(sourceID, sourceType, "duration", backlogSize, 0, "", nil, false, resolutions)
 		}
 		return nil, fmt.Errorf("mode ('duration', 'scope', 'single') or required parameters must be provided")
 	}
@@ -511,6 +517,13 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 			targetDays = int(t)
 		}
 
+		var issueTypes []string
+		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
+			for _, v := range it {
+				issueTypes = append(issueTypes, v.(string))
+			}
+		}
+
 		var includeWIP bool
 		if w, ok := call.Arguments["include_wip"].(bool); ok {
 			includeWIP = w
@@ -522,7 +535,7 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 				res = append(res, v.(string))
 			}
 		}
-		data, err = s.handleRunSimulation(id, sType, mode, backlog, targetDays, startStatus, includeWIP, res)
+		data, err = s.handleRunSimulation(id, sType, mode, backlog, targetDays, startStatus, issueTypes, includeWIP, res)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}

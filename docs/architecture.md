@@ -14,6 +14,20 @@ The **MCS-MCP** project is an MCP (Model Context Protocol) Server designed to pr
 - **Jira Integration**: Fetches work items using Jira REST API.
 - **Interactive Selection**: The server provides metadata to the AI to help users select the right data sets and **Commitment Points** for forecasting.
 
+## Operational Flow (Discovery → Selection → Forecast)
+
+The server is designed to facilitate a specific, iterative interaction model between the AI assistant and the project stakeholders.
+
+```mermaid
+graph LR
+    A["<b>1. Discovery</b><br/>get_data_metadata"] --> B["<b>2. Selection</b><br/>User choosing Commitment Point"]
+    B --> C["<b>3. Forecast</b><br/>run_simulation"]
+```
+
+1.  **Discovery Phase**: The `get_data_metadata` tool is used to probe the data source (board/filter). It identifies data volume, quality issues, and—critically—discovers the project's unique workflow statuses.
+2.  **Selection Phase**: Based on the discovery results, the AI presents the workflow to the user. The user selects the **Commitment Point** (where the "real" work starts) and the desired forecast mode.
+3.  **Forecast Phase**: The `run_simulation` tool is executed with the chosen parameters. It uses the logical status sequence to handle WIP accounting and non-linear transitions accurately.
+
 ## Data Ingestion Model (Adaptive Windowing)
 
 To handle the massive scale of projects and work items in a Jira Data Center environment, the server employs an **Adaptive Windowing** strategy for fetching historical data.
@@ -49,6 +63,37 @@ Calculates the distribution of time taken for individual items to pass through t
 
 - **Logical Commitment Points**: The engine uses Jira's `statusCategory` to determine the progression (To Do -> In Progress -> Done).
 - **Skip Detection**: The clock starts as soon as an item hits the user-defined `start_status` OR skips it to any status with an equal or higher logical weight (e.g., jumping from "To Do" straight to "In Verification").
+
+### 3. Forecasting Confidence (Fat-Tail Detection)
+
+The engine automatically assesses the predictability of the resulting forecast using Kanban University formulas.
+
+- **Metric**: It calculates the ratio between the **98th percentile (P98)** and the **50th percentile (P50)**.
+- **Rules of Thumb**:
+    - **Stable (Thin-Tailed)**: Ratio < 5.6. High confidence in the forecast range.
+    - **Unstable (Fat-Tailed)**: Ratio >= 5.6. Low confidence; the process is highly unpredictable, and extreme outliers are likely.
+
+## 6. Contextual Confidence (Assumptions)
+
+The system now provides transparency on the core assumptions of Monte Carlo Simulation (Stable WIP and Item Distribution).
+
+### Historical Context
+
+Every simulation result now includes a `context` object showing:
+
+- **Type Distribution**: Exactly what mix of items (Stories, Bugs, etc.) the throughput is based on.
+- **Throughput Trend**: Compares the last 30 days to the overall sample.
+
+### Stability Warnings
+
+The AI will explicitly warn the user if the assumptions are violated:
+
+- **High System Load**: "Current WIP (164) is significantly larger than your initiative (20)."
+- **Trend Shift**: "Significant throughput drop recently (30% below average)."
+- **Low Data**: "Small sample size (12 items). Statistical confidence is low."
+
+> [!IMPORTANT]
+> These safeguards ensure the user isn't just looking at "math," but is aware of the **systemic context** that makes the math valid.
 
 ## Value vs. Waste Filtering (Throughput Integrity)
 
