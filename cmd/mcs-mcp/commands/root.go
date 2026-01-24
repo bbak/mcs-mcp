@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"mcs-mcp/internal/config"
+	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/logging"
+	"mcs-mcp/internal/mcp"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -14,6 +17,8 @@ var (
 	BuildDate = "unknown"
 
 	verbose bool
+
+	jiraClient jira.Client
 )
 
 var rootCmd = &cobra.Command{
@@ -23,6 +28,16 @@ var rootCmd = &cobra.Command{
 using Monte-Carlo-Simulation based on Jira data.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		logging.Init(verbose)
+
+		// Load configuration
+		cfg, err := config.Load()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to load configuration")
+		}
+
+		// Initialize Jira Client
+		jiraClient = jira.NewClient(cfg.Jira)
+
 		log.Info().
 			Str("version", Version).
 			Str("commit", Commit).
@@ -30,8 +45,11 @@ using Monte-Carlo-Simulation based on Jira data.`,
 			Msg("MCS-MCP starting")
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Info().Msg("MCP Server operational")
-		// The actual MCP loop will be started here later
+		log.Info().Msg("MCP Server starting Stdio loop")
+		server := mcp.NewServer(jiraClient)
+		if err := server.Serve(); err != nil {
+			log.Fatal().Err(err).Msg("MCP Server execution failed")
+		}
 	},
 }
 

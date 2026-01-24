@@ -14,6 +14,41 @@ The **MCS-MCP** project is an MCP (Model Context Protocol) Server designed to pr
 - **Jira Integration**: Fetches work items using Jira REST API.
 - **Interactive Selection**: The server provides metadata to the AI to help users select the right data sets for forecasting.
 
+## Data Ingestion Model (Adaptive Windowing)
+
+To handle the massive scale of projects and work items in a Jira Data Center environment, the server employs an **Adaptive Windowing** strategy for fetching historical data.
+
+### 1. Goal: The "Target Sample"
+
+The simulation requires a statistically significant amount of throughput data (defaults to **200 items**).
+
+### 2. Throttled Discovery
+
+- **Probe**: Every analysis starts with a small probe of the last 200 items to identify data quality (e.g., use of `resolutiondate` vs status transitions).
+- **Throttling**: A mandatory **10-second delay** is enforced between every 1000-item page fetch to protect the Jira instance from overload.
+
+### 3. Expansion Logic (Soft & Hard Limits)
+
+- **Initial Window**: Starts by fetching metadata and items from the last **180 days**.
+- **Adaptive Expansion**: If the result set is less than the Target Sample, the window expands (1 year, then 2 years) until the target is met.
+- **Stop Condition**: Ingestion stops as soon as the Target Sample is reached, avoiding unnecessary load from deep historical data.
+- **Hard Limit**: Ingestion unconditionally stops after **2 years** or **5000 items**. If the target isn't met by then, the server warns that the forecast confidence may be low.
+
+## Throughput Analysis Modes
+
+Due to messy data quality, the server supports two modes for determining when a work item was "Done":
+
+- **Mode A (Resolution)**: Uses the `resolutiondate` field. Most efficient and generally reliable for Data Center.
+- **Mode B (Transition)**: Performs changelog analysis to find the _first entry_ into a specific, user-defined status (e.g., "Ready for Live").
+
+## Value vs. Waste Filtering (Throughput Integrity)
+
+To ensure the forecast reflects actual delivery capacity, the server supports filtering out "non-value" work items.
+
+- **Resolution Filter**: Users can specify which Jira `resolution` names signify delivered value (e.g., "Done", "Fixed", "Resolved") and which should be ignored (e.g., "Duplicate", "Abandoned", "Won't Do").
+- **Status Filter**: Alternatively, the server can filter by the final Jira `status` name if resolutions are not used consistently.
+- **Reporting**: The `get_data_metadata` tool provides the distribution of these fields in a sample to help the user configure the simulation correctly.
+
 ## Project Structure
 
 - `cmd/mcs-mcp`: Entry point and CLI/MCP command handling.
