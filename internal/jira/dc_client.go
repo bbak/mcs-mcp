@@ -24,7 +24,7 @@ func NewDataCenterClient(cfg Config) Client {
 	return &dcClient{
 		cfg: cfg,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 90 * time.Second,
 		},
 	}
 }
@@ -66,12 +66,28 @@ func (c *dcClient) addCookies(req *http.Request) {
 }
 
 func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) ([]Issue, int, error) {
+	return c.searchInternal(jql, startAt, maxResults, "")
+}
+
+func (c *dcClient) SearchIssuesWithHistory(jql string, startAt int, maxResults int) ([]Issue, int, error) {
+	return c.searchInternal(jql, startAt, maxResults, "changelog")
+}
+
+func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expand string) ([]Issue, int, error) {
 	c.throttle()
 
-	url := fmt.Sprintf("%s/rest/api/2/search?jql=%s&startAt=%d&maxResults=%d",
-		c.cfg.BaseURL, url.QueryEscape(jql), startAt, maxResults)
+	// Use url.Values for better query param handling
+	params := url.Values{}
+	params.Set("jql", jql)
+	params.Set("startAt", fmt.Sprintf("%d", startAt))
+	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
+	params.Set("fields", "issuetype,status,resolution,resolutiondate,created")
+	if expand != "" {
+		params.Set("expand", expand)
+	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	searchURL := fmt.Sprintf("%s/rest/api/2/search?%s", c.cfg.BaseURL, params.Encode())
+	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -103,7 +119,17 @@ func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) ([]Issu
 					Name string `json:"name"`
 				} `json:"resolution"`
 				ResolutionDate string `json:"resolutiondate"`
+				Created        string `json:"created"`
 			} `json:"fields"`
+			Changelog *struct {
+				Histories []struct {
+					Created string `json:"created"`
+					Items   []struct {
+						Field    string `json:"field"`
+						ToString string `json:"toString"`
+					} `json:"items"`
+				} `json:"histories"`
+			} `json:"changelog"`
 		} `json:"issues"`
 	}
 
@@ -119,10 +145,35 @@ func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) ([]Issu
 			Status:     item.Fields.Status.Name,
 			Resolution: item.Fields.Resolution.Name,
 		}
+		if t, err := time.Parse("2006-01-02T15:04:05.000-0700", item.Fields.Created); err == nil {
+			issues[i].Created = t
+		}
 		if item.Fields.ResolutionDate != "" {
 			if t, err := time.Parse("2006-01-02T15:04:05.000-0700", item.Fields.ResolutionDate); err == nil {
 				issues[i].ResolutionDate = &t
 			}
+		}
+
+		// Parse changelog for Transitions and StartedDate
+		if item.Changelog != nil {
+			var earliest *time.Time
+			for _, h := range item.Changelog.Histories {
+				for _, itm := range h.Items {
+					if itm.Field == "status" {
+						if t, err := time.Parse("2006-01-02T15:04:05.000-0700", h.Created); err == nil {
+							issues[i].Transitions = append(issues[i].Transitions, StatusTransition{
+								ToStatus: itm.ToString,
+								Date:     t,
+							})
+							if earliest == nil || t.Before(*earliest) {
+								st := t
+								earliest = &st
+							}
+						}
+					}
+				}
+			}
+			issues[i].StartedDate = earliest
 		}
 	}
 
@@ -159,6 +210,38 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 	}
 
 	return project, nil
+}
+
+func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
+	c.throttle()
+
+	url := fmt.Sprintf("%s/rest/api/2/project/%s/statuses", c.cfg.BaseURL, key)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("project %s statuses not found", key)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+	}
+
+	var statuses []interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&statuses); err != nil {
+		return nil, err
+	}
+
+	return statuses, nil
 }
 
 func (c *dcClient) GetBoard(id int) (interface{}, error) {

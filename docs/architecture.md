@@ -12,7 +12,7 @@ The **MCS-MCP** project is an MCP (Model Context Protocol) Server designed to pr
     - `Stderr`: Pretty-printed for CLI interaction and MCP debugging.
     - `logs/mcs-mcp.log`: Structured JSON with rotation (`lumberjack`).
 - **Jira Integration**: Fetches work items using Jira REST API.
-- **Interactive Selection**: The server provides metadata to the AI to help users select the right data sets for forecasting.
+- **Interactive Selection**: The server provides metadata to the AI to help users select the right data sets and **Commitment Points** for forecasting.
 
 ## Data Ingestion Model (Adaptive Windowing)
 
@@ -34,12 +34,21 @@ The simulation requires a statistically significant amount of throughput data (d
 - **Stop Condition**: Ingestion stops as soon as the Target Sample is reached, avoiding unnecessary load from deep historical data.
 - **Hard Limit**: Ingestion unconditionally stops after **2 years** or **5000 items**. If the target isn't met by then, the server warns that the forecast confidence may be low.
 
-## Throughput Analysis Modes
+## Forecasting Strategies
 
-Due to messy data quality, the server supports two modes for determining when a work item was "Done":
+### 1. Throughput Calculation (Batch Forecasting)
 
-- **Mode A (Resolution)**: Uses the `resolutiondate` field. Most efficient and generally reliable for Data Center.
-- **Mode B (Transition)**: Performs changelog analysis to find the _first entry_ into a specific, user-defined status (e.g., "Ready for Live").
+Throughput-based simulations (Duration and Scope) resample the historical delivery rate.
+
+- **WIP Accounting (Option A)**: Adds currently active items (Past Commitment Point, not Resolved) to the target backlog for realistic timelines.
+- **Fresh Start (Option B)**: Ignores current work and assumes the new backlog starts immediately.
+
+### 2. Cycle Time Analysis (Single-Item)
+
+Calculates the distribution of time taken for individual items to pass through the workflow.
+
+- **Logical Commitment Points**: The engine uses Jira's `statusCategory` to determine the progression (To Do -> In Progress -> Done).
+- **Skip Detection**: The clock starts as soon as an item hits the user-defined `start_status` OR skips it to any status with an equal or higher logical weight (e.g., jumping from "To Do" straight to "In Verification").
 
 ## Value vs. Waste Filtering (Throughput Integrity)
 

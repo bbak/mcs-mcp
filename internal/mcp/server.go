@@ -125,7 +125,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_data_metadata",
-				"description": "Probe a data source (board or filter) to analyze data quality and volume before running a simulation.",
+				"description": "Probe a data source (board or filter) to analyze data quality, volume, and discover project-specific workflow statuses (Commitment Points).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -137,16 +137,20 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "run_simulation",
-				"description": "Run a Monte-Carlo simulation to forecast when a backlog will be finished based on historical throughput.",
+				"description": "Run a Monte-Carlo simulation or Cycle-Time analysis. Use 'start_status' to define a commitment point; transitions to this status or any logical successor (In Progress, Done) will start the clock.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"source_id":    map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type":  map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
-						"backlog_size": map[string]interface{}{"type": "integer", "description": "Number of items remaining to be finished"},
-						"resolutions":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional list of resolutions like ['Resolved']"},
+						"mode":         map[string]interface{}{"type": "string", "enum": []string{"duration", "scope", "single"}, "description": "Simulation mode: 'duration' (backlog), 'scope' (delivery volume), or 'single' (cycle time)."},
+						"backlog_size": map[string]interface{}{"type": "integer", "description": "Number of items (for 'duration' mode)."},
+						"target_days":  map[string]interface{}{"type": "integer", "description": "Number of days (for 'scope' mode)."},
+						"start_status": map[string]interface{}{"type": "string", "description": "Optional: Commitment Point status. Used to identify WIP for Option A."},
+						"include_wip":  map[string]interface{}{"type": "boolean", "description": "Optional: If true, adds current in-progress items to the backlog (Option A)."},
+						"resolutions":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' (e.g., ['Resolved'])."},
 					},
-					"required": []string{"source_id", "source_type", "backlog_size"},
+					"required": []string{"source_id", "source_type"},
 				},
 			},
 		},
@@ -167,24 +171,61 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	}
 
 	summary := stats.AnalyzeProbe(issues, total)
+
+	// Status Discovery
+	var projectKey string
+	if sourceType == "board" {
+		var id int
+		if _, err := fmt.Sscanf(sourceID, "%d", &id); err == nil {
+			board, err := s.jira.GetBoard(id)
+			if err == nil {
+				bMap := board.(map[string]interface{})
+				if loc, ok := bMap["location"].(map[string]interface{}); ok {
+					projectKey = fmt.Sprintf("%v", loc["projectKey"])
+				}
+			}
+		}
+	}
+
+	// Fallback/Filter: Get project key from first issue
+	if projectKey == "" && len(issues) > 0 {
+		keyParts := strings.Split(issues[0].Key, "-")
+		if len(keyParts) > 1 {
+			projectKey = keyParts[0]
+		}
+	}
+
+	if projectKey != "" {
+		statuses, err := s.jira.GetProjectStatuses(projectKey)
+		if err == nil {
+			summary.AvailableStatuses = statuses
+		}
+	}
+
 	return summary, nil
 }
 
-func (s *Server) handleRunSimulation(sourceID, sourceType string, backlogSize int, resolutions []string) (interface{}, error) {
-	// 1. Get JQL (Reuse logic from metadata)
+func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogSize int, targetDays int, startStatus string, includeWIP bool, resolutions []string) (interface{}, error) {
+	// 1. Get JQL
 	jql, err := s.getJQL(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Adaptive Ingestion: Fetch sufficient history (Last 180 days for now)
+	// 2. Ingestion: Fetch last 6 months of historical data
 	startTime := time.Now().AddDate(0, -6, 0)
 	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
 		jql, startTime.Format("2006-01-02"))
 
 	log.Debug().Str("jql", ingestJQL).Msg("Starting historical ingestion for simulation")
 
-	issues, _, err := s.jira.SearchIssues(ingestJQL, 0, 1000)
+	var issues []jira.Issue
+	// Use history only if needed for cycle time analysis (Single Item mode)
+	if mode == "single" {
+		issues, _, err = s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	} else {
+		issues, _, err = s.jira.SearchIssues(ingestJQL, 0, 1000)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -193,15 +234,202 @@ func (s *Server) handleRunSimulation(sourceID, sourceType string, backlogSize in
 		return nil, fmt.Errorf("no historical data found in the last 6 months to base simulation on")
 	}
 
-	// 3. Create Histogram
-	endTime := time.Now()
-	histogram := simulation.NewHistogram(issues, startTime, endTime, resolutions)
+	// 3. Mode Selection
+	engine := simulation.NewEngine(nil)
 
-	// 4. Run Monte-Carlo
-	engine := simulation.NewEngine(histogram)
-	result := engine.Run(backlogSize, 10000)
+	switch mode {
+	case "single":
+		log.Info().Str("startStatus", startStatus).Msg("Running Cycle Time Analysis (Single Item)")
 
-	return result, nil
+		// Workflow Discovery: Fetch status categories to determine logical order
+		statusWeights := make(map[string]int)
+		projectKey := ""
+		if len(issues) > 0 {
+			parts := strings.Split(issues[0].Key, "-")
+			if len(parts) > 1 {
+				projectKey = parts[0]
+			}
+		}
+
+		if projectKey != "" {
+			if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+				// Parse Jira status categories: new (1) < indeterminate (2) < done (3)
+				for _, itm := range statuses.([]interface{}) {
+					issueTypeMap := itm.(map[string]interface{})
+					statusList := issueTypeMap["statuses"].([]interface{})
+					for _, sObj := range statusList {
+						sMap := sObj.(map[string]interface{})
+						name := sMap["name"].(string)
+						cat := sMap["statusCategory"].(map[string]interface{})
+						key := cat["key"].(string)
+
+						weight := 1
+						if key == "indeterminate" {
+							weight = 2
+						} else if key == "done" {
+							weight = 3
+						}
+						statusWeights[name] = weight
+					}
+				}
+			}
+		}
+
+		// Determine commitment point weight
+		commitmentWeight := 2 // Default to 'In Progress' category
+		if startStatus != "" {
+			if w, ok := statusWeights[startStatus]; ok {
+				commitmentWeight = w
+			} else {
+				log.Warn().Str("status", startStatus).Msg("Start status not found in workflow, defaulting to first 'In Progress' transition")
+			}
+		}
+
+		var cycleTimes []float64
+		resMap := make(map[string]bool)
+		for _, r := range resolutions {
+			resMap[r] = true
+		}
+
+		for _, issue := range issues {
+			if issue.ResolutionDate == nil {
+				continue
+			}
+			if len(resolutions) > 0 && !resMap[issue.Resolution] {
+				continue
+			}
+
+			// Clock starts at earliest transition to startStatus OR any status with weight >= commitmentWeight
+			clockStart := issue.Created
+			var earliestCommitment *time.Time
+
+			for _, trans := range issue.Transitions {
+				weight, ok := statusWeights[trans.ToStatus]
+				// If we explicitly asked for a status, we prioritze that transition
+				// Otherwise, we take any transition that meets the weight threshold
+				if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
+					if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
+						t := trans.Date
+						earliestCommitment = &t
+					}
+				}
+			}
+
+			if earliestCommitment != nil {
+				clockStart = *earliestCommitment
+			} else if startStatus != "" {
+				// If specifically looking for startStatus but never found, skip or use creation?
+				// User says "as soon as it transitions into that or any PAST this one".
+				// If not found, it means it was never in that phase.
+				continue
+			}
+
+			ct := issue.ResolutionDate.Sub(clockStart).Hours() / 24.0
+			if ct >= 0 {
+				cycleTimes = append(cycleTimes, ct)
+			}
+		}
+
+		if len(cycleTimes) == 0 {
+			return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
+		}
+		return engine.RunCycleTimeAnalysis(cycleTimes), nil
+
+	case "scope":
+		if targetDays <= 0 {
+			return nil, fmt.Errorf("target_days must be > 0 for scope simulation")
+		}
+		log.Info().Int("days", targetDays).Msg("Running Scope Simulation")
+		h := simulation.NewHistogram(issues, startTime, time.Now(), resolutions)
+		engine = simulation.NewEngine(h)
+		return engine.RunScopeSimulation(targetDays, 10000), nil
+
+	case "duration":
+		if backlogSize <= 0 {
+			return nil, fmt.Errorf("backlog_size must be > 0 for duration simulation")
+		}
+
+		actualBacklog := backlogSize
+		if includeWIP {
+			// WIP Detection: Items that are 'In Progress' (category 2) but not 'Done' (category 3)
+			// based on the discovered status weights.
+
+			// We need history to identify CURRENT status for ALL items in the project/source
+			// Not just the resolved ones.
+			wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
+			wipIssues, _, err := s.jira.SearchIssues(wipJQL, 0, 1000)
+			if err == nil {
+				// We reuse the weight logic to count items that have passed the commitment point
+				// First, discover weights (same as 'single' mode but outside)
+				projectKey := ""
+				if len(issues) > 0 {
+					parts := strings.Split(issues[0].Key, "-")
+					if len(parts) > 1 {
+						projectKey = parts[0]
+					}
+				}
+
+				statusWeights := make(map[string]int)
+				if projectKey != "" {
+					if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+						for _, itm := range statuses.([]interface{}) {
+							issueTypeMap := itm.(map[string]interface{})
+							statusList := issueTypeMap["statuses"].([]interface{})
+							for _, sObj := range statusList {
+								sMap := sObj.(map[string]interface{})
+								name := sMap["name"].(string)
+								cat := sMap["statusCategory"].(map[string]interface{})
+								key := cat["key"].(string)
+								weight := 1
+								if key == "indeterminate" {
+									weight = 2
+								} else if key == "done" {
+									weight = 3
+								}
+								statusWeights[name] = weight
+							}
+						}
+					}
+				}
+
+				commitmentWeight := 2
+				if startStatus != "" {
+					if w, ok := statusWeights[startStatus]; ok {
+						commitmentWeight = w
+					}
+				}
+
+				wipCount := 0
+				for _, wIssue := range wipIssues {
+					if weight, ok := statusWeights[wIssue.Status]; ok {
+						if weight >= commitmentWeight {
+							wipCount++
+						}
+					} else if startStatus == "" {
+						// Default fallback for Option A: anything not 'To Do' is WIP
+						wipCount++
+					}
+				}
+				log.Info().Int("wip", wipCount).Int("origBacklog", backlogSize).Msg("Adjusting backlog for Option A (WIP)")
+				actualBacklog += wipCount
+			}
+		}
+
+		log.Info().Int("backlog", actualBacklog).Msg("Running Duration Simulation")
+		h := simulation.NewHistogram(issues, startTime, time.Now(), resolutions)
+		engine = simulation.NewEngine(h)
+		return engine.RunDurationSimulation(actualBacklog, 10000), nil
+
+	default:
+		// Auto-detect if mode not explicitly provided
+		if targetDays > 0 {
+			return s.handleRunSimulation(sourceID, sourceType, "scope", 0, targetDays, "", false, resolutions)
+		}
+		if backlogSize > 0 {
+			return s.handleRunSimulation(sourceID, sourceType, "duration", backlogSize, 0, "", false, resolutions)
+		}
+		return nil, fmt.Errorf("mode ('duration', 'scope', 'single') or required parameters must be provided")
+	}
 }
 
 func (s *Server) getJQL(sourceID, sourceType string) (string, error) {
@@ -272,14 +500,29 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 	case "run_simulation":
 		id := call.Arguments["source_id"].(string)
 		sType := call.Arguments["source_type"].(string)
-		backlog := int(call.Arguments["backlog_size"].(float64))
+		mode, _ := call.Arguments["mode"].(string)
+		startStatus, _ := call.Arguments["start_status"].(string)
+
+		var backlog, targetDays int
+		if b, ok := call.Arguments["backlog_size"].(float64); ok {
+			backlog = int(b)
+		}
+		if t, ok := call.Arguments["target_days"].(float64); ok {
+			targetDays = int(t)
+		}
+
+		var includeWIP bool
+		if w, ok := call.Arguments["include_wip"].(bool); ok {
+			includeWIP = w
+		}
+
 		var res []string
 		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
 			for _, v := range r {
 				res = append(res, v.(string))
 			}
 		}
-		data, err = s.handleRunSimulation(id, sType, backlog, res)
+		data, err = s.handleRunSimulation(id, sType, mode, backlog, targetDays, startStatus, includeWIP, res)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}

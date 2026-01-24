@@ -8,16 +8,26 @@ import (
 type Issue struct {
 	Key            string
 	IssueType      string
+	Created        time.Time
+	StartedDate    *time.Time
 	ResolutionDate *time.Time
 	Resolution     string
 	Status         string
-	// More fields like changelog will be added later
+	Transitions    []StatusTransition
+}
+
+// StatusTransition represents a change in an issue's status.
+type StatusTransition struct {
+	ToStatus string
+	Date     time.Time
 }
 
 // Client is the interface for interacting with Jira.
 type Client interface {
 	SearchIssues(jql string, startAt int, maxResults int) ([]Issue, int, error)
+	SearchIssuesWithHistory(jql string, startAt int, maxResults int) ([]Issue, int, error)
 	GetProject(key string) (interface{}, error)
+	GetProjectStatuses(key string) (interface{}, error)
 	GetBoard(id int) (interface{}, error)
 	GetBoardConfig(id int) (interface{}, error)
 	GetFilter(id string) (interface{}, error)

@@ -20,6 +20,8 @@ description: General user preferences and coding guidelines for the agent to fol
 
 - Refer to `docs\charter.md` for the Project Charter.
 
+- Never commit to `git` unless explicitly asked to do so. Typically, I will do that myself. If you think it is time to commit, ask me and provide a commit message.
+
 - Use Conventional Commits for git commit messages with the following prefixes:
     - `feat`: A new feature
     - `fix`: A bug fix

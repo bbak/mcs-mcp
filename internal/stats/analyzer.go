@@ -7,15 +7,16 @@ import (
 
 // MetadataSummary provides a high-level overview of a Jira data source.
 type MetadataSummary struct {
-	TotalIssues      int            `json:"totalIssues"`
-	SampleSize       int            `json:"sampleSize"`
-	IssueTypes       map[string]int `json:"issueTypes"`
-	Statuses         map[string]int `json:"statuses"`
-	ResolutionNames  map[string]int `json:"resolutionNames"`
-	ResolutionRate   float64        `json:"resolutionRate"`
-	FirstResolution  *time.Time     `json:"firstResolution,omitempty"`
-	LastResolution   *time.Time     `json:"lastResolution,omitempty"`
-	AverageCycleTime float64        `json:"averageCycleTime,omitempty"` // Days
+	TotalIssues       int            `json:"totalIssues"`
+	SampleSize        int            `json:"sampleSize"`
+	IssueTypes        map[string]int `json:"issueTypes"`
+	Statuses          map[string]int `json:"statuses"`
+	ResolutionNames   map[string]int `json:"resolutionNames"`
+	ResolutionRate    float64        `json:"resolutionRate"`
+	FirstResolution   *time.Time     `json:"firstResolution,omitempty"`
+	LastResolution    *time.Time     `json:"lastResolution,omitempty"`
+	AverageCycleTime  float64        `json:"averageCycleTime,omitempty"` // Days
+	AvailableStatuses interface{}    `json:"availableStatuses,omitempty"`
 }
 
 // AnalyzeProbe performs a preliminary analysis on a sample of issues.
