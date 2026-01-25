@@ -200,6 +200,8 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 		statuses, err := s.jira.GetProjectStatuses(projectKey)
 		if err == nil {
 			summary.AvailableStatuses = statuses
+			statusWeights := s.getStatusWeights(projectKey)
+			summary.CommitmentPointHints = s.getCommitmentPointHints(issues, statusWeights)
 		}
 	}
 
@@ -254,7 +256,12 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, backlogS
 		cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
 
 		if len(cycleTimes) == 0 {
-			return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
+			msg := fmt.Sprintf("no resolved items found that passed the commitment point '%s'.", startStatus)
+			hints := s.getCommitmentPointHints(issues, statusWeights)
+			if len(hints) > 0 {
+				msg += "\n\n💡 Hint: Based on historical reachability, these statuses were frequently used as work started: [" + strings.Join(hints, ", ") + "].\n(⚠️ Note: These are inferred from status categories and transition history; please verify if they represent your actual commitment point.)"
+			}
+			return nil, fmt.Errorf("%s", msg)
 		}
 		engine = simulation.NewEngine(&simulation.Histogram{})
 		return engine.RunCycleTimeAnalysis(cycleTimes), nil
@@ -557,4 +564,44 @@ func (s *Server) getCycleTimes(issues []jira.Issue, startStatus string, statusWe
 		}
 	}
 	return cycleTimes
+}
+
+func (s *Server) getCommitmentPointHints(issues []jira.Issue, statusWeights map[string]int) []string {
+	reachability := make(map[string]int)
+	for _, issue := range issues {
+		visited := make(map[string]bool)
+		for _, trans := range issue.Transitions {
+			visited[trans.ToStatus] = true
+		}
+		for status := range visited {
+			reachability[status]++
+		}
+	}
+
+	type candidate struct {
+		name  string
+		count int
+	}
+	var candidates []candidate
+	for name, count := range reachability {
+		// Prioritize "Indeterminate" (weight 2) categories as commitment point candidates
+		if weight, ok := statusWeights[name]; ok && weight == 2 {
+			candidates = append(candidates, candidate{name, count})
+		}
+	}
+
+	// Sort candidates by frequency of usage
+	for i := 0; i < len(candidates); i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].count > candidates[i].count {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+
+	var result []string
+	for i := 0; i < len(candidates) && i < 3; i++ {
+		result = append(result, candidates[i].name)
+	}
+	return result
 }

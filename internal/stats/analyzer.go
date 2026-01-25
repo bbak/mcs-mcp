@@ -18,6 +18,7 @@ type MetadataSummary struct {
 	AverageCycleTime       float64        `json:"averageCycleTime,omitempty"` // Days
 	AvailableStatuses      interface{}    `json:"availableStatuses,omitempty"`
 	HistoricalReachability map[string]int `json:"historicalReachability,omitempty"` // How many issues visited each status
+	CommitmentPointHints   []string       `json:"commitmentPointHints,omitempty"`
 }
 
 // AnalyzeProbe performs a preliminary analysis on a sample of issues.
