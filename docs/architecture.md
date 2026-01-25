@@ -73,63 +73,50 @@ The engine automatically assesses the predictability of the resulting forecast u
     - **Stable (Thin-Tailed)**: Ratio < 5.6. High confidence in the forecast range.
     - **Unstable (Fat-Tailed)**: Ratio >= 5.6. Low confidence; the process is highly unpredictable, and extreme outliers are likely.
 
-## 6. Contextual Confidence (Assumptions)
+## Reliability & Confidence Layer
 
-The system now provides transparency on the core assumptions of Monte Carlo Simulation (Stable WIP and Item Distribution).
+To move beyond simple "math" and provide high-integrity forecasts, the server implements "First Principle" checks to validate that the Monte Carlo assumptions hold true for the current system state.
 
-### Historical Context
+> [!NOTE]
+> Most depth-metrics (Aging, Stability, Reachability) require an explicit **Commitment Point** (`start_status`) to be provided.
 
-Every simulation result now includes a `context` object showing:
+### 1. Predictability Assessment (The "Fat-Tail" Check)
 
-- **Type Distribution**: Exactly what mix of items (Stories, Bugs, etc.) the throughput is based on.
-- **Throughput Trend**: Compares the last 30 days to the overall sample.
+- **Mechanism**: Calculates the ratio between **P98** and **P50**.
+- **Interpretation**:
+    - **Ratio < 5.6**: Stable process. High confidence in the forecast range.
+    - **Ratio >= 5.6**: **Fat-Tailed**. The process is unpredictable; outliers are the norm, not the exception. Traditional planning is high-risk.
 
-### Stability Warnings
-
-The AI will explicitly warn the user if the assumptions are violated:
-
-- **High System Load**: "Current WIP (164) is significantly larger than your initiative (20)."
-- **Trend Shift**: "Significant throughput drop recently (30% below average)."
-- **Low Data**: "Small sample size (12 items). Statistical confidence is low."
-
-> [!IMPORTANT]
-> These safeguards ensure the user isn't just looking at "math," but is aware of the **systemic context** that makes the math valid.
-
-## Value vs. Waste Filtering (Throughput Integrity)
-
-To ensure the forecast reflects actual delivery capacity, the server supports filtering out "non-value" work items.
-
-- **Resolution Filter**: Users can specify which Jira `resolution` names signify delivered value (e.g., "Done", "Fixed", "Resolved") and which should be ignored (e.g., "Duplicate", "Abandoned", "Won't Do").
-- **Status Filter**: Alternatively, the server can filter by the final Jira `status` name if resolutions are not used consistently.
-- **Reporting**: The `get_data_metadata` tool provides the distribution of these fields in a sample to help the user configure the simulation correctly.
-
-## Reliability Engineering (Assumption Validation)
-
-To move beyond simple "math" and provide contextual confidence, the server implements "First Principle" checks to validate that the Monte Carlo assumptions hold true for the current system state.
-
-### 1. WIP Aging Analysis
-
-Detects if currently active work is "stalling" compared to historical performance.
+### 2. WIP Aging Analysis (The "Honesty" Check)
 
 - **Mechanism**: Calculates the age of all items currently past the Commitment Point.
 - **Reference**: Compares current age against historical **P85/P95 Cycle Time** percentiles.
-- **Warning**: Flags items that are "stale," signaling that the historical throughput may be an optimistic representation of current reality.
+- **Warning**: Flags items that are "stale," signaling that current work is moving slower than the historical average used in the simulation.
 
-### 2. Little's Law Stability Index
-
-Validates the fundamental relationship: `WIP = Throughput × Cycle Time`.
+### 3. Little's Law Stability Index (The "Capacity" Check)
 
 - **Mechanism**: Calculates the **Stability Ratio** (`Current WIP / Expected WIP`).
 - **Interpretation**:
-    - **Balanced (0.8 - 1.2)**: system is in equilibrium with its historical capacity.
-    - **Clogged (> 1.3)**: system is carrying excessive WIP; delivery times are virtually guaranteed to slip regardless of simulation results.
+    - **Balanced (0.8 - 1.2)**: System is in equilibrium.
+    - **Clogged (> 1.3)**: System is overloaded. Lead times will likely increase regardless of simulation results.
 
-### 3. Transition Reachability
-
-Identifies if a chosen Commitment Point is an "honest" gate.
+### 4. Transition Reachability (The "Integrity" Check)
 
 - **Mechanism**: Analyzes the percentage of historical items that actually passed through a given status.
-- **Selection Support**: Helps users avoid selecting "phantom" statuses that are frequently skipped in the real-world workflow.
+- **Selection Support**: Helps avoid selecting "phantom" statuses that are frequently skipped in the real-world workflow.
+
+---
+
+### AI Implementation Guide: Interpreting Metrics
+
+When consuming these metrics in a chat interface (like Claude or ChatGPT), the AI should follow these patterns:
+
+| Signal                      | AI Observation                                                    | AI Recommendation                                                          |
+| :-------------------------- | :---------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| **Fat-Tail (Ratio > 5.6)**  | "The math gives a date, but the process is highly unpredictable." | "Investigate common causes of outliers (blockers, scope creep)."           |
+| **Clogged (Index > 1.3)**   | "The team is trying to do too much at once."                      | "Stop starting, start finishing. Reduce WIP to restore predictability."    |
+| **Stale WIP (> 30% stale)** | "Current work is already falling behind historical speeds."       | "Prioritize the aging items before they further skew the delivery date."   |
+| **Low Reachability**        | "The chosen Commitment Point is frequently skipped."              | "Switch the start status to a more reliable 'gate' like 'In Development'." |
 
 ## Project Structure
 
