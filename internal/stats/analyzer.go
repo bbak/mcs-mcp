@@ -19,6 +19,7 @@ type MetadataSummary struct {
 	AvailableStatuses      interface{}    `json:"availableStatuses,omitempty"`
 	HistoricalReachability map[string]int `json:"historicalReachability,omitempty"` // How many issues visited each status
 	CommitmentPointHints   []string       `json:"commitmentPointHints,omitempty"`
+	BacklogSize            int            `json:"backlogSize,omitempty"`
 }
 
 // AnalyzeProbe performs a preliminary analysis on a sample of issues.

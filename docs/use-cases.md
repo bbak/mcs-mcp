@@ -4,9 +4,9 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC1: Forecast Initiative Duration (Backlog-based)
+## UC1: Forecast Completion Date (Backlog-based Duration)
 
-**Goal:** Determine how long it will take to deliver a known backlog of items (e.g., "When will these 50 stories be done?").
+**Goal:** Determine how long it will take to deliver a fixed scope/backlog (e.g., "When will these 50 stories be done?").
 
 - **Primary Actor:** User (Project Manager)
 - **Secondary Actors:** AI (Intermediary), MCP Server (Forecasting Engine), Jira (Data Source)
@@ -17,16 +17,16 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
     2.  AI identifies the source (board/filter ID).
-    3.  **AI Uncertainty Check**: AI evaluates if it has enough metadata (e.g., has it run a probe for this board recently? Does it know the `start_status`?).
-    4.  **Reactive Trigger (UC4)**: If metadata is missing or stale, AI triggers **UC4 (Data Discovery)** to analyze historical reachability and available statuses.
-    5.  AI presents the "Assessment" to the User: "I've analyzed your project history. To give you a rigorous forecast, I'll use 'In Progress' as the commitment point. Is that correct?"
-    6.  AI calls `run_simulation` with the confirmed parameters.
+    3.  **AI Uncertainty Check**: AI evaluates if it has enough metadata.
+    4.  **Reactive Trigger (UC4)**: AI triggers **UC4 (Data Discovery)** to analyze historical reachability, available statuses, and **current backlog size**.
+    5.  AI presents the "Assessment" to the User: "I've analyzed your project history. I found **126 unstarted items** in your backlog. To give you a rigorous forecast, I'll ALSO include your current **WIP**. Does that sound right?"
+    6.  AI calls `run_simulation` with `mode: "duration"`, `backlog_size: 126`, `include_wip: true`, and the confirmed parameters.
     7.  MCP Server:
         - Fetches historical data.
-        - Calculates throughput distribution (Histogram).
+        - Calculates throughput distribution.
         - Runs 10,000 Monte-Carlo trials.
-        - Returns percentile outcomes (50%, 85%, 95%).
-    8.  AI presents the results: "There is an 85% probability that the 50 items will be completed within Y to Z days."
+        - Returns results with explicit **Composition** (126 Backlog + 10 WIP = 136 Total) and **Throughput Trend**.
+    8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]. Note that your throughput is currently **Declining** by 15%, which I've accounted for."
 - **Extensions:**
     - **5a. No historical data:** MCP returns an error. AI suggests using a different time frame or source.
     - **5b. Low data volume:** MCP returns results with a "Low Confidence" warning. AI informs the user about the risk of using small datasets.
@@ -36,9 +36,9 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC2: Forecast Initiative Scope (Time-based)
+## UC2: Forecast Delivery Volume (Time-based Scope)
 
-**Goal:** Determine how many items can be delivered until a specific date (e.g., "What can we get done by end of Q1?").
+**Goal:** Determine how many items (scope) can be delivered within a fixed timeframe (e.g., "What can we get done by end of Q1?").
 
 - **Primary Actor:** User (Project Manager)
 - **Trigger:** User asks a "How much?" question relative to a deadline.
@@ -46,10 +46,11 @@ This document describes the primary interaction scenarios between the User (Proj
     - Same as UC1.
 - **Main Success Scenario:**
     1.  User asks: "How many Story items can we complete by March 31st?"
-    2.  AI identifies the source and calculates `target_days`.
-    3.  **Reactive Trigger (UC4)**: AI triggers discovery if it lacks confidence in the project's historical throughput stability or workflow.
-    4.  AI aligns with the User on any anomalies found during the probe.
-    5.  AI calls `run_simulation` and presents the results.
+    2.  AI identifies the source and calculates `target_days` (or extracts `target_date`).
+    3.  **Reactive Trigger (UC4)**: AI triggers discovery if it lacks confidence.
+    4.  AI aligns with the User on the forecast window.
+    5.  AI calls `run_simulation` (with `target_date` or `target_days`) and presents the results.
+    6.  **WIP Transparency**: AI uses the returned `insights` to explain that the forecast volume includes the time needed to clear current active work.
 - **Implementation Drivers:**
     - _Improvement:_ Allow the user to specify "Probability of failure" (e.g., "Give me a conservative estimate").
 
@@ -106,12 +107,12 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1.  AI suggests: "I see 10 items currently in progress. Should I include their current age in the forecast for better accuracy?"
     2.  User agrees.
-    3.  AI calls `run_simulation` with `include_wip: true` and `start_status: "In Progress"`.
+    3.  AI calls `run_simulation` with `include_wip: true`.
     4.  MCP Server:
-        - Analyzes the age of each active item (Time since it entered `start_status`).
-        - Adjusts the simulation to "finish" these items first based on historical cycle times.
-        - Adds remaining backlog items after.
-    5.  AI presents a refined, more realistic forecast.
+        - Analyzes active items and calculates **Context-Aware WIP Aging**.
+        - Buckets items into **Inconspicuous**, **Aging**, **Warning**, and **Extreme**.
+        - Calculates **Stability Index** (Little's Law).
+    5.  AI presents forecast with **Actionable Insights**: "Included 10 WIP items. Note: 2 items are in the 'Extreme' bucket (>P95 age). Resolving these outliers would improve your throughput by an estimated 10%."
 - **Implementation Drivers:**
     - _Complexity:_ This is the most complex scenario as it requires `SearchIssuesWithHistory` for active items.
     - _Improvement:_ Add "Stability Criteria" (Little's Law check) to warn if WIP is growing faster than throughput.

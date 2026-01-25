@@ -39,36 +39,51 @@ The simulation requires a statistically significant amount of throughput data (d
 ### 2. Throttled Discovery
 
 - **Probe**: Every analysis starts with a small probe of the last 200 items to identify data quality (e.g., use of `resolutiondate` vs status transitions).
-- **Throttling**: A mandatory **10-second delay** is enforced between every 1000-item page fetch to protect the Jira instance from overload.
+- **Throttling**: A mandatory **10-second delay** is enforced between non-cached page fetches to protect the Jira instance.
 
 ### 3. Expansion Logic (Soft & Hard Limits)
 
 - **Initial Window**: Starts by fetching metadata and items from the last **180 days**.
 - **Adaptive Expansion**: If the result set is less than the Target Sample, the window expands (1 year, then 2 years) until the target is met.
-- **Stop Condition**: Ingestion stops as soon as the Target Sample is reached, avoiding unnecessary load from deep historical data.
-- **Hard Limit**: Ingestion unconditionally stops after **2 years** or **5000 items**. If the target isn't met by then, the server warns that the forecast confidence may be low.
+- **Stop Condition**: Ingestion stops as soon as the Target Sample is reached, avoiding unnecessary load.
+- **Hard Limit**: Ingestion unconditionally stops after **2 years** or **5000 items**.
+
+### 4. Sliding-Window Caching (Performance Layer)
+
+To provide low-latency responses for repeated queries during a session, the server maintains a thread-safe in-memory cache:
+
+- **Historical Data**: Cached for **10 minutes** (max 1 hour via extension).
+- **Metadata**: Cached for **5 minutes** (max 30 mins via extension).
+- **Sliding-Window Extension**: Every access resets the TTL and increments an access counter. An entry can be extended up to **6 times** before a fresh fetch is forced.
+- **Throttling Bypass**: Cached results bypass the 10-second request delay, making subsequent simulated scenarios nearly instantaneous.
 
 ## Forecasting Strategies
 
 ### 1. Throughput Calculation (Batch Forecasting)
 
-Throughput-based simulations (Duration and Scope) resample the historical delivery rate.
+Throughput-based simulations resample historical delivery rates to answer "When?" and "How much?".
 
-- **WIP Accounting (Option A)**: Adds currently active items (Past Commitment Point, not Resolved) to the target backlog for realistic timelines.
-- **Fresh Start (Option B)**: Ignores current work and assumes the new backlog starts immediately.
+- **Duration Mode (When?)**: Forecasts completing a specific backlog.
+- **Scope Mode (How much?)**: Forecasts delivery volume within a fixed window.
+    - **Target Date Support**: Automatically calculates target days from a fixed deadline.
+    - **WIP Integration**: Explicitly accounts for items currently in progress, providing insights on which WIP items are "nearly finished."
+    - **Interpretation**: Results include a context-aware insight clarifying that the forecast volume includes both existing WIP and new starts.
+
+### 2. Automated Scope Discovery
 
 ### 2. Cycle Time Analysis (Single-Item)
 
-Calculates the distribution of time taken for individual items to pass through the workflow.
+Calculates the distribution of time taken for individual items to pass through the workflow ("Service Level Expectation").
 
-- **Logical Commitment Points**: The engine uses Jira's `statusCategory` to determine the progression (To Do -> In Progress -> Done).
+- **Logical Commitment Points**: The engine uses Jira's `statusCategory` to determine the progression (To Do -> In Progress -> Done) and weights them (1-3).
 - **Skip Detection**: The clock starts as soon as an item hits the user-defined `start_status` OR skips it to any status with an equal or higher logical weight (e.g., jumping from "To Do" straight to "In Verification").
+- **Consistency**: Analytics like WIP Aging and Stability are available across all modes (Duration, Scope, and Single) if the required context is provided.
 
 ### 3. Forecasting Confidence (Fat-Tail Detection)
 
 The engine automatically assesses the predictability of the resulting forecast using Kanban University formulas.
 
-- **Metric**: It calculates the ratio between the **98th percentile (P98)** and the **50th percentile (P50)**.
+- **Metric**: It calculates the ratio between the **Almost Certain (P98)** and the **Coin Toss (P50)**.
 - **Rules of Thumb**:
     - **Stable (Thin-Tailed)**: Ratio < 5.6. High confidence in the forecast range.
     - **Unstable (Fat-Tailed)**: Ratio >= 5.6. Low confidence; the process is highly unpredictable, and extreme outliers are likely.
@@ -83,27 +98,30 @@ To move beyond simple "math" and provide high-integrity forecasts, the server im
 ### 1. Predictability Assessment (The "Fat-Tail" Check)
 
 - **Mechanism**: Calculates the ratio between **P98** and **P50**.
-- **Interpretation**:
-    - **Ratio < 5.6**: Stable process. High confidence in the forecast range.
-    - **Ratio >= 5.6**: **Fat-Tailed**. The process is unpredictable; outliers are the norm, not the exception. Traditional planning is high-risk.
+- **Interpretation**: See "Forecasting Confidence" above.
 
-### 2. WIP Aging Analysis (The "Honesty" Check)
+### 2. WIP Aging Analysis (Context-Aware "Honesty" Check)
 
 - **Mechanism**: Calculates the age of all items currently past the Commitment Point.
-- **Reference**: Compares current age against historical **P85/P95 Cycle Time** percentiles.
-- **Warning**: Flags items that are "stale," signaling that current work is moving slower than the historical average used in the simulation.
+- **Relative Reference**: Buckets items relative to the project's own historical percentiles:
+    - **Inconspicuous**: Within P50 (Median).
+    - **Aging**: P50 to P85.
+    - **Warning**: P85 to P95.
+    - **Extreme Outlier**: >P95.
+- **Actionable Insight**: Flags "stale" work (past P85) and provides estimated savings if outliers are resolved.
 
 ### 3. Little's Law Stability Index (The "Capacity" Check)
 
 - **Mechanism**: Calculates the **Stability Ratio** (`Current WIP / Expected WIP`).
 - **Interpretation**:
     - **Balanced (0.8 - 1.2)**: System is in equilibrium.
-    - **Clogged (> 1.3)**: System is overloaded. Lead times will likely increase regardless of simulation results.
+    - **Clogged (> 1.3)**: System is overloaded. Lead times will likely increase.
 
-### 4. Transition Reachability (The "Integrity" Check)
+### 4. Advanced Operational Insights
 
-- **Mechanism**: Analyzes the percentage of historical items that actually passed through a given status.
-- **Selection Support**: Helps avoid selecting "phantom" statuses that are frequently skipped in the real-world workflow.
+- **Throughput Trend**: Detects if historical velocity is **Increasing**, **Declining**, or **Stable** based on recent vs. overall rolling averages.
+- **Composition Transparency**: Every forecast explicitly reports the `Backlog + WIP = Total` breakdown to ensure alignment.
+- **What-If Analysis**: Provides specific recommendations (Insights) if the system state threatens the forecast accuracy.
 
 ---
 

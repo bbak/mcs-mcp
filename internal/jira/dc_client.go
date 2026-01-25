@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -15,6 +16,17 @@ type dcClient struct {
 	cfg         Config
 	httpClient  *http.Client
 	lastRequest time.Time
+
+	// Session Cache
+	cache      map[string]*cacheEntry
+	cacheMutex sync.RWMutex
+}
+
+type cacheEntry struct {
+	Value       interface{}
+	Expiration  time.Time
+	AccessCount int
+	OriginalTTL time.Duration
 }
 
 func NewDataCenterClient(cfg Config) Client {
@@ -26,6 +38,43 @@ func NewDataCenterClient(cfg Config) Client {
 		httpClient: &http.Client{
 			Timeout: 90 * time.Second,
 		},
+		cache: make(map[string]*cacheEntry),
+	}
+}
+
+func (c *dcClient) getFromCache(key string) (interface{}, bool) {
+	c.cacheMutex.Lock()
+	defer c.cacheMutex.Unlock()
+
+	entry, ok := c.cache[key]
+	if !ok {
+		return nil, false
+	}
+
+	if time.Now().After(entry.Expiration) {
+		delete(c.cache, key)
+		return nil, false
+	}
+
+	// Sliding window extension
+	if entry.AccessCount < 6 {
+		entry.Expiration = time.Now().Add(entry.OriginalTTL)
+		entry.AccessCount++
+		log.Trace().Str("key", key).Int("count", entry.AccessCount).Msg("Extended cache TTL")
+	}
+
+	return entry.Value, true
+}
+
+func (c *dcClient) addToCache(key string, value interface{}, ttl time.Duration) {
+	c.cacheMutex.Lock()
+	defer c.cacheMutex.Unlock()
+
+	c.cache[key] = &cacheEntry{
+		Value:       value,
+		Expiration:  time.Now().Add(ttl),
+		OriginalTTL: ttl,
+		AccessCount: 1,
 	}
 }
 
@@ -74,6 +123,15 @@ func (c *dcClient) SearchIssuesWithHistory(jql string, startAt int, maxResults i
 }
 
 func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expand string) ([]Issue, int, error) {
+	cacheKey := fmt.Sprintf("search:%s:%d:%d:%s", jql, startAt, maxResults, expand)
+	if val, ok := c.getFromCache(cacheKey); ok {
+		res := val.(struct {
+			Issues []Issue
+			Total  int
+		})
+		return res.Issues, res.Total, nil
+	}
+
 	c.throttle()
 
 	// Use url.Values for better query param handling
@@ -177,10 +235,21 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 		}
 	}
 
+	res := struct {
+		Issues []Issue
+		Total  int
+	}{Issues: issues, Total: result.Total}
+	c.addToCache(cacheKey, res, 10*time.Minute)
+
 	return issues, result.Total, nil
 }
 
 func (c *dcClient) GetProject(key string) (interface{}, error) {
+	cacheKey := "project:" + key
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val, nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/api/2/project/%s", c.cfg.BaseURL, key)
@@ -209,10 +278,16 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 		return nil, err
 	}
 
+	c.addToCache(cacheKey, project, 5*time.Minute)
 	return project, nil
 }
 
 func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
+	cacheKey := "statuses:" + key
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val, nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/api/2/project/%s/statuses", c.cfg.BaseURL, key)
@@ -241,10 +316,16 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 		return nil, err
 	}
 
+	c.addToCache(cacheKey, statuses, 5*time.Minute)
 	return statuses, nil
 }
 
 func (c *dcClient) GetBoard(id int) (interface{}, error) {
+	cacheKey := fmt.Sprintf("board:%d", id)
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val, nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d", c.cfg.BaseURL, id)
@@ -276,6 +357,11 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 	return board, nil
 }
 func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
+	cacheKey := "find_projects:" + query
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val.([]interface{}), nil
+	}
+
 	c.throttle()
 
 	// Jira API for fetching projects
@@ -317,10 +403,16 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 		}
 	}
 
+	c.addToCache(cacheKey, filtered, 5*time.Minute)
 	return filtered, nil
 }
 
 func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface{}, error) {
+	cacheKey := fmt.Sprintf("find_boards:%s:%s", projectKey, nameFilter)
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val.([]interface{}), nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/agile/1.0/board", c.cfg.BaseURL)
@@ -370,9 +462,15 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 		filtered = filtered[:20]
 	}
 
+	c.addToCache(cacheKey, filtered, 5*time.Minute)
 	return filtered, nil
 }
 func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
+	cacheKey := fmt.Sprintf("board_config:%d", id)
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val, nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d/configuration", c.cfg.BaseURL, id)
@@ -401,10 +499,16 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 		return nil, err
 	}
 
+	c.addToCache(cacheKey, config, 5*time.Minute)
 	return config, nil
 }
 
 func (c *dcClient) GetFilter(id string) (interface{}, error) {
+	cacheKey := "filter:" + id
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val, nil
+	}
+
 	c.throttle()
 
 	url := fmt.Sprintf("%s/rest/api/2/filter/%s", c.cfg.BaseURL, id)
@@ -433,5 +537,6 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 		return nil, err
 	}
 
+	c.addToCache(cacheKey, filter, 5*time.Minute)
 	return filter, nil
 }

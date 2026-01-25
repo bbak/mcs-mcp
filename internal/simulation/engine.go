@@ -8,6 +8,20 @@ import (
 	"time"
 )
 
+// Composition represents the scope breakdown of a forecast.
+type Composition struct {
+	ExistingBacklog int `json:"existing_backlog"`
+	WIP             int `json:"wip"`
+	AdditionalItems int `json:"additional_items"`
+	Total           int `json:"total"`
+}
+
+// ThroughputTrend represents the historical velocity direction.
+type ThroughputTrend struct {
+	Direction        string  `json:"direction"` // "Increasing", "Declining", "Stable"
+	PercentageChange float64 `json:"percentage_change"`
+}
+
 // Engine performs the Monte-Carlo simulation.
 type Engine struct {
 	histogram *Histogram
@@ -16,17 +30,25 @@ type Engine struct {
 
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
-	CoinToss       float64                `json:"coin_toss"`
-	Likely         float64                `json:"likely"`
-	P85            float64                `json:"p85"`
-	P95            float64                `json:"p95"`
-	P98            float64                `json:"p98"`
+	Unlikely       float64                `json:"unlikely"`       // P30
+	CoinToss       float64                `json:"coin_toss"`      // P50
+	Probable       float64                `json:"probable"`       // P70
+	Likely         float64                `json:"likely"`         // P85
+	Safe           float64                `json:"safe"`           // P95
+	AlmostCertain  float64                `json:"almost_certain"` // P98
 	Ratio          float64                `json:"ratio"`
 	Predictability string                 `json:"predictability"`
 	Context        map[string]interface{} `json:"context,omitempty"`
 	Warnings       []string               `json:"warnings,omitempty"`
 	StabilityRatio float64                `json:"stability_ratio,omitempty"`
 	StaleWIPCount  int                    `json:"stale_wip_count,omitempty"`
+
+	// Advanced Analytics
+	Composition        Composition       `json:"composition"`
+	WIPAgeDistribution map[string]int    `json:"wip_age_distribution,omitempty"`
+	ThroughputTrend    ThroughputTrend   `json:"throughput_trend"`
+	Insights           []string          `json:"insights,omitempty"`
+	PercentileLabels   map[string]string `json:"percentile_labels,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -50,11 +72,20 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	sort.Ints(durations)
 
 	res := Result{
-		CoinToss: float64(durations[int(float64(trials)*0.50)]),
-		Likely:   float64(durations[int(float64(trials)*0.70)]),
-		P85:      float64(durations[int(float64(trials)*0.85)]),
-		P95:      float64(durations[int(float64(trials)*0.95)]),
-		P98:      float64(durations[int(float64(trials)*0.98)]),
+		Unlikely:      float64(durations[int(float64(trials)*0.30)]),
+		CoinToss:      float64(durations[int(float64(trials)*0.50)]),
+		Probable:      float64(durations[int(float64(trials)*0.70)]),
+		Likely:        float64(durations[int(float64(trials)*0.85)]),
+		Safe:          float64(durations[int(float64(trials)*0.95)]),
+		AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
+		PercentileLabels: map[string]string{
+			"unlikely":       "P30 (Optimistic/Risk-heavy)",
+			"coin_toss":      "P50 (Median)",
+			"probable":       "P70 (Probable)",
+			"likely":         "P85 (Low Risk)",
+			"safe":           "P95 (Safe Bet)",
+			"almost_certain": "P98 (Extreme/Buffer included)",
+		},
 	}
 	e.assessPredictability(&res)
 	return res
@@ -74,11 +105,20 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	sort.Ints(scopes)
 
 	res := Result{
-		CoinToss: float64(scopes[int(float64(trials)*0.50)]),
-		Likely:   float64(scopes[int(float64(trials)*0.30)]), // 70% sure we do AT LEAST this much
-		P85:      float64(scopes[int(float64(trials)*0.15)]), // 85% sure we do AT LEAST this much
-		P95:      float64(scopes[int(float64(trials)*0.05)]), // 95% sure we do AT LEAST this much
-		P98:      float64(scopes[int(float64(trials)*0.02)]), // 98% sure we do AT LEAST this much
+		Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much (Actually a very optimistic/high items count)
+		CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
+		Probable:      float64(scopes[int(float64(trials)*0.30)]), // 70% chance to deliver AT LEAST this much
+		Likely:        float64(scopes[int(float64(trials)*0.15)]), // 85% chance to deliver AT LEAST this much
+		Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
+		AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
+		PercentileLabels: map[string]string{
+			"unlikely":       "P30 (30% probability to deliver at least this much)",
+			"coin_toss":      "P50 (Median)",
+			"probable":       "P70 (70% probability to deliver at least this much)",
+			"likely":         "P85 (85% probability to deliver at least this much)",
+			"safe":           "P95 (95% probability to deliver at least this much)",
+			"almost_certain": "P98 (98% probability to deliver at least this much)",
+		},
 	}
 	// For scope, fat-tail detection is slightly different (low scope is the risk)
 	// But we use the same formula on the delivery volume distribution for consistency
@@ -97,11 +137,20 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 	n := len(cycleTimes)
 
 	res := Result{
-		CoinToss: cycleTimes[int(float64(n)*0.50)],
-		Likely:   cycleTimes[int(float64(n)*0.70)],
-		P85:      cycleTimes[int(float64(n)*0.85)],
-		P95:      cycleTimes[int(float64(n)*0.95)],
-		P98:      cycleTimes[int(float64(n)*0.98)],
+		Unlikely:      cycleTimes[int(float64(n)*0.30)],
+		CoinToss:      cycleTimes[int(float64(n)*0.50)],
+		Probable:      cycleTimes[int(float64(n)*0.70)],
+		Likely:        cycleTimes[int(float64(n)*0.85)],
+		Safe:          cycleTimes[int(float64(n)*0.95)],
+		AlmostCertain: cycleTimes[int(float64(n)*0.98)],
+		PercentileLabels: map[string]string{
+			"unlikely":       "P30 (Unlikely/Fast)",
+			"coin_toss":      "P50 (Median Cycle Time)",
+			"probable":       "P70 (Probable)",
+			"likely":         "P85 (Likely / SLE)",
+			"safe":           "P95 (Safe Bet)",
+			"almost_certain": "P98 (Outlier Boundary)",
+		},
 	}
 	e.assessPredictability(&res)
 	return res
@@ -109,7 +158,7 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 
 func (e *Engine) assessPredictability(res *Result) {
 	if res.CoinToss > 0 {
-		res.Ratio = math.Round(res.P98/res.CoinToss*100) / 100
+		res.Ratio = math.Round(res.AlmostCertain/res.CoinToss*100) / 100
 		if res.Ratio >= 5.6 {
 			res.Predictability = "Unstable"
 		} else {
@@ -122,14 +171,22 @@ func (e *Engine) assessPredictability(res *Result) {
 	if e.histogram.Meta != nil {
 		res.Context = e.histogram.Meta
 
-		// 1. Throughput Trend Warning
+		// 1. Throughput Trend Warning & Detection
+		res.ThroughputTrend.Direction = "Stable"
 		if recent, ok := e.histogram.Meta["throughput_recent"].(float64); ok {
 			if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok && overall > 0 {
 				diff := (recent - overall) / overall
-				if diff < -0.3 {
-					res.Warnings = append(res.Warnings, fmt.Sprintf("Significant throughput drop recently (%.0f%% below average). WIP may have increased or capacity dropped.", math.Abs(diff)*100))
-				} else if diff > 0.3 {
-					res.Warnings = append(res.Warnings, fmt.Sprintf("Throughput is significantly higher recently (%.0f%% above average). Monitor if this is sustainable.", diff*100))
+				res.ThroughputTrend.PercentageChange = math.Round(diff*1000) / 10
+				if diff < -0.1 {
+					res.ThroughputTrend.Direction = "Declining"
+					if diff < -0.3 {
+						res.Warnings = append(res.Warnings, fmt.Sprintf("Significant throughput drop recently (%.0f%% below average). WIP may have increased or capacity dropped.", math.Abs(diff)*100))
+					}
+				} else if diff > 0.1 {
+					res.ThroughputTrend.Direction = "Increasing"
+					if diff > 0.3 {
+						res.Warnings = append(res.Warnings, fmt.Sprintf("Throughput is significantly higher recently (%.0f%% above average). Monitor if this is sustainable.", diff*100))
+					}
 				}
 			}
 		}
@@ -147,14 +204,32 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 		return
 	}
 
-	// 1. WIP Aging Analysis
 	sort.Float64s(cycleTimes)
 	n := len(cycleTimes)
+	p50 := cycleTimes[int(float64(n)*0.50)]
 	p85 := cycleTimes[int(float64(n)*0.85)]
 	p95 := cycleTimes[int(float64(n)*0.95)]
 
+	// 1. WIP Aging Analytics
+	res.WIPAgeDistribution = map[string]int{
+		"Inconspicuous (within P50)": 0,
+		"Aging (P50-P85)":            0,
+		"Warning (P85-P95)":          0,
+		"Extreme (>P95)":             0,
+	}
+
 	staleCount := 0
 	for _, age := range wipAges {
+		if age < p50 {
+			res.WIPAgeDistribution["Inconspicuous (within P50)"]++
+		} else if age < p85 {
+			res.WIPAgeDistribution["Aging (P50-P85)"]++
+		} else if age < p95 {
+			res.WIPAgeDistribution["Warning (P85-P95)"]++
+		} else {
+			res.WIPAgeDistribution["Extreme (>P95)"]++
+		}
+
 		if age > p85 {
 			staleCount++
 		}
@@ -164,18 +239,24 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 	if len(wipAges) > 0 {
 		staleRate := float64(staleCount) / float64(len(wipAges))
 		if staleRate > 0.3 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("%.0f%% of your current WIP is 'stale' (older than historical P85 of %.1f days). Forecast may be optimistic.", staleRate*100, p85))
+			res.Warnings = append(res.Warnings, fmt.Sprintf("%.0f%% of your current WIP is 'stale' (older than project P85 of %.1f days). Forecast may be optimistic.", staleRate*100, p85))
 		}
-		if staleCount > 0 {
-			// Find oldest
+		if res.WIPAgeDistribution["Extreme (>P95)"] > 0 {
 			maxAge := 0.0
 			for _, a := range wipAges {
 				if a > maxAge {
 					maxAge = a
 				}
 			}
-			if maxAge > p95 {
-				res.Warnings = append(res.Warnings, fmt.Sprintf("Critical Outlier: At least one item in progress is %.1f days old (historical P95 is %.1f days).", maxAge, p95))
+			res.Insights = append(res.Insights, fmt.Sprintf("Actionable Insight: You have %d extreme outliers (>P95). Removing or resolving the oldest item (%.1f days) could immediately clarify your throughput capacity.", res.WIPAgeDistribution["Extreme (>P95)"], maxAge))
+		}
+
+		// Mode-specific Scope insight
+		if res.Composition.Total == 0 && res.Composition.WIP > 0 {
+			// Total == 0 is our internal sentinel for "Scope Mode" in this context
+			youngWIP := res.WIPAgeDistribution["Inconspicuous (within P50)"]
+			if youngWIP > 0 {
+				res.Insights = append(res.Insights, fmt.Sprintf("Strategic Insight: To hit your delivery targets, prioritize the %d items that are already in progress and within your median cycle time.", youngWIP))
 			}
 		}
 	}
