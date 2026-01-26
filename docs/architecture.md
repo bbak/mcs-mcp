@@ -82,7 +82,7 @@ The server distinguishes **how** and **where** work exits the process:
 
 ### Standardized Percentile Mapping
 
-To ensure consistency and help non-statistical users interpret results, the server uses a standardized mapping of percentiles to "Human-Language" names across all tools (Simulations, WIP Aging, Persistence).
+To ensure consistency and help non-statistical users interpret results, the server uses a standardized mapping of percentiles to "Human-Language" names across all tools (Simulations, Inventory Aging, Persistence).
 
 | Naming           | Statistical Percentile | Meaning                                                 |
 | :--------------- | :--------------------- | :------------------------------------------------------ |
@@ -102,7 +102,50 @@ To ensure consistency and help non-statistical users interpret results, the serv
 - **Data Source**: Jira Software (Data Center or Cloud)
 - **Communication**: Model Context Protocol (Standard)
 
-## 4. Conceptual Integrity Constraints
+## 4. Aging Math & Precision
+
+To ensure conceptual integrity and transparency, the server adheres to a strict definition of "Age" and employs high-precision integer math for residency tracking.
+
+#### 1. Precision & Storage
+
+- **Internal Resolution**: The server parses Jira's changelog and calculates residence time for every status in **Seconds** (`int64`).
+- **Serialization**: Integer seconds are used for all caching and cross-process communication to avoid floating-point "noise" and serialization errors.
+- **Conversion**: Conversion to "Days" only occurs at the analytical or reporting boundary: `Days = float64(Seconds) / 86400.0`.
+
+#### 2. Aging Definitions
+
+The server distinguishes between two types of duration:
+
+| Term           | Strict Definition                                                          | Usage                                      |
+| :------------- | :------------------------------------------------------------------------- | :----------------------------------------- |
+| **Status Age** | The time passed since the item entered its **current** workflow step.      | Bottleneck identification (Stage-specific) |
+| **WIP Age**    | The time passed since the item crossed the **Commitment Point** (started). | Forecast reliability & stability analysis  |
+| **Total Age**  | The time passed since the item was created in Jira.                        | Inventory hygiene & scope creep analysis   |
+
+#### 3. Rounding & The "Zero-Day" Safeguard
+
+To avoid confusing users with "0.0 days" (for items visited on the same day) and to ensure a clean UI without sacrificing simulation precision, the following logic is applied:
+
+- **Reporting Precision**: All day-based metrics in tool outputs are rounded to **1 decimal place**.
+- **The "Round-Up" Rule**: For current aging metrics (`StatusAge`, `WIPAge`), the server applies a ceiling-based rounding:
+  $$Age_{Reported} = \frac{\lceil Age_{Float} \times 10 \rceil}{10}$$
+- **Result**: Any item that has actually transitioned into a status will show at least **0.1 days**, never 0.0, while still allowing for fractional accuracy (e.g., 1.2 days).
+
+#### 4. Existence of WIP Age
+
+- An item strictly **does not have** a WIP Age before it crosses the commitment point.
+- The server reports WIP Age as `null/nil` for items in the **Demand** tier or items that haven't transitioned into an **Active/Started** status yet.
+
+#### 5. Backflow Policy
+
+The system employs a strict "Restart on Backflow" policy for items returning to the **Demand** tier:
+
+- **Reset**: If an item that has previously crossed the commitment point is moved back into a status mapped to the **Demand** tier, it is treated as a "Reset".
+- **History Consolidation**: Instead of wiping history or resetting the **Created** date, the system consolidates all time spent prior to the most recent backflow into the **Demand** tier. This preserves the original **Total Age** while ensuring **WIP Age** reflects only the most recent start.
+- **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
+- **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
+
+## 5. Conceptual Integrity Constraints
 
 - **Cohesion**: Each tool must focus on a single aspect of flow (Ingestion, Simulation, Diagnostic).
 - **Coherence**: Logical flow from data ingestion to statistical analysis to forecasting.

@@ -262,7 +262,8 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 					maxAge = a
 				}
 			}
-			res.Insights = append(res.Insights, fmt.Sprintf("Actionable Insight: You have %d extreme outliers (>P95). Removing or resolving the oldest item (%.1f days) could immediately clarify your throughput capacity.", res.WIPAgeDistribution["Extreme (>P95)"], maxAge))
+			maxAgeDisplay := math.Ceil(maxAge*10) / 10
+			res.Insights = append(res.Insights, fmt.Sprintf("Actionable Insight: You have %d extreme outliers (>P95). Removing or resolving the oldest item (%.1f days) could immediately clarify your throughput capacity.", res.WIPAgeDistribution["Extreme (>P95)"], maxAgeDisplay))
 		}
 
 		// Mode-specific Scope insight

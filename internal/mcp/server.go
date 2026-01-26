@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -163,7 +164,6 @@ func (s *Server) listTools() interface{} {
 						"issue_types":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story'])."},
 						"resolutions":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done'."},
 					},
-					"required": []string{"source_id", "source_type"},
 				},
 			},
 			map[string]interface{}{
@@ -179,15 +179,16 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_wip_aging_analysis",
-				"description": "Identify which active items are aging relative to historical norms.",
+				"name":        "get_inventory_aging_analysis",
+				"description": "Identify which active items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"aging_type":  map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"source_id", "source_type", "aging_type"},
 				},
 			},
 			map[string]interface{}{
@@ -376,6 +377,27 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		}
 	}
 	statusWeights := s.getStatusWeights(projectKey)
+	// Override weights with verified mappings if available to ensure correct backflow detection
+	if m, ok := s.workflowMappings[sourceID]; ok {
+		for name, metadata := range m {
+			if metadata.Tier == "Demand" {
+				statusWeights[name] = 1
+			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+				if statusWeights[name] < 2 {
+					statusWeights[name] = 2
+				}
+			}
+		}
+	}
+
+	// Apply Backflow Policy (Discard pre-backflow history)
+	cWeight := 2
+	if startStatus != "" {
+		if w, ok := statusWeights[startStatus]; ok {
+			cWeight = w
+		}
+	}
+	issues = s.applyBackflowPolicy(issues, statusWeights, cWeight)
 	var wipAges []float64
 	wipCount := 0
 
@@ -392,39 +414,13 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
 		wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 		if err == nil {
-			commitmentWeight := 2
-			if startStatus != "" {
-				if w, ok := statusWeights[startStatus]; ok {
-					commitmentWeight = w
-				}
-			}
-
-			for _, wIssue := range wipIssues {
-				isWIP := false
-				clockStart := wIssue.Created
-				var earliestCommitment *time.Time
-
-				if weight, ok := statusWeights[wIssue.Status]; ok && weight >= commitmentWeight {
-					isWIP = true
-				} else if startStatus == "" {
-					isWIP = true
-				}
-
-				if isWIP {
-					for _, trans := range wIssue.Transitions {
-						weight, ok := statusWeights[trans.ToStatus]
-						if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
-							if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
-								t := trans.Date
-								earliestCommitment = &t
-							}
-						}
-					}
-					if earliestCommitment != nil {
-						clockStart = *earliestCommitment
-					}
+			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, cWeight)
+			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
+			calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, cycleTimes, "wip")
+			for _, wa := range calcWipAges {
+				if wa.AgeDays != nil {
+					wipAges = append(wipAges, *wa.AgeDays)
 					wipCount++
-					wipAges = append(wipAges, time.Since(clockStart).Hours()/24.0)
 				}
 			}
 		}
@@ -591,16 +587,21 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 	if err != nil {
 		return nil, err
 	}
+
+	return s.getWorkflowDiscovery(sourceID, issues), nil
+}
+
+func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) []stats.StatusPersistence {
 	results := stats.CalculateStatusPersistence(issues)
 
-	// 2. Enrich with categories
+	// Enrichment
 	projectKey := s.extractProjectKey(issues)
 	categories := s.getStatusCategories(projectKey)
 	mappings := s.workflowMappings[sourceID]
 
 	enriched := stats.EnrichStatusPersistence(results, categories, mappings)
 
-	// 3. Add "Recommended Roles" for AI
+	// Add "Recommended Roles" for AI
 	for i := range enriched {
 		res := &enriched[i]
 		if res.Role == "" {
@@ -611,11 +612,13 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 				res.Role = "active"
 			case "DONE":
 				res.Role = "done"
+			default:
+				res.Role = "active" // Default recommendation
 			}
 		}
 	}
 
-	return enriched, nil
+	return enriched
 }
 
 func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]interface{}) (interface{}, error) {
@@ -694,18 +697,46 @@ func (s *Server) handleGetItemJourney(key string) (interface{}, error) {
 	var steps []JourneyStep
 
 	// Use the transitions to build a chronological journey
-	// We'll use the pre-calculated residency but present it in order
-	for _, trans := range issue.Transitions {
+	if len(issue.Transitions) > 0 {
+		// First segment: from creation to first transition
+		firstDuration := issue.Transitions[0].Date.Sub(issue.Created).Seconds()
 		steps = append(steps, JourneyStep{
-			Status: trans.ToStatus,
-			Days:   issue.StatusResidency[trans.ToStatus],
+			Status: "Created",
+			Days:   math.Round((firstDuration/86400.0)*10) / 10,
 		})
+
+		for i := 0; i < len(issue.Transitions)-1; i++ {
+			duration := issue.Transitions[i+1].Date.Sub(issue.Transitions[i].Date).Seconds()
+			steps = append(steps, JourneyStep{
+				Status: issue.Transitions[i].ToStatus,
+				Days:   math.Round((duration/86400.0)*10) / 10,
+			})
+		}
+
+		// Final segment: from last transition to current/resolution
+		var finalDate time.Time
+		if issue.ResolutionDate != nil {
+			finalDate = *issue.ResolutionDate
+		} else {
+			finalDate = time.Now()
+		}
+		lastTrans := issue.Transitions[len(issue.Transitions)-1]
+		finalDuration := finalDate.Sub(lastTrans.Date).Seconds()
+		steps = append(steps, JourneyStep{
+			Status: lastTrans.ToStatus,
+			Days:   math.Round((finalDuration/86400.0)*10) / 10,
+		})
+	}
+
+	residencyDays := make(map[string]float64)
+	for s, sec := range issue.StatusResidency {
+		residencyDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
 	return map[string]interface{}{
 		"key":       issue.Key,
 		"summary":   issue.Summary,
-		"residency": issue.StatusResidency,
+		"residency": residencyDays,
 		"path":      steps,
 	}, nil
 }
@@ -750,13 +781,13 @@ func (s *Server) getResolutionMap() map[string]string {
 	}
 }
 
-func (s *Server) handleGetWIPAgingAnalysis(sourceID, sourceType string) (interface{}, error) {
+func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType string) (interface{}, error) {
 	jql, err := s.getJQL(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	// 1. Get History for Persistence Baseline
+	// 1. Get History for Baseline Metrics
 	startTime := time.Now().AddDate(0, -6, 0)
 	histJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
 		jql, startTime.Format("2006-01-02"))
@@ -765,16 +796,81 @@ func (s *Server) handleGetWIPAgingAnalysis(sourceID, sourceType string) (interfa
 	if err != nil {
 		return nil, err
 	}
-	persistence := stats.CalculateStatusPersistence(histIssues)
 
-	// 2. Get Current WIP
-	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
-	wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 200)
+	// Determine commitment context
+	projectKey := s.extractProjectKey(histIssues)
+	statusWeights := s.getStatusWeights(projectKey)
+
+	// Override weights with verified mappings if available to ensure correct backflow detection
+	if m, ok := s.workflowMappings[sourceID]; ok {
+		for name, metadata := range m {
+			if metadata.Tier == "Demand" {
+				statusWeights[name] = 1
+			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+				// Ensure it's at least weight 2 for commitment
+				if statusWeights[name] < 2 {
+					statusWeights[name] = 2
+				}
+			}
+		}
+	}
+
+	// 1b. Apply Backflow Policy (Discard pre-backflow history)
+	commitmentWeight := 2
+	histIssues = s.applyBackflowPolicy(histIssues, statusWeights, commitmentWeight)
+
+	// Fetch appropriate baseline
+	var baseline []float64
+	resolutions := []string{"Fixed", "Done", "Complete", "Resolved"}
+	if agingType == "total" {
+		baseline = s.getTotalAges(histIssues, resolutions)
+	} else {
+		baseline = s.getCycleTimes(sourceID, histIssues, "", "", statusWeights, resolutions)
+	}
+
+	// 3. Determine Verification Status (for WIP mode)
+	verified := false
+	if m, ok := s.workflowMappings[sourceID]; ok && len(m) > 0 {
+		verified = true
+	}
+
+	if agingType == "wip" && !verified {
+		// PRECONDITION REFUSAL: Provide discovery data instead of performing expensive WIP calculation
+		discovery := s.getWorkflowDiscovery(sourceID, histIssues)
+		return map[string]interface{}{
+			"status":       "precondition_required",
+			"message":      "WIP Aging analysis requires a verified Commitment Point (semantic mapping).",
+			"discovery":    discovery,
+			"instructions": "The 'WIP' calculation remains invalid until the commitment point is confirmed. Please present the above workflow discovery to the user, propose a mapping (meta-workflow tiers and roles), and confirm it via 'set_workflow_mapping' before re-running this tool.",
+		}, nil
+	}
+
+	// 2. Get Current WIP (up to 1000 oldest items)
+	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY ORDER BY created ASC", jql)
+	wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 	if err != nil {
 		return nil, err
 	}
+	wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, commitmentWeight)
 
-	return stats.CalculateWIPAging(wipIssues, persistence), nil
+	ctx := map[string]interface{}{
+		"aging_type": agingType,
+	}
+
+	if agingType == "wip" {
+		ctx["commitment_point_verified"] = verified
+	}
+
+	var startStatus string
+	if verified {
+		startStatus = s.getEarliestCommitment(sourceID)
+	}
+
+	// Return neutral wrapped response
+	return map[string]interface{}{
+		"inventory_aging": stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, baseline, agingType),
+		"context":         ctx,
+	}, nil
 }
 
 func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
@@ -903,10 +999,11 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
 		data, err = s.handleGetStatusPersistence(id, sType)
-	case "get_wip_aging_analysis":
+	case "get_inventory_aging_analysis":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
-		data, err = s.handleGetWIPAgingAnalysis(id, sType)
+		agingType := asString(call.Arguments["aging_type"])
+		data, err = s.handleGetInventoryAgingAnalysis(id, sType, agingType)
 	case "get_delivery_cadence":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
@@ -990,6 +1087,30 @@ func (s *Server) getStatusWeights(projectKey string) map[string]int {
 		}
 	}
 	return weights
+}
+
+func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float64 {
+	resMap := make(map[string]bool)
+	for _, r := range resolutions {
+		resMap[r] = true
+	}
+
+	var ages []float64
+	for _, issue := range issues {
+		if issue.ResolutionDate == nil {
+			continue
+		}
+		if len(resolutions) > 0 && !resMap[issue.Resolution] {
+			continue
+		}
+
+		duration := issue.ResolutionDate.Sub(issue.Created).Hours() / 24.0
+		if duration > 0 {
+			ages = append(ages, duration)
+		}
+	}
+
+	return ages
 }
 
 func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, statusWeights map[string]int, resolutions []string) []float64 {
@@ -1078,6 +1199,32 @@ func (s *Server) sliceRange(order []string, start, end string) []string {
 	return order[startIndex : endIndex+1]
 }
 
+func (s *Server) getEarliestCommitment(sourceID string) string {
+	mappings := s.workflowMappings[sourceID]
+	order := s.statusOrderings[sourceID]
+	if len(mappings) == 0 {
+		return ""
+	}
+
+	// Try to find status mapped to 'Downstream'
+	// If we have an ordering, use it to find the first one
+	if len(order) > 0 {
+		for _, status := range order {
+			if m, ok := mappings[status]; ok && (m.Tier == "Downstream" || m.Tier == "Finished") {
+				return status
+			}
+		}
+	} else {
+		// Fallback: search all mappings
+		for status, m := range mappings {
+			if m.Tier == "Downstream" {
+				return status
+			}
+		}
+	}
+	return ""
+}
+
 func (s *Server) getCommitmentPointHints(issues []jira.Issue, statusWeights map[string]int) []string {
 	reachability := make(map[string]int)
 	for _, issue := range issues {
@@ -1116,6 +1263,81 @@ func (s *Server) getCommitmentPointHints(issues []jira.Issue, statusWeights map[
 		result = append(result, candidates[i].name)
 	}
 	return result
+}
+
+func (s *Server) applyBackflowPolicy(issues []jira.Issue, statusWeights map[string]int, commitmentWeight int) []jira.Issue {
+	cleaned := make([]jira.Issue, len(issues))
+	for i, issue := range issues {
+		lastBackflowIdx := -1
+		for j, t := range issue.Transitions {
+			if w, ok := statusWeights[t.ToStatus]; ok && w < commitmentWeight {
+				lastBackflowIdx = j
+			}
+		}
+
+		if lastBackflowIdx == -1 {
+			cleaned[i] = issue
+			continue
+		}
+
+		// Keep original Created date to preserve Total Age
+		newIssue := issue
+		newIssue.Transitions = nil
+		if lastBackflowIdx < len(issue.Transitions)-1 {
+			newIssue.Transitions = issue.Transitions[lastBackflowIdx+1:]
+		}
+
+		// Rebuild residency from the new starting point
+		newIssue.StatusResidency = s.rebuildResidency(newIssue, issue.Transitions[lastBackflowIdx].ToStatus)
+		cleaned[i] = newIssue
+	}
+	return cleaned
+}
+
+func (s *Server) rebuildResidency(issue jira.Issue, initialStatus string) map[string]int64 {
+	residency := make(map[string]int64)
+	if len(issue.Transitions) == 0 {
+		var finalDate time.Time
+		if issue.ResolutionDate != nil {
+			finalDate = *issue.ResolutionDate
+		} else {
+			finalDate = time.Now()
+		}
+		duration := int64(finalDate.Sub(issue.Created).Seconds())
+		if duration > 0 {
+			residency[initialStatus] = duration
+		}
+		return residency
+	}
+
+	// 1. Initial status duration
+	firstDuration := int64(issue.Transitions[0].Date.Sub(issue.Created).Seconds())
+	if firstDuration > 0 {
+		residency[initialStatus] = firstDuration
+	}
+
+	// 2. Intermediate transitions
+	for i := 0; i < len(issue.Transitions)-1; i++ {
+		duration := int64(issue.Transitions[i+1].Date.Sub(issue.Transitions[i].Date).Seconds())
+		if duration > 0 {
+			residency[issue.Transitions[i].ToStatus] += duration
+		}
+	}
+
+	// 3. Last status duration
+	var finalDate time.Time
+	if issue.ResolutionDate != nil {
+		finalDate = *issue.ResolutionDate
+	} else {
+		finalDate = time.Now()
+	}
+	lastTrans := issue.Transitions[len(issue.Transitions)-1]
+	finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
+	if finalDuration > 0 {
+		residency[lastTrans.ToStatus] += finalDuration
+	}
+
+	return residency
 }
 
 func asString(v interface{}) string {

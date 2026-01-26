@@ -254,25 +254,26 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 				return allTrans[a].Date.Before(allTrans[b].Date)
 			})
 
-			issues[i].StatusResidency = make(map[string]float64)
-
+			issues[i].StatusResidency = make(map[string]int64)
 			if len(allTrans) > 0 {
 				// 1. Initial Residency (from creation to first transition)
 				initialStatus := allTrans[0].From
 				if initialStatus == "" {
-					initialStatus = "Created" // Fallback if fromString is empty
+					initialStatus = "Created"
 				}
-				firstDuration := allTrans[0].Date.Sub(issues[i].Created).Hours() / 24.0
-				if firstDuration > 0 {
-					issues[i].StatusResidency[initialStatus] += firstDuration
+				firstDuration := int64(allTrans[0].Date.Sub(issues[i].Created).Seconds())
+				if firstDuration <= 0 {
+					firstDuration = 1 // At least 1 second if it was moved
 				}
+				issues[i].StatusResidency[initialStatus] += firstDuration
 
 				// 2. Intermediate Residencies
 				for j := 0; j < len(allTrans)-1; j++ {
-					duration := allTrans[j+1].Date.Sub(allTrans[j].Date).Hours() / 24.0
-					if duration > 0 {
-						issues[i].StatusResidency[allTrans[j].To] += duration
+					duration := int64(allTrans[j+1].Date.Sub(allTrans[j].Date).Seconds())
+					if duration <= 0 {
+						duration = 1
 					}
+					issues[i].StatusResidency[allTrans[j].To] += duration
 				}
 
 				// 3. Current/Final Residency
@@ -284,13 +285,17 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 				}
 
 				lastTrans := allTrans[len(allTrans)-1]
-				finalDuration := finalDate.Sub(lastTrans.Date).Hours() / 24.0
-				if finalDuration > 0 {
-					issues[i].StatusResidency[lastTrans.To] += finalDuration
+				finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
+				if finalDuration <= 0 {
+					finalDuration = 1
 				}
+				issues[i].StatusResidency[lastTrans.To] += finalDuration
 			} else if issues[i].ResolutionDate != nil {
 				// No transitions but resolved? Start to Resolution
-				duration := issues[i].ResolutionDate.Sub(issues[i].Created).Hours() / 24.0
+				duration := int64(issues[i].ResolutionDate.Sub(issues[i].Created).Seconds())
+				if duration <= 0 {
+					duration = 1
+				}
 				issues[i].StatusResidency["Created"] = duration
 			}
 		}
