@@ -30,10 +30,12 @@ type Engine struct {
 
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
+	Aggressive     float64                `json:"aggressive"`     // P10
 	Unlikely       float64                `json:"unlikely"`       // P30
 	CoinToss       float64                `json:"coin_toss"`      // P50
 	Probable       float64                `json:"probable"`       // P70
 	Likely         float64                `json:"likely"`         // P85
+	Conservative   float64                `json:"conservative"`   // P90
 	Safe           float64                `json:"safe"`           // P95
 	AlmostCertain  float64                `json:"almost_certain"` // P98
 	Ratio          float64                `json:"ratio"`
@@ -72,19 +74,23 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	sort.Ints(durations)
 
 	res := Result{
+		Aggressive:    float64(durations[int(float64(trials)*0.10)]),
 		Unlikely:      float64(durations[int(float64(trials)*0.30)]),
 		CoinToss:      float64(durations[int(float64(trials)*0.50)]),
 		Probable:      float64(durations[int(float64(trials)*0.70)]),
 		Likely:        float64(durations[int(float64(trials)*0.85)]),
+		Conservative:  float64(durations[int(float64(trials)*0.90)]),
 		Safe:          float64(durations[int(float64(trials)*0.95)]),
 		AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
 		PercentileLabels: map[string]string{
-			"unlikely":       "P30 (Optimistic/Risk-heavy)",
-			"coin_toss":      "P50 (Median)",
+			"aggressive":     "P10 (Aggressive / Best Case)",
+			"unlikely":       "P30 (Unlikely / High Risk)",
+			"coin_toss":      "P50 (Coin Toss / Median)",
 			"probable":       "P70 (Probable)",
-			"likely":         "P85 (Low Risk)",
+			"likely":         "P85 (Likely / Professional Standard)",
+			"conservative":   "P90 (Conservative / Buffer)",
 			"safe":           "P95 (Safe Bet)",
-			"almost_certain": "P98 (Extreme/Buffer included)",
+			"almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
 		},
 	}
 	e.assessPredictability(&res)
@@ -105,17 +111,21 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	sort.Ints(scopes)
 
 	res := Result{
-		Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much (Actually a very optimistic/high items count)
+		Aggressive:    float64(scopes[int(float64(trials)*0.90)]), // 10% chance to deliver AT LEAST this much (Very high items count)
+		Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much
 		CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
 		Probable:      float64(scopes[int(float64(trials)*0.30)]), // 70% chance to deliver AT LEAST this much
 		Likely:        float64(scopes[int(float64(trials)*0.15)]), // 85% chance to deliver AT LEAST this much
+		Conservative:  float64(scopes[int(float64(trials)*0.10)]), // 90% chance to deliver AT LEAST this much
 		Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
 		AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
 		PercentileLabels: map[string]string{
+			"aggressive":     "P10 (10% probability to deliver at least this much)",
 			"unlikely":       "P30 (30% probability to deliver at least this much)",
-			"coin_toss":      "P50 (Median)",
+			"coin_toss":      "P50 (Coin Toss / Median)",
 			"probable":       "P70 (70% probability to deliver at least this much)",
 			"likely":         "P85 (85% probability to deliver at least this much)",
+			"conservative":   "P90 (90% probability to deliver at least this much)",
 			"safe":           "P95 (95% probability to deliver at least this much)",
 			"almost_certain": "P98 (98% probability to deliver at least this much)",
 		},
@@ -137,19 +147,23 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 	n := len(cycleTimes)
 
 	res := Result{
+		Aggressive:    cycleTimes[int(float64(n)*0.10)],
 		Unlikely:      cycleTimes[int(float64(n)*0.30)],
 		CoinToss:      cycleTimes[int(float64(n)*0.50)],
 		Probable:      cycleTimes[int(float64(n)*0.70)],
 		Likely:        cycleTimes[int(float64(n)*0.85)],
+		Conservative:  cycleTimes[int(float64(n)*0.90)],
 		Safe:          cycleTimes[int(float64(n)*0.95)],
 		AlmostCertain: cycleTimes[int(float64(n)*0.98)],
 		PercentileLabels: map[string]string{
-			"unlikely":       "P30 (Unlikely/Fast)",
-			"coin_toss":      "P50 (Median Cycle Time)",
+			"aggressive":     "P10 (Aggressive / Fast Outliers)",
+			"unlikely":       "P30 (Unlikely / Fast Pace)",
+			"coin_toss":      "P50 (Coin Toss / Median)",
 			"probable":       "P70 (Probable)",
 			"likely":         "P85 (Likely / SLE)",
+			"conservative":   "P90 (Conservative / Buffer)",
 			"safe":           "P95 (Safe Bet)",
-			"almost_certain": "P98 (Outlier Boundary)",
+			"almost_certain": "P98 (Limit / Extreme Outliers)",
 		},
 	}
 	e.assessPredictability(&res)

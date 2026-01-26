@@ -11,28 +11,11 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager)
 - **Secondary Actors:** AI (Intermediary), MCP Server (Forecasting Engine), Jira (Data Source)
 - **Trigger:** User asks a "When?" question regarding a specific number of items.
-- **Preconditions:**
-    - MCP Server is connected to Jira.
-    - Historical data (at least 3-6 months) exists for the team/project.
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
-    2.  AI identifies the source (board/filter ID).
-    3.  **AI Uncertainty Check**: AI evaluates if it has enough metadata.
-    4.  **Reactive Trigger (UC4)**: AI triggers **UC4 (Data Discovery)** to analyze historical reachability, available statuses, and **current backlog size**.
-    5.  AI presents the "Assessment" to the User: "I've analyzed your project history. I found **126 unstarted items** in your backlog. To give you a rigorous forecast, I'll ALSO include your current **WIP**. Does that sound right?"
-    6.  AI calls `run_simulation` with `mode: "duration"`, `backlog_size: 126`, `include_wip: true`, and the confirmed parameters.
-    7.  MCP Server:
-        - Fetches historical data.
-        - Calculates throughput distribution.
-        - Runs 10,000 Monte-Carlo trials.
-        - Returns results with explicit **Composition** (126 Backlog + 10 WIP = 136 Total) and **Throughput Trend**.
-    8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]. Note that your throughput is currently **Declining** by 15%, which I've accounted for."
-- **Extensions:**
-    - **5a. No historical data:** MCP returns an error. AI suggests using a different time frame or source.
-    - **5b. Low data volume:** MCP returns results with a "Low Confidence" warning. AI informs the user about the risk of using small datasets.
-- **Implementation Drivers:**
-    - _Sanity Check:_ Add a check to compare the requested backlog size against historical velocity. If backlog > 10x historical monthly throughput, flag as "High Uncertainty".
-    - _Tool:_ Add a `validate_historical_data` tool to explicitly check for gaps in history before running simulations.
+    2.  AI identifies the source and calls `run_simulation` with `mode: "duration"`, `additional_items: 50`.
+    3.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput.
+    4.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
 
 ---
 
@@ -41,78 +24,94 @@ This document describes the primary interaction scenarios between the User (Proj
 **Goal:** Determine how many items (scope) can be delivered within a fixed timeframe (e.g., "What can we get done by end of Q1?").
 
 - **Primary Actor:** User (Project Manager)
-- **Trigger:** User asks a "How much?" question relative to a deadline.
-- **Preconditions:**
-    - Same as UC1.
+- **Trigger:** User asks: "How many items can we complete by March 31st?"
 - **Main Success Scenario:**
-    1.  User asks: "How many Story items can we complete by March 31st?"
-    2.  AI identifies the source and calculates `target_days` (or extracts `target_date`).
-    3.  **Reactive Trigger (UC4)**: AI triggers discovery if it lacks confidence.
-    4.  AI aligns with the User on the forecast window.
-    5.  AI calls `run_simulation` (with `target_date` or `target_days`) and presents the results.
-    6.  **WIP Transparency**: AI uses the returned `insights` to explain that the forecast volume includes the time needed to clear current active work.
-- **Implementation Drivers:**
-    - _Improvement:_ Allow the user to specify "Probability of failure" (e.g., "Give me a conservative estimate").
+    1.  User asks about scope for a fixed date.
+    2.  AI calculates `target_days` and calls `run_simulation` in `scope` mode.
+    3.  AI presents the results (e.g., "With **Probable (70%)** confidence, you can deliver 45 items").
 
 ---
 
 ## UC3: Predict Individual Item Delivery (Cycle Time)
 
-**Goal:** Get a probabilistic estimate for a single high-priority item or understand typical lead times.
+**Goal:** Get a probabilistic estimate for a single high-priority item.
 
 - **Primary Actor:** User (Project Manager)
-- **Trigger:** User asks: "How long does a typical Bug take to fix?" or "When will issue PROJ-123 be done?"
-- **Preconditions:**
-    - Same as UC1.
+- **Trigger:** User asks: "When will issue PROJ-123 be done?"
 - **Main Success Scenario:**
-    1.  User asks about cycle time for "Bugs".
-    2.  **AI triggers UC4 (Discovery)** to identify the specific workflow for "Bugs" and verify data quality.
-    3.  AI calls `run_simulation` with `mode: "single"`, `issue_types: ["Bug"]`, and `start_status`.
-    4.  MCP Server calculates cycle times for historical items and provides percentile analysis.
-    5.  AI presents the "Service Level Expectation" (e.g., "85% of Bugs are resolved within 5 days").
-- **Implementation Drivers:**
-    - _Constraint:_ Requires a defined "Commitment Point" (start status) to calculate accurate cycle time.
-    - _Improvement:_ Add a tool to visualize the Cycle Time Scatterplot or Histogram (via Markdown tables/charts).
+    1.  AI calls `run_simulation` with `mode: "single"`.
+    2.  MCP Server utilizes the **Status-Granular Flow Model** to calculate lead times.
+    3.  AI presents the Service Level Expectation (e.g., "85% of similar items are resolved within 5 days").
 
 ---
 
-## UC4: Data Quality & Workflow Discovery (The "Probe")
+## UC6: Workflow Bottleneck Discovery
 
-**Goal:** Assess if the historical data is suitable for simulation and identify workflow milestones.
+**Goal:** Identify which status in the workflow is causing the most delay (Persistence).
 
-- **Primary Actor:** AI (Autonomous) or User (Manual Request)
-- **Trigger:** AI decides to "sanity check" a source before simulation, or User asks "Is my data good?".
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** User asks "Where are we stuck?"
 - **Main Success Scenario:**
-    1.  AI calls `get_data_metadata` for a `source_id`.
-    2.  MCP Server:
-        - Fetches the last 200 items.
-        - Analyzes throughput stability.
-        - Identifies all workflow statuses used in the project.
-        - Checks for data "cleanliness" (e.g., items resolved without ever being 'In Progress').
-    3.  AI reports: "The data shows a stable throughput, but I noticed 20% of items skip the 'In Progress' state. I also found these statuses: [To Do, In Dev, Testing, Done]. Which one should I use as the 'Commitment Point'?"
-- **Postconditions:** User/AI are aligned on the workflow and data quality.
-- **Implementation Drivers:**
-    - _Sanity Check:_ Automatically detect "Long Tails" in the histogram which might skew MCS and warn the user.
-    - _Auto-Hint:_ When a simulation fails due to an invalid or missing `start_status`, the server should provide "Likely Candidates" based on historical reachability and status categories.
-    - _Refinement:_ This use case drives the need for more sophisticated "Data Cleansing" tools.
+    1. AI calls `get_status_persistence`.
+    2. MCP Server utilizes the **Status-Granular residency map** to identify the bottleneck.
+    3. AI identifies the status with the highest **Safe-bet (P95)** age.
+    4. AI reports: "Items typically spend **12 days (Likely)** in 'Peer Review', which is 4x longer than any other stage."
 
 ---
 
-## UC5: Refine Simulation with WIP (Option A)
+## UC7: System Pulse & Flow Stability
 
-**Goal:** Account for the "head start" and age of current in-progress work to increase forecast accuracy.
+**Goal:** Detect if the team is delivering consistently or in erratic batches.
 
-- **Primary Actor:** AI (Proactive Suggestion)
-- **Trigger:** AI notices significant active work items on the board.
+- **Primary Actor:** AI (Autonomous Analysis)
+- **Trigger:** AI prepares a forecast and wants to validate the "Stability" assumption of MCS.
 - **Main Success Scenario:**
-    1.  AI suggests: "I see 10 items currently in progress. Should I include their current age in the forecast for better accuracy?"
-    2.  User agrees.
-    3.  AI calls `run_simulation` with `include_wip: true`.
-    4.  MCP Server:
-        - Analyzes active items and calculates **Context-Aware WIP Aging**.
-        - Buckets items into **Inconspicuous**, **Aging**, **Warning**, and **Extreme**.
-        - Calculates **Stability Index** (Little's Law).
-    5.  AI presents forecast with **Actionable Insights**: "Included 10 WIP items. Note: 2 items are in the 'Extreme' bucket (>P95 age). Resolving these outliers would improve your throughput by an estimated 10%."
-- **Implementation Drivers:**
-    - _Complexity:_ This is the most complex scenario as it requires `SearchIssuesWithHistory` for active items.
-    - _Improvement:_ Add "Stability Criteria" (Little's Law check) to warn if WIP is growing faster than throughput.
+    1. AI calls `get_delivery_cadence`.
+    2. MCP Server returns weekly throughput counts.
+    3. AI detects "Batching" (e.g., three weeks of 0, then one week of 20).
+    4. AI warns: "Your delivery pulse is currently **Batch-based**. While the forecast says you'll finish by March, be aware that this assumes a massive delivery at the very end rather than a steady flow."
+
+---
+
+## UC8: Workflow Semantic Enrichment (The Mapping)
+
+**Goal:** Provide the AI with the semantic context needed to distinguish real bottlenecks from administrative stages.
+
+- **Primary Actor:** AI (Proactive)
+- **Trigger:** AI sees high persistence in a "To Do" category status.
+- **Main Success Scenario:**
+    1. AI calls `get_workflow_discovery`.
+    2. AI notices status "Open" has high residency but is categorized as "To Do".
+    3. AI informs User: "I've mapped 'Open' as your **Backlog**. I will treat its high persistence as expected storage time unless you tell me otherwise."
+    4. User confirms or vetos.
+    5. AI calls `set_workflow_mapping` if changes are needed.
+
+---
+
+## UC9: Granular Journey Discovery
+
+**Goal:** Understand the exact path and delays an individual item took through the workflow.
+
+- **Primary Actor:** User or AI
+- **Trigger:** Investigating a "Long Tail" outlier item.
+- **Main Success Scenario:**
+    1. AI calls `get_item_journey` for a specific issue key.
+    2. MCP Server return a chronological path with residency days for each step.
+    3. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked'").
+
+---
+
+## UC10: Process Yield & Abandonment Analysis
+
+**Goal:** Identify where value is being lost in the process and quantify the "Abandonment Rate" by tier.
+
+- **Primary Actor:** AI (Autonomous)
+- **Trigger:** AI reviews throughput trends or User asks "Why is our throughput dropping?"
+- **Main Success Scenario:**
+    1. AI calls diagnostic tools that filter for "Abandoned" outcomes.
+    2. AI correlates abandonment points with the **Meta-Workflow Tiers** (Demand, Upstream, Downstream).
+    3. AI reports: "In the last 90 days, your process yield was 65%.
+        - 10% was abandoned from **Demand** (Standard Backlog grooming).
+        - 20% was abandoned from **Upstream** (Healthy discovery discard).
+        - **5% was abandoned from Downstream** (Wasteful implementation rework).
+    4. AI identifies the cost of Downstream abandonment: "Items abandoned in 'Downstream' had an average age of 15 days, representing significant wasted implementation capacity."

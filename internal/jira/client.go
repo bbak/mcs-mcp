@@ -6,14 +6,16 @@ import (
 
 // Issue represents a subset of Jira issue data needed for forecasting.
 type Issue struct {
-	Key            string
-	IssueType      string
-	Created        time.Time
-	StartedDate    *time.Time
-	ResolutionDate *time.Time
-	Resolution     string
-	Status         string
-	Transitions    []StatusTransition
+	Key             string
+	IssueType       string
+	Summary         string
+	Created         time.Time
+	StartedDate     *time.Time
+	ResolutionDate  *time.Time
+	Resolution      string
+	Status          string
+	StatusResidency map[string]float64 // Days spent in each status
+	Transitions     []StatusTransition
 }
 
 // StatusTransition represents a change in an issue's status.

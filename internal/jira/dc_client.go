@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -183,8 +184,9 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 				Histories []struct {
 					Created string `json:"created"`
 					Items   []struct {
-						Field    string `json:"field"`
-						ToString string `json:"toString"`
+						Field      string `json:"field"`
+						ToString   string `json:"toString"`
+						FromString string `json:"fromString"` // Added for status residency calculation
 					} `json:"items"`
 				} `json:"histories"`
 			} `json:"changelog"`
@@ -212,17 +214,31 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 			}
 		}
 
-		// Parse changelog for Transitions and StartedDate
+		// Parse changelog for Transitions and Status Residency
 		if item.Changelog != nil {
 			var earliest *time.Time
+			type fullTransition struct {
+				From string
+				To   string
+				Date time.Time
+			}
+			var allTrans []fullTransition
+
 			for _, h := range item.Changelog.Histories {
 				for _, itm := range h.Items {
 					if itm.Field == "status" {
 						if t, err := time.Parse("2006-01-02T15:04:05.000-0700", h.Created); err == nil {
+							allTrans = append(allTrans, fullTransition{
+								From: itm.FromString,
+								To:   itm.ToString,
+								Date: t,
+							})
+
 							issues[i].Transitions = append(issues[i].Transitions, StatusTransition{
 								ToStatus: itm.ToString,
 								Date:     t,
 							})
+
 							if earliest == nil || t.Before(*earliest) {
 								st := t
 								earliest = &st
@@ -232,6 +248,51 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 				}
 			}
 			issues[i].StartedDate = earliest
+
+			// Sort ASC by date
+			sort.Slice(allTrans, func(a, b int) bool {
+				return allTrans[a].Date.Before(allTrans[b].Date)
+			})
+
+			issues[i].StatusResidency = make(map[string]float64)
+
+			if len(allTrans) > 0 {
+				// 1. Initial Residency (from creation to first transition)
+				initialStatus := allTrans[0].From
+				if initialStatus == "" {
+					initialStatus = "Created" // Fallback if fromString is empty
+				}
+				firstDuration := allTrans[0].Date.Sub(issues[i].Created).Hours() / 24.0
+				if firstDuration > 0 {
+					issues[i].StatusResidency[initialStatus] += firstDuration
+				}
+
+				// 2. Intermediate Residencies
+				for j := 0; j < len(allTrans)-1; j++ {
+					duration := allTrans[j+1].Date.Sub(allTrans[j].Date).Hours() / 24.0
+					if duration > 0 {
+						issues[i].StatusResidency[allTrans[j].To] += duration
+					}
+				}
+
+				// 3. Current/Final Residency
+				var finalDate time.Time
+				if issues[i].ResolutionDate != nil {
+					finalDate = *issues[i].ResolutionDate
+				} else {
+					finalDate = time.Now()
+				}
+
+				lastTrans := allTrans[len(allTrans)-1]
+				finalDuration := finalDate.Sub(lastTrans.Date).Hours() / 24.0
+				if finalDuration > 0 {
+					issues[i].StatusResidency[lastTrans.To] += finalDuration
+				}
+			} else if issues[i].ResolutionDate != nil {
+				// No transitions but resolved? Start to Resolution
+				duration := issues[i].ResolutionDate.Sub(issues[i].Created).Hours() / 24.0
+				issues[i].StatusResidency["Created"] = duration
+			}
 		}
 	}
 

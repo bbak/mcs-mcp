@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,11 +17,17 @@ import (
 )
 
 type Server struct {
-	jira jira.Client
+	jira             jira.Client
+	workflowMappings map[string]map[string]stats.StatusMetadata // sourceID -> statusName -> metadata
+	statusOrderings  map[string][]string                        // sourceID -> sorted status names
 }
 
 func NewServer(jiraClient jira.Client) *Server {
-	return &Server{jira: jiraClient}
+	return &Server{
+		jira:             jiraClient,
+		workflowMappings: make(map[string]map[string]stats.StatusMetadata),
+		statusOrderings:  make(map[string][]string),
+	}
 }
 
 func (s *Server) Start() {
@@ -151,11 +158,123 @@ func (s *Server) listTools() interface{} {
 						"backlog_size":             map[string]interface{}{"type": "integer", "description": "Alias for additional_items (deprecated, please use additional_items)."},
 						"target_days":              map[string]interface{}{"type": "integer", "description": "Number of days (required for 'scope' mode)."},
 						"target_date":              map[string]interface{}{"type": "string", "description": "Optional: Target date (YYYY-MM-DD). If provided, target_days is calculated automatically."},
-						"start_status":             map[string]interface{}{"type": "string", "description": "Optional: Commitment Point status. Used to identify WIP."},
+						"start_status":             map[string]interface{}{"type": "string", "description": "Optional: Start status (Commitment Point)."},
+						"end_status":               map[string]interface{}{"type": "string", "description": "Optional: End status (Resolution Point)."},
 						"issue_types":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story'])."},
 						"resolutions":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done'."},
 					},
 					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_status_persistence",
+				"description": "Analyze how long items spend in each status to identify bottlenecks.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_wip_aging_analysis",
+				"description": "Identify which active items are aging relative to historical norms.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_delivery_cadence",
+				"description": "Visualize the weekly pulse of delivery to detect flow vs. batching.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":    map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type":  map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"window_weeks": map[string]interface{}{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_workflow_discovery",
+				"description": "Probe project status categories and residence times to propose semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "set_workflow_mapping",
+				"description": "Store user-confirmed semantic metadata (tier and role) for statuses. This is the mandatory persistence step after the 'Inform & Veto' loop.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id": map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"mapping": map[string]interface{}{
+							"type":        "object",
+							"description": "A map of status names to metadata (tier and role).",
+							"additionalProperties": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"tier": map[string]interface{}{"type": "string", "enum": []string{"Demand", "Upstream", "Downstream", "Finished"}},
+									"role": map[string]interface{}{"type": "string", "enum": []string{"active", "queue", "ignore"}},
+								},
+								"required": []string{"tier", "role"},
+							},
+						},
+					},
+					"required": []string{"source_id", "mapping"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_process_yield",
+				"description": "Analyze delivery efficiency across tiers. AI MUST ensure workflow tiers (Demand, Upstream, Downstream) have been verified with the user before interpreting these results.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "set_workflow_order",
+				"description": "Explicity define the chronological order of statuses for a project to enable range-based analytics.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id": map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"order": map[string]interface{}{
+							"type":        "array",
+							"items":       map[string]interface{}{"type": "string"},
+							"description": "Ordered list of status names.",
+						},
+					},
+					"required": []string{"source_id", "order"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_item_journey",
+				"description": "Get a detailed breakdown of where a single item spent its time across all workflow steps.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"issue_key": map[string]interface{}{"type": "string", "description": "The Jira issue key (e.g., PROJ-123)"},
+					},
+					"required": []string{"issue_key"},
 				},
 			},
 		},
@@ -219,7 +338,7 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	return summary, nil
 }
 
-func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
+func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
 	// 1. Get JQL
 	jql, err := s.getJQL(sourceID, sourceType)
 	if err != nil {
@@ -327,7 +446,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		}
 
 		statusWeights := s.getStatusWeights(projectKey)
-		cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
+		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
 
 		if len(cycleTimes) == 0 {
 			msg := fmt.Sprintf("no resolved items found that passed the commitment point '%s'.", startStatus)
@@ -370,7 +489,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		resObj.Insights = append(resObj.Insights, "Scope Interpretation: Forecast shows total items that will reach 'Done' status, including items currently in progress.")
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
+			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -407,7 +526,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		}
 
 		// Add Advanced Reliability Analysis
-		cycleTimes := s.getCycleTimes(issues, startStatus, statusWeights, resolutions)
+		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
 		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, existingBacklog+additionalItems)
 
 		if (existingBacklog+additionalItems) == 0 && includeWIP {
@@ -422,13 +541,259 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	default:
 		// Auto-detect if mode not explicitly provided
 		if targetDays > 0 || targetDate != "" {
-			return s.handleRunSimulation(sourceID, sourceType, "scope", false, 0, targetDays, targetDate, "", nil, false, resolutions)
+			return s.handleRunSimulation(sourceID, sourceType, "scope", false, 0, targetDays, targetDate, "", "", nil, false, resolutions)
 		}
 		if additionalItems > 0 || includeExistingBacklog {
-			return s.handleRunSimulation(sourceID, sourceType, "duration", includeExistingBacklog, additionalItems, 0, "", "", nil, false, resolutions)
+			return s.handleRunSimulation(sourceID, sourceType, "duration", includeExistingBacklog, additionalItems, 0, "", "", "", nil, false, resolutions)
 		}
 		return nil, fmt.Errorf("mode ('duration', 'scope', 'single') or required parameters must be provided")
 	}
+}
+
+func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interface{}, error) {
+	jql, err := s.getJQL(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch last 6 months of resolved items with history
+	startTime := time.Now().AddDate(0, -6, 0)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		jql, startTime.Format("2006-01-02"))
+
+	issues, _, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	results := stats.CalculateStatusPersistence(issues)
+
+	// Enrich with categories and session mappings
+	projectKey := s.extractProjectKey(issues)
+	categories := s.getStatusCategories(projectKey)
+	mappings := s.workflowMappings[sourceID]
+
+	return stats.EnrichStatusPersistence(results, categories, mappings), nil
+}
+
+func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interface{}, error) {
+	jql, err := s.getJQL(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Get historical issues for residence time
+	startTime := time.Now().AddDate(0, -6, 0)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		jql, startTime.Format("2006-01-02"))
+
+	issues, _, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+	results := stats.CalculateStatusPersistence(issues)
+
+	// 2. Enrich with categories
+	projectKey := s.extractProjectKey(issues)
+	categories := s.getStatusCategories(projectKey)
+	mappings := s.workflowMappings[sourceID]
+
+	enriched := stats.EnrichStatusPersistence(results, categories, mappings)
+
+	// 3. Add "Recommended Roles" for AI
+	for i := range enriched {
+		res := &enriched[i]
+		if res.Role == "" {
+			switch strings.ToUpper(res.Category) {
+			case "TO DO", "NEW":
+				res.Role = "backlog"
+			case "IN PROGRESS", "INDETERMINATE":
+				res.Role = "active"
+			case "DONE":
+				res.Role = "done"
+			}
+		}
+	}
+
+	return enriched, nil
+}
+
+func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]interface{}) (interface{}, error) {
+	if s.workflowMappings[sourceID] == nil {
+		s.workflowMappings[sourceID] = make(map[string]stats.StatusMetadata)
+	}
+
+	for k, v := range mapping {
+		obj, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		s.workflowMappings[sourceID][k] = stats.StatusMetadata{
+			Tier: fmt.Sprintf("%v", obj["tier"]),
+			Role: fmt.Sprintf("%v", obj["role"]),
+		}
+	}
+
+	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored %d workflow mappings for source %s", len(mapping), sourceID)}, nil
+}
+
+func (s *Server) extractProjectKey(issues []jira.Issue) string {
+	if len(issues) == 0 {
+		return ""
+	}
+	parts := strings.Split(issues[0].Key, "-")
+	if len(parts) > 1 {
+		return parts[0]
+	}
+	return ""
+}
+
+func (s *Server) getStatusCategories(projectKey string) map[string]string {
+	cats := make(map[string]string)
+	if projectKey == "" {
+		return cats
+	}
+
+	if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+		for _, itm := range statuses.([]interface{}) {
+			issueTypeMap := itm.(map[string]interface{})
+			statusList := issueTypeMap["statuses"].([]interface{})
+			for _, sObj := range statusList {
+				sMap := sObj.(map[string]interface{})
+				name := sMap["name"].(string)
+				cat := sMap["statusCategory"].(map[string]interface{})
+				cats[name] = fmt.Sprintf("%v", cat["key"])
+			}
+		}
+	}
+	return cats
+}
+
+func (s *Server) handleSetWorkflowOrder(sourceID string, order []string) (interface{}, error) {
+	s.statusOrderings[sourceID] = order
+	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow order for source %s", sourceID)}, nil
+}
+
+func (s *Server) handleGetItemJourney(key string) (interface{}, error) {
+	// 1. Fetch the issue with history to get reliable residency
+	jql := fmt.Sprintf("key = %s", key)
+	issues, _, err := s.jira.SearchIssuesWithHistory(jql, 0, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(issues) == 0 {
+		return nil, fmt.Errorf("issue %s not found", key)
+	}
+
+	issue := issues[0]
+
+	type JourneyStep struct {
+		Status string  `json:"status"`
+		Days   float64 `json:"days"`
+	}
+	var steps []JourneyStep
+
+	// Use the transitions to build a chronological journey
+	// We'll use the pre-calculated residency but present it in order
+	for _, trans := range issue.Transitions {
+		steps = append(steps, JourneyStep{
+			Status: trans.ToStatus,
+			Days:   issue.StatusResidency[trans.ToStatus],
+		})
+	}
+
+	return map[string]interface{}{
+		"key":       issue.Key,
+		"summary":   issue.Summary,
+		"residency": issue.StatusResidency,
+		"path":      steps,
+	}, nil
+}
+
+func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}, error) {
+	jql, err := s.getJQL(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch last 6 months of resolved items with history
+	startTime := time.Now().AddDate(0, -6, 0)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		jql, startTime.Format("2006-01-02"))
+
+	issues, _, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	mappings := s.workflowMappings[sourceID]
+	resolutions := s.getResolutionMap()
+
+	return stats.CalculateProcessYield(issues, mappings, resolutions), nil
+}
+
+func (s *Server) getResolutionMap() map[string]string {
+	// Simple heuristic for now. In a real system, we'd fetch this from Jira
+	// or allow user configuration.
+	return map[string]string{
+		"Fixed":            "delivered",
+		"Done":             "delivered",
+		"Complete":         "delivered",
+		"Resolved":         "delivered",
+		"Duplicate":        "abandoned",
+		"Won't Do":         "abandoned",
+		"Cannot Reproduce": "abandoned",
+		"Obsolete":         "abandoned",
+		"Incomplete":       "abandoned",
+		"Abandoned":        "abandoned",
+		"Withdrawn":        "abandoned",
+	}
+}
+
+func (s *Server) handleGetWIPAgingAnalysis(sourceID, sourceType string) (interface{}, error) {
+	jql, err := s.getJQL(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Get History for Persistence Baseline
+	startTime := time.Now().AddDate(0, -6, 0)
+	histJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		jql, startTime.Format("2006-01-02"))
+
+	histIssues, _, err := s.jira.SearchIssuesWithHistory(histJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+	persistence := stats.CalculateStatusPersistence(histIssues)
+
+	// 2. Get Current WIP
+	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
+	wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 200)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats.CalculateWIPAging(wipIssues, persistence), nil
+}
+
+func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
+	jql, err := s.getJQL(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch history within the window
+	startTime := time.Now().AddDate(0, 0, -windowWeeks*7)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		jql, startTime.Format("2006-01-02"))
+
+	issues, _, err := s.jira.SearchIssues(ingestJQL, 0, 2000)
+	if err != nil {
+		return nil, err
+	}
+
+	return stats.CalculateDeliveryCadence(issues, windowWeeks), nil
 }
 
 func (s *Server) getJQL(sourceID, sourceType string) (string, error) {
@@ -533,7 +898,47 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, issueTypes, includeWIP, res)
+		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res)
+	case "get_status_persistence":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		data, err = s.handleGetStatusPersistence(id, sType)
+	case "get_wip_aging_analysis":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		data, err = s.handleGetWIPAgingAnalysis(id, sType)
+	case "get_delivery_cadence":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		window := asInt(call.Arguments["window_weeks"])
+		if window == 0 {
+			window = 26
+		}
+		data, err = s.handleGetDeliveryCadence(id, sType, window)
+	case "get_process_yield":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		data, err = s.handleGetProcessYield(id, sType)
+	case "get_workflow_discovery":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		data, err = s.handleGetWorkflowDiscovery(id, sType)
+	case "set_workflow_mapping":
+		id := asString(call.Arguments["source_id"])
+		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
+		data, err = s.handleSetWorkflowMapping(id, mapping)
+	case "set_workflow_order":
+		id := asString(call.Arguments["source_id"])
+		order := []string{}
+		if o, ok := call.Arguments["order"].([]interface{}); ok {
+			for _, v := range o {
+				order = append(order, asString(v))
+			}
+		}
+		data, err = s.handleSetWorkflowOrder(id, order)
+	case "get_item_journey":
+		key := asString(call.Arguments["issue_key"])
+		data, err = s.handleGetItemJourney(key)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}
@@ -587,18 +992,13 @@ func (s *Server) getStatusWeights(projectKey string) map[string]int {
 	return weights
 }
 
-func (s *Server) getCycleTimes(issues []jira.Issue, startStatus string, statusWeights map[string]int, resolutions []string) []float64 {
-	commitmentWeight := 2
-	if startStatus != "" {
-		if w, ok := statusWeights[startStatus]; ok {
-			commitmentWeight = w
-		}
-	}
-
+func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, statusWeights map[string]int, resolutions []string) []float64 {
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
 	}
+
+	rangeStatuses := s.getInferredRange(sourceID, startStatus, endStatus, issues, statusWeights)
 
 	var cycleTimes []float64
 	for _, issue := range issues {
@@ -609,31 +1009,73 @@ func (s *Server) getCycleTimes(issues []jira.Issue, startStatus string, statusWe
 			continue
 		}
 
-		clockStart := issue.Created
-		var earliestCommitment *time.Time
-
-		for _, trans := range issue.Transitions {
-			weight, ok := statusWeights[trans.ToStatus]
-			if (startStatus != "" && trans.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
-				if earliestCommitment == nil || trans.Date.Before(*earliestCommitment) {
-					t := trans.Date
-					earliestCommitment = &t
-				}
-			}
-		}
-
-		if earliestCommitment != nil {
-			clockStart = *earliestCommitment
-		} else if startStatus != "" {
-			continue
-		}
-
-		ct := issue.ResolutionDate.Sub(clockStart).Hours() / 24.0
-		if ct >= 0 {
-			cycleTimes = append(cycleTimes, ct)
+		duration := stats.SumRangeDuration(issue, rangeStatuses)
+		if duration > 0 {
+			cycleTimes = append(cycleTimes, duration)
 		}
 	}
+
 	return cycleTimes
+}
+
+func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issues []jira.Issue, statusWeights map[string]int) []string {
+	// 1. Check if we have a persisted session ordering
+	if order, ok := s.statusOrderings[sourceID]; ok {
+		return s.sliceRange(order, startStatus, endStatus)
+	}
+
+	// 2. Fallback: Inferred order from historical reachability/categories
+	// We'll use the statuses present in the issues
+	statusMap := make(map[string]bool)
+	for _, issue := range issues {
+		for st := range issue.StatusResidency {
+			statusMap[st] = true
+		}
+	}
+	var allStatuses []string
+	for st := range statusMap {
+		allStatuses = append(allStatuses, st)
+	}
+
+	// Simple heuristic sort: by weight, then by name
+	sort.Slice(allStatuses, func(i, j int) bool {
+		wi := statusWeights[allStatuses[i]]
+		wj := statusWeights[allStatuses[j]]
+		if wi != wj {
+			return wi < wj
+		}
+		return allStatuses[i] < allStatuses[j]
+	})
+
+	return s.sliceRange(allStatuses, startStatus, endStatus)
+}
+
+func (s *Server) sliceRange(order []string, start, end string) []string {
+	startIndex := 0
+	if start != "" {
+		for i, st := range order {
+			if st == start {
+				startIndex = i
+				break
+			}
+		}
+	}
+
+	endIndex := len(order) - 1
+	if end != "" {
+		for i, st := range order {
+			if st == end {
+				endIndex = i
+				break
+			}
+		}
+	}
+
+	if startIndex > endIndex {
+		return []string{order[startIndex]} // Fallback to just the start status
+	}
+
+	return order[startIndex : endIndex+1]
 }
 
 func (s *Server) getCommitmentPointHints(issues []jira.Issue, statusWeights map[string]int) []string {
