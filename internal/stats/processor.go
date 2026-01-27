@@ -16,10 +16,11 @@ type Dataset struct {
 // MapIssue transforms a Jira DTO into a Domain Issue and calculates residency.
 func MapIssue(item jira.IssueDTO) jira.Issue {
 	issue := jira.Issue{
-		Key:        item.Key,
-		IssueType:  item.Fields.IssueType.Name,
-		Status:     item.Fields.Status.Name,
-		Resolution: item.Fields.Resolution.Name,
+		Key:             item.Key,
+		IssueType:       item.Fields.IssueType.Name,
+		Status:          item.Fields.Status.Name,
+		Resolution:      item.Fields.Resolution.Name,
+		StatusResidency: make(map[string]int64),
 	}
 
 	// Extract Project Key (e.g., PROJ-123 -> PROJ)
@@ -136,6 +137,7 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		if duration <= 0 {
 			duration = 1
 		}
+		// If no transitions, we assume it stayed in the initial state (Created) until resolution
 		residency["Created"] = duration
 	}
 

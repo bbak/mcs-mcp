@@ -10,6 +10,7 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
 
 - **No Averages**: The system rejects single-point averages in favor of ranges and percentiles.
 - **Monte-Carlo Focus**: All forecasts are derived from 10,000+ random trials using historical throughput distributions.
+- **Simulation Resilience (Safety Brakes)**: To ensure system availability, simulations implement safety brakes (e.g., 20,000 day cap) and early-exit warnings when historical throughput is zero, preventing infinite loops or resource exhaustion in sparse data scenarios.
 
 ### Operational Flow (The Interaction Model)
 
@@ -144,6 +145,13 @@ The system employs a strict "Restart on Backflow" policy for items returning to 
 - **History Consolidation**: Instead of wiping history or resetting the **Created** date, the system consolidates all time spent prior to the most recent backflow into the **Demand** tier. This preserves the original **Total Age** while ensuring **WIP Age** reflects only the most recent start.
 - **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
 - **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
+
+#### 6. History Fallback Policy
+
+In cases where Jira data is incomplete (e.g., resolved items with missing or archived changelogs), the system applies a "Best Effort" residency model:
+
+- **Residency Assumption**: If an item is resolved but has no transition history, the system assumes it spent its total duration in the "Created" status.
+- **Analytical Inclusion**: This ensures these items are still included in throughput and total aging metrics, preserving the statistical volume of the dataset despite local data gaps.
 
 ---
 

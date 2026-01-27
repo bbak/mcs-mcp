@@ -70,6 +70,13 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	}
 
 	durations := make([]int, trials)
+	totalPossible := 0
+	for _, c := range e.histogram.Counts {
+		totalPossible += c
+	}
+
+	isInfinite := totalPossible == 0
+
 	for i := 0; i < trials; i++ {
 		durations[i] = e.simulateDurationTrial(backlogSize)
 	}
@@ -99,6 +106,9 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 		},
 	}
 	e.assessPredictability(&res)
+	if isInfinite {
+		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
+	}
 	return res
 }
 
@@ -325,13 +335,22 @@ func (e *Engine) simulateDurationTrial(backlog int) int {
 	days := 0
 	remaining := backlog
 
+	// Early check: if all counts are 0, duration is infinite (capped at safety limit)
+	totalPossible := 0
+	for _, c := range e.histogram.Counts {
+		totalPossible += c
+	}
+	if totalPossible == 0 {
+		return 20000
+	}
+
 	for remaining > 0 {
 		days++
 		idx := e.rng.Intn(len(e.histogram.Counts))
 		throughput := e.histogram.Counts[idx]
 		remaining -= throughput
 
-		if days > 20000 { // Increased safety brake
+		if days > 20000 { // Safety brake
 			break
 		}
 	}

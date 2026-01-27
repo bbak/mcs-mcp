@@ -234,6 +234,9 @@ func (s *Server) getCommitmentPointHints(issues []jira.Issue, statusWeights map[
 }
 
 func (s *Server) sliceRange(order []string, start, end string) []string {
+	if len(order) == 0 {
+		return []string{}
+	}
 	startIndex := 0
 	if start != "" {
 		for i, st := range order {

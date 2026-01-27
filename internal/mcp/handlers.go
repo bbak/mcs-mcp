@@ -66,13 +66,8 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 
 	log.Debug().Str("jql", ingestJQL).Msg("Starting historical ingestion for simulation")
 
-	var response *jira.SearchResponse
-	// Use history if needed for cycle time analysis OR WIP aging
-	if mode == "single" || startStatus != "" || includeWIP {
-		response, err = s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
-	} else {
-		response, err = s.jira.SearchIssues(ingestJQL, 0, 1000)
-	}
+	// Use history for all simulations to ensure Stability Analysis has cycle time/residency data
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
 	if err != nil {
 		return nil, err
 	}
