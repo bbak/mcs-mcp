@@ -89,7 +89,8 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_status_persistence",
 				"description": "Analyze how long items spend in each status to identify bottlenecks.\n\n" +
-					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
+					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.\n\n" +
+					"AI INTERPRETATION GUIDANCE: Focus primarily on statuses in the 'Upstream' and 'Downstream' tiers (active workflow). High persistence in 'Demand' or 'Finished' is expected and often less actionable. Start by interpreting the 'in-between' process stages, then mention Demand/Finished as summary context.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -102,7 +103,8 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_inventory_aging_analysis",
 				"description": "Identify which active items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
-					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
+					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.\n\n" +
+					"AI INTERPRETATION GUIDANCE: When using 'wip' age, focus on items in 'Active' roles within 'Upstream' or 'Downstream' tiers. Items aging in 'Queue' roles or 'Demand' tier are expected but should be mentioned as systemic drag. Prioritize diagnosing items that are 'stalling' during active execution.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
