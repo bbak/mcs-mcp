@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -115,22 +114,18 @@ func (c *dcClient) addCookies(req *http.Request) {
 	}
 }
 
-func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) ([]Issue, int, error) {
+func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error) {
 	return c.searchInternal(jql, startAt, maxResults, "")
 }
 
-func (c *dcClient) SearchIssuesWithHistory(jql string, startAt int, maxResults int) ([]Issue, int, error) {
+func (c *dcClient) SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*SearchResponse, error) {
 	return c.searchInternal(jql, startAt, maxResults, "changelog")
 }
 
-func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expand string) ([]Issue, int, error) {
+func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expand string) (*SearchResponse, error) {
 	cacheKey := fmt.Sprintf("search:%s:%d:%d:%s", jql, startAt, maxResults, expand)
 	if val, ok := c.getFromCache(cacheKey); ok {
-		res := val.(struct {
-			Issues []Issue
-			Total  int
-		})
-		return res.Issues, res.Total, nil
+		return val.(*SearchResponse), nil
 	}
 
 	c.throttle()
@@ -148,166 +143,29 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	searchURL := fmt.Sprintf("%s/rest/api/2/search?%s", c.cfg.BaseURL, params.Encode())
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	c.addCookies(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, 0, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
-		Total  int `json:"total"`
-		Issues []struct {
-			Key    string `json:"key"`
-			Fields struct {
-				IssueType struct {
-					Name string `json:"name"`
-				} `json:"issuetype"`
-				Status struct {
-					Name string `json:"name"`
-				} `json:"status"`
-				Resolution struct {
-					Name string `json:"name"`
-				} `json:"resolution"`
-				ResolutionDate string `json:"resolutiondate"`
-				Created        string `json:"created"`
-			} `json:"fields"`
-			Changelog *struct {
-				Histories []struct {
-					Created string `json:"created"`
-					Items   []struct {
-						Field      string `json:"field"`
-						ToString   string `json:"toString"`
-						FromString string `json:"fromString"` // Added for status residency calculation
-					} `json:"items"`
-				} `json:"histories"`
-			} `json:"changelog"`
-		} `json:"issues"`
-	}
-
+	var result SearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	issues := make([]Issue, len(result.Issues))
-	for i, item := range result.Issues {
-		issues[i] = Issue{
-			Key:        item.Key,
-			IssueType:  item.Fields.IssueType.Name,
-			Status:     item.Fields.Status.Name,
-			Resolution: item.Fields.Resolution.Name,
-		}
-		if t, err := time.Parse("2006-01-02T15:04:05.000-0700", item.Fields.Created); err == nil {
-			issues[i].Created = t
-		}
-		if item.Fields.ResolutionDate != "" {
-			if t, err := time.Parse("2006-01-02T15:04:05.000-0700", item.Fields.ResolutionDate); err == nil {
-				issues[i].ResolutionDate = &t
-			}
-		}
+	c.addToCache(cacheKey, &result, 10*time.Minute)
 
-		// Parse changelog for Transitions and Status Residency
-		if item.Changelog != nil {
-			var earliest *time.Time
-			type fullTransition struct {
-				From string
-				To   string
-				Date time.Time
-			}
-			var allTrans []fullTransition
-
-			for _, h := range item.Changelog.Histories {
-				for _, itm := range h.Items {
-					if itm.Field == "status" {
-						if t, err := time.Parse("2006-01-02T15:04:05.000-0700", h.Created); err == nil {
-							allTrans = append(allTrans, fullTransition{
-								From: itm.FromString,
-								To:   itm.ToString,
-								Date: t,
-							})
-
-							issues[i].Transitions = append(issues[i].Transitions, StatusTransition{
-								ToStatus: itm.ToString,
-								Date:     t,
-							})
-
-							if earliest == nil || t.Before(*earliest) {
-								st := t
-								earliest = &st
-							}
-						}
-					}
-				}
-			}
-			issues[i].StartedDate = earliest
-
-			// Sort ASC by date
-			sort.Slice(allTrans, func(a, b int) bool {
-				return allTrans[a].Date.Before(allTrans[b].Date)
-			})
-
-			issues[i].StatusResidency = make(map[string]int64)
-			if len(allTrans) > 0 {
-				// 1. Initial Residency (from creation to first transition)
-				initialStatus := allTrans[0].From
-				if initialStatus == "" {
-					initialStatus = "Created"
-				}
-				firstDuration := int64(allTrans[0].Date.Sub(issues[i].Created).Seconds())
-				if firstDuration <= 0 {
-					firstDuration = 1 // At least 1 second if it was moved
-				}
-				issues[i].StatusResidency[initialStatus] += firstDuration
-
-				// 2. Intermediate Residencies
-				for j := 0; j < len(allTrans)-1; j++ {
-					duration := int64(allTrans[j+1].Date.Sub(allTrans[j].Date).Seconds())
-					if duration <= 0 {
-						duration = 1
-					}
-					issues[i].StatusResidency[allTrans[j].To] += duration
-				}
-
-				// 3. Current/Final Residency
-				var finalDate time.Time
-				if issues[i].ResolutionDate != nil {
-					finalDate = *issues[i].ResolutionDate
-				} else {
-					finalDate = time.Now()
-				}
-
-				lastTrans := allTrans[len(allTrans)-1]
-				finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
-				if finalDuration <= 0 {
-					finalDuration = 1
-				}
-				issues[i].StatusResidency[lastTrans.To] += finalDuration
-			} else if issues[i].ResolutionDate != nil {
-				// No transitions but resolved? Start to Resolution
-				duration := int64(issues[i].ResolutionDate.Sub(issues[i].Created).Seconds())
-				if duration <= 0 {
-					duration = 1
-				}
-				issues[i].StatusResidency["Created"] = duration
-			}
-		}
-	}
-
-	res := struct {
-		Issues []Issue
-		Total  int
-	}{Issues: issues, Total: result.Total}
-	c.addToCache(cacheKey, res, 10*time.Minute)
-
-	return issues, result.Total, nil
+	return &result, nil
 }
 
 func (c *dcClient) GetProject(key string) (interface{}, error) {

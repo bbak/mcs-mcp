@@ -14,40 +14,47 @@ import (
 )
 
 func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
 	// Probe: Fetch 50 items and history
-	issues, total, err := s.jira.SearchIssuesWithHistory(jql, 0, 50)
+	response, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 50)
 	if err != nil {
 		return nil, err
 	}
 
-	summary := stats.AnalyzeProbe(issues, total)
+	// Process DTOs into Domain Issues
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
+	}
+
+	summary := stats.AnalyzeProbe(issues, response.Total)
 
 	// Enrich with metadata
-	if len(issues) > 0 {
-		parts := strings.Split(issues[0].Key, "-")
-		if len(parts) > 1 {
-			projectKey := parts[0]
-			statuses, err := s.jira.GetProjectStatuses(projectKey)
-			if err != nil {
-				log.Error().Err(err).Str("project", projectKey).Msg("Failed to fetch project statuses")
-			}
-			summary.AvailableStatuses = statuses
-			statusWeights := s.getStatusWeights(projectKey)
-			summary.CommitmentPointHints = s.getCommitmentPointHints(issues, statusWeights)
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(issues) > 0 {
+		projectKey = issues[0].ProjectKey
+	}
+
+	if projectKey != "" {
+		statuses, err := s.jira.GetProjectStatuses(projectKey)
+		if err != nil {
+			log.Error().Err(err).Str("project", projectKey).Msg("Failed to fetch project statuses")
 		}
+		summary.AvailableStatuses = statuses
+		statusWeights := s.getStatusWeights(projectKey)
+		summary.CommitmentPointHints = s.getCommitmentPointHints(issues, statusWeights)
 	}
 
 	return summary, nil
 }
 
 func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
-	// 1. Get JQL
-	jql, err := s.getJQL(sourceID, sourceType)
+	// 1. Get Source Context
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -55,32 +62,35 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	// 2. Ingestion: Fetch last 6 months of historical data
 	startTime := time.Now().AddDate(0, -6, 0)
 	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
-		jql, startTime.Format("2006-01-02"))
+		ctx.JQL, startTime.Format("2006-01-02"))
 
 	log.Debug().Str("jql", ingestJQL).Msg("Starting historical ingestion for simulation")
 
-	var issues []jira.Issue
+	var response *jira.SearchResponse
 	// Use history if needed for cycle time analysis OR WIP aging
 	if mode == "single" || startStatus != "" || includeWIP {
-		issues, _, err = s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+		response, err = s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
 	} else {
-		issues, _, err = s.jira.SearchIssues(ingestJQL, 0, 1000)
+		response, err = s.jira.SearchIssues(ingestJQL, 0, 1000)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	if len(issues) == 0 {
+	if response.Total == 0 {
 		return nil, fmt.Errorf("no historical data found in the last 6 months to base simulation on")
 	}
 
+	// Process DTOs into Domain Issues
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
+	}
+
 	// 3. Analytics Context (WIP Aging & Status Weights)
-	projectKey := ""
-	if len(issues) > 0 {
-		parts := strings.Split(issues[0].Key, "-")
-		if len(parts) > 1 {
-			projectKey = parts[0]
-		}
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(issues) > 0 {
+		projectKey = issues[0].ProjectKey
 	}
 	statusWeights := s.getStatusWeights(projectKey)
 	// Override weights with verified mappings if available to ensure correct backflow detection
@@ -107,19 +117,29 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	var wipAges []float64
 	wipCount := 0
 
-	existingBacklog := 0
+	// 5. Backlog Ingestion (if needed)
+	existingBacklogCount := 0
 	if includeExistingBacklog {
-		backlogJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
-		_, total, err := s.jira.SearchIssues(backlogJQL, 0, 0)
-		if err == nil {
-			existingBacklog = total
+		backlogJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
+		response, err := s.jira.SearchIssues(backlogJQL, 0, 1000)
+		if err != nil {
+			return nil, err
+		}
+		existingBacklogCount = len(response.Issues)
+		for _, dto := range response.Issues {
+			issues = append(issues, stats.MapIssue(dto))
 		}
 	}
 
+	// 6. WIP Ingestion (if needed)
 	if includeWIP {
-		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", jql)
-		wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
+		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
+		wipIssuesResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 		if err == nil {
+			wipIssues := make([]jira.Issue, len(wipIssuesResponse.Issues))
+			for i, dto := range wipIssuesResponse.Issues {
+				wipIssues[i] = stats.MapIssue(dto)
+			}
 			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, cWeight)
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
 			calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, cycleTimes, "wip")
@@ -195,7 +215,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
-				ExistingBacklog: existingBacklog,
+				ExistingBacklog: existingBacklogCount,
 				AdditionalItems: additionalItems,
 				Total:           0, // Total doesn't make sense as input in Scope mode
 			}
@@ -212,8 +232,8 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 			return nil, fmt.Errorf("either include_existing_backlog: true, additional_items > 0, OR include_wip: true must be provided for duration simulation")
 		}
 
-		actualBacklog := existingBacklog + additionalItems + wipCount
-		log.Info().Int("total", actualBacklog).Int("backlog", existingBacklog).Int("additional", additionalItems).Int("wip", wipCount).Any("types", issueTypes).Msg("Running Duration Simulation")
+		actualBacklog := existingBacklogCount + additionalItems + wipCount
+		log.Info().Int("total", actualBacklog).Int("backlog", existingBacklogCount).Int("additional", additionalItems).Int("wip", wipCount).Any("types", issueTypes).Msg("Running Duration Simulation")
 
 		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, resolutions)
 		engine = simulation.NewEngine(h)
@@ -221,7 +241,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 
 		// Set Scope Composition for AI transparency
 		resObj.Composition = simulation.Composition{
-			ExistingBacklog: existingBacklog,
+			ExistingBacklog: existingBacklogCount,
 			WIP:             wipCount,
 			AdditionalItems: additionalItems,
 			Total:           actualBacklog,
@@ -229,14 +249,14 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 
 		// Add Advanced Reliability Analysis
 		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
-		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, existingBacklog+additionalItems)
+		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, existingBacklogCount+additionalItems)
 
-		if (existingBacklog+additionalItems) == 0 && includeWIP {
+		if (existingBacklogCount+additionalItems) == 0 && includeWIP {
 			resObj.Warnings = append(resObj.Warnings, fmt.Sprintf("Note: This forecast ONLY covers the %d items currently in progress. Unstarted backlog items were not included.", wipCount))
 		}
 
-		if includeWIP && (existingBacklog+additionalItems) > 0 && wipCount > (existingBacklog+additionalItems)*3 {
-			resObj.Warnings = append(resObj.Warnings, fmt.Sprintf("High operational load: You have %d items in progress, which is significantly larger than the %d unstarted items in this forecast. Lead times for new items may be long.", wipCount, existingBacklog+additionalItems))
+		if includeWIP && (existingBacklogCount+additionalItems) > 0 && wipCount > (existingBacklogCount+additionalItems)*3 {
+			resObj.Warnings = append(resObj.Warnings, fmt.Sprintf("High operational load: You have %d items in progress, which is significantly larger than the %d unstarted items in this forecast. Lead times for new items may be long.", wipCount, existingBacklogCount+additionalItems))
 		}
 		return resObj, nil
 
@@ -250,29 +270,38 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 }
 
 func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch 1000 most recent items to identify residency
-	issues, _, err := s.jira.SearchIssuesWithHistory(jql, 0, 1000)
+	response, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 1000)
 	if err != nil {
 		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
 	}
 
 	return stats.CalculateStatusPersistence(issues), nil
 }
 
 func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	issues, _, err := s.jira.SearchIssuesWithHistory(jql, 0, 500)
+	response, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 500)
 	if err != nil {
 		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
 	}
 
 	discovery := s.getWorkflowDiscovery(sourceID, issues)
@@ -318,18 +347,18 @@ func (s *Server) handleSetWorkflowOrder(sourceID string, order []string) (interf
 	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow order for source %s", sourceID)}, nil
 }
 
-func (s *Server) handleGetItemJourney(key string) (interface{}, error) {
-	// 1. Fetch the issue with history to get reliable residency
-	jql := fmt.Sprintf("key = %s", key)
-	issues, _, err := s.jira.SearchIssuesWithHistory(jql, 0, 1)
+func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
+	jql := fmt.Sprintf("key = %s", issueKey)
+	response, err := s.jira.SearchIssuesWithHistory(jql, 0, 1)
 	if err != nil {
 		return nil, err
 	}
-	if len(issues) == 0 {
-		return nil, fmt.Errorf("issue %s not found", key)
+
+	if response.Total == 0 {
+		return nil, fmt.Errorf("issue not found: %s", issueKey)
 	}
 
-	issue := issues[0]
+	issue := stats.MapIssue(response.Issues[0])
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -383,7 +412,7 @@ func (s *Server) handleGetItemJourney(key string) (interface{}, error) {
 }
 
 func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -391,11 +420,16 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 	// Fetch last 6 months of resolved items with history
 	startTime := time.Now().AddDate(0, -6, 0)
 	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
-		jql, startTime.Format("2006-01-02"))
+		ctx.JQL, startTime.Format("2006-01-02"))
 
-	issues, _, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
 	if err != nil {
 		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
 	}
 
 	mappings := s.workflowMappings[sourceID]
@@ -405,21 +439,29 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 }
 
 func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType string) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
 	// 1. Ingest historical data for Lead Time baseline (resolved in last 180 days)
-	histJQL := fmt.Sprintf("(%s) AND resolution is NOT EMPTY AND resolved >= -180d", jql)
+	histJQL := fmt.Sprintf("(%s) AND resolution is NOT EMPTY AND resolved >= -180d", ctx.JQL)
 
-	histIssues, _, err := s.jira.SearchIssuesWithHistory(histJQL, 0, 1000)
+	histResponse, err := s.jira.SearchIssuesWithHistory(histJQL, 0, 1000)
 	if err != nil {
 		return nil, err
 	}
 
+	histIssues := make([]jira.Issue, len(histResponse.Issues))
+	for i, dto := range histResponse.Issues {
+		histIssues[i] = stats.MapIssue(dto)
+	}
+
 	// Determine commitment context
-	projectKey := s.extractProjectKey(histIssues)
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(histIssues) > 0 {
+		projectKey = histIssues[0].ProjectKey
+	}
 	statusWeights := s.getStatusWeights(projectKey)
 
 	// Override weights with verified mappings if available to ensure correct backflow detection
@@ -467,19 +509,23 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 	}
 
 	// 2. Get Current WIP (up to 1000 oldest items)
-	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY ORDER BY created ASC", jql)
-	wipIssues, _, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
+	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY ORDER BY created ASC", ctx.JQL)
+	wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 	if err != nil {
 		return nil, err
 	}
+	wipIssues := make([]jira.Issue, len(wipResponse.Issues))
+	for i, dto := range wipResponse.Issues {
+		wipIssues[i] = stats.MapIssue(dto)
+	}
 	wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, commitmentWeight)
 
-	ctx := map[string]interface{}{
+	respCtx := map[string]interface{}{
 		"aging_type": agingType,
 	}
 
 	if agingType == "wip" {
-		ctx["commitment_point_verified"] = verified
+		respCtx["commitment_point_verified"] = verified
 	}
 
 	var startStatus string
@@ -490,12 +536,12 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 	// Return neutral wrapped response
 	return map[string]interface{}{
 		"inventory_aging": stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, baseline, agingType),
-		"context":         ctx,
+		"context":         respCtx,
 	}, nil
 }
 
 func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
-	jql, err := s.getJQL(sourceID, sourceType)
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
@@ -503,11 +549,16 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWee
 	// Fetch history within the window
 	startTime := time.Now().AddDate(0, 0, -windowWeeks*7)
 	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
-		jql, startTime.Format("2006-01-02"))
+		ctx.JQL, startTime.Format("2006-01-02"))
 
-	issues, _, err := s.jira.SearchIssues(ingestJQL, 0, 2000)
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 2000)
 	if err != nil {
 		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
 	}
 
 	return stats.CalculateDeliveryCadence(issues, windowWeeks), nil

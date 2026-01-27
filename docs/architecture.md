@@ -167,29 +167,68 @@ To identify process instability and the presence of extreme outliers (Fat-Tails)
 | **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
 | **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
 
+## 5. Data Ingestion & Analytical Decoupling
+
+To enable multi-layer caching and improve conceptual integrity, the system strictly separates Jira-specific transportation from analytical processing.
+
+### The Ingestion Pipeline
+
+```mermaid
+graph TD
+    A[JQL/SourceID] --> B[SourceContext]
+    B --> C[Jira Client]
+    C --> D[Raw DTOs]
+    D --> E[Stats Processor]
+    E --> F[Dataset]
+    F --> G[Analysis Tools]
+```
+
+1.  **SourceContext**: Formally defines the origin of the data (SourceID, JQL, Primary Project). It serves as the "Analytical Anchor" for resolving default metadata (status weights, categories).
+2.  **Raw DTOs (Data Transfer Objects)**: Pure, immutable structures representing the Jira JSON response. These are the primary targets for **Transport-Layer Caching**.
+3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`. This is the primary target for **Analytical-Layer Caching**.
+
+### Chronological Processing (Residency Math)
+
+By moving residency calculation out of the Jira client and into a dedicated `processor.go`, the system achieves:
+
+- **Testability**: Analytics logic can be tested with mock DTOs without hitting a Jira server.
+- **Flexibility**: Changes to backflow policies or aging precision can be re-applied to cached DTOs instantly.
+- **Heterogeneous Support**: `Issue.ProjectKey` ensures accurate per-item logic even when a board spans multiple Jira projects.
+
+---
+
 ## 6. Codebase Structure & Modularization
 
 The codebase is designed for high cohesion and maintainability, with logic strictly separated by functional responsibility.
 
-### `internal/mcp` (The Protocol Layer)
+### `internal/jira` (The Transport Layer)
 
-This package handles the Model Context Protocol (MCP) server, tool registration, and request dispatching.
+This package focuses exclusively on communication with Jira and raw data modeling.
 
-- `server.go`: The core server implementation, JSON-RPC handling, and tool dispatching loop.
-- `tools.go`: Definitions and AI-discoverable descriptions for all MCP tools.
-- `handlers.go`: Top-level implementations for tool execution logic.
-- `workflow.go`: Workflow-specific logic (residency rebuilding, backflow policies, and status weighting).
-- `helpers.go`: General utility methods and type conversion helpers.
+- `client.go`: Interface definitions and domain models (`Issue`, `SourceContext`).
+- `dc_client.go`: Implementation of the Jira Data Center / Server REST API.
+- `dto.go`: [NEW] Public Data Transfer Objects for JSON unmarshalling.
 
 ### `internal/stats` (The Analytical Engine)
 
-This package contains the domain-specific statistical algorithms and data models. It is independent of the protocol layer.
+This package contains the domain-specific statistical algorithms and transformation logic.
 
+- `processor.go`: [NEW] Centralized logic for mapping DTOs to Domain models and calculating status residency.
 - `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and shared probe analysis logic.
 - `persistence.go`: Logic for status persistence and residency distributions.
 - `aging.go`: Implementations for WIP Aging and Total Aging analysis.
 - `yield.go`: Calculations for process yield and abandonment waste.
 - `cadence.go`: Logic for aggregating delivery throughput over time.
+
+### `internal/mcp` (The Glue Layer)
+
+This package handles the Model Context Protocol (MCP) server, tool registration, and request dispatching.
+
+- `server.go`: The core server implementation and tool dispatching loop.
+- `tools.go`: Definitions and AI-discoverable descriptions for all MCP tools.
+- `handlers.go`: Top-level implementations for tool execution logic.
+- `workflow.go`: Workflow-specific logic (residency rebuilding, backflow policies, and status weighting).
+- `helpers.go`: General utility methods and type conversion helpers.
 
 ---
 

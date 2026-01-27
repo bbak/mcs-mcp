@@ -4,34 +4,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"mcs-mcp/internal/jira"
 )
 
-func (s *Server) getJQL(sourceID, sourceType string) (string, error) {
+func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.SourceContext, error) {
 	var jql string
+	var projectKey string
+
 	if sourceType == "board" {
 		var id int
 		_, err := fmt.Sscanf(sourceID, "%d", &id)
 		if err != nil {
-			return "", fmt.Errorf("invalid board ID: %s", sourceID)
+			return nil, fmt.Errorf("invalid board ID: %s", sourceID)
 		}
 		config, err := s.jira.GetBoardConfig(id)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		cMap := config.(map[string]interface{})
+
+		// Extract Project Key from location if available
+		if loc, ok := cMap["location"].(map[string]interface{}); ok {
+			projectKey = fmt.Sprintf("%v", loc["projectKey"])
+		}
+
 		filterObj := cMap["filter"].(map[string]interface{})
 		filterID := fmt.Sprintf("%v", filterObj["id"])
 		filter, err := s.jira.GetFilter(filterID)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		jql = filter.(map[string]interface{})["jql"].(string)
 	} else {
 		filter, err := s.jira.GetFilter(sourceID)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		jql = filter.(map[string]interface{})["jql"].(string)
 	}
@@ -41,7 +50,16 @@ func (s *Server) getJQL(sourceID, sourceType string) (string, error) {
 	if idx := strings.Index(jqlLower, " order by"); idx != -1 {
 		jql = jql[:idx]
 	}
-	return jql, nil
+
+	// If projectKey is still empty, we'll have to infer it from results later
+	// but for now, we return the context
+	return &jira.SourceContext{
+		SourceID:       sourceID,
+		SourceType:     sourceType,
+		JQL:            jql,
+		PrimaryProject: projectKey,
+		FetchedAt:      time.Now(),
+	}, nil
 }
 
 func (s *Server) formatResult(data interface{}) string {
@@ -53,11 +71,7 @@ func (s *Server) extractProjectKey(issues []jira.Issue) string {
 	if len(issues) == 0 {
 		return ""
 	}
-	parts := strings.Split(issues[0].Key, "-")
-	if len(parts) > 1 {
-		return parts[0]
-	}
-	return ""
+	return issues[0].ProjectKey
 }
 
 func (s *Server) getStatusCategories(projectKey string) map[string]string {
