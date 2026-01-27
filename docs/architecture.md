@@ -167,6 +167,28 @@ To identify process instability and the presence of extreme outliers (Fat-Tails)
 | **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
 | **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
 
+### 4.5. Process Stability & Evolution (XmR)
+
+While Monte-Carlo simulations provide forecasts, Process Behavior Charts (XmR) assess the **validity** of those forecasts by identifying "Special Cause" variation.
+
+#### The XmR Engine (Individual Chart)
+
+The system employs Wheeler's XmR math (Individuals and Moving Range) to distinguish between:
+
+- **Common Cause Variation (Noise)**: Inherent jitter within the Natural Process Limits (Avg +/- 2.66 \* AmR).
+- **Special Cause Variation (Signal)**: Outliers (Rule 1) or Process Shifts (Rule 2: 8 consecutive points on one side).
+
+#### Three-Way Process Behavior Charts
+
+For longitudinal analysis (the "Strategic Audit"), the system uses Three-Way Charts:
+
+1.  **Baseline Chart**: Monitors individual jitter.
+2.  **Average Chart (The Third Way)**: Uses the moving range of _subgroup averages_ (e.g., Monthly averages) to detect long-term process drift or migration.
+
+#### Integrated Time Analysis
+
+A unique feature of the system is the integration of Done vs. WIP populations. Current **WIP Age** is monitored against the historical **UNPL** of resolved items, providing a proactive signal of instability _before_ the work is completed.
+
 ## 5. Data Ingestion & Analytical Decoupling
 
 To enable multi-layer caching and improve conceptual integrity, the system strictly separates Jira-specific transportation from analytical processing.
@@ -207,13 +229,14 @@ This package focuses exclusively on communication with Jira and raw data modelin
 
 - `client.go`: Interface definitions and domain models (`Issue`, `SourceContext`).
 - `dc_client.go`: Implementation of the Jira Data Center / Server REST API.
-- `dto.go`: [NEW] Public Data Transfer Objects for JSON unmarshalling.
+- `dto.go`: Public Data Transfer Objects for JSON unmarshalling.
 
 ### `internal/stats` (The Analytical Engine)
 
 This package contains the domain-specific statistical algorithms and transformation logic.
 
-- `processor.go`: [NEW] Centralized logic for mapping DTOs to Domain models and calculating status residency.
+- `processor.go`: Centralized logic for mapping DTOs to Domain models and calculating status residency.
+- `stability.go`: XmR charts, Three-Way Control Charts, and Integrated Time Analysis logic.
 - `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and shared probe analysis logic.
 - `persistence.go`: Logic for status persistence and residency distributions.
 - `aging.go`: Implementations for WIP Aging and Total Aging analysis.

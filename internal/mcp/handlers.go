@@ -563,3 +563,154 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWee
 
 	return stats.CalculateDeliveryCadence(issues, windowWeeks), nil
 }
+
+func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Ingest historical data for Cycle Time baseline (resolved in last N weeks)
+	startTime := time.Now().AddDate(0, 0, -windowWeeks*7)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		ctx.JQL, startTime.Format("2006-01-02"))
+
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
+	}
+
+	// 2. Identify context (Start Status)
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(issues) > 0 {
+		projectKey = issues[0].ProjectKey
+	}
+	statusWeights := s.getStatusWeights(projectKey)
+	resNames := []string{"Fixed", "Done", "Complete", "Resolved"} // Default
+
+	startStatus := s.getEarliestCommitment(sourceID)
+	// We use applyBackflowPolicy to ensure high-fidelity WIP Age
+	issues = s.applyBackflowPolicy(issues, statusWeights, 2)
+
+	// 3. Calculate Historical Cycle Times (The Baseline)
+	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, "", statusWeights, resNames)
+
+	// 4. Get Current WIP Population (The Monitoring group)
+	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
+	wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
+	var wipAges []float64
+	if err == nil {
+		wipIssues := make([]jira.Issue, len(wipResponse.Issues))
+		for i, dto := range wipResponse.Issues {
+			wipIssues[i] = stats.MapIssue(dto)
+		}
+		wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, 2)
+		calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, cycleTimes, "wip")
+		for _, wa := range calcWipAges {
+			if wa.AgeDays != nil {
+				wipAges = append(wipAges, *wa.AgeDays)
+			}
+		}
+	}
+
+	// 5. Calculate Time Stability (Integrated Baseline vs WIP)
+	timeStability := stats.AnalyzeTimeStability(cycleTimes, wipAges)
+
+	// 6. Calculate Throughput Stability (Weekly)
+	h := simulation.NewHistogram(issues, startTime, time.Now(), nil, resNames)
+	weeklyThroughput := aggregateToWeeks(h.Counts)
+	throughputStability := stats.CalculateXmR(weeklyThroughput)
+
+	return map[string]interface{}{
+		"time_stability":       timeStability,
+		"throughput_stability": throughputStability,
+		"context": map[string]interface{}{
+			"window_weeks": windowWeeks,
+			"sample_size":  len(issues),
+			"wip_count":    len(wipAges),
+		},
+	}, nil
+}
+
+func aggregateToWeeks(dailyCounts []int) []float64 {
+	var weekly []float64
+	for i := 0; i < len(dailyCounts); i += 7 {
+		end := i + 7
+		if end > len(dailyCounts) {
+			end = len(dailyCounts)
+		}
+		weekSum := 0
+		for _, c := range dailyCounts[i:end] {
+			weekSum += c
+		}
+		weekly = append(weekly, float64(weekSum))
+	}
+	return weekly
+}
+
+func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMonths int) (interface{}, error) {
+	if windowMonths <= 0 {
+		windowMonths = 12
+	}
+
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Ingest historical data for longitudinal analysis
+	startTime := time.Now().AddDate(0, -windowMonths, 0)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		ctx.JQL, startTime.Format("2006-01-02"))
+
+	log.Info().Str("jql", ingestJQL).Int("months", windowMonths).Msg("Performing deep history ingestion for evolution analysis")
+
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 2000) // Increase limit for deep history
+	if err != nil {
+		return nil, err
+	}
+
+	issues := make([]jira.Issue, len(response.Issues))
+	for i, dto := range response.Issues {
+		issues[i] = stats.MapIssue(dto)
+	}
+
+	// 2. Identify context
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(issues) > 0 {
+		projectKey = issues[0].ProjectKey
+	}
+	statusWeights := s.getStatusWeights(projectKey)
+	resNames := []string{"Fixed", "Done", "Complete", "Resolved"}
+	startStatus := s.getEarliestCommitment(sourceID)
+
+	// Apply backflow policy to ensure clean cycle times
+	issues = s.applyBackflowPolicy(issues, statusWeights, 2)
+
+	// 3. Calculate Cycle Times
+	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, "", statusWeights, resNames)
+
+	// 4. Group into Monthly Subgroups
+	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
+
+	// 5. Calculate Three-Way XmR
+	evolution := stats.CalculateThreeWayXmR(subgroups)
+
+	return map[string]interface{}{
+		"evolution": evolution,
+		"context": map[string]interface{}{
+			"window_months":  windowMonths,
+			"total_issues":   len(issues),
+			"subgroup_count": len(subgroups),
+		},
+	}, nil
+}

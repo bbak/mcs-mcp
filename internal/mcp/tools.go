@@ -127,6 +127,38 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
+				"name":        "get_process_stability",
+				"description": "Analyze process predictability using XmR Process Behavior Charts. Detects 'Special Cause' variation in Cycle Time and Throughput. This tool is the primary 'Predictability Guardrail' and should be used before finalizing any forecast.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"window_weeks": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of weeks to analyze (default: 26)",
+						},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_process_evolution",
+				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over time using Three-Way Control Charts. Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups. Use this for deep history analysis or after significant organizational changes.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"window_months": map[string]interface{}{
+							"type":        "integer",
+							"description": "Number of months to analyze (default: 12, supports up to 60 for deep history)",
+						},
+					},
+					"required": []string{"source_id", "source_type"},
+				},
+			},
+			map[string]interface{}{
 				"name":        "get_workflow_discovery",
 				"description": "Probe project status categories and residence times to propose semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.",
 				"inputSchema": map[string]interface{}{

@@ -13,9 +13,10 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** User asks a "When?" question regarding a specific number of items.
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
-    2.  AI identifies the source and calls `run_simulation` with `mode: "duration"`, `additional_items: 50`.
-    3.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput.
-    4.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
+    2.  AI identifies the source and calls `get_process_stability` to check the **Predictability Guardrail**.
+    3.  If stable, AI calls `run_simulation` with `mode: "duration"`, `additional_items: 50`.
+    4.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput.
+    5.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
 
 ---
 
@@ -27,8 +28,9 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** User asks: "How many items can we complete by March 31st?"
 - **Main Success Scenario:**
     1.  User asks about scope for a fixed date.
-    2.  AI calculates `target_days` and calls `run_simulation` in `scope` mode.
-    3.  AI presents the results (e.g., "With **Probable (70%)** confidence, you can deliver 45 items").
+    2.  AI validates process stability using `get_process_stability`.
+    3.  AI calculates `target_days` and calls `run_simulation` in `scope` mode.
+    4.  AI presents the results (e.g., "With **Probable (70%)** confidence, you can deliver 45 items").
 
 ---
 
@@ -45,7 +47,50 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC6: Workflow Bottleneck Discovery
+## UC4: Process Stability Validation (Predictability Guardrail)
+
+**Goal:** Assess if the historical data used for a forecast is "In Control" and thus predictable.
+
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** AI is about to run a simulation or User asks "Is our process stable?"
+- **Main Success Scenario:**
+    1.  AI calls `get_process_stability`.
+    2.  MCP Server performs **XmR analysis** (Individuals and Moving Range) on Cycle Time and Throughput.
+    3.  AI identifies **Special Cause** signals (Outliers beyond UNPL or Process Shifts).
+    4.  AI reports: "Your process is currently **Unstable**. We detected a 9-day shift in cycle time starting last week. Any forecast run now will have a higher margin of error until the process is brought back into control."
+
+---
+
+## UC5: Strategic Process Evolution (The Strategic Audit)
+
+**Goal:** Perform a longitudinal analysis of process behavior to detect long-term shifts or maturity changes.
+
+- **Primary Actor:** User (Operations Lead / Coach)
+- **Trigger:** Quarterly review or after a major "Way of Working" change.
+- **Main Success Scenario:**
+    1.  User asks: "How has our delivery performance evolved over the last 12 months?"
+    2.  AI calls `get_process_evolution` with `window_months: 12`.
+    3.  MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
+    4.  AI detects a systemic "Migration" signal.
+    5.  AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
+
+---
+
+## UC6: Proactive WIP Aging Warning
+
+**Goal:** Identify "Special Cause" items that are becoming outliers before they are finished.
+
+- **Primary Actor:** AI (Autonomous)
+- **Trigger:** AI monitors active WIP health.
+- **Main Success Scenario:**
+    1.  AI calls `get_process_stability`.
+    2.  MCP Server compares current **WIP Age** against the historical **Upper Natural Process Limit (UNPL)** of the baseline.
+    3.  AI identifies that PROJ-456 has been open for 14 days, while the historical process limit is 12 days.
+    4.  AI warns: "PROJ-456 is now a **Special Cause Outlier**. Its age (14 days) has exceeded the 98% probability limit of your historical process. This item is likely stuck or has grown in scope beyond the norm."
+
+---
+
+## UC7: Workflow Bottleneck Discovery
 
 **Goal:** Identify which status in the workflow is causing the most delay (Persistence).
 
@@ -59,7 +104,7 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC7: System Pulse & Flow Stability
+## UC8: System Pulse & Flow Stability
 
 **Goal:** Detect if the team is delivering consistently or in erratic batches.
 
@@ -73,7 +118,7 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC8: Workflow Semantic Enrichment (The Mapping)
+## UC9: Workflow Semantic Enrichment (The Mapping)
 
 **Goal:** Provide the AI with the semantic context needed to distinguish real bottlenecks from administrative stages.
 
@@ -88,7 +133,7 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC9: Granular Journey Discovery
+## UC10: Granular Journey Discovery
 
 **Goal:** Understand the exact path and delays an individual item took through the workflow.
 
@@ -101,7 +146,7 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC10: Process Yield & Abandonment Analysis
+## UC11: Process Yield & Abandonment Analysis
 
 **Goal:** Identify where value is being lost in the process and quantify the "Abandonment Rate" by tier.
 

@@ -162,6 +162,22 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 			window = 26
 		}
 		data, err = s.handleGetDeliveryCadence(id, sType, window)
+	case "get_process_stability":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		window := asInt(call.Arguments["window_weeks"])
+		if window == 0 {
+			window = 26
+		}
+		data, err = s.handleGetProcessStability(id, sType, window)
+	case "get_process_evolution":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		window := asInt(call.Arguments["window_months"])
+		if window == 0 {
+			window = 12
+		}
+		data, err = s.handleGetProcessEvolution(id, sType, window)
 	case "get_process_yield":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
