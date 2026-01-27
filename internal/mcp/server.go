@@ -8,6 +8,8 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Server struct {
@@ -86,6 +88,9 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 	if err := json.Unmarshal(params, &call); err != nil {
 		return nil, map[string]interface{}{"code": -32602, "message": "Invalid params"}
 	}
+
+	log.Info().Str("tool", call.Name).Msg("Processing tool call")
+	log.Debug().Interface("arguments", call.Arguments).Msg("Tool arguments")
 
 	var data interface{}
 	var err error
@@ -207,8 +212,11 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 	}
 
 	if err != nil {
+		log.Error().Err(err).Str("tool", call.Name).Msg("Tool call failed")
 		return nil, map[string]interface{}{"code": -32000, "message": err.Error()}
 	}
+
+	log.Info().Str("tool", call.Name).Msg("Tool call completed successfully")
 
 	return map[string]interface{}{
 		"content": []interface{}{

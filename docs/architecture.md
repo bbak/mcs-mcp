@@ -268,3 +268,37 @@ This package handles the Model Context Protocol (MCP) server, tool registration,
 - **Cohesion**: Each tool must focus on a single aspect of flow (Ingestion, Simulation, Diagnostic).
 - **Coherence**: Logical flow from data ingestion to statistical analysis to forecasting.
 - **Consistency**: Adherence to Go community standards and naming conventions.
+
+## 8. Observability & Logging Policy
+
+To ensure high traceability without overwhelming the production logs, mcs-mcp follows a tiered logging strategy using **zerolog**:
+
+| Level     | Usage                                              | Contents                                                                 |
+| :-------- | :------------------------------------------------- | :----------------------------------------------------------------------- |
+| **Error** | Critical failures that block a tool request.       | Stack traces, Jira API errors, Panic recoveries.                         |
+| **Warn**  | Statistical anomalies or non-blocking data issues. | Fat-tails, zero-throughput warnings, simulation safety brake activation. |
+| **Info**  | High-level operational flow (The "What").          | Tool entry/exit, server startup, major analytical milestones.            |
+| **Debug** | Detailed data and calculated values (The "Value"). | AI arguments, generated JQL, exact simulation percentiles, cache traces. |
+| **Trace** | Extreme granularity for internal troubleshooting.  | Logic-level noise (e.g., individual sliding window cache extensions).    |
+
+### Conceptual Integrity in Logging
+
+- **No Multi-line logs**: All logs must be structured JSON to ensure compatibility with log aggregators and terminal consoles.
+- **Value Traceability**: Any value sent back to the AI or fetched from Jira should be visible at the `Debug` level to enable post-mortem verification of AI reasoning.
+
+### 8.1 Response Metadata Semantics
+
+To prevent "Instruction Leakage" in user conversations, mcs-mcp strictly separates internal guidance from user-relevant alerts:
+
+- **`_guidance`**: (Internal) Instructions for the AI Agent on how to reason about the returned data. This should NEVER be shown to the user.
+- **`warnings`**: (External) Data-driven alerts (e.g., "Zero throughput", "Fat-tails") that indicate risks in the forecast or analysis. These SHOULD be interpreted and potentially shared with the user.
+
+Example:
+
+```json
+{
+  "_guidance": "High persistence in Demand tier is normal backlog behavior. Do not flag as a bottleneck.",
+  "warnings": ["Extreme outlier detected in 'refining' - check issue PROJ-123."],
+  "data": { ... }
+}
+```

@@ -20,14 +20,24 @@ type StatusAgeAnalysis struct {
 
 // InventoryAgeAnalysis represents the process-wide risk of a single item.
 type InventoryAgeAnalysis struct {
-	Key        string   `json:"key"`
-	Type       string   `json:"type"`
-	Summary    string   `json:"summary"`
-	Status     string   `json:"status"`
-	AgeDays    *float64 `json:"age_days,omitempty"` // Time passed (Total or WIP)
-	StatusAge  float64  `json:"status_age_days"`    // Time in current status
-	Percentile int      `json:"percentile"`         // Relative to historical distribution
-	IsStale    bool     `json:"is_stale"`
+	Key                      string   `json:"key"`
+	Type                     string   `json:"type"`
+	Summary                  string   `json:"summary"`
+	Status                   string   `json:"status"`
+	TotalAgeSinceCreation    float64  `json:"total_age_since_creation_days"`
+	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age
+	AgeInCurrentStatus       float64  `json:"age_in_current_status_days"`
+	CumulativeUpstreamDays   float64  `json:"cumulative_upstream_days"`
+	CumulativeDownstreamDays float64  `json:"cumulative_downstream_days"`
+	Percentile               int      `json:"percentile"` // Relative to historical distribution
+	IsStale                  bool     `json:"is_stale"`
+}
+
+// AgingResult is the top-level response for inventory aging analysis.
+type AgingResult struct {
+	Items    []InventoryAgeAnalysis `json:"items"`
+	Warnings []string               `json:"warnings,omitempty"`
+	Guidance []string               `json:"_guidance,omitempty"`
 }
 
 // CalculateStatusAging identifies active items and compares their residence in current step to history.
@@ -89,7 +99,7 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 }
 
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
-func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, persistence []float64, agingType string) []InventoryAgeAnalysis {
+func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAgeAnalysis {
 	var results []InventoryAgeAnalysis
 
 	// Sort historical values for percentile calculation
@@ -116,14 +126,27 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		}
 		stepDays := math.Ceil((float64(stepSeconds)/86400.0)*10) / 10
 
-		// 2. Age (Process-wide)
-		var ageDays *float64
+		// 2. Tier Residency
+		var upstreamDays, downstreamDays float64
+		for status, seconds := range issue.StatusResidency {
+			days := float64(seconds) / 86400.0
+			if m, ok := mappings[status]; ok {
+				switch m.Tier {
+				case "Upstream", "Demand":
+					upstreamDays += days
+				case "Downstream":
+					downstreamDays += days
+				}
+			}
+		}
+
+		// 3. Age (Process-wide)
+		var ageSinceCommitment *float64
 		var ageRaw float64
+		totalAgeRaw := time.Since(issue.Created).Hours() / 24.0
 
 		if agingType == "total" {
-			ageRaw = time.Since(issue.Created).Hours() / 24.0
-			rounded := math.Ceil(ageRaw*10) / 10
-			ageDays = &rounded
+			ageRaw = totalAgeRaw
 		} else {
 			// WIP Age logic
 			commitmentWeight := 2
@@ -166,11 +189,11 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 				}
 				ageRaw = time.Since(start).Hours() / 24.0
 				rounded := math.Ceil(ageRaw*10) / 10
-				ageDays = &rounded
+				ageSinceCommitment = &rounded
 			}
 
 			// Strictly filter out items that are not currently in a WIP status
-			if ageDays == nil {
+			if ageSinceCommitment == nil {
 				continue
 			}
 			currentWeight, ok := statusWeights[issue.Status]
@@ -180,15 +203,20 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		}
 
 		analysis := InventoryAgeAnalysis{
-			Key:       issue.Key,
-			Type:      issue.IssueType,
-			Summary:   issue.Summary,
-			Status:    issue.Status,
-			StatusAge: stepDays,
-			AgeDays:   ageDays,
+			Key:                      issue.Key,
+			Type:                     issue.IssueType,
+			Summary:                  issue.Summary,
+			Status:                   issue.Status,
+			AgeInCurrentStatus:       stepDays,
+			TotalAgeSinceCreation:    math.Round(totalAgeRaw*10) / 10,
+			AgeSinceCommitment:       ageSinceCommitment,
+			CumulativeUpstreamDays:   math.Round(upstreamDays*10) / 10,
+			CumulativeDownstreamDays: math.Round(downstreamDays*10) / 10,
 		}
 
-		if ageDays != nil {
+		if agingType == "total" {
+			analysis.Percentile = getP(ageRaw)
+		} else if ageSinceCommitment != nil {
 			analysis.Percentile = getP(ageRaw)
 			// Heuristic stale: > P85
 			if len(persistence) > 0 {
@@ -203,10 +231,10 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 	}
 
 	sort.Slice(results, func(i, j int) bool {
-		if results[i].AgeDays != nil && results[j].AgeDays != nil {
-			return *results[i].AgeDays > *results[j].AgeDays
+		if results[i].AgeSinceCommitment != nil && results[j].AgeSinceCommitment != nil {
+			return *results[i].AgeSinceCommitment > *results[j].AgeSinceCommitment
 		}
-		return results[i].StatusAge > results[j].StatusAge
+		return results[i].AgeInCurrentStatus > results[j].AgeInCurrentStatus
 	})
 
 	return results

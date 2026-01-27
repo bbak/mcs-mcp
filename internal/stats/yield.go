@@ -72,9 +72,10 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 		}
 
 		severity := "Low"
-		if tier == "Downstream" {
+		switch tier {
+		case "Downstream":
 			severity = "High"
-		} else if tier == "Upstream" {
+		case "Upstream":
 			severity = "Medium"
 		}
 

@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"sort"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Composition represents the scope breakdown of a forecast.
@@ -77,6 +79,7 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 
 	isInfinite := totalPossible == 0
 
+	log.Info().Int("trials", trials).Int("backlog", backlogSize).Msg("Starting duration simulation")
 	for i := 0; i < trials; i++ {
 		durations[i] = e.simulateDurationTrial(backlogSize)
 	}
@@ -105,8 +108,10 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 			"almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
 		},
 	}
+	log.Debug().Interface("result", res).Msg("Simulation calculation complete")
 	e.assessPredictability(&res)
 	if isInfinite {
+		log.Warn().Msg("Simulation resulted in infinite duration due to zero throughput")
 		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
 	}
 	return res
@@ -351,6 +356,7 @@ func (e *Engine) simulateDurationTrial(backlog int) int {
 		remaining -= throughput
 
 		if days > 20000 { // Safety brake
+			log.Warn().Int("backlog", backlog).Int("days", days).Msg("Simulation safety brake triggered")
 			break
 		}
 	}

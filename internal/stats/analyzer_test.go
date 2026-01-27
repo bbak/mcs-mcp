@@ -215,9 +215,12 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 		"In Dev":     3, // Commitment
 	}
 	history := []float64{2.0, 5.0, 10.0}
+	mappings := map[string]StatusMetadata{
+		"In Dev": {Tier: "Downstream", Role: "active"},
+	}
 
 	// Test WIP Age
-	results := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, history, "wip")
+	results := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "wip")
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result in WIP mode, got %d", len(results))
@@ -225,8 +228,8 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 
 	for _, r := range results {
 		if r.Key == "COM-1" {
-			if r.AgeDays == nil {
-				t.Error("Expected AgeDays for COM-1 (WIP mode), got nil")
+			if r.AgeSinceCommitment == nil {
+				t.Error("Expected AgeSinceCommitment for COM-1 (WIP mode), got nil")
 			}
 		} else {
 			t.Errorf("Unexpected item in WIP results: %s", r.Key)
@@ -234,13 +237,11 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	}
 
 	// Test Total Age
-	resultsTotal := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, history, "total")
+	resultsTotal := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "total")
 	for _, r := range resultsTotal {
 		if r.Key == "DEM-1" {
-			if r.AgeDays == nil {
-				t.Error("Expected AgeDays for DEM-1 (Total mode), got nil")
-			} else if *r.AgeDays < 9.9 { // ~10 days
-				t.Errorf("Expected AgeDays around 10.0 for DEM-1, got %f", *r.AgeDays)
+			if r.TotalAgeSinceCreation < 9.9 { // ~10 days
+				t.Errorf("Expected TotalAgeSinceCreation around 10.0 for DEM-1, got %f", r.TotalAgeSinceCreation)
 			}
 		}
 	}

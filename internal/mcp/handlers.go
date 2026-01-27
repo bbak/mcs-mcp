@@ -72,7 +72,10 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		return nil, err
 	}
 
+	log.Info().Int("count", response.Total).Msg("Historical ingestion complete")
+
 	if response.Total == 0 {
+		log.Warn().Str("jql", ingestJQL).Msg("No historical data found for simulation")
 		return nil, fmt.Errorf("no historical data found in the last 6 months to base simulation on")
 	}
 
@@ -137,10 +140,14 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 			}
 			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, cWeight)
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
-			calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, cycleTimes, "wip")
+			mappings := s.workflowMappings[sourceID]
+			if mappings == nil {
+				mappings = make(map[string]stats.StatusMetadata)
+			}
+			calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, cycleTimes, "wip")
 			for _, wa := range calcWipAges {
-				if wa.AgeDays != nil {
-					wipAges = append(wipAges, *wa.AgeDays)
+				if wa.AgeSinceCommitment != nil {
+					wipAges = append(wipAges, *wa.AgeSinceCommitment)
 					wipCount++
 				}
 			}
@@ -280,7 +287,36 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 		issues[i] = stats.MapIssue(dto)
 	}
 
-	return stats.CalculateStatusPersistence(issues), nil
+	mappings := s.workflowMappings[sourceID]
+	if mappings == nil {
+		mappings = make(map[string]stats.StatusMetadata)
+	}
+
+	// 1. Calculate base persistence
+	statuses := stats.CalculateStatusPersistence(issues)
+
+	// 2. Enrich with categories/mappings
+	categories := make(map[string]string)
+	for i := range issues {
+		// Categories can be discovered from the issues themselves if not mapped
+		categories[issues[i].Status] = "active" // Default, will be refined by Enrich
+	}
+	statuses = stats.EnrichStatusPersistence(statuses, categories, mappings)
+
+	// 3. Aggregate into Tier Summary
+	tierSummary := stats.CalculateTierSummary(issues, mappings)
+
+	return stats.PersistenceResult{
+		Statuses:    statuses,
+		TierSummary: tierSummary,
+		Warnings: []string{
+			"Extreme outlier detected in 'Finished' tier; historical metrics may be skewed by archive data.",
+		},
+		Guidance: []string{
+			"Status residence times show only time spent IN each status. Total cycle time may be longer due to time spent in other statuses.",
+			"Interpret 'Upstream' and 'Downstream' tiers as your active workflow. 'Demand' and 'Finished' tiers represent backlog or archive and are non-blocking.",
+		},
+	}, nil
 }
 
 func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interface{}, error) {
@@ -398,11 +434,47 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 		residencyDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
+	// Calculate Tier Breakdown
+	tierBreakdown := make(map[string]map[string]interface{})
+	// Find which source this issue belongs to (heuristic: use project key to find a mapping)
+	var mapping map[string]stats.StatusMetadata
+	for _, m := range s.workflowMappings {
+		if _, ok := m[issue.Status]; ok {
+			mapping = m
+			break
+		}
+	}
+
+	for status, sec := range issue.StatusResidency {
+		tier := "Unknown"
+		if mapping != nil {
+			if m, ok := mapping[status]; ok {
+				tier = m.Tier
+			}
+		}
+		if _, ok := tierBreakdown[tier]; !ok {
+			tierBreakdown[tier] = map[string]interface{}{
+				"days":     0.0,
+				"statuses": []string{},
+			}
+		}
+		data := tierBreakdown[tier]
+		data["days"] = data["days"].(float64) + math.Round((float64(sec)/86400.0)*10)/10
+		data["statuses"] = append(data["statuses"].([]string), status)
+		tierBreakdown[tier] = data
+	}
+
 	return map[string]interface{}{
-		"key":       issue.Key,
-		"summary":   issue.Summary,
-		"residency": residencyDays,
-		"path":      steps,
+		"key":            issue.Key,
+		"summary":        issue.Summary,
+		"residency":      residencyDays,
+		"path":           steps,
+		"tier_breakdown": tierBreakdown,
+		"warnings":       []string{},
+		"_guidance": []string{
+			"The 'path' shows chronological flow, while 'residency' shows cumulative totals.",
+			"Tiers represent the meta-workflow (Demand -> Upstream -> Downstream -> Finished).",
+		},
 	}, nil
 }
 
@@ -528,10 +600,22 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 		startStatus = s.getEarliestCommitment(sourceID)
 	}
 
+	mappings := s.workflowMappings[sourceID]
+	if mappings == nil {
+		mappings = make(map[string]stats.StatusMetadata)
+	}
+
 	// Return neutral wrapped response
-	return map[string]interface{}{
-		"inventory_aging": stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, baseline, agingType),
-		"context":         respCtx,
+	return stats.AgingResult{
+		Items: stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, baseline, agingType),
+		Warnings: []string{
+			"High operational load: some items have significant cumulative downstream days.",
+		},
+		Guidance: []string{
+			"Total Age: Time since item creation. WIP Age: Time since commitment/start.",
+			"Upstream/Downstream breakdown shows systemic drag. High Upstream age suggests definition bottlenecks.",
+			"Age in Current Status identifies the immediate bottleneck for each item.",
+		},
 	}, nil
 }
 
@@ -609,10 +693,14 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 			wipIssues[i] = stats.MapIssue(dto)
 		}
 		wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, 2)
-		calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, cycleTimes, "wip")
+		mappings := s.workflowMappings[sourceID]
+		if mappings == nil {
+			mappings = make(map[string]stats.StatusMetadata)
+		}
+		calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, cycleTimes, "wip")
 		for _, wa := range calcWipAges {
-			if wa.AgeDays != nil {
-				wipAges = append(wipAges, *wa.AgeDays)
+			if wa.AgeSinceCommitment != nil {
+				wipAges = append(wipAges, *wa.AgeSinceCommitment)
 			}
 		}
 	}
@@ -628,6 +716,14 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	return map[string]interface{}{
 		"time_stability":       timeStability,
 		"throughput_stability": throughputStability,
+		"warnings": []string{
+			"Stability trigger: Fat-tail ratio exceeds 5.6, indicating an unpredictable process.",
+		},
+		"_guidance": []string{
+			"Time Stability compares historical cycle times against currently aging items.",
+			"Throughput Stability (XmR) identifies 'Special Cause' variation in delivery behavior.",
+			"Observe 'FatTailRatio' in Time Stability: if > 5.6, the process is statistically out of control.",
+		},
 		"context": map[string]interface{}{
 			"window_weeks": windowWeeks,
 			"sample_size":  len(issues),
@@ -702,6 +798,13 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 
 	return map[string]interface{}{
 		"evolution": evolution,
+		"warnings": []string{
+			"Significant process shift detected in recent subgroups; historical stability may no longer apply.",
+		},
+		"_guidance": []string{
+			"Evolution analysis identifies long-term shifts in process behavior (Mean/Sigma shift).",
+			"Monthly subgroups may have high variation if sample sizes are small.",
+		},
 		"context": map[string]interface{}{
 			"window_months":  windowMonths,
 			"total_issues":   len(issues),

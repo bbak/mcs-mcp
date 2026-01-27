@@ -22,6 +22,23 @@ type StatusPersistence struct {
 	Interpretation string  `json:"interpretation,omitempty"`
 }
 
+// TierSummary aggregates persistence metrics by meta-workflow tier.
+type TierSummary struct {
+	Count          int      `json:"count"`
+	Median         float64  `json:"combined_median"`
+	P85            float64  `json:"combined_p85"`
+	Statuses       []string `json:"statuses"`
+	Interpretation string   `json:"interpretation,omitempty"`
+}
+
+// PersistenceResult is the top-level response for status persistence analysis.
+type PersistenceResult struct {
+	Statuses    []StatusPersistence    `json:"statuses"`
+	TierSummary map[string]TierSummary `json:"tier_summary,omitempty"`
+	Warnings    []string               `json:"warnings,omitempty"`
+	Guidance    []string               `json:"_guidance,omitempty"`
+}
+
 // CalculateStatusPersistence analyzes how long items spend in each status.
 func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 	statusDurations := make(map[string][]float64)
@@ -103,4 +120,68 @@ func EnrichStatusPersistence(results []StatusPersistence, categories map[string]
 		}
 	}
 	return results
+}
+
+// CalculateTierSummary aggregates persistence data into tiers.
+func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadata) map[string]TierSummary {
+	tierDurations := make(map[string][]float64)
+	tierStatuses := make(map[string]map[string]bool)
+
+	for _, issue := range issues {
+		for status, seconds := range issue.StatusResidency {
+			if seconds <= 0 {
+				continue
+			}
+			days := float64(seconds) / 86400.0
+
+			// Resolve Tier
+			tier := "Unknown"
+			if m, ok := mappings[status]; ok {
+				tier = m.Tier
+			}
+
+			tierDurations[tier] = append(tierDurations[tier], days)
+			if tierStatuses[tier] == nil {
+				tierStatuses[tier] = make(map[string]bool)
+			}
+			tierStatuses[tier][status] = true
+		}
+	}
+
+	summary := make(map[string]TierSummary)
+	for tier, durations := range tierDurations {
+		if len(durations) == 0 {
+			continue
+		}
+		sort.Float64s(durations)
+		n := len(durations)
+
+		statuses := []string{}
+		for s := range tierStatuses[tier] {
+			statuses = append(statuses, s)
+		}
+		sort.Strings(statuses)
+
+		interpretation := ""
+		switch tier {
+		case "Demand":
+			interpretation = "Total time spent in the backlog/discovery phase. High numbers here are non-blocking."
+		case "Upstream":
+			interpretation = "Total time spent in definition/refinement. Key indicator of 'Definition Bottlenecks'."
+		case "Downstream":
+			interpretation = "Total time spent in implementation/testing. This is your primary delivery capacity."
+		case "Finished":
+			interpretation = "Total time spent in terminal statuses. Expected to be high for archived work."
+		}
+
+		summary[tier] = TierSummary{
+			Count:          n,
+			Median:         math.Round(durations[int(float64(n)*0.50)]*10) / 10,
+			P85:            math.Round(durations[int(float64(n)*0.85)]*10) / 10,
+			Statuses:       statuses,
+			Interpretation: interpretation,
+		}
+	}
+
+	return summary
 }

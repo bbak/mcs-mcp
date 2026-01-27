@@ -48,8 +48,10 @@ func (c *dcClient) getFromCache(key string) (interface{}, bool) {
 
 	entry, ok := c.cache[key]
 	if !ok {
+		log.Debug().Str("key", key).Msg("Cache miss")
 		return nil, false
 	}
+	log.Debug().Str("key", key).Msg("Cache hit")
 
 	if time.Now().After(entry.Expiration) {
 		delete(c.cache, key)
@@ -76,6 +78,7 @@ func (c *dcClient) addToCache(key string, value interface{}, ttl time.Duration) 
 		OriginalTTL: ttl,
 		AccessCount: 1,
 	}
+	log.Debug().Str("key", key).Dur("ttl", ttl).Msg("Added to cache")
 }
 
 func (c *dcClient) throttle() {
@@ -141,6 +144,8 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	}
 
 	searchURL := fmt.Sprintf("%s/rest/api/2/search?%s", c.cfg.BaseURL, params.Encode())
+	log.Info().Msg("Requesting issues from Jira")
+	log.Debug().Str("url", searchURL).Str("jql", jql).Msg("Jira search details")
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, err
