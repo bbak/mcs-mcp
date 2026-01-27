@@ -167,7 +167,33 @@ To identify process instability and the presence of extreme outliers (Fat-Tails)
 | **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
 | **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
 
-## 5. Conceptual Integrity Constraints
+## 6. Codebase Structure & Modularization
+
+The codebase is designed for high cohesion and maintainability, with logic strictly separated by functional responsibility.
+
+### `internal/mcp` (The Protocol Layer)
+
+This package handles the Model Context Protocol (MCP) server, tool registration, and request dispatching.
+
+- `server.go`: The core server implementation, JSON-RPC handling, and tool dispatching loop.
+- `tools.go`: Definitions and AI-discoverable descriptions for all MCP tools.
+- `handlers.go`: Top-level implementations for tool execution logic.
+- `workflow.go`: Workflow-specific logic (residency rebuilding, backflow policies, and status weighting).
+- `helpers.go`: General utility methods and type conversion helpers.
+
+### `internal/stats` (The Analytical Engine)
+
+This package contains the domain-specific statistical algorithms and data models. It is independent of the protocol layer.
+
+- `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and shared probe analysis logic.
+- `persistence.go`: Logic for status persistence and residency distributions.
+- `aging.go`: Implementations for WIP Aging and Total Aging analysis.
+- `yield.go`: Calculations for process yield and abandonment waste.
+- `cadence.go`: Logic for aggregating delivery throughput over time.
+
+---
+
+## 7. Conceptual Integrity Constraints
 
 - **Cohesion**: Each tool must focus on a single aspect of flow (Ingestion, Simulation, Diagnostic).
 - **Coherence**: Logical flow from data ingestion to statistical analysis to forecasting.
