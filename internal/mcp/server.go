@@ -154,11 +154,12 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
 		data, err = s.handleGetStatusPersistence(id, sType)
-	case "get_inventory_aging_analysis":
+	case "get_aging_analysis":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
 		agingType := asString(call.Arguments["aging_type"])
-		data, err = s.handleGetInventoryAgingAnalysis(id, sType, agingType)
+		tierFilter := asString(call.Arguments["tier_filter"])
+		data, err = s.handleGetAgingAnalysis(id, sType, agingType, tierFilter)
 	case "get_delivery_cadence":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])

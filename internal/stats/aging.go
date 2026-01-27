@@ -24,8 +24,10 @@ type InventoryAgeAnalysis struct {
 	Type                     string   `json:"type"`
 	Summary                  string   `json:"summary"`
 	Status                   string   `json:"status"`
-	TotalAgeSinceCreation    float64  `json:"total_age_since_creation_days"`
-	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age
+	Tier                     string   `json:"tier"`                                // Terminal Tier context
+	IsCompleted              bool     `json:"is_completed"`                        // True if in 'Finished' tier
+	TotalAgeSinceCreation    float64  `json:"total_age_since_creation_days"`       // Caps at entry to Finished tier
+	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age OR Final Cycle Time
 	AgeInCurrentStatus       float64  `json:"age_in_current_status_days"`
 	CumulativeUpstreamDays   float64  `json:"cumulative_upstream_days"`
 	CumulativeDownstreamDays float64  `json:"cumulative_downstream_days"`
@@ -117,19 +119,39 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 	}
 
 	for _, issue := range wipIssues {
-		// 1. Current Step Age
+		// 0. Determine Tier Context
+		currentTier := "Demand"
+		isFinished := false
+		if m, ok := mappings[issue.Status]; ok {
+			currentTier = m.Tier
+			if m.Tier == "Finished" {
+				isFinished = true
+			}
+		}
+
+		// 1. Current Step Age (Stopped for Finished)
 		var stepSeconds int64
 		if len(issue.Transitions) > 0 {
-			stepSeconds = int64(time.Since(issue.Transitions[len(issue.Transitions)-1].Date).Seconds())
+			lastTransDate := issue.Transitions[len(issue.Transitions)-1].Date
+			if isFinished {
+				stepSeconds = 0 // Transitioned into Finished, clock stops
+			} else {
+				stepSeconds = int64(time.Since(lastTransDate).Seconds())
+			}
 		} else {
-			stepSeconds = int64(time.Since(issue.Created).Seconds())
+			if isFinished {
+				stepSeconds = 0
+			} else {
+				stepSeconds = int64(time.Since(issue.Created).Seconds())
+			}
 		}
 		stepDays := math.Ceil((float64(stepSeconds)/86400.0)*10) / 10
 
-		// 2. Tier Residency
-		var upstreamDays, downstreamDays float64
+		// 2. Tier Residency & Total Age (Stop the clock)
+		var upstreamDays, downstreamDays, totalDays float64
 		for status, seconds := range issue.StatusResidency {
 			days := float64(seconds) / 86400.0
+			totalDays += days
 			if m, ok := mappings[status]; ok {
 				switch m.Tier {
 				case "Upstream", "Demand":
@@ -143,7 +165,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 3. Age (Process-wide)
 		var ageSinceCommitment *float64
 		var ageRaw float64
-		totalAgeRaw := time.Since(issue.Created).Hours() / 24.0
+		totalAgeRaw := totalDays // Already pinned in StatusResidency by ProcessChangelog
 
 		if agingType == "total" {
 			ageRaw = totalAgeRaw
@@ -187,17 +209,27 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 				} else {
 					start = issue.Created
 				}
-				ageRaw = time.Since(start).Hours() / 24.0
+
+				// WIP Age / Cycle Time (Stopped for Finished)
+				if isFinished && issue.ResolutionDate != nil {
+					ageRaw = issue.ResolutionDate.Sub(start).Hours() / 24.0
+				} else if isFinished && len(issue.Transitions) > 0 {
+					// Pinned at entrance to Finished
+					ageRaw = issue.Transitions[len(issue.Transitions)-1].Date.Sub(start).Hours() / 24.0
+				} else {
+					ageRaw = time.Since(start).Hours() / 24.0
+				}
+
 				rounded := math.Ceil(ageRaw*10) / 10
 				ageSinceCommitment = &rounded
 			}
 
-			// Strictly filter out items that are not currently in a WIP status
+			// Strictly filter out items that are not currently in a WIP status (unless Finished and we didn't filter it earlier)
 			if ageSinceCommitment == nil {
 				continue
 			}
 			currentWeight, ok := statusWeights[issue.Status]
-			if ok && currentWeight < commitmentWeight {
+			if ok && currentWeight < commitmentWeight && !isFinished {
 				continue
 			}
 		}
@@ -207,6 +239,8 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			Type:                     issue.IssueType,
 			Summary:                  issue.Summary,
 			Status:                   issue.Status,
+			Tier:                     currentTier,
+			IsCompleted:              isFinished,
 			AgeInCurrentStatus:       stepDays,
 			TotalAgeSinceCreation:    math.Round(totalAgeRaw*10) / 10,
 			AgeSinceCommitment:       ageSinceCommitment,
@@ -218,8 +252,8 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			analysis.Percentile = getP(ageRaw)
 		} else if ageSinceCommitment != nil {
 			analysis.Percentile = getP(ageRaw)
-			// Heuristic stale: > P85
-			if len(persistence) > 0 {
+			// Heuristic stale: > P85 (only for non-finished)
+			if len(persistence) > 0 && !isFinished {
 				p85 := persistence[int(float64(len(persistence))*0.85)]
 				if ageRaw > p85 {
 					analysis.IsStale = true

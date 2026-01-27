@@ -162,3 +162,15 @@ func asInt(v interface{}) int {
 		return 0
 	}
 }
+
+func (s *Server) getFinishedStatuses(sourceID string) map[string]bool {
+	finished := make(map[string]bool)
+	if m, ok := s.workflowMappings[sourceID]; ok {
+		for status, meta := range m {
+			if meta.Tier == "Finished" {
+				finished[status] = true
+			}
+		}
+	}
+	return finished
+}

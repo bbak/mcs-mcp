@@ -14,7 +14,7 @@ type Dataset struct {
 }
 
 // MapIssue transforms a Jira DTO into a Domain Issue and calculates residency.
-func MapIssue(item jira.IssueDTO) jira.Issue {
+func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 	issue := jira.Issue{
 		Key:             item.Key,
 		IssueType:       item.Fields.IssueType.Name,
@@ -37,7 +37,7 @@ func MapIssue(item jira.IssueDTO) jira.Issue {
 	}
 
 	if item.Changelog != nil {
-		issue.Transitions, issue.StatusResidency, issue.StartedDate = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate)
+		issue.Transitions, issue.StatusResidency, issue.StartedDate = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
 	}
 
 	return issue
@@ -54,7 +54,7 @@ func ExtractProjectKey(key string) string {
 }
 
 // ProcessChangelog calculates residency times and transitions from a Jira changelog.
-func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved *time.Time) ([]jira.StatusTransition, map[string]int64, *time.Time) {
+func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool) ([]jira.StatusTransition, map[string]int64, *time.Time) {
 	var earliest *time.Time
 	type fullTransition struct {
 		From string
@@ -122,6 +122,9 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		var finalDate time.Time
 		if resolved != nil {
 			finalDate = *resolved
+		} else if finishedStatuses[currentStatus] {
+			// Stop the Clock: if in Finished tier, use the date of the most recent transition into it
+			finalDate = allTrans[len(allTrans)-1].Date
 		} else {
 			finalDate = time.Now()
 		}
@@ -139,6 +142,18 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		}
 		// If no transitions, we assume it stayed in the initial state (Created) until resolution
 		residency["Created"] = duration
+	} else {
+		// No transitions and not resolved: residency in current status since creation
+		finalDate := time.Now()
+		if finishedStatuses[currentStatus] {
+			// If created directly in a Finished status, the clock stops at creation
+			finalDate = created
+		}
+		duration := int64(finalDate.Sub(created).Seconds())
+		if duration <= 0 {
+			duration = 1
+		}
+		residency[currentStatus] = duration
 	}
 
 	return transitions, residency, earliest

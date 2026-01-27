@@ -44,6 +44,7 @@ This document describes the primary interaction scenarios between the User (Proj
     1.  AI calls `run_simulation` with `mode: "single"`.
     2.  MCP Server utilizes the **Status-Granular Flow Model** to calculate lead times.
     3.  AI presents the Service Level Expectation (e.g., "85% of similar items are resolved within 5 days").
+    4.  **Post-Resolution Logic**: If the item is already finished, the AI uses `get_aging_analysis` with `tier_filter: "Finished"` to report its actual, fixed Cycle Time.
 
 ---
 
@@ -160,3 +161,16 @@ This document describes the primary interaction scenarios between the User (Proj
         - 20% was abandoned from **Upstream** (Healthy discovery discard).
         - **5% was abandoned from Downstream** (Wasteful implementation rework).
     4. AI identifies the cost of Downstream abandonment: "Items abandoned in 'Downstream' had an average age of 15 days, representing significant wasted implementation capacity."
+
+---
+
+## UC12: Post-Delivery Cycle Time Analysis
+
+**Goal:** Analyze the historical lead times of recently delivered items without them "aging" relative to today.
+
+- **Primary Actor:** User (Project Lead)
+- **Trigger:** User asks: "How long did it take us to deliver our last 10 items?"
+- **Main Success Scenario:**
+    1. AI calls `get_aging_analysis` with `aging_type: "wip"` and `tier_filter: "Finished"`.
+    2. MCP Server identifies items in terminal statuses but returns their **pinned Cycle Time** (time spent from commitment to finish point).
+    3. AI reports: "The last 10 items had a median cycle time of 12.5 days. Note that these are fixed delivery metrics; they do not increase as time passes since their delivery."

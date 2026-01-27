@@ -49,7 +49,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_data_metadata",
-				"description": "Probe a data source (board or filter) to analyze data quality, volume, and discover project-specific workflow statuses (Commitment Points).",
+				"description": "Probe a data source (board or filter) to analyze data quality, volume, and reachability. This provides a 'Data Inventory' (counts, date ranges, resolution rates) but DOES NOT provide process semantics or workflow mapping proposals.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -101,16 +101,17 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_inventory_aging_analysis",
-				"description": "Identify which active items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
+				"name": "get_aging_analysis",
+				"description": "Identify which items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
 					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.\n\n" +
-					"AI INTERPRETATION GUIDANCE: When using 'wip' age, focus on items in 'Active' roles within 'Upstream' or 'Downstream' tiers. Items aging in 'Queue' roles or 'Demand' tier are expected but should be mentioned as systemic drag. Prioritize diagnosing items that are 'stalling' during active execution.",
+					"AI INTERPRETATION GUIDANCE: 'WIP Age' applies to items in Upstream/Downstream tiers. Items in the 'Finished' tier show 'Cycle Time' (the clock stopped when they entered terminal status). Use the 'tier_filter' to focus on 'WIP' (active middle) or specific phases.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
 						"aging_type":  map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
+						"tier_filter": map[string]interface{}{"type": "string", "enum": []string{"WIP", "Demand", "Upstream", "Downstream", "Finished", "All"}, "description": "Optional: Filter results to specific tiers. 'WIP' (default) excludes Demand and Finished."},
 					},
 					"required": []string{"source_id", "source_type", "aging_type"},
 				},
@@ -161,8 +162,12 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_workflow_discovery",
-				"description": "Probe project status categories and residence times to propose semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.",
+				"name": "get_workflow_discovery",
+				"description": "Probe project status categories and residence times to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
+					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
+					"- TIERS: 'Demand' (backlog), 'Upstream' (definition/refinement), 'Downstream' (implementation/testing), 'Finished' (archived/delivered).\n" +
+					"- ROLES: 'active' (working), 'queue' (waiting/bottleneck), 'ignore' (non-process noise).\n" +
+					"- OUTCOMES: 'delivered' (value reached user), 'abandoned' (work discarded).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -173,8 +178,10 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "set_workflow_mapping",
-				"description": "Store user-confirmed semantic metadata (tier and role) for statuses. This is the mandatory persistence step after the 'Inform & Veto' loop.",
+				"name": "set_workflow_mapping",
+				"description": "Store user-confirmed semantic metadata (tier and role) for statuses. This is the mandatory persistence step after the 'Inform & Veto' loop.\n\n" +
+					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution), 'Finished' (Terminal statuses).\n" +
+					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting for someone/something), 'ignore' (Admin/Non-delivery statuses).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

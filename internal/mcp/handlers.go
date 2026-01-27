@@ -26,29 +26,15 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	}
 
 	// Process DTOs into Domain Issues
+	finished := s.getFinishedStatuses(sourceID)
 	issues := make([]jira.Issue, len(response.Issues))
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	summary := stats.AnalyzeProbe(issues, response.Total)
 
-	// Enrich with metadata
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(issues) > 0 {
-		projectKey = issues[0].ProjectKey
-	}
-
-	if projectKey != "" {
-		statuses, err := s.jira.GetProjectStatuses(projectKey)
-		if err != nil {
-			log.Error().Err(err).Str("project", projectKey).Msg("Failed to fetch project statuses")
-		}
-		summary.AvailableStatuses = statuses
-		statusWeights := s.getStatusWeights(projectKey)
-		summary.CommitmentPointHints = s.getCommitmentPointHints(issues, statusWeights)
-	}
-
+	// metadata summary is now purely about data health and volume
 	return summary, nil
 }
 
@@ -80,9 +66,10 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 
 	// Process DTOs into Domain Issues
+	finished := s.getFinishedStatuses(sourceID)
 	issues := make([]jira.Issue, len(response.Issues))
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	// 3. Analytics Context (WIP Aging & Status Weights)
@@ -124,8 +111,9 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 			return nil, err
 		}
 		existingBacklogCount = len(response.Issues)
+		finished := s.getFinishedStatuses(sourceID)
 		for _, dto := range response.Issues {
-			issues = append(issues, stats.MapIssue(dto))
+			issues = append(issues, stats.MapIssue(dto, finished))
 		}
 	}
 
@@ -134,9 +122,10 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
 		wipIssuesResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 		if err == nil {
+			finished := s.getFinishedStatuses(sourceID)
 			wipIssues := make([]jira.Issue, len(wipIssuesResponse.Issues))
 			for i, dto := range wipIssuesResponse.Issues {
-				wipIssues[i] = stats.MapIssue(dto)
+				wipIssues[i] = stats.MapIssue(dto, finished)
 			}
 			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, cWeight)
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
@@ -283,8 +272,9 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	mappings := s.workflowMappings[sourceID]
@@ -310,7 +300,7 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 		Statuses:    statuses,
 		TierSummary: tierSummary,
 		Warnings: []string{
-			"Extreme outlier detected in 'Finished' tier; historical metrics may be skewed by archive data.",
+			"Historical metrics for Finished tier are provided for cycle time context; ignore outlier warnings for this tier.",
 		},
 		Guidance: []string{
 			"Status residence times show only time spent IN each status. Total cycle time may be longer due to time spent in other statuses.",
@@ -331,8 +321,9 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	discovery := s.getWorkflowDiscovery(sourceID, issues)
@@ -344,17 +335,32 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	statusWeights := s.getStatusWeights(projectKey)
 	statusCats := s.getStatusCategories(projectKey)
 
-	discovery := stats.AnalyzeProbe(issues, 0)
+	// 1. Calculate persistence-based discovery (Tiers/Roles)
+	persistence := stats.CalculateStatusPersistence(issues)
+	proposedMapping := stats.EnrichStatusPersistence(persistence, statusCats, make(map[string]stats.StatusMetadata))
 
-	// Enrich with hints for commitment points
+	// 3. Resolution Outcomes
+	resolutions := s.getResolutionMap()
+
+	// 2. Commitment Point Hints
 	hints := s.getCommitmentPointHints(issues, statusWeights)
 
+	// 4. Proposed Order
+	proposedOrder := s.getInferredRange(sourceID, "", "", issues, statusWeights)
+
 	return map[string]interface{}{
-		"discovery": discovery,
-		"mapping":   s.workflowMappings[sourceID],
+		"proposed_mapping":     proposedMapping,
+		"proposed_resolutions": resolutions,
+		"proposed_order":       proposedOrder,
+		"current_mapping":      s.workflowMappings[sourceID],
 		"hints": map[string]interface{}{
 			"proposed_commitment_points": hints,
-			"categories":                 statusCats,
+		},
+		"data_summary": stats.AnalyzeProbe(issues, 0),
+		"_guidance": []string{
+			"Confirm the 'proposed_mapping' and 'proposed_resolutions' with the user.",
+			"TIERS: Demand (Backlog), Upstream (Refinement), Downstream (Development), Finished (Terminal).",
+			"ROLES: active (working), queue (waiting), ignore (noise).",
 		},
 	}
 }
@@ -389,7 +395,18 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 		return nil, fmt.Errorf("issue not found: %s", issueKey)
 	}
 
-	issue := stats.MapIssue(response.Issues[0])
+	// Finding which source this issue belongs to (heuristic)
+	var sourceID string
+	var mapping map[string]stats.StatusMetadata
+	for id, m := range s.workflowMappings {
+		if _, ok := m[response.Issues[0].Fields.Status.Name]; ok {
+			sourceID = id
+			mapping = m
+			break
+		}
+	}
+	finished := s.getFinishedStatuses(sourceID)
+	issue := stats.MapIssue(response.Issues[0], finished)
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -437,7 +454,6 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	// Calculate Tier Breakdown
 	tierBreakdown := make(map[string]map[string]interface{})
 	// Find which source this issue belongs to (heuristic: use project key to find a mapping)
-	var mapping map[string]stats.StatusMetadata
 	for _, m := range s.workflowMappings {
 		if _, ok := m[issue.Status]; ok {
 			mapping = m
@@ -495,8 +511,9 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	mappings := s.workflowMappings[sourceID]
@@ -505,7 +522,7 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 	return stats.CalculateProcessYield(issues, mappings, resolutions), nil
 }
 
-func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType string) (interface{}, error) {
+func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFilter string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -519,9 +536,10 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 		return nil, err
 	}
 
+	finished := s.getFinishedStatuses(sourceID)
 	histIssues := make([]jira.Issue, len(histResponse.Issues))
 	for i, dto := range histResponse.Issues {
-		histIssues[i] = stats.MapIssue(dto)
+		histIssues[i] = stats.MapIssue(dto, finished)
 	}
 
 	// Determine commitment context
@@ -575,7 +593,8 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 		}, nil
 	}
 
-	// 2. Get Current WIP (up to 1000 oldest items)
+	// 2. Get Current Population (up to 1000 oldest items)
+	// We fetch all non-resolved items. Filtering by tier happens after mapping.
 	wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY ORDER BY created ASC", ctx.JQL)
 	wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 	if err != nil {
@@ -583,7 +602,7 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 	}
 	wipIssues := make([]jira.Issue, len(wipResponse.Issues))
 	for i, dto := range wipResponse.Issues {
-		wipIssues[i] = stats.MapIssue(dto)
+		wipIssues[i] = stats.MapIssue(dto, finished)
 	}
 	wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, commitmentWeight)
 
@@ -605,16 +624,41 @@ func (s *Server) handleGetInventoryAgingAnalysis(sourceID, sourceType, agingType
 		mappings = make(map[string]stats.StatusMetadata)
 	}
 
+	// 4. Calculate analysis (includes all mapped tiers)
+	analyses := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, baseline, agingType)
+
+	// 5. Apply tier_filter
+	filtered := make([]stats.InventoryAgeAnalysis, 0)
+	target := strings.ToUpper(tierFilter)
+	if target == "" {
+		target = "WIP" // Default to WIP
+	}
+
+	for _, a := range analyses {
+		switch target {
+		case "ALL":
+			filtered = append(filtered, a)
+		case "WIP":
+			if a.Tier == "Upstream" || a.Tier == "Downstream" {
+				filtered = append(filtered, a)
+			}
+		default:
+			if strings.ToUpper(a.Tier) == target {
+				filtered = append(filtered, a)
+			}
+		}
+	}
+
 	// Return neutral wrapped response
 	return stats.AgingResult{
-		Items: stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, baseline, agingType),
+		Items: filtered,
 		Warnings: []string{
 			"High operational load: some items have significant cumulative downstream days.",
 		},
 		Guidance: []string{
 			"Total Age: Time since item creation. WIP Age: Time since commitment/start.",
+			"For 'Finished' tier, age represents 'Cycle Time' at the point of delivery.",
 			"Upstream/Downstream breakdown shows systemic drag. High Upstream age suggests definition bottlenecks.",
-			"Age in Current Status identifies the immediate bottleneck for each item.",
 		},
 	}, nil
 }
@@ -636,8 +680,9 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWee
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	return stats.CalculateDeliveryCadence(issues, windowWeeks), nil
@@ -664,8 +709,9 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	// 2. Identify context (Start Status)
@@ -688,9 +734,10 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 	var wipAges []float64
 	if err == nil {
+		finished := s.getFinishedStatuses(sourceID)
 		wipIssues := make([]jira.Issue, len(wipResponse.Issues))
 		for i, dto := range wipResponse.Issues {
-			wipIssues[i] = stats.MapIssue(dto)
+			wipIssues[i] = stats.MapIssue(dto, finished)
 		}
 		wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, 2)
 		mappings := s.workflowMappings[sourceID]
@@ -771,8 +818,9 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 	}
 
 	issues := make([]jira.Issue, len(response.Issues))
+	finished := s.getFinishedStatuses(sourceID)
 	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto)
+		issues[i] = stats.MapIssue(dto, finished)
 	}
 
 	// 2. Identify context

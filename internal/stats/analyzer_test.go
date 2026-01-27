@@ -193,18 +193,20 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	now := time.Now()
 	wipIssues := []jira.Issue{
 		{
-			Key:     "COM-1",
-			Status:  "In Dev",
-			Created: now.AddDate(0, 0, -10),
+			Key:             "COM-1",
+			Status:          "In Dev",
+			Created:         now.AddDate(0, 0, -10),
+			StatusResidency: map[string]int64{"In Dev": 5 * 86400, "Refinement": 3 * 86400, "Created": 2 * 86400},
 			Transitions: []jira.StatusTransition{
 				{ToStatus: "Refinement", Date: now.AddDate(0, 0, -8)},
 				{ToStatus: "In Dev", Date: now.AddDate(0, 0, -5)}, // Commitment point!
 			},
 		},
 		{
-			Key:     "DEM-1",
-			Status:  "Backlog",
-			Created: now.AddDate(0, 0, -10),
+			Key:             "DEM-1",
+			Status:          "Backlog",
+			Created:         now.AddDate(0, 0, -10),
+			StatusResidency: map[string]int64{"Backlog": 10 * 86400},
 			// Not yet started
 		},
 	}

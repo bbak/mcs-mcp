@@ -54,12 +54,12 @@ To prevent the AI from misinterpreting administrative or storage stages as proce
 
 Every status belongs to one of four logical process layers:
 
-| Tier           | Meaning                                        | Commitment Insight                                                             |
-| :------------- | :--------------------------------------------- | :----------------------------------------------------------------------------- |
-| **Demand**     | High-level backlog (e.g., "Backlog").          | Items here are uncommitted and unrefined.                                      |
-| **Upstream**   | Analysis and definition (e.g., "Refinement").  | Clock is running on "Discovery"; high delay indicates a definition bottleneck. |
-| **Downstream** | Actual implementation (e.g., "In Dev", "UAT"). | The primary process flow; where implementation capacity is consumed.           |
-| **Finished**   | Items that have exited the process.            | Terminal stage; used for throughput.                                           |
+| Tier           | Meaning                                        | Commitment Insight                                                             | Clock Behavior                                                                 |
+| :------------- | :--------------------------------------------- | :----------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| **Demand**     | High-level backlog (e.g., "Backlog").          | Items here are uncommitted and unrefined.                                      | Clock is pending; residency is stored but doesn't contribute to WIP.           |
+| **Upstream**   | Analysis and definition (e.g., "Refinement").  | Clock is running on "Discovery"; high delay indicates a definition bottleneck. | Active clock.                                                                  |
+| **Downstream** | Actual implementation (e.g., "In Dev", "UAT"). | The primary process flow; where implementation capacity is consumed.           | Active clock.                                                                  |
+| **Finished**   | Items that have exited the process.            | Terminal stage; used for throughput.                                           | **Clock Stops**: Pin residency at entry point. Age becomes fixed "Cycle Time". |
 
 #### 2. Functional Roles
 
@@ -117,11 +117,12 @@ To ensure conceptual integrity and transparency, the server adheres to a strict 
 
 The server distinguishes between two types of duration:
 
-| Term           | Strict Definition                                                          | Usage                                      |
-| :------------- | :------------------------------------------------------------------------- | :----------------------------------------- |
-| **Status Age** | The time passed since the item entered its **current** workflow step.      | Bottleneck identification (Stage-specific) |
-| **WIP Age**    | The time passed since the item crossed the **Commitment Point** (started). | Forecast reliability & stability analysis  |
-| **Total Age**  | The time passed since the item was created in Jira.                        | Inventory hygiene & scope creep analysis   |
+| Term           | Strict Definition                                                            | Usage                                                                           |
+| :------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
+| **Status Age** | The time passed since the item entered its **current** workflow step.        | Bottleneck identification (Active/In-flight). Fixed at 0.0 for terminal items.  |
+| **WIP Age**    | The time passed since the item crossed the **Commitment Point** (started).   | Forecast reliability & stability analysis. Only applies to Upstream/Downstream. |
+| **Cycle Time** | The **pinned duration** of an item from commitment to the **Finished** tier. | Historical baseline & capability analysis. Represents "Finished Age".           |
+| **Total Age**  | The time passed since the item was created in Jira.                          | Inventory hygiene. Pins at entry to "Finished" tier.                            |
 
 #### 3. Rounding & The "Zero-Day" Safeguard
 
@@ -146,7 +147,16 @@ The system employs a strict "Restart on Backflow" policy for items returning to 
 - **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
 - **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
 
-#### 6. History Fallback Policy
+#### 6. Terminal Pinning Policy (Stop the Clock)
+
+To prevent archive data from skewing delivery metrics, the system implements a "Stop the Clock" policy for terminal statuses:
+
+- **Pinned Residency**: When an item enters a status mapped to the **Finished** tier, the residency calculation for that status (and the total process age) is pinned to the point of entry (or the resolution date if available).
+- **Cycle Time vs Aging**: Items in terminal statuses cease to "age". Their calculated duration is treated as a fixed **Cycle Time**.
+- **WIP Exclusion**: Diagnostic tools like `get_aging_analysis` can explicitly filter out "Finished" items to ensure the focus remains on the active inventory (WIP).
+- **Data Integrity**: This policy ensures that items delivered 6 months ago don't show an "Age" of 180 days in aging reports; they show the exact number of days they took to complete.
+
+#### 7. History Fallback Policy
 
 In cases where Jira data is incomplete (e.g., resolved items with missing or archived changelogs), the system applies a "Best Effort" residency model:
 
