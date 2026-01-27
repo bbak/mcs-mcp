@@ -145,8 +145,13 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "run_simulation",
-				"description": "Run a Monte-Carlo simulation or Cycle-Time analysis. Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.",
+				"name": "run_simulation",
+				"description": "Run a Monte-Carlo simulation or Cycle-Time analysis. Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
+					"The output includes advanced volatility metrics for AI interpretation:\n" +
+					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
+					"- TailToMedianRatio (P85/P50): If > 3.0, the process is Highly Volatile (heavy-tailed risk).\n" +
+					"- IQR (P75-P25): Measures the spread of the middle 50% of results.\n" +
+					"- Inner80 (P90-P10): Measures the spread of the middle 80% of results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -167,8 +172,9 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_status_persistence",
-				"description": "Analyze how long items spend in each status to identify bottlenecks.",
+				"name": "get_status_persistence",
+				"description": "Analyze how long items spend in each status to identify bottlenecks.\n\n" +
+					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -179,8 +185,9 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_inventory_aging_analysis",
-				"description": "Identify which active items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).",
+				"name": "get_inventory_aging_analysis",
+				"description": "Identify which active items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
+					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

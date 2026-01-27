@@ -145,6 +145,28 @@ The system employs a strict "Restart on Backflow" policy for items returning to 
 - **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
 - **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
 
+---
+
+### Volatility & Predictability Metrics
+
+The server provides advanced statistical dispersion metrics to quantify the "stability" and "risk" of a process.
+
+#### 1. Dispersion Metrics (The Spread)
+
+| Metric        | Calculation | Meaning                                                                                                                       |
+| :------------ | :---------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| **IQR**       | P75 - P25   | **Interquartile Range**: The density of the middle 50% of the data. Smaller IQR = higher predictability.                      |
+| **Inner 80%** | P90 - P10   | **Robust Spread**: Shows the range where 80% of items fall. More robust than standard deviation for non-normal distributions. |
+
+#### 2. Volatility Metrics (The Risk)
+
+To identify process instability and the presence of extreme outliers (Fat-Tails), the server implements two key heuristics:
+
+| Metric                   | Calculation | Stable Threshold | Indication of Failure                                                                                                                                      |
+| :----------------------- | :---------- | :--------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
+| **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
+
 ## 5. Conceptual Integrity Constraints
 
 - **Cohesion**: Each tool must focus on a single aspect of flow (Ingestion, Simulation, Diagnostic).

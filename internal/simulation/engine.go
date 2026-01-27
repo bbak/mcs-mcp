@@ -30,20 +30,23 @@ type Engine struct {
 
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
-	Aggressive     float64                `json:"aggressive"`     // P10
-	Unlikely       float64                `json:"unlikely"`       // P30
-	CoinToss       float64                `json:"coin_toss"`      // P50
-	Probable       float64                `json:"probable"`       // P70
-	Likely         float64                `json:"likely"`         // P85
-	Conservative   float64                `json:"conservative"`   // P90
-	Safe           float64                `json:"safe"`           // P95
-	AlmostCertain  float64                `json:"almost_certain"` // P98
-	Ratio          float64                `json:"ratio"`
-	Predictability string                 `json:"predictability"`
-	Context        map[string]interface{} `json:"context,omitempty"`
-	Warnings       []string               `json:"warnings,omitempty"`
-	StabilityRatio float64                `json:"stability_ratio,omitempty"`
-	StaleWIPCount  int                    `json:"stale_wip_count,omitempty"`
+	Aggressive        float64                `json:"aggressive"`           // P10
+	Unlikely          float64                `json:"unlikely"`             // P30
+	CoinToss          float64                `json:"coin_toss"`            // P50
+	Probable          float64                `json:"probable"`             // P70
+	Likely            float64                `json:"likely"`               // P85
+	Conservative      float64                `json:"conservative"`         // P90
+	Safe              float64                `json:"safe"`                 // P95
+	AlmostCertain     float64                `json:"almost_certain"`       // P98
+	FatTailRatio      float64                `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
+	TailToMedianRatio float64                `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
+	IQR               float64                `json:"iqr"`                  // P75-P25 (Density of middle 50%)
+	Inner80           float64                `json:"inner_80"`             // P90-P10 (Robust spread)
+	Predictability    string                 `json:"predictability"`
+	Context           map[string]interface{} `json:"context,omitempty"`
+	Warnings          []string               `json:"warnings,omitempty"`
+	StabilityRatio    float64                `json:"stability_ratio,omitempty"`
+	StaleWIPCount     int                    `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
 	Composition        Composition       `json:"composition"`
@@ -82,6 +85,8 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 		Conservative:  float64(durations[int(float64(trials)*0.90)]),
 		Safe:          float64(durations[int(float64(trials)*0.95)]),
 		AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
+		IQR:           float64(durations[int(float64(trials)*0.75)] - durations[int(float64(trials)*0.25)]),
+		Inner80:       float64(durations[int(float64(trials)*0.90)] - durations[int(float64(trials)*0.10)]),
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (Aggressive / Best Case)",
 			"unlikely":       "P30 (Unlikely / High Risk)",
@@ -119,6 +124,8 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 		Conservative:  float64(scopes[int(float64(trials)*0.10)]), // 90% chance to deliver AT LEAST this much
 		Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
 		AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
+		IQR:           float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
+		Inner80:       float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (10% probability to deliver at least this much)",
 			"unlikely":       "P30 (30% probability to deliver at least this much)",
@@ -155,6 +162,8 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 		Conservative:  cycleTimes[int(float64(n)*0.90)],
 		Safe:          cycleTimes[int(float64(n)*0.95)],
 		AlmostCertain: cycleTimes[int(float64(n)*0.98)],
+		IQR:           cycleTimes[int(float64(n)*0.75)] - cycleTimes[int(float64(n)*0.25)],
+		Inner80:       cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (Aggressive / Fast Outliers)",
 			"unlikely":       "P30 (Unlikely / Fast Pace)",
@@ -172,12 +181,24 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 
 func (e *Engine) assessPredictability(res *Result) {
 	if res.CoinToss > 0 {
-		res.Ratio = math.Round(res.AlmostCertain/res.CoinToss*100) / 100
-		if res.Ratio >= 5.6 {
-			res.Predictability = "Unstable"
-		} else {
-			res.Predictability = "Stable"
+		res.FatTailRatio = math.Round(res.AlmostCertain/res.CoinToss*100) / 100
+		res.TailToMedianRatio = math.Round(res.Likely/res.CoinToss*100) / 100
+
+		predictability := "Stable"
+		if res.FatTailRatio >= 5.6 {
+			predictability = "Unstable"
+			res.Insights = append(res.Insights, fmt.Sprintf("Fat-Tail Warning (Ratio %.2f): Extreme outliers are in control of this process (Kanban heuristic >= 5.6). Your forecasts are high-risk.", res.FatTailRatio))
 		}
+
+		if res.TailToMedianRatio > 3.0 {
+			if predictability == "Stable" {
+				predictability = "Highly Volatile"
+			} else {
+				predictability = "Unstable & Volatile"
+			}
+			res.Insights = append(res.Insights, fmt.Sprintf("Heavy-Tail Warning (Ratio %.2f): The process is highly volatile, indicating a significant risk of extreme delay (Volatility heuristic > 3).", res.TailToMedianRatio))
+		}
+		res.Predictability = predictability
 	} else {
 		res.Predictability = "Unknown"
 	}
@@ -207,7 +228,7 @@ func (e *Engine) assessPredictability(res *Result) {
 
 		// 2. Data Volume Warning
 		if analyzed, ok := e.histogram.Meta["issues_analyzed"].(int); ok && analyzed < 30 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("Small sample size (%d items). Statistical confidence is low.", analyzed))
+			res.Warnings = append(res.Warnings, fmt.Sprintf("Simulation based on a small sample size (%d items); results may have limited statistical significance.", analyzed))
 		}
 	}
 }

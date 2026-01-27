@@ -35,6 +35,8 @@ type StatusPersistence struct {
 	P70            float64 `json:"probable"`           // P70
 	P85            float64 `json:"likely"`             // P85
 	P95            float64 `json:"safe_bet"`           // P95
+	IQR            float64 `json:"iqr"`                // P75-P25
+	Inner80        float64 `json:"inner_80"`           // P90-P10
 	Interpretation string  `json:"interpretation,omitempty"`
 }
 
@@ -112,6 +114,8 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			P70:        math.Round(durations[int(float64(n)*0.70)]*10) / 10,
 			P85:        math.Round(durations[int(float64(n)*0.85)]*10) / 10,
 			P95:        math.Round(durations[int(float64(n)*0.95)]*10) / 10,
+			IQR:        math.Round((durations[int(float64(n)*0.75)]-durations[int(float64(n)*0.25)])*10) / 10,
+			Inner80:    math.Round((durations[int(float64(n)*0.90)]-durations[int(float64(n)*0.10)])*10) / 10,
 		})
 	}
 

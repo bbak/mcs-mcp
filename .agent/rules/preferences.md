@@ -12,7 +12,7 @@ description: General user preferences and coding guidelines for the agent to fol
 
 - Don't assume, ask. Often, there's a good reason why things are as they are.
 
-- Please apply typical Golang community practices regarding file, variable and functions naming conventions.
+- Please apply typical Golang community practices regarding file, variable and functions naming conventions as well as directory layout.
 
 - I prefer to use Unix-style line endings in my source files, as stated in my `.editorconfig` file in the root folder. Given that we are on Windows, some tools you use might use Windows-style line endings. Please convert them to Unix-style line endings.
 
@@ -20,7 +20,7 @@ description: General user preferences and coding guidelines for the agent to fol
 
 - Refer to `docs\charter.md` for the Project Charter.
 
-- Also refer to `docs\use-cases.md` for the Use Cases and `docs\architecture.md` for the Architecture and technical decisions. Make sure you update these, if needed.
+- Also refer to `docs\use-cases.md` for the Use Cases and `docs\architecture.md` for the Architecture and technical decisions. Make sure you update these, if needed. Don't assume that AI Agents that use the MCP-Server, will have access to these files; they are development artifacts.
 
 - Never commit to `git` unless explicitly asked to do so. Typically, I will do that myself. If you think it is time to commit, ask me and provide a commit message.
 
