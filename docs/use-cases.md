@@ -41,8 +41,8 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager)
 - **Trigger:** User asks: "When will issue PROJ-123 be done?"
 - **Main Success Scenario:**
-    1.  AI calls `run_simulation` with `mode: "single"`.
-    2.  MCP Server utilizes the **Status-Granular Flow Model** to calculate lead times.
+    1.  AI calls `get_cycle_time_assessment` (potentially filtered by issue type).
+    2.  MCP Server utilizes the **Status-Granular Flow Model** to calculate historical lead times.
     3.  AI presents the Service Level Expectation (e.g., "85% of similar items are resolved within 5 days").
     4.  **Post-Resolution Logic**: If the item is already finished, the AI uses `get_aging_analysis` with `tier_filter: "Finished"` to report its actual, fixed Cycle Time.
 

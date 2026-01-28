@@ -205,6 +205,31 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 			}
 		}
 		data, err = s.handleSetWorkflowOrder(id, order)
+	case "get_cycle_time_assessment":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		startStatus := asString(call.Arguments["start_status"])
+		endStatus := asString(call.Arguments["end_status"])
+
+		var issueTypes []string
+		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
+			for _, v := range it {
+				issueTypes = append(issueTypes, asString(v))
+			}
+		}
+
+		var includeWIP bool
+		if w, ok := call.Arguments["include_wip"].(bool); ok {
+			includeWIP = w
+		}
+
+		var res []string
+		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
+			for _, v := range r {
+				res = append(res, asString(v))
+			}
+		}
+		data, err = s.handleGetCycleTimeAssessment(id, sType, issueTypes, includeWIP, startStatus, endStatus, res)
 	case "get_item_journey":
 		key := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(key)

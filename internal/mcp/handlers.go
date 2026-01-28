@@ -147,35 +147,6 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	engine := simulation.NewEngine(nil)
 
 	switch mode {
-	case "single":
-		log.Info().Str("startStatus", startStatus).Msg("Running Cycle Time Analysis (Single Item)")
-
-		projectKey := ""
-		if len(issues) > 0 {
-			parts := strings.Split(issues[0].Key, "-")
-			if len(parts) > 1 {
-				projectKey = parts[0]
-			}
-		}
-
-		statusWeights := s.getStatusWeights(projectKey)
-		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
-
-		if len(cycleTimes) == 0 {
-			msg := fmt.Sprintf("no resolved items found that passed the commitment point '%s'.", startStatus)
-			hints := s.getCommitmentPointHints(issues, statusWeights)
-			if len(hints) > 0 {
-				msg += "\n\n💡 Hint: Based on historical reachability, these statuses were frequently used as work started: [" + strings.Join(hints, ", ") + "].\n(⚠️ Note: These are inferred from status categories and transition history; please verify if they represent your actual commitment point.)"
-			}
-			return nil, fmt.Errorf("%s", msg)
-		}
-		engine = simulation.NewEngine(&simulation.Histogram{})
-		resObj := engine.RunCycleTimeAnalysis(cycleTimes)
-		if includeWIP {
-			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
-		}
-		return resObj, nil
-
 	case "scope":
 		finalDays := targetDays
 		if targetDate != "" {
@@ -258,6 +229,147 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		}
 		return nil, fmt.Errorf("mode required: 'duration' (backlog forecast) or 'scope' (volume forecast)")
 	}
+}
+
+func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issueTypes []string, includeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Ingestion: Fetch last 6 months of historical data
+	startTime := time.Now().AddDate(0, -6, 0)
+	ingestJQL := fmt.Sprintf("(%s) AND resolutiondate >= '%s' ORDER BY resolutiondate ASC",
+		ctx.JQL, startTime.Format("2006-01-02"))
+
+	log.Debug().Str("jql", ingestJQL).Msg("Starting historical ingestion for cycle time assessment")
+
+	response, err := s.jira.SearchIssuesWithHistory(ingestJQL, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Total == 0 {
+		return nil, fmt.Errorf("no historical data found in the last 6 months to base assessment on")
+	}
+
+	// Process DTOs into Domain Issues
+	finished := s.getFinishedStatuses(sourceID)
+	issues := make([]jira.Issue, 0)
+	itMap := make(map[string]bool)
+	for _, it := range issueTypes {
+		itMap[it] = true
+	}
+
+	for _, dto := range response.Issues {
+		if len(issueTypes) > 0 && !itMap[dto.Fields.IssueType.Name] {
+			continue
+		}
+		issues = append(issues, stats.MapIssue(dto, finished))
+	}
+
+	if len(issues) == 0 {
+		return nil, fmt.Errorf("no historical data found for the specified issue types: %v", issueTypes)
+	}
+
+	// 2. Analytics Context
+	projectKey := ctx.PrimaryProject
+	if projectKey == "" && len(issues) > 0 {
+		projectKey = issues[0].ProjectKey
+	}
+	statusWeights := s.getStatusWeights(projectKey)
+	if m, ok := s.workflowMappings[sourceID]; ok {
+		for name, metadata := range m {
+			if metadata.Tier == "Demand" {
+				statusWeights[name] = 1
+			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+				if statusWeights[name] < 2 {
+					statusWeights[name] = 2
+				}
+			}
+		}
+	}
+
+	if startStatus == "" {
+		startStatus = s.getEarliestCommitment(sourceID)
+	}
+
+	// Apply Backflow Policy
+	issues = s.applyBackflowPolicy(issues, statusWeights, 2)
+	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
+
+	if len(cycleTimes) == 0 {
+		msg := fmt.Sprintf("no resolved items found that passed the commitment point '%s'.", startStatus)
+		hints := s.getCommitmentPointHints(issues, statusWeights)
+		if len(hints) > 0 {
+			msg += "\n\n💡 Hint: Based on historical reachability, these statuses were frequently used as work started: [" + strings.Join(hints, ", ") + "].\n(⚠️ Note: These are inferred from status categories and transition history; please verify if they represent your actual commitment point.)"
+		}
+		return nil, fmt.Errorf("%s", msg)
+	}
+
+	// 3. WIP Analysis if requested
+	var wipAges []float64
+	if includeWIP {
+		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
+		wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
+		if err == nil {
+			wipIssues := make([]jira.Issue, 0)
+			for _, dto := range wipResponse.Issues {
+				if len(issueTypes) > 0 && !itMap[dto.Fields.IssueType.Name] {
+					continue
+				}
+				wipIssues = append(wipIssues, stats.MapIssue(dto, finished))
+			}
+			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, 2)
+			mappings := s.workflowMappings[sourceID]
+			if mappings == nil {
+				mappings = make(map[string]stats.StatusMetadata)
+			}
+			calcWipAges := stats.CalculateInventoryAge(wipIssues, startStatus, statusWeights, mappings, cycleTimes, "wip")
+			for _, wa := range calcWipAges {
+				if wa.AgeSinceCommitment != nil {
+					wipAges = append(wipAges, *wa.AgeSinceCommitment)
+				}
+			}
+		}
+	}
+
+	engine := simulation.NewEngine(nil)
+	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
+	if includeWIP {
+		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
+	}
+
+	// 4. Design refined response
+	return map[string]interface{}{
+		"assessment": map[string]float64{
+			"aggressive":     resObj.Aggressive,
+			"unlikely":       resObj.Unlikely,
+			"coin_toss":      resObj.CoinToss,
+			"probable":       resObj.Probable,
+			"likely":         resObj.Likely,
+			"conservative":   resObj.Conservative,
+			"safe":           resObj.Safe,
+			"almost_certain": resObj.AlmostCertain,
+		},
+		"percentile_labels": resObj.PercentileLabels,
+		"process_statistics": map[string]interface{}{
+			"fat_tail_ratio":       resObj.FatTailRatio,
+			"tail_to_median_ratio": resObj.TailToMedianRatio,
+			"iqr":                  resObj.IQR,
+			"inner_80":             resObj.Inner80,
+			"predictability":       resObj.Predictability,
+			"sample_size":          len(cycleTimes),
+		},
+		"wip_stability": resObj.WIPAgeDistribution, // Only populated if includeWIP was true
+		"warnings":      resObj.Warnings,
+		"insights":      resObj.Insights,
+		"_guidance": []string{
+			"Individual item assessment shows the Service Level Expectation (SLE) for a single item.",
+			"For high-confidence commitments, use the 'Likely' (P85) or 'Safe' (P95) metrics.",
+			"If Fat-Tail Ratio >= 5.6, the process is statistically out of control; expect extreme outliers.",
+		},
+	}, nil
 }
 
 func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interface{}, error) {

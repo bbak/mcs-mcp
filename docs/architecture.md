@@ -18,13 +18,16 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
 graph LR
     A["<b>1. Discovery</b><br/>get_data_metadata"] --> B["<b>2. Semantic Mapping</b><br/>get_workflow_discovery"]
     B --> C["<b>3. Selection</b><br/>User choosing Commitment Point"]
-    C --> D["<b>4. Forecast</b><br/>run_simulation"]
+    C --> D["<b>4. Forecast</b><br/>run_simulation / get_cycle_time_assessment"]
 ```
 
-1.  **Discovery Phase**: The `get_data_metadata` tool is used to probe the data source (board/filter).
+1.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source (board/filter) for scale and quality.
 2.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool identifies the residence time and Jira categories. The user/AI maps statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore) using `set_workflow_mapping`.
 3.  **Selection Phase**: Based on the discovery results, the user selects the **Commitment Point**.
-4.  **Forecast Phase**: The `run_simulation` tool is executed. Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
+4.  **Forecast Phase**:
+    - Use `run_simulation` for aggregate/bulk forecasts (Duration/When or Scope/How much).
+    - Use `get_cycle_time_assessment` for individual item Service Level Expectations (SLE).
+      Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
 
 ### Mandatory Workflow Verification (Inform & Veto)
 
@@ -227,7 +230,21 @@ graph TD
 2.  **Raw DTOs (Data Transfer Objects)**: Pure, immutable structures representing the Jira JSON response. These are the primary targets for **Transport-Layer Caching**.
 3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`. This is the primary target for **Analytical-Layer Caching**.
 
-### Chronological Processing (Residency Math)
+### 5.2. Search-Driven Inventory (Discovery Memory)
+
+To ensure high-performance discovery and maintain consistency during project setup, the server implements a **Sliding Window Inventory**:
+
+- **Backend-Assisted Search**:
+    - **Project Discovery**: Utilizes the Jira `/projects/picker` endpoint for server-side fuzzy matching.
+    - **Board Discovery**: Utilizes the Agile `/board?name={filter}` parameter for optimized filtering.
+- **Local Consistency (Memory)**:
+    - The server maintains a thread-safe local repository of the last **1000 discovered items** (Projects and Boards).
+    - Results from active tool calls (Search, GetProject, GetBoard) are "upserted" into this inventory using a **Most-Recently-Used (MRU)** policy.
+- **Search Delivery**:
+    - Search tools (e.g., `find_jira_projects`) perform a hybrid delivery: fetching the top 30 most-relevant matches from Jira while simultaneously searching the entire 1000-item local inventory.
+    - This ensures that items once discovered remain "top of mind" for the AI agent even as they shift outside Jira's immediate search results.
+
+### 5.3. Chronological Processing (Residency Math)
 
 By moving residency calculation out of the Jira client and into a dedicated `processor.go`, the system achieves:
 

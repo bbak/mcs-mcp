@@ -5,7 +5,7 @@ func (s *Server) listTools() interface{} {
 		"tools": []interface{}{
 			map[string]interface{}{
 				"name":        "find_jira_projects",
-				"description": "Search for Jira projects by name or key (returns up to 20 results).",
+				"description": "Search for Jira projects by name or key. Uses server-side fuzzy matching and returns up to 30 results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -16,7 +16,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "find_jira_boards",
-				"description": "Search for Agile boards, optionally filtering by project key or name.",
+				"description": "Search for Agile boards, optionally filtering by project key or name. Returns up to 30 results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -61,7 +61,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "run_simulation",
-				"description": "Run a Monte-Carlo simulation or Cycle-Time analysis. Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
+				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
 					"The output includes advanced volatility metrics for AI interpretation:\n" +
 					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
 					"- TailToMedianRatio (P85/P50): If > 3.0, the process is Highly Volatile (heavy-tailed risk).\n" +
@@ -72,7 +72,7 @@ func (s *Server) listTools() interface{} {
 					"properties": map[string]interface{}{
 						"source_id":                map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type":              map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
-						"mode":                     map[string]interface{}{"type": "string", "enum": []string{"duration", "scope", "single"}, "description": "Simulation mode: 'duration' (forecast completing a backlog), 'scope' (forecast delivery volume), or 'single' (cycle time)."},
+						"mode":                     map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}, "description": "Simulation mode: 'duration' (forecast completion date for a number of work items) or 'scope' (forecast delivery volume)."},
 						"include_existing_backlog": map[string]interface{}{"type": "boolean", "description": "If true, automatically counts and includes all unstarted items (Backlog) from Jira for this board/filter."},
 						"include_wip":              map[string]interface{}{"type": "boolean", "description": "If true, ALSO includes items already in progress (started)."},
 						"additional_items":         map[string]interface{}{"type": "integer", "description": "Additional items to include (e.g. new initiative/scope not yet in Jira)."},
@@ -84,6 +84,24 @@ func (s *Server) listTools() interface{} {
 						"issue_types":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story'])."},
 						"resolutions":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done'."},
 					},
+					"required": []string{"source_id", "source_type", "mode"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_cycle_time_assessment",
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. Use this to answer 'How long does an item of type X typically take?'.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":    map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type":  map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"issue_types":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to assess (e.g., ['Story', 'Bug'])."},
+						"include_wip":  map[string]interface{}{"type": "boolean", "description": "If true, performs a comparative analysis of current WIP against the historical baseline."},
+						"start_status": map[string]interface{}{"type": "string", "description": "Optional: Explicit start status (default: Commitment Point)."},
+						"end_status":   map[string]interface{}{"type": "string", "description": "Optional: Explicit end status (default: Finished Tier)."},
+						"resolutions":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' for the baseline (e.g., ['Fixed'])."},
+					},
+					"required": []string{"source_id", "source_type"},
 				},
 			},
 			map[string]interface{}{

@@ -20,6 +20,11 @@ type dcClient struct {
 	// Session Cache
 	cache      map[string]*cacheEntry
 	cacheMutex sync.RWMutex
+
+	// Internal Inventory (Sliding Window)
+	projectInventory []interface{}
+	boardInventory   []interface{}
+	inventoryMutex   sync.RWMutex
 }
 
 type cacheEntry struct {
@@ -208,6 +213,8 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 	}
 
 	c.addToCache(cacheKey, project, 5*time.Minute)
+	// Add to inventory
+	c.updateInventory(&c.projectInventory, []interface{}{project}, 1000, "key")
 	return project, nil
 }
 
@@ -283,6 +290,8 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 		return nil, err
 	}
 
+	// Add to inventory
+	c.updateInventory(&c.boardInventory, []interface{}{board}, 1000, "id")
 	return board, nil
 }
 func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
@@ -293,9 +302,14 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 
 	c.throttle()
 
-	// Jira API for fetching projects
-	url := fmt.Sprintf("%s/rest/api/2/project", c.cfg.BaseURL)
-	req, err := http.NewRequest("GET", url, nil)
+	// Use /projects/picker for efficient server-side search
+	params := url.Values{}
+	params.Set("query", query)
+	params.Set("maxResults", "30")
+
+	// Note: /projects/picker is technically rest/api/2/projects/picker
+	searchURL := fmt.Sprintf("%s/rest/api/2/projects/picker?%s", c.cfg.BaseURL, params.Encode())
+	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -312,28 +326,29 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
 	}
 
-	var projects []interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&projects); err != nil {
+	var pickerResponse struct {
+		Projects []interface{} `json:"projects"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&pickerResponse); err != nil {
 		return nil, err
 	}
 
-	// Filter projects by query (case-insensitive)
-	var filtered []interface{}
-	q := strings.ToLower(query)
-	for _, p := range projects {
-		proj := p.(map[string]interface{})
-		name := strings.ToLower(proj["name"].(string))
-		key := strings.ToLower(proj["key"].(string))
-		if strings.Contains(name, q) || strings.Contains(key, q) {
-			filtered = append(filtered, proj)
-		}
-		if len(filtered) >= 20 { // Cap results
-			break
-		}
+	// Normalizing picker project structure to standard project structure
+	var result []interface{}
+	for _, p := range pickerResponse.Projects {
+		pMap := p.(map[string]interface{})
+		result = append(result, map[string]interface{}{
+			"id":   pMap["id"],
+			"key":  pMap["key"],
+			"name": pMap["name"],
+		})
 	}
 
-	c.addToCache(cacheKey, filtered, 5*time.Minute)
-	return filtered, nil
+	c.updateInventory(&c.projectInventory, result, 1000, "key")
+	c.addToCache(cacheKey, result, 5*time.Minute)
+
+	// Recall from inventory (merged perspective)
+	return c.filterInventory(c.projectInventory, query, 30, "key", "name"), nil
 }
 
 func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface{}, error) {
@@ -344,12 +359,17 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 
 	c.throttle()
 
-	url := fmt.Sprintf("%s/rest/agile/1.0/board", c.cfg.BaseURL)
+	params := url.Values{}
 	if projectKey != "" {
-		url = fmt.Sprintf("%s?projectKeyOrId=%s", url, projectKey)
+		params.Set("projectKeyOrId", projectKey)
 	}
+	if nameFilter != "" {
+		params.Set("name", nameFilter)
+	}
+	params.Set("maxResults", "30")
 
-	req, err := http.NewRequest("GET", url, nil)
+	searchURL := fmt.Sprintf("%s/rest/agile/1.0/board?%s", c.cfg.BaseURL, params.Encode())
+	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -366,33 +386,94 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
+	var resultObj struct {
 		Values []interface{} `json:"values"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&resultObj); err != nil {
 		return nil, err
 	}
 
-	filtered := result.Values
-	if nameFilter != "" {
-		var f []interface{}
-		nf := strings.ToLower(nameFilter)
-		for _, b := range result.Values {
-			board := b.(map[string]interface{})
-			name := strings.ToLower(board["name"].(string))
-			if strings.Contains(name, nf) {
-				f = append(f, board)
+	c.updateInventory(&c.boardInventory, resultObj.Values, 1000, "id")
+	c.addToCache(cacheKey, resultObj.Values, 5*time.Minute)
+
+	// Recall from inventory (merged perspective)
+	return c.filterInventory(c.boardInventory, nameFilter, 30, "name", "id"), nil
+}
+
+func (c *dcClient) updateInventory(inventory *[]interface{}, newItems []interface{}, limit int, idField string) {
+	c.inventoryMutex.Lock()
+	defer c.inventoryMutex.Unlock()
+
+	for _, newItem := range newItems {
+		newMap, ok := newItem.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		newID := fmt.Sprintf("%v", newMap[idField])
+		foundIdx := -1
+
+		// Find if it already exists to move it to the end
+		for i, existingItem := range *inventory {
+			existingMap := existingItem.(map[string]interface{})
+			if fmt.Sprintf("%v", existingMap[idField]) == newID {
+				foundIdx = i
+				break
 			}
 		}
-		filtered = f
+
+		if foundIdx != -1 {
+			// Remove from current position
+			*inventory = append((*inventory)[:foundIdx], (*inventory)[foundIdx+1:]...)
+		}
+
+		// Push to end
+		*inventory = append(*inventory, newItem)
 	}
 
-	if len(filtered) > 20 {
-		filtered = filtered[:20]
+	// Enforce cap
+	if len(*inventory) > limit {
+		*inventory = (*inventory)[len(*inventory)-limit:]
 	}
 
-	c.addToCache(cacheKey, filtered, 5*time.Minute)
-	return filtered, nil
+	log.Debug().Int("size", len(*inventory)).Str("field", idField).Msg("Inventory updated")
+}
+
+func (c *dcClient) filterInventory(inventory []interface{}, query string, limit int, fields ...string) []interface{} {
+	c.inventoryMutex.RLock()
+	defer c.inventoryMutex.RUnlock()
+
+	var matches []interface{}
+	q := strings.ToLower(query)
+
+	// Iterate backwards to prioritize most recent discoveries
+	for i := len(inventory) - 1; i >= 0; i-- {
+		item := inventory[i].(map[string]interface{})
+		match := false
+
+		if q == "" {
+			match = true
+		} else {
+			for _, field := range fields {
+				if val, ok := item[field]; ok {
+					sVal := strings.ToLower(fmt.Sprintf("%v", val))
+					if strings.Contains(sVal, q) {
+						match = true
+						break
+					}
+				}
+			}
+		}
+
+		if match {
+			matches = append(matches, item)
+		}
+		if len(matches) >= limit {
+			break
+		}
+	}
+
+	return matches
 }
 func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 	cacheKey := fmt.Sprintf("board_config:%d", id)
@@ -429,6 +510,7 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 	}
 
 	c.addToCache(cacheKey, config, 5*time.Minute)
+	// Side-effect: we know about the board now. Re-fetch board metadata to ensure inventory is high-quality if needed.
 	return config, nil
 }
 
@@ -467,5 +549,6 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 	}
 
 	c.addToCache(cacheKey, filter, 5*time.Minute)
+	// Filters aren't currently in a dedicated sliding window, but we could add one if they become a primary anchor.
 	return filter, nil
 }
