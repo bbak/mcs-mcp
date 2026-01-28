@@ -231,7 +231,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 }
 
-func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issueTypes []string, includeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
+func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issueTypes []string, analyzeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -309,7 +309,7 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 
 	// 3. WIP Analysis if requested
 	var wipAges []float64
-	if includeWIP {
+	if analyzeWIP {
 		wipJQL := fmt.Sprintf("(%s) AND resolution is EMPTY", ctx.JQL)
 		wipResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 		if err == nil {
@@ -336,7 +336,7 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 
 	engine := simulation.NewEngine(nil)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
-	if includeWIP {
+	if analyzeWIP {
 		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 	}
 
@@ -415,8 +415,10 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 			"Historical metrics for Finished tier are provided for cycle time context; ignore outlier warnings for this tier.",
 		},
 		Guidance: []string{
-			"Status residence times show only time spent IN each status. Total cycle time may be longer due to time spent in other statuses.",
-			"Interpret 'Upstream' and 'Downstream' tiers as your active workflow. 'Demand' and 'Finished' tiers represent backlog or archive and are non-blocking.",
+			"Status residence times show only time spent IN each status; total cycle time is the sum of these durations.",
+			"Prioritize analysis of 'Upstream' and 'Downstream' tiers as they represent your active delivery workflow.",
+			"Identify 'in-between' process bottlenecks first, then treat 'Demand' (Backlog) and 'Finished' (Archive) tiers as non-blocking summary context.",
+			"High persistence in 'Demand' is expected storage time; persistence in 'Finished' is irrelevant to current flow diagnostics.",
 		},
 	}, nil
 }

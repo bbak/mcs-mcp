@@ -73,10 +73,9 @@ func (s *Server) listTools() interface{} {
 						"source_id":                map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type":              map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
 						"mode":                     map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}, "description": "Simulation mode: 'duration' (forecast completion date for a number of work items) or 'scope' (forecast delivery volume)."},
-						"include_existing_backlog": map[string]interface{}{"type": "boolean", "description": "If true, automatically counts and includes all unstarted items (Backlog) from Jira for this board/filter."},
-						"include_wip":              map[string]interface{}{"type": "boolean", "description": "If true, ALSO includes items already in progress (started)."},
+						"include_existing_backlog": map[string]interface{}{"type": "boolean", "description": "If true, automatically counts and includes all unstarted items (Demand Tier or Backlog) from Jira for this board/filter."},
+						"include_wip":              map[string]interface{}{"type": "boolean", "description": "If true, ALSO includes items already in progress (passed the Commitment Point or started)."},
 						"additional_items":         map[string]interface{}{"type": "integer", "description": "Additional items to include (e.g. new initiative/scope not yet in Jira)."},
-						"backlog_size":             map[string]interface{}{"type": "integer", "description": "Alias for additional_items (deprecated, please use additional_items)."},
 						"target_days":              map[string]interface{}{"type": "integer", "description": "Number of days (required for 'scope' mode)."},
 						"target_date":              map[string]interface{}{"type": "string", "description": "Optional: Target date (YYYY-MM-DD). If provided, target_days is calculated automatically."},
 						"start_status":             map[string]interface{}{"type": "string", "description": "Optional: Start status (Commitment Point)."},
@@ -89,17 +88,17 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_cycle_time_assessment",
-				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. Use this to answer 'How long does an item of type X typically take?'.",
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. Use this to answer 'How long does an item (of type X) typically take?'.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":    map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type":  map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
-						"issue_types":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to assess (e.g., ['Story', 'Bug'])."},
-						"include_wip":  map[string]interface{}{"type": "boolean", "description": "If true, performs a comparative analysis of current WIP against the historical baseline."},
-						"start_status": map[string]interface{}{"type": "string", "description": "Optional: Explicit start status (default: Commitment Point)."},
-						"end_status":   map[string]interface{}{"type": "string", "description": "Optional: Explicit end status (default: Finished Tier)."},
-						"resolutions":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' for the baseline (e.g., ['Fixed'])."},
+						"source_id":             map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type":           map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"issue_types":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include in the calculation (e.g., ['Story', 'Bug'])."},
+						"analyze_wip_stability": map[string]interface{}{"type": "boolean", "description": "If true, performs a comparative analysis of current WIP against the historical baseline to detect early outliers."},
+						"start_status":          map[string]interface{}{"type": "string", "description": "Optional: Explicit start status (default: Commitment Point)."},
+						"end_status":            map[string]interface{}{"type": "string", "description": "Optional: Explicit end status (default: Finished Tier)."},
+						"resolutions":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' for the baseline (e.g., ['Fixed'])."},
 					},
 					"required": []string{"source_id", "source_type"},
 				},
@@ -107,8 +106,7 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_status_persistence",
 				"description": "Analyze how long items spend in each status to identify bottlenecks.\n\n" +
-					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.\n\n" +
-					"AI INTERPRETATION GUIDANCE: Focus primarily on statuses in the 'Upstream' and 'Downstream' tiers (active workflow). High persistence in 'Demand' or 'Finished' is expected and often less actionable. Start by interpreting the 'in-between' process stages, then mention Demand/Finished as summary context.",
+					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

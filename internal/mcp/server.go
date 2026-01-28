@@ -142,9 +142,6 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 		}
 
 		additional := asInt(call.Arguments["additional_items"])
-		if additional == 0 {
-			additional = asInt(call.Arguments["backlog_size"]) // Compatibility/Alias
-		}
 
 		targetDays := asInt(call.Arguments["target_days"])
 		targetDate := asString(call.Arguments["target_date"])
@@ -236,9 +233,9 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 			}
 		}
 
-		var includeWIP bool
-		if w, ok := call.Arguments["include_wip"].(bool); ok {
-			includeWIP = w
+		var analyzeWIP bool
+		if w, ok := call.Arguments["analyze_wip_stability"].(bool); ok {
+			analyzeWIP = w
 		}
 
 		var res []string
@@ -247,7 +244,7 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleGetCycleTimeAssessment(id, sType, issueTypes, includeWIP, startStatus, endStatus, res)
+		data, err = s.handleGetCycleTimeAssessment(id, sType, issueTypes, analyzeWIP, startStatus, endStatus, res)
 	case "get_item_journey":
 		key := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(key)
