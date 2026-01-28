@@ -80,7 +80,14 @@ func (s *Server) sendError(id interface{}, err interface{}) {
 	fmt.Println(string(out))
 }
 
-func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
+func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Msg("Panic recovered in callTool")
+			errRes = map[string]interface{}{"code": -32603, "message": fmt.Sprintf("Internal error: %v", r)}
+		}
+	}()
+
 	var call struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments"`

@@ -165,12 +165,23 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		case http.StatusTooManyRequests:
+			retryAfter := resp.Header.Get("Retry-After")
+			if retryAfter != "" {
+				return nil, fmt.Errorf("Jira rate limit exceeded (429). Retry after %s seconds.", retryAfter)
+			}
+			return nil, fmt.Errorf("Jira rate limit exceeded (429).")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d. Please check Jira availability.", resp.StatusCode)
+		}
 	}
 
 	var result SearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode Jira response: %w", err)
 	}
 
 	c.addToCache(cacheKey, &result, 10*time.Minute)
@@ -200,16 +211,20 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("project %s not found", key)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("project %s not found", key)
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for project %s", resp.StatusCode, key)
+		}
 	}
 
 	var project map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode project response: %w", err)
 	}
 
 	c.addToCache(cacheKey, project, 5*time.Minute)
@@ -240,16 +255,20 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("project %s statuses not found", key)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("project %s statuses not found", key)
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for project %s statuses", resp.StatusCode, key)
+		}
 	}
 
 	var statuses []interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&statuses); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode project statuses response: %w", err)
 	}
 
 	c.addToCache(cacheKey, statuses, 5*time.Minute)
@@ -278,16 +297,20 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("board %d not found", id)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("board %d not found", id)
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for board %d", resp.StatusCode, id)
+		}
 	}
 
 	var board map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&board); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode board response: %w", err)
 	}
 
 	// Add to inventory
@@ -323,20 +346,29 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for project search", resp.StatusCode)
+		}
 	}
 
 	var pickerResponse struct {
 		Projects []interface{} `json:"projects"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&pickerResponse); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode project picker response: %w", err)
 	}
 
 	// Normalizing picker project structure to standard project structure
 	var result []interface{}
 	for _, p := range pickerResponse.Projects {
-		pMap := p.(map[string]interface{})
+		pMap, ok := p.(map[string]interface{})
+		if !ok {
+			log.Warn().Msg("Failed to type-assert project from picker response")
+			continue
+		}
 		result = append(result, map[string]interface{}{
 			"id":   pMap["id"],
 			"key":  pMap["key"],
@@ -383,14 +415,19 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for board search", resp.StatusCode)
+		}
 	}
 
 	var resultObj struct {
 		Values []interface{} `json:"values"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&resultObj); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode board search response: %w", err)
 	}
 
 	c.updateInventory(&c.boardInventory, resultObj.Values, 1000, "id")
@@ -415,7 +452,10 @@ func (c *dcClient) updateInventory(inventory *[]interface{}, newItems []interfac
 
 		// Find if it already exists to move it to the end
 		for i, existingItem := range *inventory {
-			existingMap := existingItem.(map[string]interface{})
+			existingMap, ok := existingItem.(map[string]interface{})
+			if !ok {
+				continue
+			}
 			if fmt.Sprintf("%v", existingMap[idField]) == newID {
 				foundIdx = i
 				break
@@ -448,7 +488,10 @@ func (c *dcClient) filterInventory(inventory []interface{}, query string, limit 
 
 	// Iterate backwards to prioritize most recent discoveries
 	for i := len(inventory) - 1; i >= 0; i-- {
-		item := inventory[i].(map[string]interface{})
+		item, ok := inventory[i].(map[string]interface{})
+		if !ok {
+			continue
+		}
 		match := false
 
 		if q == "" {
@@ -497,16 +540,20 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("board configuration %d not found", id)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("board configuration %d not found", id)
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for board configuration %d", resp.StatusCode, id)
+		}
 	}
 
 	var config map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode board configuration response: %w", err)
 	}
 
 	c.addToCache(cacheKey, config, 5*time.Minute)
@@ -536,16 +583,20 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("filter %s not found", id)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira api returned status %d", resp.StatusCode)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("filter %s not found", id)
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+		default:
+			return nil, fmt.Errorf("Jira API returned status %d for filter %s", resp.StatusCode, id)
+		}
 	}
 
 	var filter map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&filter); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode filter response: %w", err)
 	}
 
 	c.addToCache(cacheKey, filter, 5*time.Minute)
