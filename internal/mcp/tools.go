@@ -119,22 +119,21 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_aging_analysis",
 				"description": "Identify which items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
-					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.\n\n" +
-					"AI INTERPRETATION GUIDANCE: 'WIP Age' applies to items in Upstream/Downstream tiers. Items in the 'Finished' tier show 'Cycle Time' (the clock stopped when they entered terminal status). Use the 'tier_filter' to focus on 'WIP' (active middle) or specific phases.",
+					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
 						"aging_type":  map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
-						"tier_filter": map[string]interface{}{"type": "string", "enum": []string{"WIP", "Demand", "Upstream", "Downstream", "Finished", "All"}, "description": "Optional: Filter results to specific tiers. 'WIP' (default) excludes Demand and Finished."},
+						"tier_filter": map[string]interface{}{"type": "string", "enum": []string{"WIP", "Demand", "Upstream", "Downstream", "Finished", "All"}, "description": "Optional: Filter results to specific tiers. 'WIP' ('Work-in-process', default) excludes Demand and Finished."},
 					},
 					"required": []string{"source_id", "source_type", "aging_type"},
 				},
 			},
 			map[string]interface{}{
 				"name":        "get_delivery_cadence",
-				"description": "Visualize the weekly pulse of delivery to detect flow vs. batching.",
+				"description": "Visualize the weekly pulse of delivery - known as throughput - to detect flow vs. batching.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -147,7 +146,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_process_stability",
-				"description": "Analyze process predictability using XmR Process Behavior Charts. Detects 'Special Cause' variation in Cycle Time and Throughput. This tool is the primary 'Predictability Guardrail' and should be used before finalizing any forecast.",
+				"description": "Analyze process predictability using XmR Process Behavior Charts. Detects 'Special Cause' variation in Cycle Time and Throughput. This tool is the primary 'Predictability Guardrail' and should be used before together with any forecast (especially `run_simulation`) to assess forecast stability and accuracy.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -163,7 +162,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_process_evolution",
-				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over time using Three-Way Control Charts. Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups. Use this for deep history analysis or after significant organizational changes.",
+				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups. Use this for deep history analysis or after significant organizational changes.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -181,9 +180,9 @@ func (s *Server) listTools() interface{} {
 				"name": "get_workflow_discovery",
 				"description": "Probe project status categories and residence times to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
 					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
-					"- TIERS: 'Demand' (backlog), 'Upstream' (definition/refinement), 'Downstream' (implementation/testing), 'Finished' (archived/delivered).\n" +
-					"- ROLES: 'active' (working), 'queue' (waiting/bottleneck), 'ignore' (non-process noise).\n" +
-					"- OUTCOMES: 'delivered' (value reached user), 'abandoned' (work discarded).",
+					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (delivered/abandoned/aborted).\n" +
+					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (non-process noise).\n" +
+					"- OUTCOMES: 'delivered' (value reached user), 'abandoned' (work discarded), 'aborted' (work discarded).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -196,7 +195,7 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "set_workflow_mapping",
 				"description": "Store user-confirmed semantic metadata (tier and role) for statuses. This is the mandatory persistence step after the 'Inform & Veto' loop.\n\n" +
-					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution), 'Finished' (Terminal statuses).\n" +
+					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (delivered/abandoned/aborted).\n" +
 					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting for someone/something), 'ignore' (Admin/Non-delivery statuses).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",

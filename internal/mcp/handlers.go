@@ -770,9 +770,10 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 			"High operational load: some items have significant cumulative downstream days.",
 		},
 		Guidance: []string{
-			"Total Age: Time since item creation. WIP Age: Time since commitment/start.",
-			"For 'Finished' tier, age represents 'Cycle Time' at the point of delivery.",
-			"Upstream/Downstream breakdown shows systemic drag. High Upstream age suggests definition bottlenecks.",
+			"WIP Age measures time since commitment; Total Age measures time since creation.",
+			"For items in the 'Finished' tier, age is fixed (Cycle Time) because the clock stopped upon entering terminal status.",
+			"Focus diagnostics on 'Upstream' and 'Downstream' tiers; high Upstream age suggests definition/refinement bottlenecks.",
+			"Use 'tier_filter' to focus on 'WIP' (active stages), 'Demand', 'Finished', or specific phases.",
 		},
 	}, nil
 }
