@@ -67,28 +67,49 @@ func (s *Server) formatResult(data interface{}) string {
 	return string(out)
 }
 
-func (s *Server) extractProjectKey(issues []jira.Issue) string {
-	if len(issues) == 0 {
-		return ""
+func (s *Server) extractProjectKeys(issues []jira.Issue) []string {
+	keyMap := make(map[string]bool)
+	for _, issue := range issues {
+		if issue.ProjectKey != "" {
+			keyMap[issue.ProjectKey] = true
+		}
 	}
-	return issues[0].ProjectKey
+
+	keys := make([]string, 0, len(keyMap))
+	for k := range keyMap {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
-func (s *Server) getStatusCategories(projectKey string) map[string]string {
+func (s *Server) getStatusCategories(projectKeys []string) map[string]string {
 	cats := make(map[string]string)
-	if projectKey == "" {
-		return cats
-	}
+	for _, projectKey := range projectKeys {
+		if projectKey == "" {
+			continue
+		}
 
-	if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-		for _, itm := range statuses.([]interface{}) {
-			issueTypeMap := itm.(map[string]interface{})
-			statusList := issueTypeMap["statuses"].([]interface{})
-			for _, sObj := range statusList {
-				sMap := sObj.(map[string]interface{})
-				name := sMap["name"].(string)
-				cat := sMap["statusCategory"].(map[string]interface{})
-				cats[name] = fmt.Sprintf("%v", cat["key"])
+		if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+			for _, itm := range statuses.([]interface{}) {
+				issueTypeMap, ok := itm.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				statusList, ok := issueTypeMap["statuses"].([]interface{})
+				if !ok {
+					continue
+				}
+				for _, sObj := range statusList {
+					sMap, ok := sObj.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					name := asString(sMap["name"])
+					cat, ok := sMap["statusCategory"].(map[string]interface{})
+					if ok {
+						cats[name] = asString(cat["key"])
+					}
+				}
 			}
 		}
 	}

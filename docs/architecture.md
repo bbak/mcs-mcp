@@ -150,7 +150,15 @@ The system employs a strict "Restart on Backflow" policy for items returning to 
 - **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
 - **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
 
-#### 6. Terminal Pinning Policy (Stop the Clock)
+#### 6. Project Move Boundary
+
+To ensure conceptual integrity in cross-project environments (e.g., items moving from "Strategy" projects to "Delivery" projects), the system implements a process boundary for project moves:
+
+- **Move Detection**: If an item's history shows a change in the `Key` or `project` fields, the system treats the latest move date as a **Process Boundary**.
+- **Contextual Reset**: All `StatusResidency` and `Transitions` that occurred _under a different project key_ are discarded during analysis. This ensures that Workflow Discovery and process diagnostics accurately reflect only the current project's flow.
+- **Lead Time Preservation**: Critically, the original `Created` date is preserved. High-level metrics like **Total Age** remain valid, reflecting the item's entire lifecycle from original idea to delivery, while low-level process metrics (WIP Age, Status Persistence) are cleaned of "ghost" statuses from older projects.
+
+#### 7. Terminal Pinning Policy (Stop the Clock)
 
 To prevent archive data from skewing delivery metrics, the system implements a "Stop the Clock" policy for terminal statuses:
 
@@ -229,6 +237,13 @@ graph TD
 1.  **SourceContext**: Formally defines the origin of the data (SourceID, JQL, Primary Project). It serves as the "Analytical Anchor" for resolving default metadata (status weights, categories).
 2.  **Raw DTOs (Data Transfer Objects)**: Pure, immutable structures representing the Jira JSON response. These are the primary targets for **Transport-Layer Caching**.
 3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`. This is the primary target for **Analytical-Layer Caching**.
+
+### 5.2. Recency Bias & Analysis Windowing
+
+To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts, the system applies a mandatory 6-month recency window:
+
+- **Workflow Discovery**: The `get_workflow_discovery` tool automatically filters the source data to items updated within the last **180 days**. This prevents stale or decommissioned statuses from cluttering the discovery results.
+- **Simulation Baseline**: Forecasting tools default to a 180-day historical window for throughput and cycle time distributions, ensuring the "Capability" of the team reflects their recent performance.
 
 ### 5.2. Search-Driven Inventory (Discovery Memory)
 

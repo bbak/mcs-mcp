@@ -8,32 +8,34 @@ import (
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) getStatusWeights(projectKey string) map[string]int {
-	weights := make(map[string]int)
-	if projectKey == "" {
-		return weights
-	}
+func (s *Server) getStatusWeights(projectKeys []string) map[string]int {
+	// Simple heuristic for status weights (higher = closer to Done)
+	// Currently using a constant weight map, but prepared for multi-project resolution.
+	// Resolving weights for: projectKeys (unused yet, but kept for signature consistency)
+	_ = projectKeys
 
-	if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-		for _, itm := range statuses.([]interface{}) {
-			issueTypeMap := itm.(map[string]interface{})
-			statusList := issueTypeMap["statuses"].([]interface{})
-			for _, sObj := range statusList {
-				sMap := sObj.(map[string]interface{})
-				name := sMap["name"].(string)
-				cat := sMap["statusCategory"].(map[string]interface{})
-				key := cat["key"].(string)
-
-				weight := 1
-				switch key {
-				case "indeterminate":
-					weight = 2
-				case "done":
-					weight = 3
-				}
-				weights[name] = weight
-			}
-		}
+	weights := map[string]int{
+		"Open":        10,
+		"To Do":       10,
+		"Backlog":     10,
+		"Demand":      10,
+		"Selected":    20,
+		"Refinement":  20,
+		"Definition":  20,
+		"Ready":       30,
+		"In Progress": 40,
+		"Development": 40,
+		"Review":      50,
+		"Testing":     60,
+		"QA":          60,
+		"Done":        100,
+		"Closed":      100,
+		"Finished":    100,
+		"Resolved":    100,
+		"Cancelled":   -1,
+		"Discarded":   -1,
+		"Won't Do":    -1,
+		"Rejected":    -1,
 	}
 	return weights
 }

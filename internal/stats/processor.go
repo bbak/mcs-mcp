@@ -64,46 +64,76 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 	var allTrans []fullTransition
 	var transitions []jira.StatusTransition
 
+	var lastMoveDate *time.Time
+
 	for _, h := range changelog.Histories {
+		hDate, dateErr := jira.ParseTime(h.Created)
+		if dateErr != nil {
+			continue
+		}
+
 		for _, itm := range h.Items {
-			if itm.Field == "status" {
-				if t, err := jira.ParseTime(h.Created); err == nil {
-					allTrans = append(allTrans, fullTransition{
-						From: itm.FromString,
-						To:   itm.ToString,
-						Date: t,
-					})
+			switch itm.Field {
+			case "status":
+				allTrans = append(allTrans, fullTransition{
+					From: itm.FromString,
+					To:   itm.ToString,
+					Date: hDate,
+				})
 
-					transitions = append(transitions, jira.StatusTransition{
-						ToStatus: itm.ToString,
-						Date:     t,
-					})
+				transitions = append(transitions, jira.StatusTransition{
+					ToStatus: itm.ToString,
+					Date:     hDate,
+				})
 
-					if earliest == nil || t.Before(*earliest) {
-						st := t
-						earliest = &st
-					}
+				if earliest == nil || hDate.Before(*earliest) {
+					earliest = &hDate
+				}
+			case "Key", "project":
+				// Project Move Detection: treat the latest move as the boundary for process analysis
+				if lastMoveDate == nil || hDate.After(*lastMoveDate) {
+					lastMoveDate = &hDate
 				}
 			}
 		}
 	}
 
-	// Sort ASC by date
-	sort.Slice(allTrans, func(a, b int) bool {
-		return allTrans[a].Date.Before(allTrans[b].Date)
-	})
 	sort.Slice(transitions, func(a, b int) bool {
 		return transitions[a].Date.Before(transitions[b].Date)
 	})
 
+	// Apply Project Move Boundary: We discard residency data from previous projects
+	// but KEEP the 'created' date of the issue for high-level Lead Time (Total Age) stats.
+	if lastMoveDate != nil {
+		newAllTrans := []fullTransition{}
+		for _, t := range allTrans {
+			if !t.Date.Before(*lastMoveDate) {
+				newAllTrans = append(newAllTrans, t)
+			}
+		}
+		allTrans = newAllTrans
+
+		newTransitions := []jira.StatusTransition{}
+		for _, t := range transitions {
+			if !t.Date.Before(*lastMoveDate) {
+				newTransitions = append(newTransitions, t)
+			}
+		}
+		transitions = newTransitions
+	}
+
 	residency := make(map[string]int64)
 	if len(allTrans) > 0 {
-		// 1. Initial Residency (from creation to first transition)
+		// 1. Initial Residency (from creation/move to first transition)
 		initialStatus := allTrans[0].From
 		if initialStatus == "" {
 			initialStatus = "Created"
 		}
-		firstDuration := int64(allTrans[0].Date.Sub(created).Seconds())
+		anchorDate := created
+		if lastMoveDate != nil {
+			anchorDate = *lastMoveDate
+		}
+		firstDuration := int64(allTrans[0].Date.Sub(anchorDate).Seconds())
 		if firstDuration <= 0 {
 			firstDuration = 1
 		}
@@ -143,13 +173,17 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		// If no transitions, we assume it stayed in the initial state (Created) until resolution
 		residency["Created"] = duration
 	} else {
-		// No transitions and not resolved: residency in current status since creation
+		// No transitions and not resolved: residency in current status since creation/move
+		anchorDate := created
+		if lastMoveDate != nil {
+			anchorDate = *lastMoveDate
+		}
 		finalDate := time.Now()
 		if finishedStatuses[currentStatus] {
 			// If created directly in a Finished status, the clock stops at creation
-			finalDate = created
+			finalDate = anchorDate
 		}
-		duration := int64(finalDate.Sub(created).Seconds())
+		duration := int64(finalDate.Sub(anchorDate).Seconds())
 		if duration <= 0 {
 			duration = 1
 		}

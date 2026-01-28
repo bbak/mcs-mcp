@@ -73,17 +73,15 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 
 	// 3. Analytics Context (WIP Aging & Status Weights)
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(issues) > 0 {
-		projectKey = issues[0].ProjectKey
-	}
-	statusWeights := s.getStatusWeights(projectKey)
+	projectKeys := s.extractProjectKeys(issues)
+	statusWeights := s.getStatusWeights(projectKeys)
 	// Override weights with verified mappings if available to ensure correct backflow detection
 	if m, ok := s.workflowMappings[sourceID]; ok {
 		for name, metadata := range m {
-			if metadata.Tier == "Demand" {
+			switch metadata.Tier {
+			case "Demand":
 				statusWeights[name] = 1
-			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+			case "Downstream", "Finished":
 				if statusWeights[name] < 2 {
 					statusWeights[name] = 2
 				}
@@ -273,16 +271,14 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 	}
 
 	// 2. Analytics Context
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(issues) > 0 {
-		projectKey = issues[0].ProjectKey
-	}
-	statusWeights := s.getStatusWeights(projectKey)
+	projectKeys := s.extractProjectKeys(issues)
+	statusWeights := s.getStatusWeights(projectKeys)
 	if m, ok := s.workflowMappings[sourceID]; ok {
 		for name, metadata := range m {
-			if metadata.Tier == "Demand" {
+			switch metadata.Tier {
+			case "Demand":
 				statusWeights[name] = 1
-			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+			case "Downstream", "Finished":
 				if statusWeights[name] < 2 {
 					statusWeights[name] = 2
 				}
@@ -419,14 +415,40 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	response, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 500)
+	// Hybrid Ingestion Strategy
+	// Step 1: Recency Focus (items updated in the last 180 days)
+	discoveryJQL := fmt.Sprintf("(%s) AND updated >= -180d ORDER BY updated DESC", ctx.JQL)
+	log.Debug().Str("jql", discoveryJQL).Msg("Running Workflow Discovery (Step 1: Recency)")
+
+	response, err := s.jira.SearchIssuesWithHistory(discoveryJQL, 0, 500)
 	if err != nil {
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	rawIssues := response.Issues
+	issueKeys := make(map[string]bool)
+	for _, itm := range rawIssues {
+		issueKeys[itm.Key] = true
+	}
+
+	// Step 2: Coverage Buffer (ensure at least 100 items for discovery)
+	if len(rawIssues) < 100 {
+		log.Debug().Int("count", len(rawIssues)).Msg("Insufficient items for discovery, fetching coverage buffer")
+		bufferJQL := fmt.Sprintf("(%s) ORDER BY updated DESC", ctx.JQL)
+		bufferResponse, err := s.jira.SearchIssuesWithHistory(bufferJQL, 0, 100)
+		if err == nil {
+			for _, itm := range bufferResponse.Issues {
+				if !issueKeys[itm.Key] {
+					rawIssues = append(rawIssues, itm)
+					issueKeys[itm.Key] = true
+				}
+			}
+		}
+	}
+
+	issues := make([]jira.Issue, len(rawIssues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
+	for i, dto := range rawIssues {
 		issues[i] = stats.MapIssue(dto, finished)
 	}
 
@@ -435,9 +457,9 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 }
 
 func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) interface{} {
-	projectKey := s.extractProjectKey(issues)
-	statusWeights := s.getStatusWeights(projectKey)
-	statusCats := s.getStatusCategories(projectKey)
+	projectKeys := s.extractProjectKeys(issues)
+	statusWeights := s.getStatusWeights(projectKeys)
+	statusCats := s.getStatusCategories(projectKeys)
 
 	// 1. Calculate persistence-based discovery (Tiers/Roles)
 	persistence := stats.CalculateStatusPersistence(issues)
@@ -647,18 +669,16 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 	}
 
 	// Determine commitment context
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(histIssues) > 0 {
-		projectKey = histIssues[0].ProjectKey
-	}
-	statusWeights := s.getStatusWeights(projectKey)
+	projectKeys := s.extractProjectKeys(histIssues)
+	statusWeights := s.getStatusWeights(projectKeys)
 
 	// Override weights with verified mappings if available to ensure correct backflow detection
 	if m, ok := s.workflowMappings[sourceID]; ok {
 		for name, metadata := range m {
-			if metadata.Tier == "Demand" {
+			switch metadata.Tier {
+			case "Demand":
 				statusWeights[name] = 1
-			} else if metadata.Tier == "Downstream" || metadata.Tier == "Finished" {
+			case "Downstream", "Finished":
 				// Ensure it's at least weight 2 for commitment
 				if statusWeights[name] < 2 {
 					statusWeights[name] = 2
@@ -820,11 +840,8 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	}
 
 	// 2. Identify context (Start Status)
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(issues) > 0 {
-		projectKey = issues[0].ProjectKey
-	}
-	statusWeights := s.getStatusWeights(projectKey)
+	projectKeys := s.extractProjectKeys(issues)
+	statusWeights := s.getStatusWeights(projectKeys)
 	resNames := []string{"Fixed", "Done", "Complete", "Resolved"} // Default
 
 	startStatus := s.getEarliestCommitment(sourceID)
@@ -928,12 +945,9 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 		issues[i] = stats.MapIssue(dto, finished)
 	}
 
-	// 2. Identify context
-	projectKey := ctx.PrimaryProject
-	if projectKey == "" && len(issues) > 0 {
-		projectKey = issues[0].ProjectKey
-	}
-	statusWeights := s.getStatusWeights(projectKey)
+	// 2. Analytics Context
+	projectKeys := s.extractProjectKeys(issues)
+	statusWeights := s.getStatusWeights(projectKeys)
 	resNames := []string{"Fixed", "Done", "Complete", "Resolved"}
 	startStatus := s.getEarliestCommitment(sourceID)
 
