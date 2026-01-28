@@ -97,11 +97,29 @@ func (s *Server) callTool(params json.RawMessage) (interface{}, interface{}) {
 
 	switch call.Name {
 	case "find_jira_projects":
-		data, err = s.jira.FindProjects(asString(call.Arguments["query"]))
+		projects, findErr := s.jira.FindProjects(asString(call.Arguments["query"]))
+		if findErr == nil {
+			data = map[string]interface{}{
+				"projects": projects,
+				"_guidance": []string{
+					"Before performing analysis on a discovered project, you SHOULD fetch its full details via 'get_project_details' to ensure valid metadata and context.",
+				},
+			}
+		}
+		err = findErr
 	case "find_jira_boards":
 		pKey := asString(call.Arguments["project_key"])
 		nFilter := asString(call.Arguments["name_filter"])
-		data, err = s.jira.FindBoards(pKey, nFilter)
+		boards, findErr := s.jira.FindBoards(pKey, nFilter)
+		if findErr == nil {
+			data = map[string]interface{}{
+				"boards": boards,
+				"_guidance": []string{
+					"Once a board is identified, you SHOULD fetch its configuration using 'get_board_details' to understand its mapping to projects and statuses.",
+				},
+			}
+		}
+		err = findErr
 	case "get_project_details":
 		key := asString(call.Arguments["project_key"])
 		data, err = s.jira.GetProject(key)
