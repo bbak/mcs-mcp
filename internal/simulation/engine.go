@@ -30,20 +30,30 @@ type Engine struct {
 	rng       *rand.Rand
 }
 
+// Percentiles holds the probabilistic outcomes of a simulation.
+type Percentiles struct {
+	Aggressive    float64 `json:"aggressive"`     // P10
+	Unlikely      float64 `json:"unlikely"`       // P30
+	CoinToss      float64 `json:"coin_toss"`      // P50
+	Probable      float64 `json:"probable"`       // P70
+	Likely        float64 `json:"likely"`         // P85
+	Conservative  float64 `json:"conservative"`   // P90
+	Safe          float64 `json:"safe"`           // P95
+	AlmostCertain float64 `json:"almost_certain"` // P98
+}
+
+// SpreadMetrics holds statistical dispersion data.
+type SpreadMetrics struct {
+	IQR     float64 `json:"iqr"`      // P75-P25
+	Inner80 float64 `json:"inner_80"` // P90-P10
+}
+
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
-	Aggressive        float64                `json:"aggressive"`           // P10
-	Unlikely          float64                `json:"unlikely"`             // P30
-	CoinToss          float64                `json:"coin_toss"`            // P50
-	Probable          float64                `json:"probable"`             // P70
-	Likely            float64                `json:"likely"`               // P85
-	Conservative      float64                `json:"conservative"`         // P90
-	Safe              float64                `json:"safe"`                 // P95
-	AlmostCertain     float64                `json:"almost_certain"`       // P98
+	Percentiles       Percentiles            `json:"percentiles"`
+	Spread            SpreadMetrics          `json:"spread"`
 	FatTailRatio      float64                `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
 	TailToMedianRatio float64                `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
-	IQR               float64                `json:"iqr"`                  // P75-P25 (Density of middle 50%)
-	Inner80           float64                `json:"inner_80"`             // P90-P10 (Robust spread)
 	Predictability    string                 `json:"predictability"`
 	Context           map[string]interface{} `json:"context,omitempty"`
 	Warnings          []string               `json:"warnings,omitempty"`
@@ -87,16 +97,20 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	sort.Ints(durations)
 
 	res := Result{
-		Aggressive:    float64(durations[int(float64(trials)*0.10)]),
-		Unlikely:      float64(durations[int(float64(trials)*0.30)]),
-		CoinToss:      float64(durations[int(float64(trials)*0.50)]),
-		Probable:      float64(durations[int(float64(trials)*0.70)]),
-		Likely:        float64(durations[int(float64(trials)*0.85)]),
-		Conservative:  float64(durations[int(float64(trials)*0.90)]),
-		Safe:          float64(durations[int(float64(trials)*0.95)]),
-		AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
-		IQR:           float64(durations[int(float64(trials)*0.75)] - durations[int(float64(trials)*0.25)]),
-		Inner80:       float64(durations[int(float64(trials)*0.90)] - durations[int(float64(trials)*0.10)]),
+		Percentiles: Percentiles{
+			Aggressive:    float64(durations[int(float64(trials)*0.10)]),
+			Unlikely:      float64(durations[int(float64(trials)*0.30)]),
+			CoinToss:      float64(durations[int(float64(trials)*0.50)]),
+			Probable:      float64(durations[int(float64(trials)*0.70)]),
+			Likely:        float64(durations[int(float64(trials)*0.85)]),
+			Conservative:  float64(durations[int(float64(trials)*0.90)]),
+			Safe:          float64(durations[int(float64(trials)*0.95)]),
+			AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
+		},
+		Spread: SpreadMetrics{
+			IQR:     float64(durations[int(float64(trials)*0.75)] - durations[int(float64(trials)*0.25)]),
+			Inner80: float64(durations[int(float64(trials)*0.90)] - durations[int(float64(trials)*0.10)]),
+		},
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (Aggressive / Best Case)",
 			"unlikely":       "P30 (Unlikely / High Risk)",
@@ -131,16 +145,20 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	sort.Ints(scopes)
 
 	res := Result{
-		Aggressive:    float64(scopes[int(float64(trials)*0.90)]), // 10% chance to deliver AT LEAST this much (Very high items count)
-		Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much
-		CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
-		Probable:      float64(scopes[int(float64(trials)*0.30)]), // 70% chance to deliver AT LEAST this much
-		Likely:        float64(scopes[int(float64(trials)*0.15)]), // 85% chance to deliver AT LEAST this much
-		Conservative:  float64(scopes[int(float64(trials)*0.10)]), // 90% chance to deliver AT LEAST this much
-		Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
-		AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
-		IQR:           float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
-		Inner80:       float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
+		Percentiles: Percentiles{
+			Aggressive:    float64(scopes[int(float64(trials)*0.90)]), // 10% chance to deliver AT LEAST this much
+			Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much
+			CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
+			Probable:      float64(scopes[int(float64(trials)*0.30)]), // 70% chance to deliver AT LEAST this much
+			Likely:        float64(scopes[int(float64(trials)*0.15)]), // 85% chance to deliver AT LEAST this much
+			Conservative:  float64(scopes[int(float64(trials)*0.10)]), // 90% chance to deliver AT LEAST this much
+			Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
+			AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
+		},
+		Spread: SpreadMetrics{
+			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
+			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
+		},
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (10% probability to deliver at least this much)",
 			"unlikely":       "P30 (30% probability to deliver at least this much)",
@@ -169,16 +187,20 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 	n := len(cycleTimes)
 
 	res := Result{
-		Aggressive:    cycleTimes[int(float64(n)*0.10)],
-		Unlikely:      cycleTimes[int(float64(n)*0.30)],
-		CoinToss:      cycleTimes[int(float64(n)*0.50)],
-		Probable:      cycleTimes[int(float64(n)*0.70)],
-		Likely:        cycleTimes[int(float64(n)*0.85)],
-		Conservative:  cycleTimes[int(float64(n)*0.90)],
-		Safe:          cycleTimes[int(float64(n)*0.95)],
-		AlmostCertain: cycleTimes[int(float64(n)*0.98)],
-		IQR:           cycleTimes[int(float64(n)*0.75)] - cycleTimes[int(float64(n)*0.25)],
-		Inner80:       cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
+		Percentiles: Percentiles{
+			Aggressive:    cycleTimes[int(float64(n)*0.10)],
+			Unlikely:      cycleTimes[int(float64(n)*0.30)],
+			CoinToss:      cycleTimes[int(float64(n)*0.50)],
+			Probable:      cycleTimes[int(float64(n)*0.70)],
+			Likely:        cycleTimes[int(float64(n)*0.85)],
+			Conservative:  cycleTimes[int(float64(n)*0.90)],
+			Safe:          cycleTimes[int(float64(n)*0.95)],
+			AlmostCertain: cycleTimes[int(float64(n)*0.98)],
+		},
+		Spread: SpreadMetrics{
+			IQR:     cycleTimes[int(float64(n)*0.75)] - cycleTimes[int(float64(n)*0.25)],
+			Inner80: cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
+		},
 		PercentileLabels: map[string]string{
 			"aggressive":     "P10 (Aggressive / Fast Outliers)",
 			"unlikely":       "P30 (Unlikely / Fast Pace)",
@@ -195,9 +217,9 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 }
 
 func (e *Engine) assessPredictability(res *Result) {
-	if res.CoinToss > 0 {
-		res.FatTailRatio = math.Round(res.AlmostCertain/res.CoinToss*100) / 100
-		res.TailToMedianRatio = math.Round(res.Likely/res.CoinToss*100) / 100
+	if res.Percentiles.CoinToss > 0 {
+		res.FatTailRatio = math.Round(res.Percentiles.AlmostCertain/res.Percentiles.CoinToss*100) / 100
+		res.TailToMedianRatio = math.Round(res.Percentiles.Likely/res.Percentiles.CoinToss*100) / 100
 
 		predictability := "Stable"
 		if res.FatTailRatio >= 5.6 {

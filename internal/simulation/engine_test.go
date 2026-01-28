@@ -15,14 +15,14 @@ func TestEngine_Percentiles(t *testing.T) {
 	cycleTimes := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	res := e.RunCycleTimeAnalysis(cycleTimes)
 
-	if res.Aggressive != 2 { // P10 of 10 items
-		t.Errorf("Expected Aggressive (P10) to be 2, got %f", res.Aggressive)
+	if res.Percentiles.Aggressive != 2 { // P10 of 10 items
+		t.Errorf("Expected Aggressive (P10) to be 2, got %f", res.Percentiles.Aggressive)
 	}
-	if res.CoinToss != 6 { // P50 of 10 items
-		t.Errorf("Expected CoinToss (P50) to be 6, got %f", res.CoinToss)
+	if res.Percentiles.CoinToss != 6 { // P50 of 10 items
+		t.Errorf("Expected CoinToss (P50) to be 6, got %f", res.Percentiles.CoinToss)
 	}
-	if res.Conservative != 10 { // P90 of 10 items
-		t.Errorf("Expected Conservative (P90) to be 10, got %f", res.Conservative)
+	if res.Percentiles.Conservative != 10 { // P90 of 10 items
+		t.Errorf("Expected Conservative (P90) to be 10, got %f", res.Percentiles.Conservative)
 	}
 }
 
@@ -35,8 +35,8 @@ func TestEngine_ZeroThroughput(t *testing.T) {
 	// This should not hang and should return the safety limit
 	res := e.RunDurationSimulation(10, 100)
 
-	if res.CoinToss != 20000 {
-		t.Errorf("Expected CoinToss to be safety limit 20000, got %f", res.CoinToss)
+	if res.Percentiles.CoinToss != 20000 {
+		t.Errorf("Expected CoinToss to be safety limit 20000, got %f", res.Percentiles.CoinToss)
 	}
 
 	foundWarning := false

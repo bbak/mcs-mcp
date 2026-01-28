@@ -342,22 +342,12 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 
 	// 4. Design refined response
 	return map[string]interface{}{
-		"assessment": map[string]float64{
-			"aggressive":     resObj.Aggressive,
-			"unlikely":       resObj.Unlikely,
-			"coin_toss":      resObj.CoinToss,
-			"probable":       resObj.Probable,
-			"likely":         resObj.Likely,
-			"conservative":   resObj.Conservative,
-			"safe":           resObj.Safe,
-			"almost_certain": resObj.AlmostCertain,
-		},
+		"percentiles":       resObj.Percentiles,
 		"percentile_labels": resObj.PercentileLabels,
+		"spread":            resObj.Spread,
 		"process_statistics": map[string]interface{}{
 			"fat_tail_ratio":       resObj.FatTailRatio,
 			"tail_to_median_ratio": resObj.TailToMedianRatio,
-			"iqr":                  resObj.IQR,
-			"inner_80":             resObj.Inner80,
 			"predictability":       resObj.Predictability,
 			"sample_size":          len(cycleTimes),
 		},
