@@ -96,7 +96,14 @@ func (c *dcClient) throttle() {
 	c.lastRequest = time.Now()
 }
 
-func (c *dcClient) addCookies(req *http.Request) {
+func (c *dcClient) authenticateRequest(req *http.Request) {
+	// 1. Prioritize Personal Access Token (PAT)
+	if c.cfg.Token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfg.Token))
+		return
+	}
+
+	// 2. Fallback to session cookies
 	cookies := []struct {
 		name  string
 		value string
@@ -156,7 +163,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -203,7 +210,7 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -247,7 +254,7 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -289,7 +296,7 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -337,7 +344,7 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -406,7 +413,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -532,7 +539,7 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -575,7 +582,7 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 		return nil, err
 	}
 
-	c.addCookies(req)
+	c.authenticateRequest(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

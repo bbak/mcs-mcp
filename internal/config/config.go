@@ -42,6 +42,7 @@ func Load() (*AppConfig, error) {
 			XsrfToken:    getEnv("JIRA_XSRF_TOKEN", ""),
 			SessionID:    getEnv("JIRA_SESSION_ID", ""),
 			RememberMe:   getEnv("JIRA_REMEMBERME_COOKIE", ""),
+			Token:        getEnv("JIRA_TOKEN", ""),
 			GCILB:        getEnv("JIRA_GCILB", ""),
 			GCLB:         getEnv("JIRA_GCLB", ""),
 			RequestDelay: time.Duration(delaySecs) * time.Second,

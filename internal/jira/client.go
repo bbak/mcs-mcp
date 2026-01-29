@@ -58,6 +58,9 @@ type Config struct {
 	SessionID  string
 	RememberMe string
 
+	// Token Authentication
+	Token string
+
 	// Load Balancer Cookies
 	GCILB string
 	GCLB  string

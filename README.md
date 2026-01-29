@@ -1,3 +1,101 @@
-# MCS-MCP
+# MCS-MCP: Monte-Carlo Simulation for Model Context Protocol
 
-A MCP (Model Context Protocol) Server designed to provide statistical forecasting capabilities (Monte-Carlo-Simulation) to AI assistants. It fetches historic data from Atlassian Jira and performs high-performance simulations in Go.
+**MCS-MCP** is a sophisticated Model Context Protocol (MCP) server that empowers AI assistants with deep analytical and forecasting capabilities for software delivery projects. By leveraging historical Jira data and high-performance Monte-Carlo simulations, it transforms raw project history into actionable, probabilistic delivery insights.
+
+---
+
+## 🚀 Key Capabilities
+
+- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope) with high statistical confidence.
+- **Predictability Guardrails**: Use **XmR Control Charts** and **Stability Indices** to detect "Special Cause" variation and assess if a process is stable enough to forecast.
+- **Workflow Semantic Discovery**: Automatically infer the roles of workflow statuses (Active, Queue, Demand, Finished) to identify true bottlenecks instead of administrative delays.
+- **High-Fidelity Aging Analysis**: Track **WIP Age** and status-level persistence to identify "neglected" inventory before it impacts delivery.
+- **Strategic Evolution Tracking**: Perform longitudinal audits using **Three-Way Control Charts** to detect systemic improvements or process drift over time.
+- **Process Yield & Abandonment**: Quantify "waste" by identifying exactly where work is discarded in the discovery or execution pipeline.
+
+---
+
+## 🛠️ How it Works
+
+MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids single-point averages, which often mask risk, and instead provides **Percentile-based outcomes** (e.g., P85 "Likely" confidence).
+
+1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, calculating exact residency time (in seconds) for every item across every status.
+2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand -> Upstream -> Downstream -> Finished) to ensure the simulation "clock" reflects actual value consumption.
+3. **Simulation**: The engine uses historical throughput distributions to simulate thousands of potential futures, generating a robust probabilistic range.
+4. **Diagnostic Guidance**: An AI-orchestrated **Roadmap** tool guides agents through the correct sequence of diagnostic steps (Stability -> Discovery -> Analysis).
+
+---
+
+## 🏃 Getting Started
+
+### Prerequisites
+
+- Go 1.21+
+- Access to Atlassian Jira (Data Center or Cloud)
+
+### Authentication
+
+The server supports both Personal Access Tokens (PAT) and session-based (cookie) authentication.
+
+**Option A: Personal Access Token (PAT) - Preferred**
+Configure your Jira PAT in the `.env` file:
+
+```env
+JIRA_TOKEN=your-personal-access-token
+```
+
+**Option B: Session Cookies - Fallback**
+If PAT is not available, provide session cookies extracted from an active browser:
+
+- `JIRA_SESSION_ID`: Your Jira session ID.
+- `JIRA_XSRF_TOKEN`: Your XSRF token.
+- (Optional) `JIRA_REMEMBERME_COOKIE`, `JIRA_GCILB`, `JIRA_GCLB`.
+
+### Building and Running the Server
+
+You should build the project into an executable before configuring it as an MCP tool.
+
+**On Windows (PowerShell):**
+
+```powershell
+./build.ps1 build
+```
+
+**On Unix/Linux (Make):**
+
+```bash
+make build
+```
+
+The resulting binary will be located in the `dist/` folder (e.g., `dist/mcs-mcp.exe`).
+
+### Configuring as an MCP Tool
+
+To use as a server for an AI Agent (like Claude or Gemini), point your MCP client configuration to the compiled binary:
+
+```json
+{
+	"mcpServers": {
+		"mcs-mcp": {
+			"command": "C:/path/to/mcs-mcp/dist/mcs-mcp.exe",
+			"args": []
+		}
+	}
+}
+```
+
+---
+
+## 📖 Guided Interaction
+
+MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detailed guidance on specific workflows, refer to:
+
+- **[Project Charter](docs/charter.md)**: Conceptual foundations and architectural principles.
+- **[Interaction Use Cases](docs/use-cases.md)**: Detailed scenarios for PMs and AI Agents (When, Scope, Bottlenecks, etc.).
+- **[Architecture Deep-Dive](docs/architecture.md)**: Aging math, backflow policies, and the status-granular flow model.
+
+---
+
+## ⚖️ Conceptual Integrity
+
+This project adheres to the core principles of **Cohesion, Coherence, and Consistency**. Every tool and analytical model is designed to provide a unified, reliable view of delivery performance without administrative noise.
