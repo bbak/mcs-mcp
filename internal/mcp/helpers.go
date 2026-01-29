@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mcs-mcp/internal/jira"
+	"mcs-mcp/internal/stats"
 )
 
 func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.SourceContext, error) {
@@ -204,4 +205,15 @@ func (s *Server) getFinishedStatuses(sourceID string) map[string]bool {
 		}
 	}
 	return finished
+}
+
+func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) []float64 {
+	var ages []float64
+	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip")
+	for _, res := range results {
+		if res.AgeSinceCommitment != nil {
+			ages = append(ages, *res.AgeSinceCommitment)
+		}
+	}
+	return ages
 }

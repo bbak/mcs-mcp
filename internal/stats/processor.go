@@ -195,3 +195,49 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 
 	return transitions, residency, earliest
 }
+
+// FilterTransitions returns only transitions that occurred after a specific date.
+func FilterTransitions(transitions []jira.StatusTransition, since time.Time) []jira.StatusTransition {
+	filtered := make([]jira.StatusTransition, 0)
+	for _, t := range transitions {
+		if !t.Date.Before(since) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// GetDailyThroughput returns count of items resolved each day.
+func GetDailyThroughput(issues []jira.Issue) []int {
+	if len(issues) == 0 {
+		return nil
+	}
+
+	minDate := time.Now()
+	maxDate := time.Now()
+
+	resolvedItems := make([]jira.Issue, 0)
+	for _, issue := range issues {
+		if issue.ResolutionDate != nil {
+			resolvedItems = append(resolvedItems, issue)
+			if issue.ResolutionDate.Before(minDate) {
+				minDate = *issue.ResolutionDate
+			}
+		}
+	}
+
+	if len(resolvedItems) == 0 {
+		return nil
+	}
+
+	days := int(maxDate.Sub(minDate).Hours()/24) + 1
+	daily := make([]int, days)
+
+	for _, issue := range resolvedItems {
+		d := int(issue.ResolutionDate.Sub(minDate).Hours() / 24)
+		if d >= 0 && d < days {
+			daily[d]++
+		}
+	}
+	return daily
+}

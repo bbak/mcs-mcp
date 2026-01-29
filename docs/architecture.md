@@ -15,19 +15,28 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
 ### Operational Flow (The Interaction Model)
 
 ```mermaid
-graph LR
-    A["<b>1. Discovery</b><br/>get_data_metadata"] --> B["<b>2. Semantic Mapping</b><br/>get_workflow_discovery"]
-    B --> C["<b>3. Selection</b><br/>User choosing Commitment Point"]
-    C --> D["<b>4. Forecast</b><br/>run_simulation / get_cycle_time_assessment"]
+graph TD
+    A["<b>1. Goal Identification</b><br/>get_diagnostic_roadmap"] --> B["<b>2. Discovery</b><br/>get_data_metadata"]
+    B --> C["<b>3. Semantic Mapping</b><br/>get_workflow_discovery"]
+    C --> D["<b>4. Selection</b><br/>User choosing Commitment Point"]
+    D --> E["<b>5. Forecast & Diagnostics</b><br/>run_simulation / get_aging_analysis"]
 ```
 
-1.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source (board/filter) for scale and quality.
-2.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool identifies the residence time and Jira categories. The user/AI maps statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore) using `set_workflow_mapping`.
-3.  **Selection Phase**: Based on the discovery results, the user selects the **Commitment Point**.
-4.  **Forecast Phase**:
-    - Use `run_simulation` for aggregate/bulk forecasts (Duration/When or Scope/How much).
-    - Use `get_cycle_time_assessment` for individual item Service Level Expectations (SLE).
-      Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
+1.  **Guidance Phase**: The AI uses `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of tools.
+2.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source for scale and quality.
+3.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool identifies the residence time and Jira categories. The user/AI maps statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore) using `set_workflow_mapping`.
+4.  **Selection Phase**: Based on the discovery results, the user selects the **Commitment Point**.
+5.  **Analytics Phase**:
+    - Use `run_simulation` for aggregate/bulk forecasts.
+    - Use `get_aging_analysis` and `get_status_persistence` for process health.
+    - Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
+
+### Analytical Roadmap (AI Guidance)
+
+To ensure the AI Agent selects the most reliable path for complex goals, the server provides a `get_diagnostic_roadmap` tool. This tool acts as an "Analytical Orchestrator," recommending a specific order of diagnostic steps:
+
+- **Goal-Oriented**: Provides tailored workflows for `forecasting`, `bottlenecks`, `capacity_planning`, and `system_health`.
+- **Prerequisite Enforcement**: Explicitly guides the AI to perform foundational steps (like stability checks or workflow verification) before running high-level simulations.
 
 ### Mandatory Workflow Verification (Inform & Veto)
 
@@ -239,16 +248,15 @@ To enable multi-layer caching and improve conceptual integrity, the system stric
 ```mermaid
 graph TD
     A[JQL/SourceID] --> B[SourceContext]
-    B --> C[Jira Client]
-    C --> D[Raw DTOs]
-    D --> E[Stats Processor]
-    E --> F[Dataset]
-    F --> G[Analysis Tools]
+    B --> C[ingestion.go]
+    C --> D[Stats Processor]
+    D --> E[Dataset]
+    E --> F[Analysis Tools]
 ```
 
 1.  **SourceContext**: Formally defines the origin of the data (SourceID, JQL, Primary Project). It serves as the "Analytical Anchor" for resolving default metadata (status weights, categories).
-2.  **Raw DTOs (Data Transfer Objects)**: Pure, immutable structures representing the Jira JSON response. These are the primary targets for **Transport-Layer Caching**.
-3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`. This is the primary target for **Analytical-Layer Caching**.
+2.  **ingestion.go**: Centralized logic for fetching raw issues (Historical and WIP) from Jira. This ensures that every analytical tool uses the same ingestion parameters (windowing, fields).
+3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`.
 
 ### 5.2. Recency Bias & Analysis Windowing
 
@@ -283,11 +291,9 @@ By moving residency calculation out of the Jira client and into a dedicated `pro
 
 ## 6. Codebase Structure & Modularization
 
-The codebase is designed for high cohesion and maintainability, with logic strictly separated by functional responsibility.
+The codebase follows a high-cohesion design, with logic strictly separated by functional responsibility.
 
 ### `internal/jira` (The Transport Layer)
-
-This package focuses exclusively on communication with Jira and raw data modeling.
 
 - `client.go`: Interface definitions and domain models (`Issue`, `SourceContext`).
 - `dc_client.go`: Implementation of the Jira Data Center / Server REST API.
@@ -295,25 +301,25 @@ This package focuses exclusively on communication with Jira and raw data modelin
 
 ### `internal/stats` (The Analytical Engine)
 
-This package contains the domain-specific statistical algorithms and transformation logic.
-
-- `processor.go`: Centralized logic for mapping DTOs to Domain models and calculating status residency.
-- `stability.go`: XmR charts, Three-Way Control Charts, and Integrated Time Analysis logic.
-- `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and shared probe analysis logic.
-- `persistence.go`: Logic for status persistence and residency distributions.
-- `aging.go`: Implementations for WIP Aging and Total Aging analysis.
+- `processor.go`: DTO-to-Domain mapping and status residency calculation.
+- `stability.go`: XmR charts, Three-Way Control Charts, and Stability Index heuristics.
+- `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and probe metrics.
+- `persistence.go`: Status residency distributions (P50, P85, etc.).
+- `aging.go`: Implementations for WIP Aging (`InventoryAge`) and Status Aging.
 - `yield.go`: Calculations for process yield and abandonment waste.
 - `cadence.go`: Logic for aggregating delivery throughput over time.
 
 ### `internal/mcp` (The Glue Layer)
 
-This package handles the Model Context Protocol (MCP) server, tool registration, and request dispatching.
-
-- `server.go`: The core server implementation and tool dispatching loop.
-- `tools.go`: Definitions and AI-discoverable descriptions for all MCP tools.
-- `handlers.go`: Top-level implementations for tool execution logic.
-- `workflow.go`: Workflow-specific logic (residency rebuilding, backflow policies, and status weighting).
-- `helpers.go`: General utility methods and type conversion helpers.
+- `server.go`: The core MCP server and tool dispatching loop.
+- `tools.go`: AI-discoverable definitions and descriptions for all tools.
+- `handlers.go`: Internal shared logic, roadmap tools, and backflow policies.
+- `handlers_forecasting.go`: Tools for simulations and cycle time assessments.
+- `handlers_diagnostics.go`: Tools for aging, stability, progress yield, and items journeys.
+- `handlers_discovery.go`: Tools for metadata probing and workflow detection.
+- `ingestion.go`: Centralized Jira data fetching logic.
+- `context.go`: Unified analysis context and status weighting resolution.
+- `helpers.go`: General utility methods and type conversion.
 
 ---
 

@@ -62,6 +62,25 @@ func CalculateXmR(values []float64) XmRResult {
 	return result
 }
 
+// CalculateProcessStability evaluates the system's predictability using cycle times and WIP.
+func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int) interface{} {
+	xmr := CalculateXmR(cycleTimes)
+
+	stabilityIndex := 0.0
+	if len(cycleTimes) > 0 {
+		avgCT := xmr.Average
+		if avgCT > 0 {
+			stabilityIndex = float64(wipCount) / (float64(len(cycleTimes)) / math.Max(1.0, cycleTimes[len(cycleTimes)-1]))
+		}
+	}
+
+	return map[string]interface{}{
+		"xmr":             xmr,
+		"stability_index": stabilityIndex,
+		"status":          xmr.Signals,
+	}
+}
+
 // TimeStabilityResult represents the integrated view of done items vs current WIP.
 type TimeStabilityResult struct {
 	Baseline   XmRResult `json:"baseline"`
@@ -83,7 +102,6 @@ func AnalyzeTimeStability(historicalCycleTimes []float64, currentWIPAges []float
 	}
 
 	// Evaluate WIP against the baseline UNPL
-	// We use the index of the WIP age as it's passed in
 	for i, age := range currentWIPAges {
 		if age > baseline.UNPL {
 			result.WIPSignals = append(result.WIPSignals, Signal{
@@ -91,8 +109,6 @@ func AnalyzeTimeStability(historicalCycleTimes []float64, currentWIPAges []float
 				Type:        "wip_outlier",
 				Description: "Active WIP Age exceeds historical Upper Natural Process Limit (UNPL)",
 			})
-			// If WIP is out of control, it's at least a "warning" if baseline was stable,
-			// or stays "unstable" if baseline was already unstable.
 			if result.Status == "stable" {
 				result.Status = "warning"
 			}
@@ -129,7 +145,6 @@ func CalculateThreeWayXmR(subgroups []SubgroupStats) ThreeWayResult {
 	}
 
 	// 2. The Third Way: Calculate XmR on the averages themselves.
-	// This identifies if the "Average" of the process is fundamentally moving over time.
 	avgChart := CalculateXmR(averages)
 
 	result := ThreeWayResult{
@@ -151,9 +166,9 @@ func CalculateThreeWayXmR(subgroups []SubgroupStats) ThreeWayResult {
 	}
 
 	if shiftCount > 0 {
-		result.Status = "migrating" // The process has fundamentally shifted to a new level
+		result.Status = "migrating"
 	} else if outlierCount > 0 {
-		result.Status = "volatile" // The process averages are jumping around unpredictably
+		result.Status = "volatile"
 	}
 
 	return result
@@ -165,8 +180,6 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 		return nil
 	}
 
-	// We match issues to their cycle times by index.
-	// This assumes the order in 'issues' matches 'cycleTimes'.
 	groups := make(map[string]*SubgroupStats)
 	var keys []string
 
@@ -184,7 +197,6 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 		groups[monthKey].Values = append(groups[monthKey].Values, cycleTimes[i])
 	}
 
-	// Calculate averages for each group
 	var result []SubgroupStats
 	for _, k := range keys {
 		g := groups[k]
@@ -202,7 +214,6 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 func detectSignals(values []float64, avg, unpl, lnpl float64) []Signal {
 	var signals []Signal
 
-	// Rule 1: Point beyond limits
 	for i, v := range values {
 		if v > unpl {
 			signals = append(signals, Signal{
@@ -219,9 +230,8 @@ func detectSignals(values []float64, avg, unpl, lnpl float64) []Signal {
 		}
 	}
 
-	// Rule 2: Shift (8 or more consecutive points on one side of average)
 	if len(values) >= 8 {
-		side := 0 // 0: none, 1: above, -1: below
+		side := 0
 		count := 0
 		for i, v := range values {
 			currentSide := 0

@@ -174,3 +174,20 @@ This document describes the primary interaction scenarios between the User (Proj
     1. AI calls `get_aging_analysis` with `aging_type: "wip"` and `tier_filter: "Finished"`.
     2. MCP Server identifies items in terminal statuses but returns their **pinned Cycle Time** (time spent from commitment to finish point).
     3. AI reports: "The last 10 items had a median cycle time of 12.5 days. Note that these are fixed delivery metrics; they do not increase as time passes since their delivery."
+
+---
+
+## UC13: Analytical Workflow Guidance (The Roadmap)
+
+**Goal:** Provide the AI with a structured, reliable path for complex analytical objectives.
+
+- **Primary Actor:** AI (Orchestrator)
+- **Trigger:** User asks a broad goal-oriented question (e.g., "Analyze our bottlenecks").
+- **Main Success Scenario:**
+    1.  AI identifies the goal and calls `get_diagnostic_roadmap` with `goal: "bottlenecks"`.
+    2.  MCP Server returns a prioritized sequence of tools:
+        - `get_workflow_discovery` (Verify semantics)
+        - `get_status_persistence` (Identify local queues)
+        - `get_aging_analysis` (Identify current WIP risk)
+    3.  AI follows the sequence, explaining each step to the user.
+    4.  AI synthesizes the results into a cohesive diagnostic report.

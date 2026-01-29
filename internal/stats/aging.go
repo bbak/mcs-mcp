@@ -18,8 +18,8 @@ type StatusAgeAnalysis struct {
 	IsStale      bool    `json:"isStale"`    // true if DaysInStatus > P85
 }
 
-// InventoryAgeAnalysis represents the process-wide risk of a single item.
-type InventoryAgeAnalysis struct {
+// InventoryAge represents the process-wide risk of a single item.
+type InventoryAge struct {
 	Key                      string   `json:"key"`
 	Type                     string   `json:"type"`
 	Summary                  string   `json:"summary"`
@@ -37,9 +37,9 @@ type InventoryAgeAnalysis struct {
 
 // AgingResult is the top-level response for inventory aging analysis.
 type AgingResult struct {
-	Items    []InventoryAgeAnalysis `json:"items"`
-	Warnings []string               `json:"warnings,omitempty"`
-	Guidance []string               `json:"_guidance,omitempty"`
+	Items    []InventoryAge `json:"items"`
+	Warnings []string       `json:"warnings,omitempty"`
+	Guidance []string       `json:"_guidance,omitempty"`
 }
 
 // CalculateStatusAging identifies active items and compares their residence in current step to history.
@@ -101,8 +101,8 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 }
 
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
-func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAgeAnalysis {
-	var results []InventoryAgeAnalysis
+func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAge {
+	var results []InventoryAge
 
 	// Sort historical values for percentile calculation
 	sort.Float64s(persistence)
@@ -234,7 +234,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			}
 		}
 
-		analysis := InventoryAgeAnalysis{
+		analysis := InventoryAge{
 			Key:                      issue.Key,
 			Type:                     issue.IssueType,
 			Summary:                  issue.Summary,
