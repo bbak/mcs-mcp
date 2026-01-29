@@ -49,7 +49,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_data_metadata",
-				"description": "Probe a data source (board or filter) to analyze data quality, volume, and reachability. This provides a 'Data Inventory' (counts, date ranges, resolution rates) but DOES NOT provide process semantics or workflow mapping proposals.",
+				"description": "Performs a diagnostic probe on a data source (board/filter) to assess volume, health, and distribution. Returns a summary of a 50-item sample (SampleResolvedRatio, inventory counts). This is a tool for data inventory, NOT for team performance metrics.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -146,7 +146,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_process_stability",
-				"description": "Analyze process predictability using XmR Process Behavior Charts. Detects 'Special Cause' variation in Cycle Time and Throughput. This tool is the primary 'Predictability Guardrail' and should be used before together with any forecast (especially `run_simulation`) to assess forecast stability and accuracy.",
+				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. Compares the current WIP inventory against historical throughput to identify stability risks. Use this to determine if current forecasts are reliable.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

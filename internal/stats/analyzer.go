@@ -12,7 +12,9 @@ type MetadataSummary struct {
 	IssueTypes             map[string]int `json:"issueTypes"`
 	Statuses               map[string]int `json:"statuses"`
 	ResolutionNames        map[string]int `json:"resolutionNames"`
-	ResolutionRate         float64        `json:"resolutionRate"`
+	SampleResolvedRatio    float64        `json:"sampleResolvedRatio"` // Diagnostic: % of sample with resolution
+	CurrentWIPCount        int            `json:"currentWIPCount"`
+	CurrentBacklogCount    int            `json:"currentBacklogCount"`
 	FirstResolution        *time.Time     `json:"firstResolution,omitempty"`
 	LastResolution         *time.Time     `json:"lastResolution,omitempty"`
 	AverageCycleTime       float64        `json:"averageCycleTime,omitempty"` // Days
@@ -83,9 +85,18 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int) MetadataSummary {
 				last = issue.ResolutionDate
 			}
 		}
+
+		// Inventory Heuristic (based on sample only)
+		if issue.ResolutionDate == nil {
+			if issue.Status == "In Progress" || issue.Status == "Development" || issue.Status == "QA" || issue.Status == "Testing" {
+				summary.CurrentWIPCount++
+			} else {
+				summary.CurrentBacklogCount++
+			}
+		}
 	}
 
-	summary.ResolutionRate = float64(resolvedCount) / float64(len(issues))
+	summary.SampleResolvedRatio = float64(resolvedCount) / float64(len(issues))
 	summary.FirstResolution = first
 	summary.LastResolution = last
 

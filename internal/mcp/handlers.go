@@ -35,7 +35,14 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	summary := stats.AnalyzeProbe(issues, response.Total)
 
 	// metadata summary is now purely about data health and volume
-	return summary, nil
+	return map[string]interface{}{
+		"summary": summary,
+		"_guidance": []string{
+			"This is a DATA PROBE on a 50-item sample. Use it to understand data volume and health.",
+			"SampleResolvedRatio is a diagnostic of the sample's completeness, NOT a team performance metric.",
+			"CommitmentPointHints are inferred from historical transitions; please verify them.",
+		},
+	}, nil
 }
 
 func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
@@ -894,9 +901,9 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 			"Observe 'FatTailRatio' in Time Stability: if > 5.6, the process is statistically out of control.",
 		},
 		"context": map[string]interface{}{
-			"window_weeks": windowWeeks,
-			"sample_size":  len(issues),
-			"wip_count":    len(wipAges),
+			"window_weeks":             windowWeeks,
+			"historical_baseline_size": len(issues),
+			"current_wip_inventory":    len(wipAges),
 		},
 	}, nil
 }
