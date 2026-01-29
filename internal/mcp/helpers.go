@@ -19,7 +19,7 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 		if err != nil {
 			return nil, fmt.Errorf("invalid board ID: %s", sourceID)
 		}
-		config, err := s.jira.GetBoardConfig(id)
+		config, err := s.jira.GetBoard(id)
 		if err != nil {
 			return nil, err
 		}
@@ -37,6 +37,9 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 			return nil, err
 		}
 		jql = filter.(map[string]interface{})["jql"].(string)
+
+		// Board-Specific refinement: Exclude sub-tasks
+		jql = fmt.Sprintf("(%s) AND issuetype not in subtaskIssueTypes()", jql)
 	} else {
 		filter, err := s.jira.GetFilter(sourceID)
 		if err != nil {
@@ -51,8 +54,6 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 		jql = jql[:idx]
 	}
 
-	// If projectKey is still empty, we'll have to infer it from results later
-	// but for now, we return the context
 	return &jira.SourceContext{
 		SourceID:       sourceID,
 		SourceType:     sourceType,

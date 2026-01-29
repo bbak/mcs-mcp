@@ -33,9 +33,15 @@ graph LR
 
 To ensure conceptual integrity, the AI **must never assume** the semantic tiers or roles of a project. Before providing process diagnostics, the following loop is required:
 
-1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping (e.g., _"I've mapped 'Analysis' as Upstream"_).
-2.  **Inform & Veto**: The AI informs the user of this mapping and provides an opportunity for a veto or correction.
-3.  **Persistence**: The verified mapping is stored via `set_workflow_mapping`.
+1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes pattern matching (e.g., "Ready for X" → queue role)
+    - **Inform & Veto**: Diagnostics (Simulation, Aging, Stability) require a verified Commitment Point. If unavailable, the tool initiates a discovery loop:
+        - Patterns: Automatic "queue" role for "Ready for X" or "-ed" statuses if an active counterpart exists.
+        - Residency: P50 spikes often indicate queuing or commitment boundaries.
+        - User Approval: AI proposes the mapping; user confirms/refines via `set_workflow_mapping`.
+    - **API Strategy**: The server intentionally avoids the Jira Board Configuration API (`/rest/agile/1.0/board/{id}/configuration`) for several reasons:
+        - **Deprecation Risk**: The endpoint is not present in Jira REST API versions 2.0 and 3.0, indicating it may be removed or replaced.
+        - **Structural Mismatch**: Board columns often group multiple statuses or use names that diverge from the underlying workflow, which would require complex resolution logic (like the `/status` endpoint) to maintain cohesion.
+        - **Cognitive Load**: Mapping board-specific visualization metadata to universal process tiers might introduce unnecessary complexity and potentially confuse AI agents during analysis.
 
 ---
 

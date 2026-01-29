@@ -68,7 +68,7 @@ func Init(verbose bool) {
 
 	fileWriter := &lumberjack.Logger{
 		Filename:   logFile,
-		MaxSize:    16,  // megabytes
+		MaxSize:    16, // megabytes
 		MaxBackups: 32,
 		MaxAge:     365, // days
 		Compress:   true,

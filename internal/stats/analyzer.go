@@ -2,6 +2,7 @@ package stats
 
 import (
 	"mcs-mcp/internal/jira"
+	"strings"
 	"time"
 )
 
@@ -124,4 +125,120 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 	summary.LastResolution = last
 
 	return summary
+}
+
+// ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
+func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[string]StatusMetadata {
+	proposal := make(map[string]StatusMetadata)
+	if len(persistence) == 0 {
+		return proposal
+	}
+
+	// 1. Identify "Demand" (the first status ever visited)
+	firstStatus := ""
+	if len(issues) > 0 {
+		// Heuristic: The status appearing earliest in transitions is the entry point
+		entryCounts := make(map[string]int)
+		for _, issue := range issues {
+			if len(issue.Transitions) > 0 {
+				entryCounts[issue.Transitions[0].FromStatus]++
+			} else {
+				entryCounts[issue.Status]++
+			}
+		}
+		maxCount := -1
+		for st, count := range entryCounts {
+			if count > maxCount {
+				maxCount = count
+				firstStatus = st
+			}
+		}
+	}
+
+	// 2. Map Statuses to Categories (Jira fallback)
+	statusCats := make(map[string]string)
+	for _, issue := range issues {
+		statusCats[issue.Status] = issue.StatusCategory
+	}
+
+	// 3. Pattern-based Queuing Detection
+	queueCandidates := findQueuingColumns(persistence)
+
+	// 4. Assemble Proposal
+	for _, p := range persistence {
+		name := p.StatusName
+		tier := "Downstream" // Default
+		role := "active"
+
+		if name == firstStatus {
+			tier = "Demand"
+		} else if statusCats[name] == "done" || statusCats[name] == "finished" {
+			tier = "Finished"
+		} else if statusCats[name] == "to-do" || statusCats[name] == "new" {
+			tier = "Demand"
+		}
+
+		if queueCandidates[name] {
+			role = "queue"
+		}
+
+		proposal[name] = StatusMetadata{
+			Tier: tier,
+			Role: role,
+		}
+	}
+
+	// 5. Commitment Point Logic: Highest residency crossing
+	// If the user hasn't confirmed, we look for the highest residency status
+	// that isn't 'Demand' or 'Finished'.
+	maxRes := -1.0
+	for _, p := range persistence {
+		if proposal[p.StatusName].Tier == "Downstream" {
+			if p.P50 > maxRes {
+				maxRes = p.P50
+			}
+		}
+	}
+
+	// If a high-residency status is immediately preceded by a queue candidate,
+	// ensure that queue candidate is in the proposal.
+	// (This logic is further refined in the handler which has the full order)
+
+	return proposal
+}
+
+func findQueuingColumns(persistence []StatusPersistence) map[string]bool {
+	queues := make(map[string]bool)
+	lowerNames := make(map[string]string)
+	for _, p := range persistence {
+		lowerNames[strings.ToLower(p.StatusName)] = p.StatusName
+	}
+
+	patterns := []string{"ready for ", "awaiting ", "waiting for ", "pending ", "to be "}
+
+	for lower, original := range lowerNames {
+		for _, pat := range patterns {
+			if strings.HasPrefix(lower, pat) {
+				action := strings.TrimPrefix(lower, pat)
+				// Check if there is an active counterpart (e.g. "Ready for Dev" -> "Development")
+				found := false
+				for otherLower := range lowerNames {
+					if otherLower != lower && (strings.Contains(otherLower, action) || strings.HasPrefix(action, otherLower)) {
+						found = true
+						break
+					}
+				}
+				if found {
+					queues[original] = true
+				}
+			}
+		}
+
+		// Suffix patterns: "Developed" (done with dev, waiting for something else)
+		if strings.HasSuffix(lower, "ed") && !strings.HasSuffix(lower, "ing") {
+			queues[original] = true
+		}
+	}
+
+	return queues
 }

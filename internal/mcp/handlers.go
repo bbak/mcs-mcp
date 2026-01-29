@@ -27,9 +27,12 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 
 	// Process DTOs into Domain Issues
 	finished := s.getFinishedStatuses(sourceID)
-	issues := make([]jira.Issue, len(response.Issues))
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	issues := make([]jira.Issue, 0, len(response.Issues))
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	summary := stats.AnalyzeProbe(issues, response.Total, finished)
@@ -75,9 +78,12 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 
 	// Process DTOs into Domain Issues
 	finished := s.getFinishedStatuses(sourceID)
-	issues := make([]jira.Issue, len(response.Issues))
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	issues := make([]jira.Issue, 0, len(response.Issues))
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	// 3. Analytics Context (WIP Aging & Status Weights)
@@ -119,7 +125,10 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		existingBacklogCount = len(response.Issues)
 		finished := s.getFinishedStatuses(sourceID)
 		for _, dto := range response.Issues {
-			issues = append(issues, stats.MapIssue(dto, finished))
+			issue := stats.MapIssue(dto, finished)
+			if !issue.IsSubtask {
+				issues = append(issues, issue)
+			}
 		}
 	}
 
@@ -129,9 +138,12 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		wipIssuesResponse, err := s.jira.SearchIssuesWithHistory(wipJQL, 0, 1000)
 		if err == nil {
 			finished := s.getFinishedStatuses(sourceID)
-			wipIssues := make([]jira.Issue, len(wipIssuesResponse.Issues))
-			for i, dto := range wipIssuesResponse.Issues {
-				wipIssues[i] = stats.MapIssue(dto, finished)
+			wipIssues := make([]jira.Issue, 0, len(wipIssuesResponse.Issues))
+			for _, dto := range wipIssuesResponse.Issues {
+				issue := stats.MapIssue(dto, finished)
+				if !issue.IsSubtask {
+					wipIssues = append(wipIssues, issue)
+				}
 			}
 			wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, cWeight)
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
@@ -268,6 +280,9 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 	}
 
 	for _, dto := range response.Issues {
+		if dto.Fields.IssueType.Subtask {
+			continue
+		}
 		if len(issueTypes) > 0 && !itMap[dto.Fields.IssueType.Name] {
 			continue
 		}
@@ -377,10 +392,13 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	issues := make([]jira.Issue, 0, len(response.Issues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	mappings := s.workflowMappings[sourceID]
@@ -454,10 +472,13 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 		}
 	}
 
-	issues := make([]jira.Issue, len(rawIssues))
+	issues := make([]jira.Issue, 0, len(rawIssues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range rawIssues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range rawIssues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	discovery := s.getWorkflowDiscovery(sourceID, issues)
@@ -467,12 +488,37 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) interface{} {
 	projectKeys := s.extractProjectKeys(issues)
 	statusWeights := s.getStatusWeights(projectKeys)
-	statusCats := s.getStatusCategories(projectKeys)
 	finished := s.getFinishedStatuses(sourceID)
 
 	// 1. Calculate persistence-based discovery (Tiers/Roles)
 	persistence := stats.CalculateStatusPersistence(issues)
-	proposedMapping := stats.EnrichStatusPersistence(persistence, statusCats, make(map[string]stats.StatusMetadata))
+	proposedMapping := stats.ProposeSemantics(issues, persistence)
+
+	// 4. Proposed Order
+	proposedOrder := s.getInferredRange(sourceID, "", "", issues, statusWeights)
+
+	// 2. Commitment Point Hints (Refined)
+	// Suggest the first status in Downstream as the likely commitment point
+	hints := s.getCommitmentPointHints(issues, statusWeights)
+	likelyCommitment := ""
+	for _, st := range proposedOrder {
+		if m, ok := proposedMapping[st]; ok && m.Tier == "Downstream" {
+			likelyCommitment = st
+			break
+		}
+	}
+	if likelyCommitment != "" {
+		found := false
+		for _, h := range hints {
+			if h == likelyCommitment {
+				found = true
+				break
+			}
+		}
+		if !found {
+			hints = append([]string{likelyCommitment}, hints...)
+		}
+	}
 
 	// 3. Resolution Discovery
 	resFreq := make(map[string]int)
@@ -481,12 +527,6 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 			resFreq[issue.Resolution]++
 		}
 	}
-
-	// 2. Commitment Point Hints
-	hints := s.getCommitmentPointHints(issues, statusWeights)
-
-	// 4. Proposed Order
-	proposedOrder := s.getInferredRange(sourceID, "", "", issues, statusWeights)
 
 	return map[string]interface{}{
 		"proposed_mapping":       proposedMapping,
@@ -498,7 +538,8 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		},
 		"data_summary": stats.AnalyzeProbe(issues, 0, finished),
 		"_guidance": []string{
-			"Confirm the 'proposed_mapping' with the user.",
+			"IMPORTANT: Proper workflow mapping is a PREREQUISITE for all diagnostic tools.",
+			"Confirm the 'proposed_mapping' with the user before performing any analytics.",
 			"WORKFLOW OUTCOME CALIBRATION: Review 'discovered_resolutions' and 'data_summary.statusAtResolution'.",
 			"Ask user to classify each Finished status/resolution into Outcomes: 'delivered' (value), 'abandoned' (waste).",
 			"TIERS: Demand (Backlog), Upstream (Refinement), Downstream (Development), Finished (Terminal).",
@@ -662,10 +703,13 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	issues := make([]jira.Issue, 0, len(response.Issues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	mappings := s.workflowMappings[sourceID]
@@ -689,9 +733,12 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 	}
 
 	finished := s.getFinishedStatuses(sourceID)
-	histIssues := make([]jira.Issue, len(histResponse.Issues))
-	for i, dto := range histResponse.Issues {
-		histIssues[i] = stats.MapIssue(dto, finished)
+	histIssues := make([]jira.Issue, 0, len(histResponse.Issues))
+	for _, dto := range histResponse.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			histIssues = append(histIssues, issue)
+		}
 	}
 
 	// Determine commitment context
@@ -750,9 +797,12 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 	if err != nil {
 		return nil, err
 	}
-	wipIssues := make([]jira.Issue, len(wipResponse.Issues))
-	for i, dto := range wipResponse.Issues {
-		wipIssues[i] = stats.MapIssue(dto, finished)
+	wipIssues := make([]jira.Issue, 0, len(wipResponse.Issues))
+	for _, dto := range wipResponse.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			wipIssues = append(wipIssues, issue)
+		}
 	}
 	wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, commitmentWeight)
 
@@ -830,10 +880,13 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWee
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	issues := make([]jira.Issue, 0, len(response.Issues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	return stats.CalculateDeliveryCadence(issues, windowWeeks), nil
@@ -859,10 +912,13 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	issues := make([]jira.Issue, 0, len(response.Issues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	// 2. Identify context (Start Status)
@@ -883,9 +939,12 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	var wipAges []float64
 	if err == nil {
 		finished := s.getFinishedStatuses(sourceID)
-		wipIssues := make([]jira.Issue, len(wipResponse.Issues))
-		for i, dto := range wipResponse.Issues {
-			wipIssues[i] = stats.MapIssue(dto, finished)
+		wipIssues := make([]jira.Issue, 0, len(wipResponse.Issues))
+		for _, dto := range wipResponse.Issues {
+			issue := stats.MapIssue(dto, finished)
+			if !issue.IsSubtask {
+				wipIssues = append(wipIssues, issue)
+			}
 		}
 		wipIssues = s.applyBackflowPolicy(wipIssues, statusWeights, 2)
 		mappings := s.workflowMappings[sourceID]
@@ -965,10 +1024,13 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 		return nil, err
 	}
 
-	issues := make([]jira.Issue, len(response.Issues))
+	issues := make([]jira.Issue, 0, len(response.Issues))
 	finished := s.getFinishedStatuses(sourceID)
-	for i, dto := range response.Issues {
-		issues[i] = stats.MapIssue(dto, finished)
+	for _, dto := range response.Issues {
+		issue := stats.MapIssue(dto, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
 	}
 
 	// 2. Analytics Context

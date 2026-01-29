@@ -22,6 +22,7 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 		StatusCategory:  item.Fields.Status.StatusCategory.Key,
 		Resolution:      item.Fields.Resolution.Name,
 		StatusResidency: make(map[string]int64),
+		IsSubtask:       item.Fields.IssueType.Subtask,
 	}
 
 	// Extract Project Key (e.g., PROJ-123 -> PROJ)
@@ -83,8 +84,9 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 				})
 
 				transitions = append(transitions, jira.StatusTransition{
-					ToStatus: itm.ToString,
-					Date:     hDate,
+					FromStatus: itm.FromString,
+					ToStatus:   itm.ToString,
+					Date:       hDate,
 				})
 
 				if earliest == nil || hDate.Before(*earliest) {

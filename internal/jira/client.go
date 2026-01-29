@@ -18,6 +18,7 @@ type Issue struct {
 	StatusCategory  string
 	StatusResidency map[string]int64 // Seconds spent in each status
 	Transitions     []StatusTransition
+	IsSubtask       bool
 }
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.
@@ -31,8 +32,9 @@ type SourceContext struct {
 
 // StatusTransition represents a change in an issue's status.
 type StatusTransition struct {
-	ToStatus string
-	Date     time.Time
+	FromStatus string
+	ToStatus   string
+	Date       time.Time
 }
 
 // Client is the interface for interacting with Jira.
@@ -42,7 +44,6 @@ type Client interface {
 	GetProject(key string) (interface{}, error)
 	GetProjectStatuses(key string) (interface{}, error)
 	GetBoard(id int) (interface{}, error)
-	GetBoardConfig(id int) (interface{}, error)
 	GetFilter(id string) (interface{}, error)
 	FindProjects(query string) ([]interface{}, error)
 	FindBoards(projectKey string, nameFilter string) ([]interface{}, error)

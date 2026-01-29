@@ -61,7 +61,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "run_simulation",
-				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
+				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). PREREQUISITE: Proper workflow mapping is required for accurate results. Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
 					"The output includes advanced volatility metrics for AI interpretation:\n" +
 					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
 					"- TailToMedianRatio (P85/P50): If > 3.0, the process is Highly Volatile (heavy-tailed risk).\n" +
@@ -88,7 +88,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_cycle_time_assessment",
-				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. Use this to answer 'How long does an item (of type X) typically take?'.",
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. PREREQUISITE: Proper workflow mapping is required for accurate results. Use this to answer 'How long does an item (of type X) typically take?'.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -105,7 +105,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_status_persistence",
-				"description": "Analyze how long items spend in each status to identify bottlenecks.\n\n" +
+				"description": "Analyze how long items spend in each status to identify bottlenecks. PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
 					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -118,7 +118,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_aging_analysis",
-				"description": "Identify which items are aging relative to historical norms. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
+				"description": "Identify which items are aging relative to historical norms. PREREQUISITE: Proper workflow mapping is required for accurate results. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
 					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -146,7 +146,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_process_stability",
-				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. Compares the current WIP inventory against historical throughput to identify stability risks. Use this to determine if current forecasts are reliable.",
+				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. PREREQUISITE: Proper workflow mapping is required for accurate results. Compares the current WIP inventory against historical throughput to identify stability risks. Use this to determine if current forecasts are reliable.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

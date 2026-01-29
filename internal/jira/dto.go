@@ -18,7 +18,8 @@ type IssueDTO struct {
 // FieldsDTO contains the specific fields we care about.
 type FieldsDTO struct {
 	IssueType struct {
-		Name string `json:"name"`
+		Name    string `json:"name"`
+		Subtask bool   `json:"subtask"`
 	} `json:"issuetype"`
 	Status struct {
 		Name           string `json:"name"`

@@ -248,3 +248,43 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 		}
 	}
 }
+
+func TestProposeSemantics(t *testing.T) {
+	now := time.Now()
+	issues := []jira.Issue{
+		{
+			Key:    "PROJ-1",
+			Status: "In Dev",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "Backlog", ToStatus: "Refinement", Date: now.AddDate(0, 0, -5)},
+				{FromStatus: "Refinement", ToStatus: "Ready for Dev", Date: now.AddDate(0, 0, -3)},
+				{FromStatus: "Ready for Dev", ToStatus: "In Dev", Date: now.AddDate(0, 0, -2)},
+			},
+		},
+	}
+
+	persistence := []StatusPersistence{
+		{StatusName: "Backlog", P50: 10.0},
+		{StatusName: "Refinement", P50: 2.0},
+		{StatusName: "Ready for Dev", P50: 1.0},
+		{StatusName: "In Dev", P50: 5.0},
+		{StatusName: "Done", P50: 0.0},
+	}
+
+	proposal := ProposeSemantics(issues, persistence)
+
+	// Verify "Backlog" is Demand (detected as first entry point)
+	if proposal["Backlog"].Tier != "Demand" {
+		t.Errorf("Expected Backlog to be 'Demand', got %s", proposal["Backlog"].Tier)
+	}
+
+	// Verify "Ready for Dev" is a queue (detected by pattern)
+	if proposal["Ready for Dev"].Role != "queue" {
+		t.Errorf("Expected 'Ready for Dev' to have role 'queue', got %s", proposal["Ready for Dev"].Role)
+	}
+
+	// Verify "In Dev" is Downstream
+	if proposal["In Dev"].Tier != "Downstream" {
+		t.Errorf("Expected 'In Dev' to be 'Downstream', got %s", proposal["In Dev"].Tier)
+	}
+}
