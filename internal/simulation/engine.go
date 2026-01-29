@@ -77,7 +77,7 @@ func NewEngine(h *Histogram) *Engine {
 
 // RunDurationSimulation predicts how many days it will take to finish a backlog.
 func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
-	if len(e.histogram.Counts) == 0 {
+	if e.histogram == nil || len(e.histogram.Counts) == 0 {
 		return Result{}
 	}
 
@@ -131,9 +131,9 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	return res
 }
 
-// RunScopeSimulation predicts how many items will be finished in a given number of days.
+// RunScopeSimulation predicts how many items can be finished within a given number of days.
 func (e *Engine) RunScopeSimulation(days int, trials int) Result {
-	if len(e.histogram.Counts) == 0 {
+	if e.histogram == nil || len(e.histogram.Counts) == 0 {
 		return Result{}
 	}
 
@@ -240,33 +240,34 @@ func (e *Engine) assessPredictability(res *Result) {
 		res.Predictability = "Unknown"
 	}
 
-	if e.histogram.Meta != nil {
-		res.Context = e.histogram.Meta
+	if e.histogram == nil || e.histogram.Meta == nil {
+		return
+	}
 
-		// 1. Throughput Trend Warning & Detection
-		res.ThroughputTrend.Direction = "Stable"
-		if recent, ok := e.histogram.Meta["throughput_recent"].(float64); ok {
-			if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok && overall > 0 {
-				diff := (recent - overall) / overall
-				res.ThroughputTrend.PercentageChange = math.Round(diff*1000) / 10
-				if diff < -0.1 {
-					res.ThroughputTrend.Direction = "Declining"
-					if diff < -0.3 {
-						res.Warnings = append(res.Warnings, fmt.Sprintf("Significant throughput drop recently (%.0f%% below average). WIP may have increased or capacity dropped.", math.Abs(diff)*100))
-					}
-				} else if diff > 0.1 {
-					res.ThroughputTrend.Direction = "Increasing"
-					if diff > 0.3 {
-						res.Warnings = append(res.Warnings, fmt.Sprintf("Throughput is significantly higher recently (%.0f%% above average). Monitor if this is sustainable.", diff*100))
-					}
+	res.Context = e.histogram.Meta
+
+	// 1. Throughput Trend Warning & Detection
+	res.ThroughputTrend.Direction = "Stable"
+	if recent, ok := e.histogram.Meta["throughput_recent"].(float64); ok {
+		if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok && overall > 0 {
+			diff := (recent - overall) / overall
+			res.ThroughputTrend.PercentageChange = math.Round(diff*1000) / 10
+			if diff < -0.1 {
+				res.ThroughputTrend.Direction = "Declining"
+				if diff < -0.3 {
+					res.Warnings = append(res.Warnings, fmt.Sprintf("Significant throughput drop recently (%.0f%% below average). WIP may have increased or capacity dropped.", math.Abs(diff)*100))
+				}
+			} else if diff > 0.1 {
+				res.ThroughputTrend.Direction = "Increasing"
+				if diff > 0.3 {
+					res.Warnings = append(res.Warnings, fmt.Sprintf("Throughput is significantly higher recently (%.0f%% above average). Monitor if this is sustainable.", diff*100))
 				}
 			}
 		}
+	}
 
-		// 2. Data Volume Warning
-		if analyzed, ok := e.histogram.Meta["issues_analyzed"].(int); ok && analyzed < 30 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("Simulation based on a small sample size (%d items); results may have limited statistical significance.", analyzed))
-		}
+	if analyzed, ok := e.histogram.Meta["issues_analyzed"].(int); ok && analyzed < 30 {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("Simulation based on a small sample size (%d items); results may have limited statistical significance.", analyzed))
 	}
 }
 
