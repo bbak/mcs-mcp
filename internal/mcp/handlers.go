@@ -32,7 +32,7 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 		issues[i] = stats.MapIssue(dto, finished)
 	}
 
-	summary := stats.AnalyzeProbe(issues, response.Total)
+	summary := stats.AnalyzeProbe(issues, response.Total, finished)
 
 	// metadata summary is now purely about data health and volume
 	return map[string]interface{}{
@@ -41,6 +41,7 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 			"This is a DATA PROBE on a 50-item sample. Use it to understand data volume and health.",
 			"SampleResolvedRatio is a diagnostic of the sample's completeness, NOT a team performance metric.",
 			"CommitmentPointHints are inferred from historical transitions; please verify them.",
+			"Inventory counts (WIP/Backlog) are heuristics based on Jira Status Categories and your 'Finished' tier mapping.",
 		},
 	}, nil
 }
@@ -467,6 +468,7 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	projectKeys := s.extractProjectKeys(issues)
 	statusWeights := s.getStatusWeights(projectKeys)
 	statusCats := s.getStatusCategories(projectKeys)
+	finished := s.getFinishedStatuses(sourceID)
 
 	// 1. Calculate persistence-based discovery (Tiers/Roles)
 	persistence := stats.CalculateStatusPersistence(issues)
@@ -494,7 +496,7 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		"hints": map[string]interface{}{
 			"proposed_commitment_points": hints,
 		},
-		"data_summary": stats.AnalyzeProbe(issues, 0),
+		"data_summary": stats.AnalyzeProbe(issues, 0, finished),
 		"_guidance": []string{
 			"Confirm the 'proposed_mapping' with the user.",
 			"WORKFLOW OUTCOME CALIBRATION: Review 'discovered_resolutions' and 'data_summary.statusAtResolution'.",

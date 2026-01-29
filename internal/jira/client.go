@@ -15,6 +15,7 @@ type Issue struct {
 	ResolutionDate  *time.Time
 	Resolution      string
 	Status          string
+	StatusCategory  string
 	StatusResidency map[string]int64 // Seconds spent in each status
 	Transitions     []StatusTransition
 }

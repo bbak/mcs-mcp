@@ -19,6 +19,7 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 		Key:             item.Key,
 		IssueType:       item.Fields.IssueType.Name,
 		Status:          item.Fields.Status.Name,
+		StatusCategory:  item.Fields.Status.StatusCategory.Key,
 		Resolution:      item.Fields.Resolution.Name,
 		StatusResidency: make(map[string]int64),
 	}

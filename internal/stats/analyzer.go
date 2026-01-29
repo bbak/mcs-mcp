@@ -45,7 +45,7 @@ func SumRangeDuration(issue jira.Issue, rangeStatuses []string) float64 {
 }
 
 // AnalyzeProbe performs a preliminary analysis on a sample of issues.
-func AnalyzeProbe(issues []jira.Issue, totalCount int) MetadataSummary {
+func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[string]bool) MetadataSummary {
 	summary := MetadataSummary{
 		TotalIssues:            totalCount,
 		SampleSize:             len(issues),
@@ -99,12 +99,22 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int) MetadataSummary {
 			}
 		}
 
-		// Inventory Heuristic (based on sample only)
-		if issue.ResolutionDate == nil {
-			if issue.Status == "In Progress" || issue.Status == "Development" || issue.Status == "QA" || issue.Status == "Testing" {
+		// Inventory Heuristic (Category-Aware)
+		// We only count items that have NO resolution AND are not in a mapped Finished status
+		if issue.ResolutionDate == nil && !finishedStatuses[issue.Status] {
+			switch issue.StatusCategory {
+			case "indeterminate":
 				summary.CurrentWIPCount++
-			} else {
+			case "to-do", "new":
 				summary.CurrentBacklogCount++
+			default:
+				// Fallback: if category is unknown or missing, try common names
+				if issue.Status == "In Progress" || issue.Status == "Development" || issue.Status == "QA" || issue.Status == "Testing" {
+					summary.CurrentWIPCount++
+				} else if issue.StatusCategory != "done" {
+					// Only count as backlog if it's NOT in the 'done' category
+					summary.CurrentBacklogCount++
+				}
 			}
 		}
 	}

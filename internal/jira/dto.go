@@ -21,7 +21,10 @@ type FieldsDTO struct {
 		Name string `json:"name"`
 	} `json:"issuetype"`
 	Status struct {
-		Name string `json:"name"`
+		Name           string `json:"name"`
+		StatusCategory struct {
+			Key string `json:"key"`
+		} `json:"statusCategory"`
 	} `json:"status"`
 	Resolution struct {
 		Name string `json:"name"`
