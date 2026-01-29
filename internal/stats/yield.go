@@ -2,6 +2,8 @@ package stats
 
 import (
 	"math"
+	"strings"
+
 	"mcs-mcp/internal/jira"
 )
 
@@ -32,26 +34,44 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 	lossMap := make(map[string][]float64) // Tier -> Ages before abandonment
 
 	for _, issue := range issues {
-		isAbandoned := resolutions[issue.Resolution] == "abandoned"
-		if isAbandoned {
+		// 1. Determine Outcome
+		outcome := resolutions[issue.Resolution]
+		if outcome == "" {
+			outcome = mappings[issue.Status].Outcome
+		}
+
+		// 2. Handle Outcome
+		if outcome == "delivered" {
+			yield.DeliveredCount++
+		} else if strings.HasPrefix(outcome, "abandoned") {
 			yield.AbandonedCount++
-			// Determine which tier it was abandoned from
-			// It's the Tier of the status BEFORE it reached Finished
-			lastTier := "Demand"
-			if len(issue.Transitions) > 0 {
-				lastStatus := issue.Transitions[len(issue.Transitions)-1].ToStatus
-				if m, ok := mappings[lastStatus]; ok {
-					lastTier = m.Tier
+
+			// 3. Attribute to Tier (Explicit vs Heuristic)
+			tier := "Demand"
+			if strings.Contains(outcome, "_") {
+				// Calibration-based Attribution (e.g., 'abandoned_upstream')
+				parts := strings.Split(outcome, "_")
+				if len(parts[1]) > 0 {
+					tier = strings.ToUpper(parts[1][:1]) + strings.ToLower(parts[1][1:])
+				}
+			} else {
+				// Heuristic-based Attribution: use the tier of the status BEFORE it reached Finished
+				if len(issue.Transitions) > 0 {
+					lastStatus := issue.Transitions[len(issue.Transitions)-1].ToStatus
+					if m, ok := mappings[lastStatus]; ok {
+						tier = m.Tier
+					}
 				}
 			}
 
-			// Total age in the process
+			// Total age in the process as the 'cost' of the loss
 			age := 0.0
 			for _, s := range issue.StatusResidency {
 				age += float64(s) / 86400.0
 			}
-			lossMap[lastTier] = append(lossMap[lastTier], age)
+			lossMap[tier] = append(lossMap[tier], age)
 		} else if issue.ResolutionDate != nil {
+			// Legacy Fallback: any resolution counts as delivered if not mapped as abandoned
 			yield.DeliveredCount++
 		}
 	}
