@@ -178,11 +178,11 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_workflow_discovery",
-				"description": "Probe project status categories and residence times to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
+				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
 					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
-					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (delivered/abandoned/aborted).\n" +
-					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (non-process noise).\n" +
-					"- OUTCOMES: 'delivered' (value reached user), 'abandoned' (work discarded), 'aborted' (work discarded).",
+					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
+					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (noise).\n" +
+					"- OUTCOMES: 'delivered' (Value Provided), 'abandoned' (Work Discarded).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -194,23 +194,33 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "set_workflow_mapping",
-				"description": "Store user-confirmed semantic metadata (tier and role) for statuses. This is the mandatory persistence step after the 'Inform & Veto' loop.\n\n" +
-					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (delivered/abandoned/aborted).\n" +
-					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting for someone/something), 'ignore' (Admin/Non-delivery statuses).",
+				"description": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the mandatory persistence step after the 'Inform & Veto' loop.\n\n" +
+					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
+					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
+					"OUTCOME DEFINITIONS: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"source_id": map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
 						"mapping": map[string]interface{}{
 							"type":        "object",
-							"description": "A map of status names to metadata (tier and role).",
+							"description": "A map of status names to metadata (tier, role, and optional outcome).",
 							"additionalProperties": map[string]interface{}{
 								"type": "object",
 								"properties": map[string]interface{}{
-									"tier": map[string]interface{}{"type": "string", "enum": []string{"Demand", "Upstream", "Downstream", "Finished"}},
-									"role": map[string]interface{}{"type": "string", "enum": []string{"active", "queue", "ignore"}},
+									"tier":    map[string]interface{}{"type": "string", "enum": []string{"Demand", "Upstream", "Downstream", "Finished"}},
+									"role":    map[string]interface{}{"type": "string", "enum": []string{"active", "queue", "ignore"}},
+									"outcome": map[string]interface{}{"type": "string", "enum": []string{"delivered", "abandoned"}, "description": "Mandatory for 'Finished' tier statuses if resolutions are not used."},
 								},
 								"required": []string{"tier", "role"},
+							},
+						},
+						"resolutions": map[string]interface{}{
+							"type":        "object",
+							"description": "Optional: A map of Jira resolution names to outcomes ('delivered' or 'abandoned').",
+							"additionalProperties": map[string]interface{}{
+								"type": "string",
+								"enum": []string{"delivered", "abandoned"},
 							},
 						},
 					},

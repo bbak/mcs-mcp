@@ -472,8 +472,13 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	persistence := stats.CalculateStatusPersistence(issues)
 	proposedMapping := stats.EnrichStatusPersistence(persistence, statusCats, make(map[string]stats.StatusMetadata))
 
-	// 3. Resolution Outcomes
-	resolutions := s.getResolutionMap()
+	// 3. Resolution Discovery
+	resFreq := make(map[string]int)
+	for _, issue := range issues {
+		if issue.Resolution != "" {
+			resFreq[issue.Resolution]++
+		}
+	}
 
 	// 2. Commitment Point Hints
 	hints := s.getCommitmentPointHints(issues, statusWeights)
@@ -482,33 +487,45 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	proposedOrder := s.getInferredRange(sourceID, "", "", issues, statusWeights)
 
 	return map[string]interface{}{
-		"proposed_mapping":     proposedMapping,
-		"proposed_resolutions": resolutions,
-		"proposed_order":       proposedOrder,
-		"current_mapping":      s.workflowMappings[sourceID],
+		"proposed_mapping":       proposedMapping,
+		"discovered_resolutions": resFreq,
+		"proposed_order":         proposedOrder,
+		"current_mapping":        s.workflowMappings[sourceID],
 		"hints": map[string]interface{}{
 			"proposed_commitment_points": hints,
 		},
 		"data_summary": stats.AnalyzeProbe(issues, 0),
 		"_guidance": []string{
-			"Confirm the 'proposed_mapping' and 'proposed_resolutions' with the user.",
+			"Confirm the 'proposed_mapping' with the user.",
+			"WORKFLOW OUTCOME CALIBRATION: Review 'discovered_resolutions' and 'data_summary.statusAtResolution'.",
+			"Ask user to classify each Finished status/resolution into Outcomes: 'delivered' (value), 'abandoned' (waste).",
 			"TIERS: Demand (Backlog), Upstream (Refinement), Downstream (Development), Finished (Terminal).",
 			"ROLES: active (working), queue (waiting), ignore (noise).",
 		},
 	}
 }
 
-func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]interface{}) (interface{}, error) {
+func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]interface{}, resolutions map[string]interface{}) (interface{}, error) {
 	m := make(map[string]stats.StatusMetadata)
 	for k, v := range mapping {
 		if vm, ok := v.(map[string]interface{}); ok {
 			m[k] = stats.StatusMetadata{
-				Tier: asString(vm["tier"]),
-				Role: asString(vm["role"]),
+				Tier:    asString(vm["tier"]),
+				Role:    asString(vm["role"]),
+				Outcome: asString(vm["outcome"]),
 			}
 		}
 	}
 	s.workflowMappings[sourceID] = m
+
+	if len(resolutions) > 0 {
+		rm := make(map[string]string)
+		for k, v := range resolutions {
+			rm[k] = asString(v)
+		}
+		s.resolutionMappings[sourceID] = rm
+	}
+
 	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow mapping for source %s", sourceID)}, nil
 }
 
@@ -650,7 +667,7 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 	}
 
 	mappings := s.workflowMappings[sourceID]
-	resolutions := s.getResolutionMap()
+	resolutions := s.getResolutionMap(sourceID)
 
 	return stats.CalculateProcessYield(issues, mappings, resolutions), nil
 }
@@ -700,9 +717,9 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 
 	// Fetch appropriate baseline
 	var baseline []float64
-	resolutions := []string{"Fixed", "Done", "Complete", "Resolved"}
+	resolutions := s.getDeliveredResolutions(sourceID)
 	if agingType == "total" {
-		baseline = s.getTotalAges(histIssues, resolutions)
+		baseline = s.getTotalAges(sourceID, histIssues, resolutions)
 	} else {
 		baseline = s.getCycleTimes(sourceID, histIssues, "", "", statusWeights, resolutions)
 	}
@@ -849,7 +866,7 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 	// 2. Identify context (Start Status)
 	projectKeys := s.extractProjectKeys(issues)
 	statusWeights := s.getStatusWeights(projectKeys)
-	resNames := []string{"Fixed", "Done", "Complete", "Resolved"} // Default
+	resNames := s.getDeliveredResolutions(sourceID)
 
 	startStatus := s.getEarliestCommitment(sourceID)
 	// We use applyBackflowPolicy to ensure high-fidelity WIP Age
@@ -955,7 +972,7 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 	// 2. Analytics Context
 	projectKeys := s.extractProjectKeys(issues)
 	statusWeights := s.getStatusWeights(projectKeys)
-	resNames := []string{"Fixed", "Done", "Complete", "Resolved"}
+	resNames := s.getDeliveredResolutions(sourceID)
 	startStatus := s.getEarliestCommitment(sourceID)
 
 	// Apply backflow policy to ensure clean cycle times

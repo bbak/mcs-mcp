@@ -116,7 +116,8 @@ func (s *Server) getStatusCategories(projectKeys []string) map[string]string {
 	return cats
 }
 
-func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float64 {
+func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions []string) []float64 {
+	mappings := s.workflowMappings[sourceID]
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
@@ -128,7 +129,13 @@ func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float
 			continue
 		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			continue
+			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+				continue
+			}
+		} else if len(resolutions) == 0 {
+			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+				continue
+			}
 		}
 
 		duration := issue.ResolutionDate.Sub(issue.Created).Hours() / 24.0
@@ -140,9 +147,11 @@ func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float
 	return ages
 }
 
-func (s *Server) getResolutionMap() map[string]string {
-	// Simple heuristic for now. In a real system, we'd fetch this from Jira
-	// or allow user configuration.
+func (s *Server) getResolutionMap(sourceID string) map[string]string {
+	if rm, ok := s.resolutionMappings[sourceID]; ok && len(rm) > 0 {
+		return rm
+	}
+	// Fallback to defaults
 	return map[string]string{
 		"Fixed":            "delivered",
 		"Done":             "delivered",

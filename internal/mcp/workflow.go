@@ -116,6 +116,7 @@ func (s *Server) rebuildResidency(issue jira.Issue, initialStatus string) map[st
 }
 
 func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, statusWeights map[string]int, resolutions []string) []float64 {
+	mappings := s.workflowMappings[sourceID]
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
@@ -129,7 +130,15 @@ func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus
 			continue
 		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			continue
+			// If resolution is not in delivered list, it might be that outcome is mapped at status level
+			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+				continue
+			}
+		} else if len(resolutions) == 0 {
+			// No delivered resolutions defined, MUST check status outcome
+			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+				continue
+			}
 		}
 
 		duration := stats.SumRangeDuration(issue, rangeStatuses)
@@ -264,4 +273,15 @@ func (s *Server) sliceRange(order []string, start, end string) []string {
 	}
 
 	return order[startIndex : endIndex+1]
+}
+
+func (s *Server) getDeliveredResolutions(sourceID string) []string {
+	resMap := s.getResolutionMap(sourceID)
+	var delivered []string
+	for name, outcome := range resMap {
+		if outcome == "delivered" {
+			delivered = append(delivered, name)
+		}
+	}
+	return delivered
 }

@@ -7,27 +7,30 @@ import (
 
 // MetadataSummary provides a high-level overview of a Jira data source.
 type MetadataSummary struct {
-	TotalIssues            int            `json:"totalIssues"`
-	SampleSize             int            `json:"sampleSize"`
-	IssueTypes             map[string]int `json:"issueTypes"`
-	Statuses               map[string]int `json:"statuses"`
-	ResolutionNames        map[string]int `json:"resolutionNames"`
-	SampleResolvedRatio    float64        `json:"sampleResolvedRatio"` // Diagnostic: % of sample with resolution
-	CurrentWIPCount        int            `json:"currentWIPCount"`
-	CurrentBacklogCount    int            `json:"currentBacklogCount"`
-	FirstResolution        *time.Time     `json:"firstResolution,omitempty"`
-	LastResolution         *time.Time     `json:"lastResolution,omitempty"`
-	AverageCycleTime       float64        `json:"averageCycleTime,omitempty"` // Days
-	AvailableStatuses      interface{}    `json:"availableStatuses,omitempty"`
-	HistoricalReachability map[string]int `json:"historicalReachability,omitempty"` // How many issues visited each status
-	CommitmentPointHints   []string       `json:"commitmentPointHints,omitempty"`
-	BacklogSize            int            `json:"backlogSize,omitempty"`
+	TotalIssues            int                       `json:"totalIssues"`
+	SampleSize             int                       `json:"sampleSize"`
+	IssueTypes             map[string]int            `json:"issueTypes"`
+	Statuses               map[string]int            `json:"statuses"`
+	ResolutionNames        map[string]int            `json:"resolutionNames"`
+	SampleResolvedRatio    float64                   `json:"sampleResolvedRatio"` // Diagnostic: % of sample with resolution
+	CurrentWIPCount        int                       `json:"currentWIPCount"`
+	CurrentBacklogCount    int                       `json:"currentBacklogCount"`
+	FirstResolution        *time.Time                `json:"firstResolution,omitempty"`
+	LastResolution         *time.Time                `json:"lastResolution,omitempty"`
+	AverageCycleTime       float64                   `json:"averageCycleTime,omitempty"` // Days
+	AvailableStatuses      interface{}               `json:"availableStatuses,omitempty"`
+	HistoricalReachability map[string]int            `json:"historicalReachability,omitempty"` // How many issues visited each status
+	StatusAtResolution     map[string]int            `json:"statusAtResolution"`               // Frequency of Status when ResolutionDate is set
+	ResolutionToStatus     map[string]map[string]int `json:"resolutionToStatus"`               // Resolution -> Status -> Count correlation
+	CommitmentPointHints   []string                  `json:"commitmentPointHints,omitempty"`
+	BacklogSize            int                       `json:"backlogSize,omitempty"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
 type StatusMetadata struct {
-	Role string `json:"role"`
-	Tier string `json:"tier"`
+	Role    string `json:"role"`
+	Tier    string `json:"tier"`
+	Outcome string `json:"outcome,omitempty"` // delivered, abandoned_demand, abandoned_upstream, abandoned_downstream
 }
 
 // SumRangeDuration calculates the total time spent in a list of statuses for a given issue.
@@ -50,6 +53,8 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int) MetadataSummary {
 		Statuses:               make(map[string]int),
 		ResolutionNames:        make(map[string]int),
 		HistoricalReachability: make(map[string]int),
+		StatusAtResolution:     make(map[string]int),
+		ResolutionToStatus:     make(map[string]map[string]int),
 	}
 
 	if len(issues) == 0 {
@@ -78,6 +83,14 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int) MetadataSummary {
 
 		if issue.ResolutionDate != nil {
 			resolvedCount++
+			summary.StatusAtResolution[issue.Status]++
+			if issue.Resolution != "" {
+				if _, ok := summary.ResolutionToStatus[issue.Resolution]; !ok {
+					summary.ResolutionToStatus[issue.Resolution] = make(map[string]int)
+				}
+				summary.ResolutionToStatus[issue.Resolution][issue.Status]++
+			}
+
 			if first == nil || issue.ResolutionDate.Before(*first) {
 				first = issue.ResolutionDate
 			}

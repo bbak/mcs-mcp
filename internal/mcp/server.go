@@ -13,16 +13,18 @@ import (
 )
 
 type Server struct {
-	jira             jira.Client
-	workflowMappings map[string]map[string]stats.StatusMetadata // sourceID -> statusName -> metadata
-	statusOrderings  map[string][]string                        // sourceID -> sorted status names
+	jira               jira.Client
+	workflowMappings   map[string]map[string]stats.StatusMetadata // sourceID -> statusName -> metadata
+	resolutionMappings map[string]map[string]string               // sourceID -> resolutionName -> outcome
+	statusOrderings    map[string][]string                        // sourceID -> sorted status names
 }
 
 func NewServer(jiraClient jira.Client) *Server {
 	return &Server{
-		jira:             jiraClient,
-		workflowMappings: make(map[string]map[string]stats.StatusMetadata),
-		statusOrderings:  make(map[string][]string),
+		jira:               jiraClient,
+		workflowMappings:   make(map[string]map[string]stats.StatusMetadata),
+		resolutionMappings: make(map[string]map[string]string),
+		statusOrderings:    make(map[string][]string),
 	}
 }
 
@@ -171,6 +173,9 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				res = append(res, asString(v))
 			}
 		}
+		if len(res) == 0 {
+			res = s.getDeliveredResolutions(id)
+		}
 		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res)
 	case "get_status_persistence":
 		id := asString(call.Arguments["source_id"])
@@ -217,7 +222,8 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "set_workflow_mapping":
 		id := asString(call.Arguments["source_id"])
 		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
-		data, err = s.handleSetWorkflowMapping(id, mapping)
+		resolutions, _ := call.Arguments["resolutions"].(map[string]interface{})
+		data, err = s.handleSetWorkflowMapping(id, mapping, resolutions)
 	case "set_workflow_order":
 		id := asString(call.Arguments["source_id"])
 		order := []string{}

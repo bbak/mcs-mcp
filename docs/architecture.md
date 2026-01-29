@@ -76,10 +76,14 @@ Within these tiers, statuses can be further tagged:
 
 #### 3. Abandonment & Outcome
 
-The server distinguishes **how** and **where** work exits the process:
+The server distinguishes **how** and **where** work exits the process through **Workflow Outcome Calibration**. Because Jira workflows are often inconsistent, the server employs a dual-signal methodology:
 
-- **Outcome: Delivered**: Item reached "Finished" from "Downstream" with a positive resolution.
-- **Outcome: Abandoned**: Item reached "Finished" with a negative resolution (Discard, Won't Do).
+- **The "Finished" Signal**: Detection of the terminal state.
+    - **Primary**: Occurrence of a `resolutiondate` (The "Stop the Clock" event).
+    - **Secondary**: Reaching a status mapped to the **Finished** tier.
+- **Outcome Classification**: Once finished, items are classified into semantic outcomes:
+    - **Outcome: Delivered**: Item reached "Finished" with a resolution or status outcome mapped as value-providing (e.g., "Fixed", "Done"). This is the only population used for **Throughput** and **Simulation**.
+    - **Outcome: Abandoned**: Item reached "Finished" with a resolution or status outcome mapped as waste (e.g., "Won't Do", "Discarded").
 - **Yield Analysis**: By tracking where abandonment happens (**from Demand**, **from Upstream**, or **from Downstream**), the server calculates the "Yield Rate" of the process.
 
 ---
