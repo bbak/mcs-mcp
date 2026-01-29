@@ -258,6 +258,9 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 		data, err = s.handleGetCycleTimeAssessment(id, sType, issueTypes, analyzeWIP, startStatus, endStatus, res)
+	case "get_diagnostic_roadmap":
+		goal := asString(call.Arguments["goal"])
+		data, err = s.handleGetDiagnosticRoadmap(goal)
 	case "get_item_journey":
 		key := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(key)

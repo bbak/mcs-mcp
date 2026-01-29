@@ -583,23 +583,24 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if response.Total == 0 {
 		return nil, fmt.Errorf("issue not found: %s", issueKey)
 	}
+	dto := response.Issues[0]
 
 	// Finding which source this issue belongs to (heuristic)
 	var sourceID string
 	var mapping map[string]stats.StatusMetadata
 	for id, m := range s.workflowMappings {
-		if _, ok := m[response.Issues[0].Fields.Status.Name]; ok {
+		if _, ok := m[dto.Fields.Status.Name]; ok {
 			sourceID = id
 			mapping = m
 			break
 		}
 	}
+
 	finished := s.getFinishedStatuses(sourceID)
-	issue := stats.MapIssue(response.Issues[0], finished)
+	issue := stats.MapIssue(dto, finished)
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -644,15 +645,7 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 		residencyDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
-	// Calculate Tier Breakdown
 	tierBreakdown := make(map[string]map[string]interface{})
-	// Find which source this issue belongs to (heuristic: use project key to find a mapping)
-	for _, m := range s.workflowMappings {
-		if _, ok := m[issue.Status]; ok {
-			mapping = m
-			break
-		}
-	}
 
 	for status, sec := range issue.StatusResidency {
 		tier := "Unknown"
@@ -1066,4 +1059,110 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 			"subgroup_count": len(subgroups),
 		},
 	}, nil
+}
+
+func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
+	roadmaps := map[string]interface{}{
+		"forecasting": map[string]interface{}{
+			"title":       "Analytical Workflow: Professional Forecasting",
+			"description": "Recommended sequence to produce reliable delivery dates or volume forecasts.",
+			"steps": []interface{}{
+				map[string]interface{}{
+					"step":        1,
+					"tool":        "get_workflow_discovery",
+					"description": "Establish the semantic 'Happy Path'. Verify tiers and roles with the user.",
+				},
+				map[string]interface{}{
+					"step":        2,
+					"tool":        "get_process_stability",
+					"description": "Verify that the process is predictable (Stable XmR). If unstable, forecasting remains high-risk.",
+				},
+				map[string]interface{}{
+					"step":        3,
+					"tool":        "get_cycle_time_assessment",
+					"description": "Understand baseline SLE (Service Level Expectations) for different work items.",
+				},
+				map[string]interface{}{
+					"step":        4,
+					"tool":        "get_aging_analysis",
+					"description": "Check if current WIP is clogging the system. Aging outliers will invalidate forecasts.",
+				},
+				map[string]interface{}{
+					"step":        5,
+					"tool":        "run_simulation",
+					"description": "Perform Monte-Carlo simulation using the historical baseline to answer the user's specific question.",
+				},
+			},
+		},
+		"bottlenecks": map[string]interface{}{
+			"title":       "Analytical Workflow: Bottleneck & Flow Analysis",
+			"description": "Recommended sequence to identify systemic delays and batching behavior.",
+			"steps": []interface{}{
+				map[string]interface{}{
+					"step":        1,
+					"tool":        "get_workflow_discovery",
+					"description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states.",
+				},
+				map[string]interface{}{
+					"step":        2,
+					"tool":        "get_status_persistence",
+					"description": "Find where items spend the most time and identify 'High Variance' statuses.",
+				},
+				map[string]interface{}{
+					"step":        3,
+					"tool":        "get_delivery_cadence",
+					"description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow.",
+				},
+				map[string]interface{}{
+					"step":        4,
+					"tool":        "get_process_yield",
+					"description": "Check for high abandonment rates between tiers, indicating upstream quality issues.",
+				},
+			},
+		},
+		"capacity_planning": map[string]interface{}{
+			"title":       "Analytical Workflow: Capacity & Volume Planning",
+			"description": "Recommended sequence to determine if the team can take on more scope.",
+			"steps": []interface{}{
+				map[string]interface{}{
+					"step":        1,
+					"tool":        "get_delivery_cadence",
+					"description": "Determine the current weekly throughput baseline.",
+				},
+				map[string]interface{}{
+					"step":        2,
+					"tool":        "get_process_stability",
+					"description": "Compare current WIP against historical capacity (Stability Index).",
+				},
+				map[string]interface{}{
+					"step":        3,
+					"tool":        "run_simulation",
+					"description": "Use 'scope' mode to see how much we can reasonably finish in the next period.",
+				},
+			},
+		},
+		"system_health": map[string]interface{}{
+			"title":       "Analytical Workflow: Strategic System Health",
+			"description": "Recommended sequence for long-term process oversight and strategic shift detection.",
+			"steps": []interface{}{
+				map[string]interface{}{
+					"step":        1,
+					"tool":        "get_process_evolution",
+					"description": "Perform a longitudinal audit (Three-Way Control Charts) to detect systemic shifts or drift.",
+				},
+				map[string]interface{}{
+					"step":        2,
+					"tool":        "get_process_yield",
+					"description": "Evaluate long-term conversion efficiency across the entire pipe.",
+				},
+			},
+		},
+	}
+
+	res, ok := roadmaps[goal]
+	if !ok {
+		return nil, fmt.Errorf("unknown goal: %s. Available goals: forecasting, bottlenecks, capacity_planning, system_health", goal)
+	}
+
+	return res, nil
 }

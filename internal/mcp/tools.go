@@ -61,7 +61,13 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "run_simulation",
-				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). PREREQUISITE: Proper workflow mapping is required for accurate results. Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
+				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
+					"PREREQUISITE WORKFLOW: Before running simulations, you SHOULD:\n" +
+					"1. Run 'get_process_stability' to verify the process is predictable\n" +
+					"2. Run 'get_cycle_time_assessment' to understand baseline performance\n" +
+					"3. Clarify with the user WHAT to forecast (specific scope, date, or scenario)\n" +
+					"WITHOUT these prerequisites, simulation results may be unreliable or irrelevant.\n\n" +
+					"Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
 					"The output includes advanced volatility metrics for AI interpretation:\n" +
 					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
 					"- TailToMedianRatio (P85/P50): If > 3.0, the process is Highly Volatile (heavy-tailed risk).\n" +
@@ -88,7 +94,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_cycle_time_assessment",
-				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. PREREQUISITE: Proper workflow mapping is required for accurate results. Use this to answer 'How long does an item (of type X) typically take?'.",
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. PREREQUISITE: Proper workflow mapping is required for accurate results. Use this to answer 'How long does an item (of type X) typically take?' - this is the foundation for all forecasting.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -146,7 +152,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_process_stability",
-				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. PREREQUISITE: Proper workflow mapping is required for accurate results. Compares the current WIP inventory against historical throughput to identify stability risks. Use this to determine if current forecasts are reliable.",
+				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. PREREQUISITE: Proper workflow mapping is required for accurate results. Compares the current WIP inventory against historical throughput to identify stability risks. Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if forecasts will be reliable.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -179,6 +185,10 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_workflow_discovery",
 				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
+					"RECOMMENDED WORKFLOW for forecasting:\n" +
+					"1. Understand (Stability, Cycle Time, Aging)\n" +
+					"2. Clarify (What exactly to forecast?)\n" +
+					"3. Simulate (Run Monte Carlo with context)\n\n" +
 					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
 					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (noise).\n" +
@@ -264,6 +274,21 @@ func (s *Server) listTools() interface{} {
 						"issue_key": map[string]interface{}{"type": "string", "description": "The Jira issue key (e.g., PROJ-123)"},
 					},
 					"required": []string{"issue_key"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "get_diagnostic_roadmap",
+				"description": "Returns a recommended sequence of analysis steps based on the user's specific goal (e.g., forecasting, bottleneck analysis, capacity planning). Use this to align your analytical strategy with the project's current state.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"goal": map[string]interface{}{
+							"type":        "string",
+							"enum":        []string{"forecasting", "bottlenecks", "capacity_planning", "system_health"},
+							"description": "The analytical goal to get a roadmap for.",
+						},
+					},
+					"required": []string{"goal"},
 				},
 			},
 		},
