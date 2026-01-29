@@ -287,4 +287,54 @@ func TestProposeSemantics(t *testing.T) {
 	if proposal["In Dev"].Tier != "Downstream" {
 		t.Errorf("Expected 'In Dev' to be 'Downstream', got %s", proposal["In Dev"].Tier)
 	}
+
+	// Verify User-specified role constraints: Demand must be 'queue'
+	if proposal["Backlog"].Role != "queue" {
+		t.Errorf("Expected 'Backlog' (Demand) to have role 'queue', got %s", proposal["Backlog"].Role)
+	}
+}
+
+func TestDiscoverStatusOrder(t *testing.T) {
+	now := time.Now()
+	issues := []jira.Issue{
+		{
+			Key:    "I-1",
+			Status: "D",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "A", ToStatus: "B", Date: now.Add(10 * time.Minute)},
+				{FromStatus: "B", ToStatus: "C", Date: now.Add(20 * time.Minute)},
+				{FromStatus: "C", ToStatus: "D", Date: now.Add(30 * time.Minute)},
+			},
+		},
+		{
+			Key:    "I-2",
+			Status: "D",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "A", ToStatus: "C", Date: now.Add(15 * time.Minute)}, // Jump over B
+				{FromStatus: "C", ToStatus: "B", Date: now.Add(25 * time.Minute)}, // Backflow C -> B
+				{FromStatus: "B", ToStatus: "D", Date: now.Add(35 * time.Minute)},
+			},
+		},
+	}
+
+	order := DiscoverStatusOrder(issues)
+	// Expected: A, B, C, D (based on majority/dominance)
+	// A -> B (1), B -> A (0) => A before B
+	// B -> C (1), C -> B (1) => Tied, alphabetic fallback
+	// C -> D (1), D -> C (0) => C before D
+	// Actually predecessorCount will be:
+	// A: 0
+	// B: 1 (A)
+	// C: 1 (A)
+	// D: 3 (A, B, C)
+
+	expected := []string{"A", "B", "C", "D"}
+	if len(order) != len(expected) {
+		t.Fatalf("Expected %d statuses, got %d: %v", len(expected), len(order), order)
+	}
+	for i, s := range expected {
+		if order[i] != s {
+			t.Errorf("At index %d expected %s, got %s", i, s, order[i])
+		}
+	}
 }

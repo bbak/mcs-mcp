@@ -336,7 +336,7 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 	}
 
 	// 2. Little's Law Stability Index (WIP = TH * CT)
-	if e.histogram.Meta != nil {
+	if e.histogram != nil && e.histogram.Meta != nil {
 		th, ok1 := e.histogram.Meta["throughput_overall"].(float64)
 		sumCT := 0.0
 		for _, ct := range cycleTimes {

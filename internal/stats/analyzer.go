@@ -2,6 +2,7 @@ package stats
 
 import (
 	"mcs-mcp/internal/jira"
+	"sort"
 	"strings"
 	"time"
 )
@@ -134,51 +135,48 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		return proposal
 	}
 
-	// 1. Identify "Demand" (the first status ever visited)
-	firstStatus := ""
-	if len(issues) > 0 {
-		// Heuristic: The status appearing earliest in transitions is the entry point
-		entryCounts := make(map[string]int)
-		for _, issue := range issues {
-			if len(issue.Transitions) > 0 {
-				entryCounts[issue.Transitions[0].FromStatus]++
-			} else {
-				entryCounts[issue.Status]++
-			}
+	// Identify first-ever entry points
+	entryCounts := make(map[string]int)
+	for _, issue := range issues {
+		if len(issue.Transitions) > 0 {
+			entryCounts[issue.Transitions[0].FromStatus]++
 		}
-		maxCount := -1
-		for st, count := range entryCounts {
-			if count > maxCount {
-				maxCount = count
-				firstStatus = st
-			}
+	}
+	firstStatus := ""
+	maxEntry := 0
+	for s, count := range entryCounts {
+		if count > maxEntry {
+			maxEntry = count
+			firstStatus = s
 		}
 	}
 
-	// 2. Map Statuses to Categories (Jira fallback)
 	statusCats := make(map[string]string)
 	for _, issue := range issues {
 		statusCats[issue.Status] = issue.StatusCategory
 	}
 
-	// 3. Pattern-based Queuing Detection
 	queueCandidates := findQueuingColumns(persistence)
 
-	// 4. Assemble Proposal
 	for _, p := range persistence {
 		name := p.StatusName
 		tier := "Downstream" // Default
 		role := "active"
 
-		if name == firstStatus {
+		// Tier Assignment
+		cat := strings.ToLower(statusCats[name])
+		if name == firstStatus || cat == "to-live" || cat == "to-do" || cat == "new" {
 			tier = "Demand"
-		} else if statusCats[name] == "done" || statusCats[name] == "finished" {
+		} else if cat == "done" || cat == "finished" || cat == "complete" {
 			tier = "Finished"
-		} else if statusCats[name] == "to-do" || statusCats[name] == "new" {
-			tier = "Demand"
 		}
 
-		if queueCandidates[name] {
+		// Role Assignment with User-Specified Constraints
+		if tier == "Demand" {
+			role = "queue"
+		} else if tier == "Finished" {
+			role = "active"
+		} else if queueCandidates[name] {
 			role = "queue"
 		}
 
@@ -188,16 +186,19 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		}
 	}
 
-	// 5. Commitment Point Logic: Highest residency crossing
-	// If the user hasn't confirmed, we look for the highest residency status
-	// that isn't 'Demand' or 'Finished'.
-	maxRes := -1.0
-	for _, p := range persistence {
-		if proposal[p.StatusName].Tier == "Downstream" {
-			if p.P50 > maxRes {
-				maxRes = p.P50
-			}
+	// Refine Commitment Point: First status in Downstream tier in discovered order
+	backbone := DiscoverStatusOrder(issues)
+	likelyCommitment := ""
+	for _, st := range backbone {
+		if m, ok := proposal[st]; ok && m.Tier == "Downstream" {
+			likelyCommitment = st
+			break
 		}
+	}
+
+	if likelyCommitment != "" {
+		// We don't return the commitment point here directly, but handlers.go uses the proposed mapping
+		// to find it. We ensure the Tiers/Roles are set up so handlers can find it.
 	}
 
 	// If a high-residency status is immediately preceded by a queue candidate,
@@ -205,6 +206,78 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 	// (This logic is further refined in the handler which has the full order)
 
 	return proposal
+}
+
+// DiscoverStatusOrder derives the Backbone workflow by analyzing transition frequencies.
+// It builds a directed graph and uses frequency-based directionality to determine order.
+func DiscoverStatusOrder(issues []jira.Issue) []string {
+	// 1. Build transition frequency matrix
+	matrix := make(map[string]map[string]int)
+	allStatuses := make(map[string]bool)
+
+	for _, issue := range issues {
+		for _, t := range issue.Transitions {
+			if t.FromStatus != "" {
+				allStatuses[t.FromStatus] = true
+			}
+			if t.ToStatus != "" {
+				allStatuses[t.ToStatus] = true
+			}
+			if t.FromStatus != "" && t.ToStatus != "" {
+				if matrix[t.FromStatus] == nil {
+					matrix[t.FromStatus] = make(map[string]int)
+				}
+				matrix[t.FromStatus][t.ToStatus]++
+			}
+		}
+		// Also include the current status if not already there
+		if issue.Status != "" {
+			allStatuses[issue.Status] = true
+		}
+	}
+
+	if len(allStatuses) == 0 {
+		return nil
+	}
+
+	// 2. Identify the Backbone using frequency dominance
+	// For any pair (A, B), if Freq(A->B) > Freq(B->A), A is a predecessor.
+	// We'll build a simplified DAG by only keeping "dominant" forward edges.
+	statuses := make([]string, 0, len(allStatuses))
+	for s := range allStatuses {
+		statuses = append(statuses, s)
+	}
+
+	// Simple topological sort based on dominance counts
+	// An item is "further ahead" if it has more unique predecessors than another.
+	predecessorCount := make(map[string]int)
+	for i := 0; i < len(statuses); i++ {
+		for j := i + 1; j < len(statuses); j++ {
+			s1 := statuses[i]
+			s2 := statuses[j]
+
+			f12 := matrix[s1][s2]
+			f21 := matrix[s2][s1]
+
+			if f12 > f21 {
+				predecessorCount[s2]++
+			} else if f21 > f12 {
+				predecessorCount[s1]++
+			}
+		}
+	}
+
+	sort.Slice(statuses, func(i, j int) bool {
+		c1 := predecessorCount[statuses[i]]
+		c2 := predecessorCount[statuses[j]]
+		if c1 != c2 {
+			return c1 < c2
+		}
+		// Deterministic fallback
+		return statuses[i] < statuses[j]
+	})
+
+	return statuses
 }
 
 func findQueuingColumns(persistence []StatusPersistence) map[string]bool {

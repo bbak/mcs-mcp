@@ -156,28 +156,11 @@ func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issue
 		return s.sliceRange(order, startStatus, endStatus)
 	}
 
-	// 2. Fallback: Inferred order from historical reachability/categories
-	// We'll use the statuses present in the issues
-	statusMap := make(map[string]bool)
-	for _, issue := range issues {
-		for st := range issue.StatusResidency {
-			statusMap[st] = true
-		}
+	// 2. Fallback: Inferred order from transition frequencies (backbone analysis)
+	allStatuses := stats.DiscoverStatusOrder(issues)
+	if len(allStatuses) == 0 {
+		return []string{}
 	}
-	var allStatuses []string
-	for st := range statusMap {
-		allStatuses = append(allStatuses, st)
-	}
-
-	// Simple heuristic sort: by weight, then by name
-	sort.Slice(allStatuses, func(i, j int) bool {
-		wi := statusWeights[allStatuses[i]]
-		wj := statusWeights[allStatuses[j]]
-		if wi != wj {
-			return wi < wj
-		}
-		return allStatuses[i] < allStatuses[j]
-	})
 
 	return s.sliceRange(allStatuses, startStatus, endStatus)
 }
