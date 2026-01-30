@@ -26,6 +26,16 @@ MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids sing
 
 ---
 
+## ⚠️ Probabilistic Nature & Disclaimer
+
+MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on historical performance, not guarantees.
+
+- **No Direct Answer**: A forecast saying "85% confidence by Oct 12" means there is a 15% chance it will take longer.
+- **Garbage In, Garbage Out**: Results are strictly dependent on the quality and consistency of your Jira data.
+- **No Liability**: This tool is provided "AS IS". The authors and contributors are not responsible for any project delays, financial losses, or business decisions made based on its output.
+
+---
+
 ## 🏃 Getting Started
 
 ### Prerequisites
@@ -99,3 +109,11 @@ MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detai
 ## ⚖️ Conceptual Integrity
 
 This project adheres to the core principles of **Cohesion, Coherence, and Consistency**. Every tool and analytical model is designed to provide a unified, reliable view of delivery performance without administrative noise.
+
+---
+
+## 📜 License
+
+This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) and [NOTICE](NOTICE) files for details.
+
+Copyright © 2026 Bruno Baketarić.
