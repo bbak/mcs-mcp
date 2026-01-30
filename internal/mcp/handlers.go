@@ -101,7 +101,6 @@ func (s *Server) applyBackflowPolicy(issues []jira.Issue, weights map[string]int
 		newIssue := issue
 		newIssue.Transitions = stats.FilterTransitions(issue.Transitions, issue.Transitions[lastBackflowIdx].Date)
 		newIssue.StatusResidency = s.recalculateResidency(newIssue, issue.Transitions[lastBackflowIdx].ToStatus)
-		newIssue.StartedDate = &issue.Transitions[lastBackflowIdx].Date
 		clean = append(clean, newIssue)
 	}
 	return clean

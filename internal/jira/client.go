@@ -11,7 +11,6 @@ type Issue struct {
 	IssueType       string
 	Summary         string
 	Created         time.Time
-	StartedDate     *time.Time
 	ResolutionDate  *time.Time
 	Resolution      string
 	Status          string
