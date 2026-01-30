@@ -72,12 +72,12 @@ To prevent the AI from misinterpreting administrative or storage stages as proce
 
 Every status belongs to one of four logical process layers:
 
-| Tier           | Meaning                                        | Commitment Insight                                                             | Clock Behavior                                                                 |
-| :------------- | :--------------------------------------------- | :----------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
-| **Demand**     | High-level backlog (e.g., "Backlog").          | Items here are uncommitted and unrefined.                                      | Clock is pending; residency is stored but doesn't contribute to WIP.           |
-| **Upstream**   | Analysis and definition (e.g., "Refinement").  | Clock is running on "Discovery"; high delay indicates a definition bottleneck. | Active clock.                                                                  |
-| **Downstream** | Actual implementation (e.g., "In Dev", "UAT"). | The primary process flow; where implementation capacity is consumed.           | Active clock.                                                                  |
-| **Finished**   | Items that have exited the process.            | Terminal stage; used for throughput.                                           | **Clock Stops**: Pin residency at entry point. Age becomes fixed "Cycle Time". |
+| Tier           | Meaning                                                      | Commitment Insight                                                                          | Clock Behavior                                                                 |
+| :------------- | :----------------------------------------------------------- | :------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------- |
+| **Demand**     | Initial entry point to the system (e.g., "Backlog", "Open"). | Items here are uncommitted and unrefined. Identifies the primary "Source of Demand".        | Clock is pending; residency is stored but doesn't contribute to WIP.           |
+| **Upstream**   | Analysis and refinement (e.g., "Refining").                  | Clock is running on "Discovery"; items in "To Do" category but NOT the primary entry point. | Active clock.                                                                  |
+| **Downstream** | Actual implementation (e.g., "In Dev", "UAT").               | The primary process flow; where implementation capacity is consumed.                        | Active clock.                                                                  |
+| **Finished**   | Items that have exited the process.                          | Terminal stage; used for throughput.                                                        | **Clock Stops**: Pin residency at entry point. Age becomes fixed "Cycle Time". |
 
 #### 2. Functional Roles
 
@@ -177,6 +177,7 @@ To ensure conceptual integrity in cross-project environments (e.g., items moving
 
 - **Move Detection**: If an item's history shows a change in the `Key` or `project` fields, the system treats the latest move date as a **Process Boundary**.
 - **Contextual Reset**: All `StatusResidency` and `Transitions` that occurred _under a different project key_ are discarded during analysis. This ensures that Workflow Discovery and process diagnostics accurately reflect only the current project's flow.
+- **Tier Discovery Integrity**: Moved items are **discarded during 'Demand' tier discovery**. This prevents mid-process entry points (transferring an item into "Developing" in the new project) from being mis-detected as a system-wide source of demand.
 - **Lead Time Preservation**: Critically, the original `Created` date is preserved. High-level metrics like **Total Age** remain valid, reflecting the item's entire lifecycle from original idea to delivery, while low-level process metrics (WIP Age, Status Persistence) are cleaned of "ghost" statuses from older projects.
 
 #### 7. Terminal Pinning Policy (Stop the Clock)
