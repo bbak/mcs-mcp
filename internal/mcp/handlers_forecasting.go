@@ -51,7 +51,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		wipIssues, err := s.ingestWIPIssues(sourceID, ctx, true)
 		if err == nil {
 			wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, analysisCtx.StatusWeights, resolutions)
+			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 			calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 			wipAges = calcWipAges
 			wipCount = len(wipAges)
@@ -87,7 +87,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		resObj.Insights = append(resObj.Insights, "Scope Interpretation: Forecast shows total items that will reach 'Done' status, including items currently in progress.")
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, analysisCtx.StatusWeights, resolutions)
+			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -110,7 +110,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		resObj := engine.RunDurationSimulation(totalBacklog, 10000)
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, analysisCtx.StatusWeights, resolutions)
+			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, totalBacklog)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -129,7 +129,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 }
 
-func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issueTypes []string, analyzeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
+func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analyzeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, issue
 		}
 	}
 	issues = s.applyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
-	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, analysisCtx.StatusWeights, resolutions)
+	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)

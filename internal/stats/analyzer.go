@@ -138,6 +138,9 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 	// Identify first-ever entry points
 	entryCounts := make(map[string]int)
 	for _, issue := range issues {
+		if issue.IsMoved {
+			continue // Skip issues moved between projects as their entry status might be mid-process
+		}
 		if len(issue.Transitions) > 0 {
 			entryCounts[issue.Transitions[0].FromStatus]++
 		}
@@ -165,8 +168,10 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 
 		// Tier Assignment
 		cat := strings.ToLower(statusCats[name])
-		if name == firstStatus || cat == "to-live" || cat == "to-do" || cat == "new" {
+		if name == firstStatus {
 			tier = "Demand"
+		} else if cat == "to-live" || cat == "to-do" || cat == "new" {
+			tier = "Upstream"
 		} else if cat == "done" || cat == "finished" || cat == "complete" {
 			tier = "Finished"
 		}

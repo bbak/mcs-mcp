@@ -39,7 +39,7 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 	}
 
 	if item.Changelog != nil {
-		issue.Transitions, issue.StatusResidency, issue.StartedDate = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
+		issue.Transitions, issue.StatusResidency, issue.StartedDate, issue.IsMoved = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
 	}
 
 	return issue
@@ -56,7 +56,7 @@ func ExtractProjectKey(key string) string {
 }
 
 // ProcessChangelog calculates residency times and transitions from a Jira changelog.
-func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool) ([]jira.StatusTransition, map[string]int64, *time.Time) {
+func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool) ([]jira.StatusTransition, map[string]int64, *time.Time, bool) {
 	var earliest *time.Time
 	type fullTransition struct {
 		From string
@@ -193,7 +193,7 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		residency[currentStatus] = duration
 	}
 
-	return transitions, residency, earliest
+	return transitions, residency, earliest, lastMoveDate != nil
 }
 
 // FilterTransitions returns only transitions that occurred after a specific date.

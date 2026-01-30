@@ -150,7 +150,7 @@ func (s *Server) recalculateResidency(issue jira.Issue, initialStatus string) ma
 	return residency
 }
 
-func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issues []jira.Issue, statusWeights map[string]int) []string {
+func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issues []jira.Issue) []string {
 	if order, ok := s.statusOrderings[sourceID]; ok {
 		return s.sliceRange(order, startStatus, endStatus)
 	}
@@ -231,19 +231,19 @@ func (s *Server) getDeliveredResolutions(sourceID string) []string {
 	return delivered
 }
 
-func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, statusWeights map[string]int, resolutions []string) []float64 {
+func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
 	// Reusing logic from mcp package
-	return s.calculateCycleTimesList(sourceID, issues, startStatus, endStatus, statusWeights, resolutions)
+	return s.calculateCycleTimesList(sourceID, issues, startStatus, endStatus, resolutions)
 }
 
-func (s *Server) calculateCycleTimesList(sourceID string, issues []jira.Issue, startStatus, endStatus string, statusWeights map[string]int, resolutions []string) []float64 {
+func (s *Server) calculateCycleTimesList(sourceID string, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
 	mappings := s.workflowMappings[sourceID]
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
 	}
 
-	rangeStatuses := s.getInferredRange(sourceID, startStatus, endStatus, issues, statusWeights)
+	rangeStatuses := s.getInferredRange(sourceID, startStatus, endStatus, issues)
 
 	var cycleTimes []float64
 	for _, issue := range issues {

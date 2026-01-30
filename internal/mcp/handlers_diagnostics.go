@@ -61,7 +61,7 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 	wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
-	cycleTimes := s.getCycleTimes(sourceID, histIssues, analysisCtx.CommitmentPoint, "", analysisCtx.StatusWeights, deliveredResolutions)
+	cycleTimes := s.getCycleTimes(sourceID, histIssues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	aging := stats.CalculateInventoryAge(wipIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
@@ -89,7 +89,7 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 	}, nil
 }
 
-func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
+func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string, windowWee
 	}, nil
 }
 
-func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWeeks int) (interface{}, error) {
+func (s *Server) handleGetProcessStability(sourceID, sourceType string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string, windowWe
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
-	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", analysisCtx.StatusWeights, deliveredResolutions)
+	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	wipIssues, err := s.ingestWIPIssues(sourceID, ctx, false)
 	if err != nil {
@@ -157,7 +157,7 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
 
 	issues = s.applyBackflowPolicy(issues, analysisCtx.StatusWeights, 2)
-	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", analysisCtx.StatusWeights, deliveredResolutions)
+	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
 	evolution := stats.CalculateThreeWayXmR(subgroups)

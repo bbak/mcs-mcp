@@ -19,6 +19,7 @@ type Issue struct {
 	StatusResidency map[string]int64 // Seconds spent in each status
 	Transitions     []StatusTransition
 	IsSubtask       bool
+	IsMoved         bool
 }
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.

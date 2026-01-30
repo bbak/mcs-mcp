@@ -32,9 +32,9 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	return map[string]interface{}{
 		"summary": summary,
 		"_guidance": []string{
-			"This is a DATA PROBE on a 50-item sample. Use it to understand data volume and health.",
+			"This is a DATA PROBE on a 50-item sample. Use it to understand data volume and distribution.",
 			"SampleResolvedRatio is a diagnostic of the sample's completeness, NOT a team performance metric.",
-			"Inventory counts (WIP/Backlog) are heuristics based on Jira Status Categories and your 'Finished' tier mapping.",
+			"Inventory counts (WIP/Backlog) are HEURISTICS. Unreliable until 'set_workflow_mapping' and 'set_workflow_order' are confirmed.",
 		},
 	}, nil
 }
@@ -83,9 +83,10 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		"discovered_order":  stats.DiscoverStatusOrder(issues),
 		"persistence_stats": persistence,
 		"_guidance": []string{
-			"AI MUST verify this semantic mapping with the user before performing deeper analysis.",
-			"Tiers (Demand, Upstream, Downstream, Finished) determine the analytical scope.",
+			"AI MUST verify this semantic mapping with the user via 'set_workflow_mapping' before performing deeper analysis.",
+			"Tiers (Demand, Upstream, Downstream, Finished) determine the analytical scope. 'Upstream' covers refinement, 'Downstream' covers execution.",
 			"Roles (active, queue, ignore) determine if the clock is running or paused.",
+			"WITHOUT a confirmed mapping, follow-up diagnostics (Aging, Stability, Simulation) will produce SUBPAR results.",
 		},
 	}
 }

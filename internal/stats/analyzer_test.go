@@ -338,3 +338,105 @@ func TestDiscoverStatusOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestTierDiscovery_DemandVsUpstream(t *testing.T) {
+	now := time.Now()
+	// History: Open -> Refining -> In Progress
+	// 'Open' should be Demand (first entry)
+	// 'Refining' should be Upstream (category to-do, but not first entry)
+	// 'In Progress' should be Downstream (category indeterminate)
+	issues := []jira.Issue{
+		{
+			Key:            "PROJ-1",
+			Status:         "In Progress",
+			StatusCategory: "indeterminate",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "Open", ToStatus: "Refining", Date: now.Add(-2 * time.Hour)},
+				{FromStatus: "Refining", ToStatus: "In Progress", Date: now.Add(-1 * time.Hour)},
+			},
+		},
+		{
+			// Help ProposeSemantics know the category of 'Open'
+			Key:            "PROJ-2",
+			Status:         "Open",
+			StatusCategory: "to-do",
+		},
+		{
+			// Help ProposeSemantics know the category of 'Refining'
+			Key:            "PROJ-3",
+			Status:         "Refining",
+			StatusCategory: "to-do",
+		},
+	}
+
+	persistence := []StatusPersistence{
+		{StatusName: "Open"},
+		{StatusName: "Refining"},
+		{StatusName: "In Progress"},
+	}
+
+	proposal := ProposeSemantics(issues, persistence)
+
+	if proposal["Open"].Tier != "Demand" {
+		t.Errorf("Expected 'Open' to be 'Demand', got %s", proposal["Open"].Tier)
+	}
+	if proposal["Refining"].Tier != "Upstream" {
+		t.Errorf("Expected 'Refining' (To Do category) to be 'Upstream', got %s", proposal["Refining"].Tier)
+	}
+	if proposal["In Progress"].Tier != "Downstream" {
+		t.Errorf("Expected 'In Progress' to be 'Downstream', got %s", proposal["In Progress"].Tier)
+	}
+}
+
+func TestTierDiscovery_IgnoreMovedItems(t *testing.T) {
+	now := time.Now()
+	// PROJ-1: Clean entry in 'Backlog'
+	// PROJ-2: Moved into 'In Progress'. Should be ignored for 'Demand' detection.
+	issues := []jira.Issue{
+		{
+			Key:            "PROJ-1",
+			Status:         "Backlog",
+			StatusCategory: "to-do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "Backlog", ToStatus: "In Progress", Date: now.Add(-1 * time.Hour)},
+			},
+			IsMoved: false,
+		},
+		{
+			Key:            "PROJ-2",
+			Status:         "Done",
+			StatusCategory: "done",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "In Progress", ToStatus: "Done", Date: now.Add(-1 * time.Hour)},
+			},
+			IsMoved: true, // Moved item!
+		},
+		{
+			// Help ProposeSemantics know the category of 'In Progress'
+			Key:            "PROJ-3",
+			Status:         "In Progress",
+			StatusCategory: "indeterminate",
+		},
+	}
+
+	persistence := []StatusPersistence{
+		{StatusName: "Backlog"},
+		{StatusName: "In Progress"},
+		{StatusName: "Done"},
+	}
+
+	proposal := ProposeSemantics(issues, persistence)
+
+	// 'Backlog' should be Demand because of PROJ-1
+	if proposal["Backlog"].Tier != "Demand" {
+		t.Errorf("Expected 'Backlog' to be 'Demand', got %s", proposal["Backlog"].Tier)
+	}
+
+	// 'In Progress' should NOT be Demand, even though it's the FromStatus of PROJ-2's first transition
+	if proposal["In Progress"].Tier == "Demand" {
+		t.Errorf("Expected 'In Progress' NOT to be 'Demand' as it came from a moved item")
+	}
+	if proposal["In Progress"].Tier != "Downstream" {
+		t.Errorf("Expected 'In Progress' to be 'Downstream', got %s", proposal["In Progress"].Tier)
+	}
+}

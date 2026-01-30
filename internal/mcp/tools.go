@@ -61,12 +61,13 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "run_simulation",
-				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
-					"PREREQUISITE WORKFLOW: Before running simulations, you SHOULD:\n" +
-					"1. Run 'get_process_stability' to verify the process is predictable\n" +
-					"2. Run 'get_cycle_time_assessment' to understand baseline performance\n" +
-					"3. Clarify with the user WHAT to forecast (specific scope, date, or scenario)\n" +
-					"WITHOUT these prerequisites, simulation results may be unreliable or irrelevant.\n\n" +
+				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). \n\n" +
+					"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n" +
+					"AI MUST NOT run simulations autonomously without first clarifying the user's analytical goal (specific scope, date, or scenario) and verifying process stability.\n\n" +
+					"DEPENDENCIES (for result quality):\n" +
+					"1. Mapping: Ensure 'set_workflow_mapping' has been called and confirmed by the user.\n" +
+					"2. Stability: Run 'get_process_stability' first. If the process is unstable (Special Cause variation), simulation results are UNRELIABLE and potentially MISLEADING.\n" +
+					"3. Baseline: Run 'get_cycle_time_assessment' to understand historical SLEs.\n\n" +
 					"Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
 					"The output includes advanced volatility metrics for AI interpretation:\n" +
 					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
@@ -93,8 +94,10 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_cycle_time_assessment",
-				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. PREREQUISITE: Proper workflow mapping is required for accurate results. Use this to answer 'How long does an item (of type X) typically take?' - this is the foundation for all forecasting.",
+				"name": "get_cycle_time_assessment",
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. \n\n" +
+					"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'set_workflow_mapping' for accurate results. \n" +
+					"Use this to answer 'How long does an item (of type X) typically take?' - this is the foundation for all forecasting.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -111,7 +114,8 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_status_persistence",
-				"description": "Analyze how long items spend in each status to identify bottlenecks. PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
+				"description": "Analyze how long items spend in each status to identify bottlenecks. \n\n" +
+					"PREREQUISITE: Proper workflow mapping is required for accurate results. Results provide SUBPAR context if tiers (Upstream/Downstream) are not correctly mapped.\n" +
 					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -124,7 +128,9 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_aging_analysis",
-				"description": "Identify which items are aging relative to historical norms. PREREQUISITE: Proper workflow mapping is required for accurate results. Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
+				"description": "Identify which items are aging relative to historical norms. \n\n" +
+					"PREREQUISITE: Proper workflow mapping (Commitment Point) is MANDATORY for accurate 'WIP Age'. Results are UNRELIABLE if the commitment point is incorrectly defined.\n" +
+					"Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
 					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -151,8 +157,10 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_process_stability",
-				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. PREREQUISITE: Proper workflow mapping is required for accurate results. Compares the current WIP inventory against historical throughput to identify stability risks. Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if forecasts will be reliable.",
+				"name": "get_process_stability",
+				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. \n\n" +
+					"PREREQUISITE: Proper workflow mapping is required for accurate results. \n" +
+					"Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if current forecasts based on historical data are even reliable. If stability is low, the process is 'Out of Control' and simulations will produce MISLEADING results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -167,8 +175,10 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_process_evolution",
-				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups. Use this for deep history analysis or after significant organizational changes.",
+				"name": "get_process_evolution",
+				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. \n\n" +
+					"AI MUST use this for deep history analysis or after significant organizational changes. NOT intended for routine daily analysis.\n" +
+					"Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -184,11 +194,9 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_workflow_discovery",
-				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE semantic mappings. AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing diagnostics.\n\n" +
-					"RECOMMENDED WORKFLOW for forecasting:\n" +
-					"1. Understand (Stability, Cycle Time, Aging)\n" +
-					"2. Clarify (What exactly to forecast?)\n" +
-					"3. Simulate (Run Monte Carlo with context)\n\n" +
+				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE semantic mappings. \n\n" +
+					"AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing any other diagnostics. \n" +
+					"The proposed mapping is a HEURISTIC and MUST be confirmed by the human via 'set_workflow_mapping'.\n\n" +
 					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
 					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (noise).\n" +
@@ -204,7 +212,8 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "set_workflow_mapping",
-				"description": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the mandatory persistence step after the 'Inform & Veto' loop.\n\n" +
+				"description": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the MANDATORY persistence step after the 'Inform & Veto' loop. \n\n" +
+					"WITHOUT this mapping, most analytical tools in this server will provide SUBPAR or even WRONG results.\n\n" +
 					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
 					"OUTCOME DEFINITIONS: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",

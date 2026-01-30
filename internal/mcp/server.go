@@ -194,7 +194,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		if window == 0 {
 			window = 26
 		}
-		data, err = s.handleGetDeliveryCadence(id, sType, window)
+		data, err = s.handleGetDeliveryCadence(id, sType)
 	case "get_process_stability":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
@@ -202,7 +202,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		if window == 0 {
 			window = 26
 		}
-		data, err = s.handleGetProcessStability(id, sType, window)
+		data, err = s.handleGetProcessStability(id, sType)
 	case "get_process_evolution":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
@@ -257,7 +257,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleGetCycleTimeAssessment(id, sType, issueTypes, analyzeWIP, startStatus, endStatus, res)
+		data, err = s.handleGetCycleTimeAssessment(id, sType, analyzeWIP, startStatus, endStatus, res)
 	case "get_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
