@@ -1,9 +1,5 @@
 package eventlog
 
-import (
-	"time"
-)
-
 // EventType defines the objective nature of a Jira state change.
 type EventType string
 
@@ -29,10 +25,8 @@ type IssueEvent struct {
 	IssueType string `json:"issueType"`
 	// EventType is the type of change being recorded.
 	EventType EventType `json:"eventType"`
-	// Timestamp is the physical time the event occurred in Jira.
-	Timestamp time.Time `json:"timestamp"`
-	// SequenceID provides deterministic ordering for events with identical timestamps.
-	SequenceID int64 `json:"seq"`
+	// Timestamp is the physical time the event occurred in Jira (Unix microseconds).
+	Timestamp int64 `json:"ts"`
 
 	// FromStatus is the status the item moved from (for Transitioned events).
 	FromStatus string `json:"fromStatus,omitempty"`

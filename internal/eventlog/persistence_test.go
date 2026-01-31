@@ -17,19 +17,18 @@ func TestEventStore_Persistence(t *testing.T) {
 	store1 := NewEventStore()
 	sourceID := "test-board"
 
+	now := time.Now().UnixMicro()
 	events := []IssueEvent{
 		{
-			IssueKey:   "PROJ-1",
-			EventType:  Created,
-			Timestamp:  time.Now().Truncate(time.Second).Add(-2 * time.Hour),
-			SequenceID: 1,
+			IssueKey:  "PROJ-1",
+			EventType: Created,
+			Timestamp: now - 1000000, // 1s ago
 		},
 		{
-			IssueKey:   "PROJ-1",
-			EventType:  Transitioned,
-			ToStatus:   "Doing",
-			Timestamp:  time.Now().Truncate(time.Second).Add(-1 * time.Hour),
-			SequenceID: 2,
+			IssueKey:  "PROJ-1",
+			EventType: Transitioned,
+			ToStatus:  "Doing",
+			Timestamp: now,
 		},
 	}
 
@@ -69,8 +68,8 @@ func TestEventStore_Persistence(t *testing.T) {
 
 	// Verify latest timestamp
 	latest := store2.GetLatestTimestamp(sourceID)
-	if !latest.Equal(events[1].Timestamp) {
-		t.Errorf("Expected latest timestamp %v, got %v", events[1].Timestamp, latest)
+	if latest.UnixMicro() != events[1].Timestamp {
+		t.Errorf("Expected latest timestamp %v, got %v", events[1].Timestamp, latest.UnixMicro())
 	}
 
 	// Verify deduplication after reload and re-append

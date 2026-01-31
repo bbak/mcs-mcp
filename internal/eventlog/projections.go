@@ -22,7 +22,7 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 		key            string
 		issueType      string
 		currentStatus  string
-		commitmentDate *time.Time
+		commitmentDate int64
 		isFinished     bool
 	}
 	states := make(map[string]*state)
@@ -39,8 +39,8 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 			s.currentStatus = e.ToStatus
 		case Transitioned:
 			s.currentStatus = e.ToStatus
-			if s.commitmentDate == nil && e.ToStatus == commitmentPoint {
-				s.commitmentDate = &e.Timestamp
+			if s.commitmentDate == 0 && e.ToStatus == commitmentPoint {
+				s.commitmentDate = e.Timestamp
 			}
 		case Resolved, Closed:
 			s.isFinished = true
@@ -52,15 +52,15 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 	}
 
 	var wip []WIPItem
-	now := time.Now()
+	now := time.Now().UnixMicro()
 	for _, s := range states {
-		if s.commitmentDate != nil && !s.isFinished {
+		if s.commitmentDate != 0 && !s.isFinished {
 			wip = append(wip, WIPItem{
 				IssueKey:           s.key,
 				IssueType:          s.issueType,
 				CurrentStatus:      s.currentStatus,
-				CommitmentDate:     *s.commitmentDate,
-				AgeSinceCommitment: now.Sub(*s.commitmentDate).Hours() / 24.0,
+				CommitmentDate:     time.UnixMicro(s.commitmentDate),
+				AgeSinceCommitment: float64(now-s.commitmentDate) / 86400000000.0, // 86.4B micros in a day
 			})
 		}
 	}
@@ -86,7 +86,7 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 		}
 
 		if isDelivery {
-			dateStr := e.Timestamp.Format("2006-01-02")
+			dateStr := time.UnixMicro(e.Timestamp).Format("2006-01-02")
 			counts[dateStr]++
 		}
 	}
@@ -118,26 +118,27 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 	}
 	issue.ProjectKey = stats.ExtractProjectKey(first.IssueKey)
 
-	var lastMoveDate *time.Time
+	var lastMoveDate int64
 
 	for _, e := range events {
 		switch e.EventType {
 		case Created:
-			issue.Created = e.Timestamp
+			issue.Created = time.UnixMicro(e.Timestamp)
 			issue.Status = e.ToStatus
 		case Transitioned:
 			issue.Transitions = append(issue.Transitions, jira.StatusTransition{
 				FromStatus: e.FromStatus,
 				ToStatus:   e.ToStatus,
-				Date:       e.Timestamp,
+				Date:       time.UnixMicro(e.Timestamp),
 			})
 			issue.Status = e.ToStatus
 		case Resolved:
-			issue.ResolutionDate = &e.Timestamp
+			ts := time.UnixMicro(e.Timestamp)
+			issue.ResolutionDate = &ts
 			issue.Resolution = e.Resolution
 		case Moved:
 			issue.IsMoved = true
-			lastMoveDate = &e.Timestamp
+			lastMoveDate = e.Timestamp
 		}
 	}
 
@@ -147,7 +148,7 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 }
 
 // CalculateResidencyFromEvents computes residency times from an event stream.
-func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove *time.Time) map[string]int64 {
+func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove int64) map[string]int64 {
 	residency := make(map[string]int64)
 	if len(events) == 0 {
 		return residency
@@ -156,7 +157,7 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 	var transitions []IssueEvent
 	for _, e := range events {
 		if e.EventType == Transitioned || e.EventType == Created {
-			if lastMove == nil || !e.Timestamp.Before(*lastMove) {
+			if lastMove == 0 || e.Timestamp >= lastMove {
 				transitions = append(transitions, e)
 			}
 		}
@@ -169,7 +170,7 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 	for i := 0; i < len(transitions)-1; i++ {
 		curr := transitions[i]
 		next := transitions[i+1]
-		duration := int64(next.Timestamp.Sub(curr.Timestamp).Seconds())
+		duration := (next.Timestamp - curr.Timestamp) / 1000000 // microseconds to seconds
 		if duration <= 0 {
 			duration = 1
 		}
@@ -177,13 +178,13 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 	}
 
 	last := transitions[len(transitions)-1]
-	finalDate := time.Now()
+	finalMicros := time.Now().UnixMicro()
 	if resolved != nil {
-		finalDate = *resolved
+		finalMicros = resolved.UnixMicro()
 	} else if finished[currentStatus] {
-		finalDate = last.Timestamp
+		finalMicros = last.Timestamp
 	}
-	duration := int64(finalDate.Sub(last.Timestamp).Seconds())
+	duration := (finalMicros - last.Timestamp) / 1000000
 	if duration <= 0 {
 		duration = 1
 	}

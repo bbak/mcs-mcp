@@ -83,20 +83,13 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		significant[p.StatusName] = true
 	}
 
-	proposal := stats.ProposeSemantics(issues, persistence)
-
-	// Refine proposal with status categories and filter by significance
 	statusCats := s.getStatusCategories(projectKeys)
+	proposal := stats.ProposeSemantics(issues, persistence, statusCats)
+
 	finalProposal := make(map[string]stats.StatusMetadata)
 	for name, meta := range proposal {
 		if !significant[name] {
 			continue
-		}
-		if cat, ok := statusCats[name]; ok {
-			if cat == "done" || cat == "finished" || cat == "complete" {
-				meta.Tier = "Finished"
-				meta.Role = "active"
-			}
 		}
 		finalProposal[name] = meta
 	}

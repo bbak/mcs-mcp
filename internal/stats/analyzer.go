@@ -129,54 +129,51 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 }
 
 // ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
-func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[string]StatusMetadata {
+func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence, statusCats map[string]string) map[string]StatusMetadata {
 	proposal := make(map[string]StatusMetadata)
 	if len(persistence) == 0 {
 		return proposal
 	}
 
-	// Identify first-ever entry points
+	// 1. Identify the Birth Status (Entry point)
 	entryCounts := make(map[string]int)
 	for _, issue := range issues {
-		if issue.IsMoved {
-			continue // Skip issues moved between projects as their entry status might be mid-process
-		}
-		if len(issue.Transitions) > 0 {
+		if !issue.IsMoved && len(issue.Transitions) > 0 {
 			entryCounts[issue.Transitions[0].FromStatus]++
 		}
 	}
-	firstStatus := ""
+	birthStatus := ""
 	maxEntry := 0
 	for s, count := range entryCounts {
 		if count > maxEntry {
 			maxEntry = count
-			firstStatus = s
+			birthStatus = s
 		}
-	}
-
-	statusCats := make(map[string]string)
-	for _, issue := range issues {
-		statusCats[issue.Status] = issue.StatusCategory
 	}
 
 	queueCandidates := findQueuingColumns(persistence)
 
 	for _, p := range persistence {
 		name := p.StatusName
-		tier := "Downstream" // Default
+		cat := statusCats[name]
+		tier := "Downstream" // Default catch-all
 		role := "active"
 
-		// Tier Assignment
-		cat := strings.ToLower(statusCats[name])
-		if name == firstStatus {
+		// Tier Assignment Logic (Refined)
+		if name == birthStatus {
 			tier = "Demand"
-		} else if cat == "to-live" || cat == "to-do" || cat == "new" {
-			tier = "Upstream"
 		} else if cat == "done" || cat == "finished" || cat == "complete" {
 			tier = "Finished"
+		} else if cat == "to-live" || cat == "to-do" || cat == "new" {
+			tier = "Upstream"
+		} else if cat == "indeterminate" {
+			// Historically, Jira "Indeterminate" covers everything In Progress.
+			// However, if we've already identified Upstream vs Downstream based on path,
+			// we can refine this. For the proposal we stick to the category signal.
+			tier = "Downstream"
 		}
 
-		// Role Assignment with User-Specified Constraints
+		// Role Assignment
 		if tier == "Demand" {
 			role = "queue"
 		} else if tier == "Finished" {
@@ -191,53 +188,28 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		}
 	}
 
-	// Refine Commitment Point: First status in Downstream tier in discovered order
-	backbone := DiscoverStatusOrder(issues)
-	likelyCommitment := ""
-	for _, st := range backbone {
-		if m, ok := proposal[st]; ok && m.Tier == "Downstream" {
-			likelyCommitment = st
-			break
-		}
-	}
-
-	if likelyCommitment != "" {
-		// We don't return the commitment point here directly, but handlers.go uses the proposed mapping
-		// to find it. We ensure the Tiers/Roles are set up so handlers can find it.
-	}
-
-	// If a high-residency status is immediately preceded by a queue candidate,
-	// ensure that queue candidate is in the proposal.
-	// (This logic is further refined in the handler which has the full order)
-
 	return proposal
 }
 
-// DiscoverStatusOrder derives the Backbone workflow by analyzing transition frequencies.
-// It builds a directed graph and uses frequency-based directionality to determine order.
+// DiscoverStatusOrder derives the workflow backbone by tracing the most frequent journeys.
 func DiscoverStatusOrder(issues []jira.Issue) []string {
 	// 1. Build transition frequency matrix
 	matrix := make(map[string]map[string]int)
+	entryCounts := make(map[string]int)
 	allStatuses := make(map[string]bool)
 
 	for _, issue := range issues {
-		for _, t := range issue.Transitions {
-			if t.FromStatus != "" {
-				allStatuses[t.FromStatus] = true
+		allStatuses[issue.Status] = true
+		for i, t := range issue.Transitions {
+			allStatuses[t.FromStatus] = true
+			allStatuses[t.ToStatus] = true
+			if matrix[t.FromStatus] == nil {
+				matrix[t.FromStatus] = make(map[string]int)
 			}
-			if t.ToStatus != "" {
-				allStatuses[t.ToStatus] = true
+			matrix[t.FromStatus][t.ToStatus]++
+			if i == 0 && !issue.IsMoved {
+				entryCounts[t.FromStatus]++
 			}
-			if t.FromStatus != "" && t.ToStatus != "" {
-				if matrix[t.FromStatus] == nil {
-					matrix[t.FromStatus] = make(map[string]int)
-				}
-				matrix[t.FromStatus][t.ToStatus]++
-			}
-		}
-		// Also include the current status if not already there
-		if issue.Status != "" {
-			allStatuses[issue.Status] = true
 		}
 	}
 
@@ -245,63 +217,116 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		return nil
 	}
 
-	// 2. Identify the Backbone using frequency dominance
-	// For any pair (A, B), if Freq(A->B) > Freq(B->A), A is a predecessor.
-	// We'll build a simplified DAG by only keeping "dominant" forward edges.
-	statuses := make([]string, 0, len(allStatuses))
-	for s := range allStatuses {
-		statuses = append(statuses, s)
+	// 2. Identify Birth Status
+	birthStatus := ""
+	maxEntry := 0
+	for s, count := range entryCounts {
+		if count > maxEntry {
+			maxEntry = count
+			birthStatus = s
+		}
 	}
 
-	// Simple topological sort based on dominance counts
-	// An item is "further ahead" if it has more unique predecessors than another.
-	predecessorCount := make(map[string]int)
-	for i := 0; i < len(statuses); i++ {
-		for j := i + 1; j < len(statuses); j++ {
-			s1 := statuses[i]
-			s2 := statuses[j]
+	// Fallback if no explicit birth status found
+	if birthStatus == "" {
+		for s := range allStatuses {
+			birthStatus = s
+			break
+		}
+	}
 
-			f12 := matrix[s1][s2]
-			f21 := matrix[s2][s1]
+	// 3. Trace the "Happy Path" using greedy most-frequent successors
+	var order []string
+	visited := make(map[string]bool)
+	current := birthStatus
 
-			if f12 > f21 {
-				predecessorCount[s2]++
-			} else if f21 > f12 {
-				predecessorCount[s1]++
+	for current != "" {
+		order = append(order, current)
+		visited[current] = true
+
+		// Find next best status
+		next := ""
+		maxFreq := -1
+		successors := matrix[current]
+
+		// Sort keys for deterministic tie-breaking
+		var keys []string
+		for k := range successors {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, s := range keys {
+			freq := successors[s]
+			if !visited[s] && freq > maxFreq {
+				maxFreq = freq
+				next = s
 			}
 		}
+		current = next
 	}
 
-	sort.Slice(statuses, func(i, j int) bool {
-		c1 := predecessorCount[statuses[i]]
-		c2 := predecessorCount[statuses[j]]
-		if c1 != c2 {
-			return c1 < c2
+	// 4. Add any orphaned statuses using dominance-based sorting
+	var orphans []string
+	for s := range allStatuses {
+		if !visited[s] {
+			orphans = append(orphans, s)
 		}
-		// Deterministic fallback
-		return statuses[i] < statuses[j]
-	})
+	}
 
-	return statuses
+	if len(orphans) > 0 {
+		// Topological-ish sort for orphans
+		sort.Slice(orphans, func(i, j int) bool {
+			s1, s2 := orphans[i], orphans[j]
+			f12 := matrix[s1][s2]
+			f21 := matrix[s2][s1]
+			if f12 != f21 {
+				return f12 > f21
+			}
+			return s1 < s2
+		})
+		order = append(order, orphans...)
+	}
+
+	return order
 }
 
 func findQueuingColumns(persistence []StatusPersistence) map[string]bool {
 	queues := make(map[string]bool)
-	lowerNames := make(map[string]string)
+	lowerToOriginal := make(map[string]string)
 	for _, p := range persistence {
-		lowerNames[strings.ToLower(p.StatusName)] = p.StatusName
+		lowerToOriginal[strings.ToLower(p.StatusName)] = p.StatusName
 	}
 
 	patterns := []string{"ready for ", "awaiting ", "waiting for ", "pending ", "to be "}
 
-	for lower, original := range lowerNames {
+	// Helper to strip common activity suffixes for fuzzy matching
+	stripSuffixes := func(s string) string {
+		s = strings.TrimSpace(s)
+		suffixes := []string{"ing", "ment", "ed", "ion"}
+		for _, suff := range suffixes {
+			if strings.HasSuffix(s, suff) {
+				return s[:len(s)-len(suff)]
+			}
+		}
+		return s
+	}
+
+	for lower, original := range lowerToOriginal {
+		// 1. Explicit Prefix Patterns
 		for _, pat := range patterns {
 			if strings.HasPrefix(lower, pat) {
 				action := strings.TrimPrefix(lower, pat)
-				// Check if there is an active counterpart (e.g. "Ready for Dev" -> "Development")
+				stem := stripSuffixes(action)
+
+				// Check if there is an active counterpart
 				found := false
-				for otherLower := range lowerNames {
-					if otherLower != lower && (strings.Contains(otherLower, action) || strings.HasPrefix(action, otherLower)) {
+				for otherLower := range lowerToOriginal {
+					if otherLower == lower {
+						continue
+					}
+					otherStem := stripSuffixes(otherLower)
+					if otherStem != "" && (strings.Contains(otherStem, stem) || strings.Contains(stem, otherStem)) {
 						found = true
 						break
 					}
@@ -312,7 +337,8 @@ func findQueuingColumns(persistence []StatusPersistence) map[string]bool {
 			}
 		}
 
-		// Suffix patterns: "Developed" (done with dev, waiting for something else)
+		// 2. Suffix patterns: "Developed" (done with dev, waiting for something else)
+		// We avoid "ing" which usually implies active work.
 		if strings.HasSuffix(lower, "ed") && !strings.HasSuffix(lower, "ing") {
 			queues[original] = true
 		}

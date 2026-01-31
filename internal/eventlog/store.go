@@ -53,12 +53,12 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 		return
 	}
 
-	// 3. Sort by Timestamp and then SequenceID for deterministic ordering
+	// 3. Sort by Timestamp and then EventType for deterministic ordering
 	sort.Slice(log, func(i, j int) bool {
-		if !log[i].Timestamp.Equal(log[j].Timestamp) {
-			return log[i].Timestamp.Before(log[j].Timestamp)
+		if log[i].Timestamp != log[j].Timestamp {
+			return log[i].Timestamp < log[j].Timestamp
 		}
-		return log[i].SequenceID < log[j].SequenceID
+		return log[i].EventType < log[j].EventType
 	})
 
 	s.logs[sourceID] = log
@@ -156,7 +156,7 @@ func (s *EventStore) GetLatestTimestamp(sourceID string) time.Time {
 	}
 
 	// Events are sorted, so the last one is the latest
-	return logData[len(logData)-1].Timestamp
+	return time.UnixMicro(logData[len(logData)-1].Timestamp)
 }
 
 // GetEventsInRange returns a copy of events within the specified time window.
@@ -164,39 +164,35 @@ func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []I
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	log, ok := s.logs[sourceID]
-	if !ok || len(log) == 0 {
+	logData, ok := s.logs[sourceID]
+	if !ok {
 		return nil
 	}
 
-	// Use binary search to find the start index
-	startIdx := sort.Search(len(log), func(i int) bool {
-		return !log[i].Timestamp.Before(start)
-	})
+	startTs := start.UnixMicro()
+	endTs := end.UnixMicro()
 
-	if startIdx == len(log) {
-		return nil
+	var result []IssueEvent
+	for _, e := range logData {
+		if e.Timestamp >= startTs && (end.IsZero() || e.Timestamp <= endTs) {
+			result = append(result, e)
+		}
 	}
-
-	// Find the end index
-	endIdx := sort.Search(len(log), func(i int) bool {
-		return log[i].Timestamp.After(end)
-	})
-
-	// Return a copy to ensure thread safety for the consumer
-	result := make([]IssueEvent, endIdx-startIdx)
-	copy(result, log[startIdx:endIdx])
 	return result
 }
 
-// GetEventsForIssue returns the full lifecycle of a single issue within a source.
+// GetEventsForIssue returns the full event history for a single issue.
 func (s *EventStore) GetEventsForIssue(sourceID string, issueKey string) []IssueEvent {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	log := s.logs[sourceID]
+	logData, ok := s.logs[sourceID]
+	if !ok {
+		return nil
+	}
+
 	var result []IssueEvent
-	for _, e := range log {
+	for _, e := range logData {
 		if e.IssueKey == issueKey {
 			result = append(result, e)
 		}
@@ -208,7 +204,7 @@ func (s *EventStore) GetEventsForIssue(sourceID string, issueKey string) []Issue
 func (e IssueEvent) identity() string {
 	return fmt.Sprintf("%s|%d|%s|%s|%s",
 		e.IssueKey,
-		e.Timestamp.UnixNano(),
+		e.Timestamp,
 		e.EventType,
 		e.ToStatus,
 		e.Resolution,

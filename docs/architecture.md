@@ -133,9 +133,9 @@ To ensure conceptual integrity and transparency, the server adheres to a strict 
 
 #### 1. Precision & Storage
 
-- **Internal Resolution**: The server parses Jira's changelog and calculates residence time for every status in **Seconds** (`int64`).
-- **Serialization**: Integer seconds are used for all caching and cross-process communication to avoid floating-point "noise" and serialization errors.
-- **Conversion**: Conversion to "Days" only occurs at the analytical or reporting boundary: `Days = float64(Seconds) / 86400.0`.
+- **Internal Resolution**: The server parses Jira's changelog and calculates residence time for every status in **Microseconds** (`int64`).
+- **Serialization**: Integer microseconds are used for all caching and cross-process communication. This provides a deterministic "Physical Identity" for events, simplifying deduplication.
+- **Conversion**: Conversion to "Days" or "Seconds" only occurs at the analytical or reporting boundary: `Days = float64(Microseconds) / 86400000000.0`.
 
 #### 2. Aging Definitions
 
@@ -264,7 +264,7 @@ graph TD
     - **Stage 1: Probe**: Fetches a small sample (50 items) to enable `get_data_metadata` and `get_workflow_discovery`.
     - **Stage 2: WIP**: Fetches all active items (those not in the 'Finished' status category) to ensure accurate `get_aging_analysis`.
     - **Stage 3: Baseline**: Fetches a deep historical baseline (defaulting to 6 months) for forecasting and stability analysis.
-3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` and `SequenceID`.
+3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` (Unix Microseconds).
 4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Moved`). It ensures "Birth Status Alignment" by identifying the functional status an item landed in from its first transition.
 5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses (e.g., `ReconstructIssue`, `WIPProjection`).
 
