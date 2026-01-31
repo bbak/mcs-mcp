@@ -8,6 +8,8 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+
+	"github.com/rs/zerolog/log"
 )
 
 func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.SourceContext, error) {
@@ -24,20 +26,44 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 		if err != nil {
 			return nil, err
 		}
-		cMap := config.(map[string]interface{})
+		cMap, ok := config.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid board config response format from Jira")
+		}
 
 		// Extract Project Key from location if available
 		if loc, ok := cMap["location"].(map[string]interface{}); ok {
-			projectKey = fmt.Sprintf("%v", loc["projectKey"])
+			projectKey = asString(loc["projectKey"])
 		}
 
-		filterObj := cMap["filter"].(map[string]interface{})
-		filterID := fmt.Sprintf("%v", filterObj["id"])
+		filterObj, ok := cMap["filter"].(map[string]interface{})
+		if !ok {
+			// Fallback: Try Board Configuration for filter info (common for many Jira versions/board types)
+			log.Debug().Int("boardId", id).Msg("Filter missing in board metadata, trying board configuration")
+			configObj, err := s.jira.GetBoardConfig(id)
+			if err == nil {
+				if conf, isMap := configObj.(map[string]interface{}); isMap {
+					filterObj, ok = conf["filter"].(map[string]interface{})
+				}
+			}
+		}
+
+		if !ok {
+			return nil, fmt.Errorf("board config missing filter information (looked in board metadata and config)")
+		}
+		filterID := asString(filterObj["id"])
 		filter, err := s.jira.GetFilter(filterID)
 		if err != nil {
 			return nil, err
 		}
-		jql = filter.(map[string]interface{})["jql"].(string)
+		fMap, ok := filter.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid filter response format from Jira")
+		}
+		jql = asString(fMap["jql"])
+
+		// STRIP ORDER BY BEFORE WRAPPING
+		jql = stripOrderBy(jql)
 
 		// Board-Specific refinement: Exclude sub-tasks
 		jql = fmt.Sprintf("(%s) AND issuetype not in subtaskIssueTypes()", jql)
@@ -46,13 +72,14 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 		if err != nil {
 			return nil, err
 		}
-		jql = filter.(map[string]interface{})["jql"].(string)
-	}
+		fMap, ok := filter.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid filter response format from Jira")
+		}
+		jql = asString(fMap["jql"])
 
-	// Strip existing ORDER BY to avoid collision
-	jqlLower := strings.ToLower(jql)
-	if idx := strings.Index(jqlLower, " order by"); idx != -1 {
-		jql = jql[:idx]
+		// STRIP ORDER BY
+		jql = stripOrderBy(jql)
 	}
 
 	return &jira.SourceContext{
@@ -62,6 +89,14 @@ func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.Source
 		PrimaryProject: projectKey,
 		FetchedAt:      time.Now(),
 	}, nil
+}
+
+func stripOrderBy(jql string) string {
+	jqlLower := strings.ToLower(jql)
+	if idx := strings.Index(jqlLower, " order by"); idx != -1 {
+		return jql[:idx]
+	}
+	return jql
 }
 
 func (s *Server) formatResult(data interface{}) string {
@@ -91,8 +126,12 @@ func (s *Server) getStatusCategories(projectKeys []string) map[string]string {
 			continue
 		}
 
-		if statuses, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-			for _, itm := range statuses.([]interface{}) {
+		if data, err := s.jira.GetProjectStatuses(projectKey); err == nil {
+			statusesList, ok := data.([]interface{})
+			if !ok {
+				continue
+			}
+			for _, itm := range statusesList {
 				issueTypeMap, ok := itm.(map[string]interface{})
 				if !ok {
 					continue

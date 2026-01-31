@@ -101,6 +101,9 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 }
 
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
+// NOTE: This is a core high-performance analytical function. Modify with extreme caution.
+// Technical Context: Metrics may appear slightly lower than other tools due to high-fidelity, minute-level resolution
+// in transition logic, avoiding the overhead/inaccuracy of day-only granularity.
 func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAge {
 	var results []InventoryAge
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -85,8 +86,15 @@ func (s *Server) sendError(id interface{}, err interface{}) {
 func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error().Interface("panic", r).Msg("Panic recovered in callTool")
-			errRes = map[string]interface{}{"code": -32603, "message": fmt.Sprintf("Internal error: %v", r)}
+			stack := string(debug.Stack())
+			log.Error().
+				Interface("panic", r).
+				Str("stack", stack).
+				Msg("Panic recovered in callTool")
+			errRes = map[string]interface{}{
+				"code": -32603,
+				"message": fmt.Sprintf("Internal error: %v\n\nStack trace:\n%s", r, stack),
+			}
 		}
 	}()
 

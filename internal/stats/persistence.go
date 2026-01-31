@@ -9,7 +9,7 @@ import (
 // StatusPersistence provides historical residency analysis for a single status.
 type StatusPersistence struct {
 	StatusName     string  `json:"statusName"`
-	Count          int     `json:"count"`
+	Share          float64 `json:"share"`              // % of sample that visited this status
 	Category       string  `json:"category,omitempty"` // Jira Category (To Do, In Progress, Done)
 	Role           string  `json:"role,omitempty"`     // Functional Role (active, queue, ignore)
 	Tier           string  `json:"tier,omitempty"`     // Meta-Workflow Tier (Demand, Upstream, Downstream, Finished)
@@ -41,7 +41,12 @@ type PersistenceResult struct {
 
 // CalculateStatusPersistence analyzes how long items spend in each status.
 func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
+	if len(issues) == 0 {
+		return nil
+	}
+
 	statusDurations := make(map[string][]float64)
+	totalIssues := float64(len(issues))
 
 	for _, issue := range issues {
 		for status, seconds := range issue.StatusResidency {
@@ -54,14 +59,18 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 
 	var results []StatusPersistence
 	for status, durations := range statusDurations {
-		if len(durations) == 0 {
+		n := len(durations)
+		share := float64(n) / totalIssues
+
+		// Filter noise: skip statuses visited by < 1% of work items
+		if share < 0.01 {
 			continue
 		}
+
 		sort.Float64s(durations)
-		n := len(durations)
 		results = append(results, StatusPersistence{
 			StatusName: status,
-			Count:      n,
+			Share:      math.Round(share*1000) / 1000,
 			P50:        math.Round(durations[int(float64(n)*0.50)]*10) / 10,
 			P70:        math.Round(durations[int(float64(n)*0.70)]*10) / 10,
 			P85:        math.Round(durations[int(float64(n)*0.85)]*10) / 10,
@@ -105,15 +114,15 @@ func EnrichStatusPersistence(results []StatusPersistence, categories map[string]
 			}
 		}
 
-		// Interpretation Hint
+		// Interpretation Hint (Emphasize INTERNAL residency, not completion)
 		switch s.Role {
 		case "queue":
-			s.Interpretation = "This is a queue/waiting stage. Persistence here is 'Flow Debt'."
+			s.Interpretation = "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
 		case "active":
 			if s.Tier == "Demand" {
-				s.Interpretation = "This is item storage; high persistence is expected."
+				s.Interpretation = "This is item storage; high residency here is expected and does not impact lead time."
 			} else {
-				s.Interpretation = "This is a working stage. High persistence indicates a bottleneck."
+				s.Interpretation = "This is an active working stage. High residency indicates a local bottleneck at this step."
 			}
 		case "ignore":
 			s.Interpretation = "This status is ignored in most process diagnostics."

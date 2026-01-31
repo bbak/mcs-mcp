@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"sort"
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -63,29 +64,69 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	projectKeys := s.extractProjectKeys(issues)
 	persistence := stats.CalculateStatusPersistence(issues)
 
+	// Build a map of significant statuses for quick lookup
+	significant := make(map[string]bool)
+	for _, p := range persistence {
+		significant[p.StatusName] = true
+	}
+
 	proposal := stats.ProposeSemantics(issues, persistence)
 
-	// Refine proposal with status categories
+	// Refine proposal with status categories and filter by significance
 	statusCats := s.getStatusCategories(projectKeys)
+	finalProposal := make(map[string]stats.StatusMetadata)
 	for name, meta := range proposal {
+		if !significant[name] {
+			continue
+		}
 		if cat, ok := statusCats[name]; ok {
-			if cat == "done" {
+			if cat == "done" || cat == "finished" || cat == "complete" {
 				meta.Tier = "Finished"
 				meta.Role = "active"
-				proposal[name] = meta
 			}
+		}
+		finalProposal[name] = meta
+	}
+
+	// Filter and Sort Discovered Order
+	// We use the proposed mapping (finalProposal) to determine tiers for sorting
+	rawOrder := stats.DiscoverStatusOrder(issues)
+	var discoveredOrder []string
+	for _, st := range rawOrder {
+		if significant[st] {
+			discoveredOrder = append(discoveredOrder, st)
 		}
 	}
 
+	// Sort by Tier: Demand < Upstream < Downstream < Finished
+	tierWeights := map[string]int{
+		"Demand":     1,
+		"Upstream":   2,
+		"Downstream": 3,
+		"Finished":   4,
+	}
+
+	sort.SliceStable(discoveredOrder, func(i, j int) bool {
+		ti := finalProposal[discoveredOrder[i]].Tier
+		tj := finalProposal[discoveredOrder[j]].Tier
+		if tierWeights[ti] != tierWeights[tj] {
+			return tierWeights[ti] < tierWeights[tj]
+		}
+		// Secondary sort: keep existing relative order from DiscoverStatusOrder
+		return i < j
+	})
+
 	return map[string]interface{}{
 		"source_id":         sourceID,
-		"proposed_mapping":  proposal,
-		"discovered_order":  stats.DiscoverStatusOrder(issues),
+		"proposed_mapping":  finalProposal,
+		"discovered_order":  discoveredOrder,
 		"persistence_stats": persistence,
 		"_guidance": []string{
 			"AI MUST verify this semantic mapping with the user via 'set_workflow_mapping' before performing deeper analysis.",
 			"Tiers (Demand, Upstream, Downstream, Finished) determine the analytical scope. 'Upstream' covers refinement, 'Downstream' covers execution.",
 			"Roles (active, queue, ignore) determine if the clock is running or paused.",
+			"Discovery uses a SMALL recent sample (200 items) to build the map. Use 'get_status_persistence' for robust performance analysis.",
+			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 			"WITHOUT a confirmed mapping, follow-up diagnostics (Aging, Stability, Simulation) will produce SUBPAR results.",
 		},
 	}

@@ -28,6 +28,8 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 	return map[string]interface{}{
 		"persistence": persistence,
 		"_guidance": []string{
+			"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
+			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 			"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
 			"Statuses with zero residency for many items might be bypassed in the actual process.",
 		},
@@ -35,6 +37,8 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 }
 
 func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFilter string) (interface{}, error) {
+	// Technical Note: This diagnostic provides high-fidelity aging data with minute-level resolution.
+	// It is a validated core feature; maintain consistency with stats.CalculateInventoryAge.
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
