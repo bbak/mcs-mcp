@@ -47,7 +47,8 @@ To ensure conceptual integrity, the AI **must never assume** the semantic tiers 
 
 1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes **Pure Observation** (archeology):
     - **Demand Tier**: Status identified as the primary entry point (`birthStatus`).
-    - **Finished Tier**: Statuses associated with a `resolutiondate` (Fact) or identified as a **Terminal Sink** (Asymmetry).
+    - **Finished Tier**: Statuses with a high **Resolution Density** (Fact-based, > 20%) or identified as a **Terminal Sink** (Asymmetry-based).
+    - **Confidence-Weighted Backbone**: The path tracer avoids premature "shortcuts" to terminal states by requiring transitions to meet a **Market Share** threshold (15%) and prioritizing active workflow chains.
     - **Backflow Weighting**: Backflow detection (reverting to a 'lower' status) is based on the **Observed Backbone Path Index**, not system categories.
     - **Functional Roles**: Automatic "queue" role for statuses matching patterns like "Ready for X" or "Awaiting" when an active counterpart exists.
     - **API Strategy**: The server intentionally avoids the Jira Board Configuration API (`/rest/agile/1.0/board/{id}/configuration`) for several reasons:
@@ -97,7 +98,7 @@ Within these tiers, statuses can be further tagged:
 The server distinguishes **how** and **where** work exits the process through **Workflow Outcome Calibration**. Because Jira workflows are often inconsistent, the server employs a dual-signal methodology:
 
 - **The "Finished" Signal**: Detection of the terminal state.
-    - **Primary (Fact)**: Occurrence of a `resolutiondate` in the changelog.
+    - **Primary (Probabilistic Fact)**: A status is terminal if a significant portion (> 20%) of its visitors are resolved there.
     - **Secondary (Asymmetry)**: Detection of a **Terminal Sink** (Status where entries significantly exceed exits).
     - **Tertiary (Mapping)**: Reaching a status explicitly mapped to the **Finished** tier.
 - **Outcome Classification**: Once finished, items are classified into semantic outcomes:
@@ -297,11 +298,15 @@ To minimize latency, the system utilizes an **Incremental Fetch** strategy:
 - **Delta Retrieval**: If a recent cache exists, the server updates its JQL to fetch only items modified since that timestamp (`updated >= {latest_ts}`).
 - **Paginated Recovery**: For high-churn environments or deep catch-ups, the server implements robust pagination, fetching data in configurable pages to stay within Jira's `maxResults` constraints while ensuring no events are missed.
 
-### 5.4. Recency Bias & Analysis Windowing
+### 5.4. Recency Bias & Age-Constrained Sampling
 
-To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts, the system applies a mandatory 6-month recency window:
+To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts or legacy configurations, the system applies a mandatory age-constrained sampling policy:
 
-- **Workflow Discovery**: The `get_workflow_discovery` tool automatically filters the source data to items updated within the last **180 days**. This prevents stale or decommissioned statuses from cluttering the discovery results.
+- **Workflow Discovery Sampling**: The `get_workflow_discovery` tool builds its analytical backbone from a controlled subset of the event log. It employs a **Multi-Stage Age Constraint**:
+    - **Target Sample**: 200 issues.
+    - **Priority Window (1 year)**: Only issues created within the last 365 days are selected.
+    - **Adaptive Fallback**: If the priority window is sparse (< 100 items), the system expands up to 3 years. If sufficient (> 100), it expands to 2 years.
+    - **Implicit Filter**: Issues older than 3 years are strictly excluded from discovery, preventing "ancient" noise from polluting current process diagnostics.
 - **Simulation Baseline**: Forecasting tools default to a 180-day historical window for throughput and cycle time distributions, ensuring the "Capability" of the team reflects their recent performance.
 
 ### 5.2. Search-Driven Inventory (Discovery Memory)

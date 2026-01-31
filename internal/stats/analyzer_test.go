@@ -1,7 +1,9 @@
 package stats
 
 import (
+	"fmt"
 	"mcs-mcp/internal/jira"
+	"strings"
 	"testing"
 	"time"
 )
@@ -383,6 +385,140 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 	for i, s := range expectedOrder {
 		if order[i] != s {
 			t.Errorf("At index %d expected %s, got %s", i, s, order[i])
+		}
+	}
+}
+
+func TestDiscoverStatusOrder_ShortcutAvoidance(t *testing.T) {
+	now := time.Now()
+	// Scenario: Refining has two exits:
+	// 1. Refining -> Done (Shortcut/Outlier): 10 issues
+	// 2. Refining -> Developing (Active path): 8 issues
+	// Greedy would pick Done. We expect it to pick Developing.
+
+	var issues []jira.Issue
+	// 10 Shortcutters
+	for i := 0; i < 10; i++ {
+		issues = append(issues, jira.Issue{
+			Key:            "S",
+			Status:         "Done",
+			ResolutionDate: &now,
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "Refining", ToStatus: "Done", Date: now},
+			},
+		})
+	}
+	// 8 Active pathers
+	for i := 0; i < 8; i++ {
+		issues = append(issues, jira.Issue{
+			Key:    "A",
+			Status: "Developing",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "Refining", ToStatus: "Developing", Date: now},
+			},
+		})
+	}
+
+	order := DiscoverStatusOrder(issues)
+
+	// We expect Refining -> Developing -> Done (orphaned appended last)
+	if len(order) < 2 {
+		t.Fatalf("Expected at least 2 statuses, got %d", len(order))
+	}
+	if order[0] != "Refining" {
+		t.Errorf("Expected Refining first, got %s", order[0])
+	}
+	if order[1] != "Developing" {
+		t.Errorf("Expected Developing second (avoided Done shortcut), got %s", order[1])
+	}
+}
+
+func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
+	now := time.Now()
+	// Scenario: UAT has some cancelled tickets (Resolutions) but is primarily an active stage.
+	// Total reachability of UAT: 20 items.
+	// Resolved in UAT: 2 items (10% resolution density).
+	// Threshold is 20%. UAT should NOT be Finished.
+
+	var issues []jira.Issue
+	// 18 items pass through UAT to Prod
+	for i := 0; i < 18; i++ {
+		issues = append(issues, jira.Issue{
+			Key:            "P",
+			Status:         "Prod",
+			ResolutionDate: &now,
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "UAT", ToStatus: "Prod", Date: now},
+			},
+		})
+	}
+	// 2 items stop in UAT
+	for i := 0; i < 2; i++ {
+		issues = append(issues, jira.Issue{
+			Key:            "C",
+			Status:         "UAT",
+			ResolutionDate: &now,
+		})
+	}
+
+	persistence := []StatusPersistence{
+		{StatusName: "UAT"},
+		{StatusName: "Prod"},
+	}
+
+	proposal := ProposeSemantics(issues, persistence)
+
+	if proposal["UAT"].Tier == "Finished" {
+		t.Errorf("UAT should be Downstream (10%% density), not Finished")
+	}
+	if proposal["Prod"].Tier != "Finished" {
+		t.Errorf("Prod should be Finished, got %s", proposal["Prod"].Tier)
+	}
+}
+
+func TestSelectDiscoverySample_Filtering(t *testing.T) {
+	now := time.Now()
+	oneYearAgo := now.AddDate(-1, 0, 0)
+	twoYearsOld := now.AddDate(-2, 0, 0)
+	ancient := now.AddDate(-5, 0, 0)
+
+	var issues []jira.Issue
+	// 50 Recent (1y)
+	for i := 0; i < 50; i++ {
+		issues = append(issues, jira.Issue{
+			Key:     fmt.Sprintf("R-%d", i),
+			Created: oneYearAgo.Add(time.Hour * time.Duration(i)),
+			Updated: now,
+		})
+	}
+	// 100 Medium (2y)
+	for i := 0; i < 100; i++ {
+		issues = append(issues, jira.Issue{
+			Key:     fmt.Sprintf("M-%d", i),
+			Created: twoYearsOld.Add(time.Hour * time.Duration(i)),
+			Updated: now.Add(-time.Hour),
+		})
+	}
+	// 100 Ancient (5y)
+	for i := 0; i < 100; i++ {
+		issues = append(issues, jira.Issue{
+			Key:     fmt.Sprintf("A-%d", i),
+			Created: ancient.Add(time.Hour * time.Duration(i)),
+			Updated: now.Add(-2 * time.Hour),
+		})
+	}
+
+	// target 200. Since we have 50 in 1y (which is < 100), we should expand to 3y.
+	// 2y is within 3y. Ancient (5y) should be completely filtered out.
+	sample := SelectDiscoverySample(issues, 200)
+
+	if len(sample) != 150 { // Should only have Recent (50) + Medium (100)
+		t.Errorf("Expected 150 items, got %d", len(sample))
+	}
+
+	for _, iss := range sample {
+		if strings.HasPrefix(iss.Key, "A-") {
+			t.Errorf("Ancient issue %s should have been filtered out", iss.Key)
 		}
 	}
 }

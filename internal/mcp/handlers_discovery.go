@@ -25,12 +25,17 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
 	domainIssues := s.reconstructIssues(events, sourceID)
 
-	summary := stats.AnalyzeProbe(domainIssues, len(domainIssues), s.getFinishedStatuses(sourceID))
+	// Apply age-constrained sampling (200 healthy items)
+	sample := stats.SelectDiscoverySample(domainIssues, 200)
+
+	summary := stats.AnalyzeProbe(sample, len(sample), s.getFinishedStatuses(sourceID))
 
 	return map[string]interface{}{
-		"summary": summary,
+		"summary":            summary,
+		"total_source_items": len(domainIssues),
 		"_guidance": []string{
-			"This is a DATA PROBE on a 50-item sample. Use it to understand data volume and distribution.",
+			"This is a DATA PROBE on a 200-item recent sample. Use it to understand data volume and distribution.",
+			"Items are selected based on recent activity (updated DESC) with an age-weighted fallback (1-3 years creation) to avoid noisy ancient history.",
 			"SampleResolvedRatio is a diagnostic of the sample's completeness, NOT a team performance metric.",
 			"Inventory counts (WIP/Backlog) are HEURISTICS. Unreliable until 'set_workflow_mapping' and 'set_workflow_order' are confirmed.",
 		},
@@ -51,7 +56,10 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
 	domainIssues := s.reconstructIssues(events, sourceID)
 
-	return s.getWorkflowDiscovery(sourceID, domainIssues), nil
+	// Apply age-constrained sampling (200 healthy items)
+	sample := stats.SelectDiscoverySample(domainIssues, 200)
+
+	return s.getWorkflowDiscovery(sourceID, sample), nil
 }
 
 func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string) []jira.Issue {

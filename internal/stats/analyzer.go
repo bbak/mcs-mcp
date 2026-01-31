@@ -138,6 +138,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 	// 1. Gather facts from actual data
 	entryCounts := make(map[string]int) // Number of issues that started in this status
 	resolvedCounts := make(map[string]int)
+	reachability := make(map[string]int) // Total unique issues that visited this status
 	transitionsInto := make(map[string]int)
 	transitionsOutOf := make(map[string]int)
 
@@ -152,10 +153,16 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 			resolvedCounts[issue.Status]++
 		}
 
-		// Flow graph analysis (Asymmetry)
+		visited := make(map[string]bool)
+		visited[issue.Status] = true
 		for _, t := range issue.Transitions {
+			visited[t.ToStatus] = true
+			visited[t.FromStatus] = true
 			transitionsInto[t.ToStatus]++
 			transitionsOutOf[t.FromStatus]++
+		}
+		for s := range visited {
+			reachability[s]++
 		}
 	}
 
@@ -180,7 +187,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 
 	// Keyword sets for tier biasing
 	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
-	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging"}
+	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging", "qa", "uat", "prod", "fix"}
 
 	for _, p := range persistence {
 		name := p.StatusName
@@ -190,34 +197,39 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 
 		// --- TIER HEURISTICS ---
 
-		// A. Demand (Entry)
-		if name == birthStatus {
+		// A. Demand (Entry) - Only if it's the primary birth status
+		// and it doesn't have a high resolution density (which would make it a sink)
+		isBirth := name == birthStatus
+
+		// B. Finished (Terminal)
+		// Probabilistic Fact-Based: More than 20% of reachability is resolved here.
+		resDensity := 0.0
+		if reach := reachability[name]; reach > 0 {
+			resDensity = float64(resolvedCounts[name]) / float64(reach)
+		}
+		isResolvedDensity := resDensity > 0.20
+
+		// Terminal Asymmetry: High entry, low exit (sinking).
+		isTerminalSink := transitionsInto[name] > 5 && transitionsInto[name] > (transitionsOutOf[name]*4)
+
+		if isResolvedDensity || isTerminalSink {
+			tier = "Finished"
+		} else if isBirth {
 			tier = "Demand"
 		} else {
-			// B. Finished (Terminal)
-			isResolvedFact := resolvedCounts[name] > 0
-			// Terminal Asymmetry: High entry, low exit (sinks).
-			// We define a sink as status where we entered it many times but rarely left it.
-			isTerminalSink := transitionsInto[name] > 5 && transitionsInto[name] > (transitionsOutOf[name]*3)
+			// C. Upstream vs Downstream biasing
+			isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
+			isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
 
-			if isResolvedFact || isTerminalSink {
-				tier = "Finished"
-			} else {
-				// C. Upstream vs Downstream biasing
-				isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
-				isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
+			idx, inPath := pathIndices[name]
+			isEarlyInPath := inPath && idx < (len(pathOrder)/2)
 
-				idx, inPath := pathIndices[name]
-				isEarlyInPath := inPath && idx < (len(pathOrder)/2)
-
-				if isUpstreamKeyword {
-					tier = "Upstream"
-				} else if isDownstreamKeyword {
-					tier = "Downstream"
-				} else if isEarlyInPath {
-					// Fallback to path location if no keywords match
-					tier = "Upstream"
-				}
+			if isUpstreamKeyword {
+				tier = "Upstream"
+			} else if isDownstreamKeyword {
+				tier = "Downstream"
+			} else if isEarlyInPath {
+				tier = "Upstream"
 			}
 		}
 
@@ -225,7 +237,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		if tier == "Demand" {
 			role = "queue"
 		} else if tier == "Finished" {
-			role = "active" // Terminal is always active in results context
+			role = "active"
 		} else if queueCandidates[name] {
 			role = "queue"
 		}
@@ -252,21 +264,39 @@ func matchesAny(s string, keywords []string) bool {
 func DiscoverStatusOrder(issues []jira.Issue) []string {
 	// 1. Build transition frequency matrix
 	matrix := make(map[string]map[string]int)
+	exitsTotal := make(map[string]int)
 	entryCounts := make(map[string]int)
 	allStatuses := make(map[string]bool)
+	resolvedAt := make(map[string]int)
+	reachability := make(map[string]int)
 
 	for _, issue := range issues {
 		allStatuses[issue.Status] = true
+		visited := make(map[string]bool)
+		visited[issue.Status] = true
+
+		if issue.ResolutionDate != nil {
+			resolvedAt[issue.Status]++
+		}
+
 		for i, t := range issue.Transitions {
 			allStatuses[t.FromStatus] = true
 			allStatuses[t.ToStatus] = true
+			visited[t.FromStatus] = true
+			visited[t.ToStatus] = true
+
 			if matrix[t.FromStatus] == nil {
 				matrix[t.FromStatus] = make(map[string]int)
 			}
 			matrix[t.FromStatus][t.ToStatus]++
+			exitsTotal[t.FromStatus]++
+
 			if i == 0 && !issue.IsMoved {
 				entryCounts[t.FromStatus]++
 			}
+		}
+		for s := range visited {
+			reachability[s]++
 		}
 	}
 
@@ -284,7 +314,6 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		}
 	}
 
-	// Fallback if no explicit birth status found
 	if birthStatus == "" {
 		for s := range allStatuses {
 			birthStatus = s
@@ -292,7 +321,7 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		}
 	}
 
-	// 3. Trace the "Happy Path" using greedy most-frequent successors
+	// 3. Trace the "Happy Path" using Market-Share confidence
 	var order []string
 	visited := make(map[string]bool)
 	current := birthStatus
@@ -301,25 +330,82 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		order = append(order, current)
 		visited[current] = true
 
+		successors := matrix[current]
+		totalExits := exitsTotal[current]
+
 		// Find next best status
 		next := ""
 		maxFreq := -1
-		successors := matrix[current]
 
-		// Sort keys for deterministic tie-breaking
-		var keys []string
-		for k := range successors {
-			keys = append(keys, k)
+		// Candidate discovery
+		type candidate struct {
+			name        string
+			freq        int
+			marketShare float64
+			isTerminal  bool
 		}
-		sort.Strings(keys)
+		var candidates []candidate
+		for name, freq := range successors {
+			if visited[name] {
+				continue
+			}
+			share := float64(freq) / float64(totalExits)
+			if share < 0.15 { // Minimum market share to be considered part of the "Backbone"
+				continue
+			}
 
-		for _, s := range keys {
-			freq := successors[s]
-			if !visited[s] && freq > maxFreq {
-				maxFreq = freq
-				next = s
+			resDensity := 0.0
+			if reach := reachability[name]; reach > 0 {
+				resDensity = float64(resolvedAt[name]) / float64(reach)
+			}
+
+			candidates = append(candidates, candidate{
+				name:        name,
+				freq:        freq,
+				marketShare: share,
+				isTerminal:  resDensity > 0.25,
+			})
+		}
+
+		if len(candidates) > 0 {
+			// Selection Logic:
+			// 1. Prefer non-terminal candidates with high share
+			// 2. If only one candidate, take it
+			// 3. If multiple, take the non-terminal with highest freq
+
+			bestActive := -1
+			bestTerminal := -1
+
+			for i, c := range candidates {
+				if c.isTerminal {
+					if bestTerminal == -1 || c.freq > candidates[bestTerminal].freq {
+						bestTerminal = i
+					}
+				} else {
+					if bestActive == -1 || c.freq > candidates[bestActive].freq {
+						bestActive = i
+					}
+				}
+			}
+
+			if bestActive != -1 {
+				next = candidates[bestActive].name
+			} else if bestTerminal != -1 {
+				next = candidates[bestTerminal].name
 			}
 		}
+
+		if next == "" {
+			// Fallback: try pure frequency if no candidates met the share threshold
+			maxFreq = -1
+			for name, freq := range successors {
+				if !visited[name] && freq > maxFreq {
+					maxFreq = freq
+					next = name
+				}
+			}
+		}
+
 		current = next
 	}
 
@@ -332,7 +418,6 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	}
 
 	if len(orphans) > 0 {
-		// Topological-ish sort for orphans
 		sort.Slice(orphans, func(i, j int) bool {
 			s1, s2 := orphans[i], orphans[j]
 			f12 := matrix[s1][s2]
@@ -402,4 +487,61 @@ func findQueuingColumns(persistence []StatusPersistence) map[string]bool {
 	}
 
 	return queues
+}
+
+// SelectDiscoverySample filters a set of issues to provide a 200-item "healthy" subset for discovery.
+// It prioritizes items created within 1 year, expanding to 2 or 3 years only if the sample is sparse.
+func SelectDiscoverySample(issues []jira.Issue, targetSize int) []jira.Issue {
+	if len(issues) <= targetSize {
+		return issues
+	}
+
+	// 1. Sort by Updated DESC to ensure we get most recent activity
+	sort.SliceStable(issues, func(i, j int) bool {
+		return issues[i].Updated.After(issues[j].Updated)
+	})
+
+	now := time.Now()
+	oneYearAgo := now.AddDate(-1, 0, 0)
+	twoYearsAgo := now.AddDate(-2, 0, 0)
+	threeYearsAgo := now.AddDate(-3, 0, 0)
+
+	var pool1y []jira.Issue
+	for _, iss := range issues {
+		if !iss.Created.Before(oneYearAgo) {
+			pool1y = append(pool1y, iss)
+		}
+	}
+
+	// 2. Check if we have enough 1y items
+	if len(pool1y) >= targetSize {
+		return pool1y[:targetSize]
+	}
+
+	// 3. Expansion Logic
+	var fallbackPool []jira.Issue
+	limitDate := twoYearsAgo
+	if len(pool1y) < 100 {
+		limitDate = threeYearsAgo
+	}
+
+	for _, iss := range issues {
+		// Only consider items OLDER than 1y but NEWER than limit
+		if iss.Created.Before(oneYearAgo) && iss.Created.After(limitDate) {
+			fallbackPool = append(fallbackPool, iss)
+		}
+	}
+
+	// Union
+	result := append([]jira.Issue{}, pool1y...)
+	remaining := targetSize - len(result)
+	if remaining > 0 {
+		if len(fallbackPool) > remaining {
+			result = append(result, fallbackPool[:remaining]...)
+		} else {
+			result = append(result, fallbackPool...)
+		}
+	}
+
+	return result
 }

@@ -42,17 +42,50 @@ func (p *LogProvider) EnsureProbe(sourceID string, jql string) error {
 		return nil
 	}
 
-	log.Info().Str("source", sourceID).Msg("Stage 1: Running Discovery Probe")
+	log.Info().Str("source", sourceID).Msg("Stage 1: Running Age-Constrained Discovery Probe")
 
-	// Fetch 200 most recently updated items
-	probeJQL := fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
-	events, err := p.fetchAll(probeJQL, 200)
+	// Multi-stage fetch logic:
+	// A. Fetch up to 200 items created within 1 year
+	oneYearJQL := fmt.Sprintf("(%s) AND created >= '-365d' ORDER BY updated DESC", jql)
+	events, err := p.fetchAll(oneYearJQL, 200)
 	if err != nil {
-		return fmt.Errorf("probe failed: %w", err)
+		return fmt.Errorf("probe fetch 1y failed: %w", err)
+	}
+
+	count1y := p.countUniqueIssues(events)
+
+	if count1y < 200 {
+		// B. Expansion logic based on count
+		targetDiff := 200 - count1y
+		var fallbackJQL string
+		if count1y < 100 {
+			// Extend to 3 years
+			fallbackJQL = fmt.Sprintf("(%s) AND created < '-365d' AND created >= '-1095d' ORDER BY updated DESC", jql)
+			log.Debug().Int("count1y", count1y).Msg("Sample sparse (<100), extending discovery window to 3 years")
+		} else {
+			// Extend to 2 years
+			fallbackJQL = fmt.Sprintf("(%s) AND created < '-365d' AND created >= '-730d' ORDER BY updated DESC", jql)
+			log.Debug().Int("count1y", count1y).Msg("Sample sufficient (>100), extending discovery window to 2 years")
+		}
+
+		extraEvents, err := p.fetchAll(fallbackJQL, targetDiff)
+		if err != nil {
+			log.Warn().Err(err).Msg("Discovery fallback fetch failed, proceeding with partial sample")
+		} else {
+			events = append(events, extraEvents...)
+		}
 	}
 
 	p.store.Append(sourceID, events)
 	return p.store.Save(p.cacheDir, sourceID)
+}
+
+func (p *LogProvider) countUniqueIssues(events []IssueEvent) int {
+	keys := make(map[string]bool)
+	for _, e := range events {
+		keys[e.IssueKey] = true
+	}
+	return len(keys)
 }
 
 // EnsureWIP (Stage 2) ensures all currently active (logical WIP) items are in the log.

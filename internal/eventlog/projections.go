@@ -121,6 +121,7 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 	var lastMoveDate int64
 
 	for _, e := range events {
+		issue.Updated = time.UnixMicro(e.Timestamp)
 		switch e.EventType {
 		case Created:
 			issue.Created = time.UnixMicro(e.Timestamp)
