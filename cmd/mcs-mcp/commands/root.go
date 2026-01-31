@@ -17,6 +17,7 @@ var (
 	BuildDate = "unknown"
 
 	verbose bool
+	cfg     *config.AppConfig
 
 	jiraClient jira.Client
 )
@@ -30,7 +31,8 @@ using Monte-Carlo-Simulation based on Jira data.`,
 		logging.Init(verbose)
 
 		// Load configuration
-		cfg, err := config.Load()
+		var err error
+		cfg, err = config.Load()
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to load configuration")
 		}
@@ -46,7 +48,7 @@ using Monte-Carlo-Simulation based on Jira data.`,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("MCP Server starting Stdio loop")
-		server := mcp.NewServer(jiraClient)
+		server := mcp.NewServer(cfg, jiraClient)
 		server.Start()
 	},
 }

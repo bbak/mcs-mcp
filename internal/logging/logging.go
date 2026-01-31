@@ -40,29 +40,22 @@ func Init(verbose bool) {
 	}
 
 	// 3. Setup File Writer (Rotating)
-	logDir := os.Getenv("LOGS_FOLDER")
-	if logDir == "" {
+	dataPath := os.Getenv("DATA_PATH")
+	if dataPath == "" {
 		if err == nil {
-			logDir = filepath.Join(filepath.Dir(exePath), "logs")
+			dataPath = filepath.Dir(exePath)
 		} else {
-			logDir = "logs"
+			dataPath = "."
 		}
 	}
+
+	logDir := filepath.Join(dataPath, "logs")
 
 	// Ensure log directory exists and is writable
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to create log directory %q: %v\n", logDir, err)
 		os.Exit(1)
 	}
-
-	// Check if we can write to the directory by creating a temp file or just stat'ing it
-	// MkdirAll success is a good indicator, but let's be sure.
-	testFile := filepath.Join(logDir, ".write-test")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: log directory %q is not writable: %v\n", logDir, err)
-		os.Exit(1)
-	}
-	_ = os.Remove(testFile)
 
 	logFile := filepath.Join(logDir, "mcs-mcp.log")
 

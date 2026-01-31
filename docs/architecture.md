@@ -273,10 +273,27 @@ graph TD
 The event log, partitioned by board ID, is the definitive source of truth for the server. This design provides:
 
 - **Immutability**: Historical events are objective facts (e.g., "Item X moved to Dev at 10:00").
+- **Persistence (Long-term Cache)**: The log is persisted to disk using **JSON Lines (JSONL)**, enabling fast reloads between sessions and reducing reliance on Jira APIs.
 - **Analytical Flexibility**: Metrics like "Cycle Time" or "Commitment Point" are just interpretations of the log and can be adjusted (via `set_workflow_mapping`) without re-fetching data.
 - **Progressive Consistency**: The system becomes more "knowledgeable" as stages are completed, but always operates on a consistent, deduplicated log.
 
-### 5.2. Recency Bias & Analysis Windowing
+### 5.2. File-Backed JSONL Cache
+
+To ensure performance and reliability across sessions, the server implements a file-backed cache:
+
+- **Format: JSONL**: Data is stored as newline-delimited JSON objects. This format supports streaming (memory efficiency) and is resilient to partial write failures.
+- **Atomic Persistence**: Saving to disk utilizes a "write-to-tmp and rename" pattern to ensure that the cache file is never left in a corrupted state if the process is interrupted.
+- **Content Integrity**: The system automatically handles deduplication and chronological sorting during the `Load` operation, ensuring the in-memory `EventStore` remains consistent even if the cache contains overlapping data.
+
+### 5.3. Incremental Synchronization
+
+To minimize latency, the system utilizes an **Incremental Fetch** strategy:
+
+- **Latest Timestamp Detection**: Upon loading a board/filter, the server identifies the timestamp of the most recent event in the local cache.
+- **Delta Retrieval**: If a recent cache exists, the server updates its JQL to fetch only items modified since that timestamp (`updated >= {latest_ts}`).
+- **Paginated Recovery**: For high-churn environments or deep catch-ups, the server implements robust pagination, fetching data in configurable pages to stay within Jira's `maxResults` constraints while ensuring no events are missed.
+
+### 5.4. Recency Bias & Analysis Windowing
 
 To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts, the system applies a mandatory 6-month recency window:
 

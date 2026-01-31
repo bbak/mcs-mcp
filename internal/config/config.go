@@ -14,15 +14,19 @@ import (
 
 // AppConfig holds the complete application configuration.
 type AppConfig struct {
-	Jira jira.Config
+	Jira     jira.Config
+	DataPath string
+	LogDir   string
+	CacheDir string
 }
 
 // Load loads the configuration from .env files and environment variables.
 func Load() (*AppConfig, error) {
 	// 1. Try to load from the executable's directory (highest priority for MCP servers)
 	exePath, err := os.Executable()
+	exeDir := ""
 	if err == nil {
-		exeDir := filepath.Dir(exePath)
+		exeDir = filepath.Dir(exePath)
 		envPath := filepath.Join(exeDir, ".env")
 		if err := godotenv.Load(envPath); err == nil {
 			log.Debug().Str("path", envPath).Msg("Loaded configuration from binary directory")
@@ -32,6 +36,27 @@ func Load() (*AppConfig, error) {
 	// 2. Fallback to current working directory (useful for development/go run)
 	if err := godotenv.Load(); err != nil {
 		log.Debug().Msg("No .env file found in working directory, relying on environment variables or binary-relative .env")
+	}
+
+	// 3. Resolve Data Paths
+	dataPath := os.Getenv("DATA_PATH")
+	if dataPath == "" {
+		if exeDir != "" {
+			dataPath = exeDir
+		} else {
+			dataPath = "."
+		}
+	}
+
+	logDir := filepath.Join(dataPath, "logs")
+	cacheDir := filepath.Join(dataPath, "cache")
+
+	// Ensure directories exist
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Warn().Err(err).Str("path", logDir).Msg("Failed to create log directory")
+	}
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		log.Warn().Err(err).Str("path", cacheDir).Msg("Failed to create cache directory")
 	}
 
 	delaySecs, _ := strconv.Atoi(getEnv("JIRA_REQUEST_DELAY_SECONDS", "10"))
@@ -47,6 +72,9 @@ func Load() (*AppConfig, error) {
 			GCLB:         getEnv("JIRA_GCLB", ""),
 			RequestDelay: time.Duration(delaySecs) * time.Second,
 		},
+		DataPath: dataPath,
+		LogDir:   logDir,
+		CacheDir: cacheDir,
 	}
 
 	return cfg, nil

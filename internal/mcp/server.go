@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 
+	"mcs-mcp/internal/config"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -22,11 +23,11 @@ type Server struct {
 	statusOrderings    map[string][]string                        // sourceID -> sorted status names
 }
 
-func NewServer(jiraClient jira.Client) *Server {
+func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	store := eventlog.NewEventStore()
 	return &Server{
 		jira:               jiraClient,
-		events:             eventlog.NewLogProvider(jiraClient, store),
+		events:             eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
 		workflowMappings:   make(map[string]map[string]stats.StatusMetadata),
 		resolutionMappings: make(map[string]map[string]string),
 		statusOrderings:    make(map[string][]string),

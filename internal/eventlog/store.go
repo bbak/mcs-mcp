@@ -1,10 +1,16 @@
 package eventlog
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // EventStore provides thread-safe, chronological storage for IssueEvents.
@@ -56,6 +62,101 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 	})
 
 	s.logs[sourceID] = log
+}
+
+// Load reads events from a JSONL cache file for the given source.
+func (s *EventStore) Load(cacheDir string, sourceID string) error {
+	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No cache yet, not an error
+		}
+		return fmt.Errorf("failed to open cache: %w", err)
+	}
+	defer file.Close()
+
+	var events []IssueEvent
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var e IssueEvent
+		if err := json.Unmarshal(scanner.Bytes(), &e); err != nil {
+			log.Warn().Err(err).Str("source", sourceID).Msg("Skipping invalid JSON line in cache")
+			continue
+		}
+		events = append(events, e)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading cache: %w", err)
+	}
+
+	log.Info().Str("source", sourceID).Int("count", len(events)).Msg("Loaded events from cache")
+	s.Append(sourceID, events)
+	return nil
+}
+
+// Save persists events for the given source to a JSONL cache file.
+func (s *EventStore) Save(cacheDir string, sourceID string) error {
+	s.mu.RLock()
+	logData, ok := s.logs[sourceID]
+	s.mu.RUnlock()
+
+	if !ok || len(logData) == 0 {
+		return nil
+	}
+
+	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	tmpPath := path + ".tmp"
+
+	file, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("failed to create temp cache file: %w", err)
+	}
+
+	writer := bufio.NewWriter(file)
+	encoder := json.NewEncoder(writer)
+
+	for _, e := range logData {
+		if err := encoder.Encode(e); err != nil {
+			file.Close()
+			os.Remove(tmpPath)
+			return fmt.Errorf("failed to encode event: %w", err)
+		}
+	}
+
+	if err := writer.Flush(); err != nil {
+		file.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to flush writer: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to close file: %w", err)
+	}
+
+	// Atomic rename
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("failed to rename cache file: %w", err)
+	}
+
+	log.Info().Str("source", sourceID).Int("count", len(logData)).Msg("Persistent events saved to cache")
+	return nil
+}
+
+// GetLatestTimestamp returns the timestamp of the most recent event for a source.
+func (s *EventStore) GetLatestTimestamp(sourceID string) time.Time {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	logData, ok := s.logs[sourceID]
+	if !ok || len(logData) == 0 {
+		return time.Time{}
+	}
+
+	// Events are sorted, so the last one is the latest
+	return logData[len(logData)-1].Timestamp
 }
 
 // GetEventsInRange returns a copy of events within the specified time window.
