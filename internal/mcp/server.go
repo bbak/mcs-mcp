@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 
@@ -15,14 +16,17 @@ import (
 
 type Server struct {
 	jira               jira.Client
+	events             *eventlog.LogProvider
 	workflowMappings   map[string]map[string]stats.StatusMetadata // sourceID -> statusName -> metadata
 	resolutionMappings map[string]map[string]string               // sourceID -> resolutionName -> outcome
 	statusOrderings    map[string][]string                        // sourceID -> sorted status names
 }
 
 func NewServer(jiraClient jira.Client) *Server {
+	store := eventlog.NewEventStore()
 	return &Server{
 		jira:               jiraClient,
+		events:             eventlog.NewLogProvider(jiraClient, store),
 		workflowMappings:   make(map[string]map[string]stats.StatusMetadata),
 		resolutionMappings: make(map[string]map[string]string),
 		statusOrderings:    make(map[string][]string),
@@ -92,7 +96,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				Str("stack", stack).
 				Msg("Panic recovered in callTool")
 			errRes = map[string]interface{}{
-				"code": -32603,
+				"code":    -32603,
 				"message": fmt.Sprintf("Internal error: %v\n\nStack trace:\n%s", r, stack),
 			}
 		}

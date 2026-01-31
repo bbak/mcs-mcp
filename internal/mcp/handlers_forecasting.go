@@ -13,12 +13,24 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3: Baseline Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+
+	// Stage 2: WIP/Backlog Completion if requested
+	if includeExistingBacklog || includeWIP {
+		active := s.getActiveStatuses(sourceID)
+		if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
+			return nil, err
+		}
+	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
+
 	if len(issues) == 0 {
-		return nil, fmt.Errorf("no historical data found in the last 6 months to base simulation on")
+		return nil, fmt.Errorf("no data found in the event log to base simulation on")
 	}
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
@@ -40,22 +52,22 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	existingBacklogCount := 0
 
 	if includeExistingBacklog {
-		backlogIssues, err := s.ingestWIPIssues(sourceID, ctx, false)
-		if err == nil {
-			existingBacklogCount = len(backlogIssues)
-			issues = append(issues, backlogIssues...)
+		// Count backlog items (those in 'Demand' tier or not committed)
+		for _, issue := range issues {
+			if m, ok := analysisCtx.WorkflowMappings[issue.Status]; ok && m.Tier == "Demand" {
+				existingBacklogCount++
+			}
 		}
 	}
 
 	if includeWIP {
-		wipIssues, err := s.ingestWIPIssues(sourceID, ctx, true)
-		if err == nil {
-			wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
-			calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
-			wipAges = calcWipAges
-			wipCount = len(wipAges)
-		}
+		// Filter issues for those that are logically WIP
+		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
+		wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
+		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
+		wipAges = calcWipAges
+		wipCount = len(wipAges)
 	}
 
 	engine := simulation.NewEngine(nil)
@@ -85,6 +97,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		resObj := engine.RunScopeSimulation(finalDays, 10000)
 
 		resObj.Insights = append(resObj.Insights, "Scope Interpretation: Forecast shows total items that will reach 'Done' status, including items currently in progress.")
+		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 		if includeWIP {
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
@@ -119,6 +132,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 				Total:           totalBacklog,
 			}
 		}
+		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		return resObj, nil
 
 	default:
@@ -129,18 +143,39 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 }
 
+func (s *Server) addCommitmentInsights(insights []string, analysisCtx *AnalysisContext, explicitStart string) []string {
+	if explicitStart != "" {
+		insights = append(insights, fmt.Sprintf("Analysis uses EXPLICIT commitment point: '%s'.", explicitStart))
+	} else if analysisCtx.CommitmentPointIsDefault {
+		insights = append(insights, fmt.Sprintf("IMPORTANT: Analysis uses DEFAULT commitment point: '%s' (First Downstream status).", analysisCtx.CommitmentPoint))
+	} else {
+		insights = append(insights, "CAUTION: Analysis uses NO commitment point. Lifecycle timing starts from Creation.")
+	}
+	return insights
+}
+
 func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analyzeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3 & 2 Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+	if analyzeWIP {
+		active := s.getActiveStatuses(sourceID)
+		if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
+			return nil, err
+		}
+	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
+
 	if len(issues) == 0 {
-		return nil, fmt.Errorf("no historical data found in the last 6 months to base assessment on")
+		return nil, fmt.Errorf("no historical data found in the event log to base assessment on")
 	}
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
@@ -163,11 +198,9 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 
 	var wipAges []float64
 	if analyzeWIP {
-		wipIssues, err := s.ingestWIPIssues(sourceID, ctx, true)
-		if err == nil {
-			wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-			wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
-		}
+		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
+		wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+		wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 	}
 
 	engine := simulation.NewEngine(nil)
@@ -175,6 +208,8 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 	if analyzeWIP {
 		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 	}
+
+	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 	return resObj, nil
 }

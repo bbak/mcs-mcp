@@ -6,12 +6,13 @@ import (
 )
 
 type AnalysisContext struct {
-	SourceID         string
-	StatusWeights    map[string]int
-	WorkflowMappings map[string]stats.StatusMetadata
-	FinishedStatuses map[string]bool
-	CommitmentPoint  string
-	StatusOrder      []string
+	SourceID                 string
+	StatusWeights            map[string]int
+	WorkflowMappings         map[string]stats.StatusMetadata
+	FinishedStatuses         map[string]bool
+	CommitmentPoint          string
+	CommitmentPointIsDefault bool
+	StatusOrder              []string
 }
 
 func (s *Server) prepareAnalysisContext(sourceID string, issues []jira.Issue) *AnalysisContext {
@@ -38,14 +39,15 @@ func (s *Server) prepareAnalysisContext(sourceID string, issues []jira.Issue) *A
 	finished := s.getFinishedStatuses(sourceID)
 
 	// Determine commitment point
-	commitment := s.getEarliestCommitment(sourceID)
+	commitment, found := s.getEarliestCommitment(sourceID, issues)
 
 	return &AnalysisContext{
-		SourceID:         sourceID,
-		StatusWeights:    statusWeights,
-		WorkflowMappings: mappings,
-		FinishedStatuses: finished,
-		CommitmentPoint:  commitment,
-		StatusOrder:      s.statusOrderings[sourceID],
+		SourceID:                 sourceID,
+		StatusWeights:            statusWeights,
+		WorkflowMappings:         mappings,
+		FinishedStatuses:         finished,
+		CommitmentPoint:          commitment,
+		CommitmentPointIsDefault: found,
+		StatusOrder:              s.statusOrderings[sourceID],
 	}
 }

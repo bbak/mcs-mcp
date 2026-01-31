@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/stats"
 )
 
@@ -14,10 +15,13 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3: Baseline Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
 
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no historical data found to analyze status persistence")
@@ -37,24 +41,23 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 }
 
 func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFilter string) (interface{}, error) {
-	// Technical Note: This diagnostic provides high-fidelity aging data with minute-level resolution.
-	// It is a validated core feature; maintain consistency with stats.CalculateInventoryAge.
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
 	}
 
-	wipIssues, err := s.ingestWIPIssues(sourceID, ctx, true)
-	if err != nil {
+	// Stage 3 & 2 Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+		return nil, err
+	}
+	active := s.getActiveStatuses(sourceID)
+	if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
 		return nil, err
 	}
 
-	histIssues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
-		return nil, err
-	}
-
-	analysisCtx := s.prepareAnalysisContext(sourceID, histIssues)
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
+	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 
 	cWeight := 2
 	if analysisCtx.CommitmentPoint != "" {
@@ -62,10 +65,11 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 			cWeight = w
 		}
 	}
+	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
 	wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
-	cycleTimes := s.getCycleTimes(sourceID, histIssues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
+	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	aging := stats.CalculateInventoryAge(wipIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
@@ -99,10 +103,13 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string) (interfac
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3: Baseline Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
 
 	daily := stats.GetDailyThroughput(issues)
 	weekly := aggregateToWeeks(daily)
@@ -121,20 +128,23 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string) (interfa
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3 & 2 Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+	active := s.getActiveStatuses(sourceID)
+	if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
+		return nil, err
+	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
 	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
-	wipIssues, err := s.ingestWIPIssues(sourceID, ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
+	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
 	stability := stats.CalculateProcessStability(issues, cycleTimes, len(wipIssues))
 
 	return map[string]interface{}{
@@ -152,10 +162,13 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, windowMonths*4/4)
-	if err != nil {
+	// Stage 3 Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, windowMonths); err != nil {
 		return nil, err
 	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
@@ -182,10 +195,13 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	issues, _, err := s.ingestHistoricalIssues(sourceID, ctx, 6)
-	if err != nil {
+	// Stage 3: Baseline Completion
+	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
 		return nil, err
 	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	issues := s.reconstructIssues(events, sourceID)
 
 	yield := stats.CalculateProcessYield(issues, s.workflowMappings[sourceID], s.getResolutionMap(sourceID))
 
@@ -199,28 +215,27 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 }
 
 func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
+	// SINGLE ITEM probe
 	jql := fmt.Sprintf("key = %s", issueKey)
-	response, err := s.jira.SearchIssuesWithHistory(jql, 0, 1)
-	if err != nil {
+	if err := s.events.EnsureProbe(issueKey, jql); err != nil {
 		return nil, err
 	}
-	if response.Total == 0 {
-		return nil, fmt.Errorf("issue not found: %s", issueKey)
+
+	events := s.events.GetEventsInRange(issueKey, time.Time{}, time.Now())
+	if len(events) == 0 {
+		return nil, fmt.Errorf("issue not found in event log: %s", issueKey)
 	}
-	dto := response.Issues[0]
 
 	var sourceID string
 	var mapping map[string]stats.StatusMetadata
 	for id, m := range s.workflowMappings {
-		if _, ok := m[dto.Fields.Status.Name]; ok {
-			sourceID = id
-			mapping = m
-			break
-		}
+		sourceID = id
+		mapping = m
+		break
 	}
 
 	finished := s.getFinishedStatuses(sourceID)
-	issue := stats.MapIssue(dto, finished)
+	issue := eventlog.ReconstructIssue(events, finished)
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -229,9 +244,14 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	var steps []JourneyStep
 
 	if len(issue.Transitions) > 0 {
+		birthStatus := issue.Transitions[0].FromStatus
+		if birthStatus == "" {
+			// Fallback to the status it moved into if From is empty (shouldn't happen with new transformer but good to have)
+			birthStatus = issue.Transitions[0].ToStatus
+		}
 		firstDuration := issue.Transitions[0].Date.Sub(issue.Created).Seconds()
 		steps = append(steps, JourneyStep{
-			Status: "Created",
+			Status: birthStatus,
 			Days:   math.Round((firstDuration/86400.0)*10) / 10,
 		})
 

@@ -25,7 +25,6 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 		IsSubtask:       item.Fields.IssueType.Subtask,
 	}
 
-	// Extract Project Key (e.g., PROJ-123 -> PROJ)
 	issue.ProjectKey = ExtractProjectKey(item.Key)
 
 	if t, err := jira.ParseTime(item.Fields.Created); err == nil {
@@ -89,7 +88,6 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 				})
 
 			case "Key", "project":
-				// Project Move Detection: treat the latest move as the boundary for process analysis
 				if lastMoveDate == nil || hDate.After(*lastMoveDate) {
 					lastMoveDate = &hDate
 				}
@@ -101,8 +99,6 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		return transitions[a].Date.Before(transitions[b].Date)
 	})
 
-	// Apply Project Move Boundary: We discard residency data from previous projects
-	// but KEEP the 'created' date of the issue for high-level Lead Time (Total Age) stats.
 	if lastMoveDate != nil {
 		newAllTrans := []fullTransition{}
 		for _, t := range allTrans {
@@ -123,10 +119,9 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 
 	residency := make(map[string]int64)
 	if len(allTrans) > 0 {
-		// 1. Initial Residency (from creation/move to first transition)
 		initialStatus := allTrans[0].From
 		if initialStatus == "" {
-			initialStatus = "Created"
+			initialStatus = allTrans[0].To
 		}
 		anchorDate := created
 		if lastMoveDate != nil {
@@ -138,7 +133,6 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		}
 		residency[initialStatus] += firstDuration
 
-		// 2. Intermediate Residencies
 		for j := 0; j < len(allTrans)-1; j++ {
 			duration := int64(allTrans[j+1].Date.Sub(allTrans[j].Date).Seconds())
 			if duration <= 0 {
@@ -147,12 +141,10 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 			residency[allTrans[j].To] += duration
 		}
 
-		// 3. Current/Final Residency
 		var finalDate time.Time
 		if resolved != nil {
 			finalDate = *resolved
 		} else if finishedStatuses[currentStatus] {
-			// Stop the Clock: if in Finished tier, use the date of the most recent transition into it
 			finalDate = allTrans[len(allTrans)-1].Date
 		} else {
 			finalDate = time.Now()
@@ -169,17 +161,14 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		if duration <= 0 {
 			duration = 1
 		}
-		// If no transitions, we assume it stayed in the initial state (Created) until resolution
-		residency["Created"] = duration
+		residency[currentStatus] = duration
 	} else {
-		// No transitions and not resolved: residency in current status since creation/move
 		anchorDate := created
 		if lastMoveDate != nil {
 			anchorDate = *lastMoveDate
 		}
 		finalDate := time.Now()
 		if finishedStatuses[currentStatus] {
-			// If created directly in a Finished status, the clock stops at creation
 			finalDate = anchorDate
 		}
 		duration := int64(finalDate.Sub(anchorDate).Seconds())

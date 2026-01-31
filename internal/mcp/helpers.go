@@ -246,6 +246,18 @@ func (s *Server) getFinishedStatuses(sourceID string) map[string]bool {
 	return finished
 }
 
+func (s *Server) getActiveStatuses(sourceID string) []string {
+	var active []string
+	if m, ok := s.workflowMappings[sourceID]; ok {
+		for status, meta := range m {
+			if meta.Tier != "Finished" && meta.Tier != "Demand" {
+				active = append(active, status)
+			}
+		}
+	}
+	return active
+}
+
 func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) []float64 {
 	var ages []float64
 	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip")
@@ -255,4 +267,31 @@ func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statu
 		}
 	}
 	return ages
+}
+
+func (s *Server) filterWIPIssues(issues []jira.Issue, startStatus string, finishedStatuses map[string]bool) []jira.Issue {
+	var wip []jira.Issue
+	for _, issue := range issues {
+		// An issue is WIP if it's not finished AND has passed the commitment point (or startStatus)
+		if finishedStatuses[issue.Status] {
+			continue
+		}
+
+		isCommitted := false
+		if issue.Status == startStatus {
+			isCommitted = true
+		} else {
+			for _, t := range issue.Transitions {
+				if t.ToStatus == startStatus {
+					isCommitted = true
+					break
+				}
+			}
+		}
+
+		if isCommitted {
+			wip = append(wip, issue)
+		}
+	}
+	return wip
 }

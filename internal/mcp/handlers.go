@@ -209,14 +209,23 @@ func (s *Server) getCommitmentPointHints(issues []jira.Issue, weights map[string
 	return res
 }
 
-func (s *Server) getEarliestCommitment(sourceID string) string {
+func (s *Server) getEarliestCommitment(sourceID string, issues []jira.Issue) (string, bool) {
 	mapping := s.workflowMappings[sourceID]
 	if mapping == nil {
-		return ""
+		return "", false
 	}
-	// Commitment is the first "Downstream" status in the discovered backbone
-	// (Placeholder logic, should match analyzer's discovery)
-	return ""
+
+	order := s.statusOrderings[sourceID]
+	if len(order) == 0 {
+		order = stats.DiscoverStatusOrder(issues)
+	}
+
+	for _, status := range order {
+		if m, ok := mapping[status]; ok && m.Tier == "Downstream" {
+			return status, true
+		}
+	}
+	return "", false
 }
 
 func (s *Server) getDeliveredResolutions(sourceID string) []string {

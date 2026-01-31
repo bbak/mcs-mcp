@@ -3,7 +3,9 @@ package mcp
 import (
 	"fmt"
 	"sort"
+	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 )
@@ -14,21 +16,16 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	issues, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 50)
-	if err != nil {
+	// Stage 1: Ensure Probe
+	if err := s.events.EnsureProbe(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
-	finished := s.getFinishedStatuses(sourceID)
-	domainIssues := make([]jira.Issue, 0, len(issues.Issues))
-	for _, dto := range issues.Issues {
-		issue := stats.MapIssue(dto, finished)
-		if !issue.IsSubtask {
-			domainIssues = append(domainIssues, issue)
-		}
-	}
+	// Fetch events and reconstruct issues for analysis
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	domainIssues := s.reconstructIssues(events, sourceID)
 
-	summary := stats.AnalyzeProbe(domainIssues, issues.Total, finished)
+	summary := stats.AnalyzeProbe(domainIssues, len(domainIssues), s.getFinishedStatuses(sourceID))
 
 	return map[string]interface{}{
 		"summary": summary,
@@ -46,18 +43,34 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	issues, err := s.jira.SearchIssuesWithHistory(ctx.JQL, 0, 200)
-	if err != nil {
+	// Stage 1: Ensure Probe
+	if err := s.events.EnsureProbe(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
-	finished := s.getFinishedStatuses(sourceID)
-	domainIssues := make([]jira.Issue, 0, len(issues.Issues))
-	for _, dto := range issues.Issues {
-		domainIssues = append(domainIssues, stats.MapIssue(dto, finished))
-	}
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	domainIssues := s.reconstructIssues(events, sourceID)
 
 	return s.getWorkflowDiscovery(sourceID, domainIssues), nil
+}
+
+func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string) []jira.Issue {
+	finished := s.getFinishedStatuses(sourceID)
+
+	// Group events by issue key
+	grouped := make(map[string][]eventlog.IssueEvent)
+	for _, e := range events {
+		grouped[e.IssueKey] = append(grouped[e.IssueKey], e)
+	}
+
+	var issues []jira.Issue
+	for _, issueEvents := range grouped {
+		issue := eventlog.ReconstructIssue(issueEvents, finished)
+		if !issue.IsSubtask {
+			issues = append(issues, issue)
+		}
+	}
+	return issues
 }
 
 func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) interface{} {

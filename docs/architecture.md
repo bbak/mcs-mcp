@@ -25,7 +25,7 @@ graph TD
 1.  **Guidance Phase**: The AI uses `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of tools.
 2.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source for scale and quality.
 3.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool identifies the residence time and Jira categories. The user/AI maps statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore) using `set_workflow_mapping`.
-4.  **Selection Phase**: Based on the discovery results, the user selects the **Commitment Point**.
+4.  **Selection Phase**: Based on the discovery results, the user confirms the **Commitment Point**. If not explicitly confirmed, the system defaults to the first status in the **Downstream** tier to ensure continuity of analysis.
 5.  **Analytics Phase**:
     - Use `run_simulation` for aggregate/bulk forecasts.
     - Use `get_aging_analysis` and `get_status_persistence` for process health.
@@ -43,7 +43,7 @@ To ensure the AI Agent selects the most reliable path for complex goals, the ser
 To ensure conceptual integrity, the AI **must never assume** the semantic tiers or roles of a project. Before providing process diagnostics, the following loop is required:
 
 1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes pattern matching (e.g., "Ready for X" → queue role)
-    - **Inform & Veto**: Diagnostics (Simulation, Aging, Stability) require a verified Commitment Point. If unavailable, the tool initiates a discovery loop:
+    - **Inform & Veto**: Diagnostics (Simulation, Aging, Stability) require a verified Commitment Point. If unavailable, the tool uses a **Safe Default** (the first Downstream status) and clearly notifies the user in the results:
         - Patterns: Automatic "queue" role for "Ready for X" or "-ed" statuses if an active counterpart exists.
         - Residency: P50 spikes often indicate queuing or commitment boundaries.
         - User Approval: AI proposes the mapping; user confirms/refines via `set_workflow_mapping`.
@@ -191,9 +191,10 @@ To prevent archive data from skewing delivery metrics, the system implements a "
 
 #### 7. History Fallback Policy
 
-In cases where Jira data is incomplete (e.g., resolved items with missing or archived changelogs), the system applies a "Best Effort" residency model:
+In cases where Jira data is incomplete (e.g., resolved items with missing or archived changelogs), the system applies a "Best Effort" residency model via the **Transformer**:
 
-- **Residency Assumption**: If an item is resolved but has no transition history, the system assumes it spent its total duration in the "Created" status.
+- **Birth Status Alignment**: The system automatically identifies the functional land-status (e.g., 'Open') for the creation event by analyzing the earliest available transition.
+- **Residency Assumption**: If an item is resolved but has no transition history, the system assumes it spent its total duration in its birth status.
 - **Analytical Inclusion**: This ensures these items are still included in throughput and total aging metrics, preserving the statistical volume of the dataset despite local data gaps.
 
 ---
@@ -240,24 +241,40 @@ For longitudinal analysis (the "Strategic Audit"), the system uses Three-Way Cha
 
 A unique feature of the system is the integration of Done vs. WIP populations. Current **WIP Age** is monitored against the historical **UNPL** of resolved items, providing a proactive signal of instability _before_ the work is completed.
 
-## 5. Data Ingestion & Analytical Decoupling
+## 5. Event-Sourced Architecture & Staged Ingestion
 
-To enable multi-layer caching and improve conceptual integrity, the system strictly separates Jira-specific transportation from analytical processing.
+To enable high-fidelity metrics and progressive data loading, the system utilizes an **Event-Sourced Architecture**. Instead of treating Jira issues as static snapshots, the server maintains a chronological log of atomic events for every work item.
 
-### The Ingestion Pipeline
+#### The Event-Sourced Pipeline
 
 ```mermaid
 graph TD
-    A[JQL/SourceID] --> B[SourceContext]
-    B --> C[ingestion.go]
-    C --> D[Stats Processor]
-    D --> E[Dataset]
-    E --> F[Analysis Tools]
+    A[JQL/SourceID] --> B[LogProvider]
+    B --> C{Staged Ingestion}
+    C -->|Stage 1: Probe| D[EventStore]
+    C -->|Stage 2: WIP| D
+    C -->|Stage 3: Baseline| D
+    D --> E[Projections]
+    E --> F[Domain Issues]
+    F --> G[Analysis Tools]
 ```
 
-1.  **SourceContext**: Formally defines the origin of the data (SourceID, JQL, Primary Project). It serves as the "Analytical Anchor" for resolving default metadata (status weights, categories).
-2.  **ingestion.go**: Centralized logic for fetching raw issues (Historical and WIP) from Jira. This ensures that every analytical tool uses the same ingestion parameters (windowing, fields).
-3.  **Dataset**: A cohesive analytical unit binding the `SourceContext` with processed domain `Issues`.
+1.  **LogProvider**: Orchestrates the data flow. It ensures that the required level of data detail is available in the local log before analysis begins.
+2.  **Staged Ingestion**:
+    - **Stage 1: Probe**: Fetches a small sample (50 items) to enable `get_data_metadata` and `get_workflow_discovery`.
+    - **Stage 2: WIP**: Fetches all active items (those not in the 'Finished' status category) to ensure accurate `get_aging_analysis`.
+    - **Stage 3: Baseline**: Fetches a deep historical baseline (defaulting to 6 months) for forecasting and stability analysis.
+3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` and `SequenceID`.
+4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Moved`). It ensures "Birth Status Alignment" by identifying the functional status an item landed in from its first transition.
+5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses (e.g., `ReconstructIssue`, `WIPProjection`).
+
+### 5.1. The Event Log as Source of Truth
+
+The event log, partitioned by board ID, is the definitive source of truth for the server. This design provides:
+
+- **Immutability**: Historical events are objective facts (e.g., "Item X moved to Dev at 10:00").
+- **Analytical Flexibility**: Metrics like "Cycle Time" or "Commitment Point" are just interpretations of the log and can be adjusted (via `set_workflow_mapping`) without re-fetching data.
+- **Progressive Consistency**: The system becomes more "knowledgeable" as stages are completed, but always operates on a consistent, deduplicated log.
 
 ### 5.2. Recency Bias & Analysis Windowing
 
@@ -300,9 +317,17 @@ The codebase follows a high-cohesion design, with logic strictly separated by fu
 - `dc_client.go`: Implementation of the Jira Data Center / Server REST API.
 - `dto.go`: Public Data Transfer Objects for JSON unmarshalling.
 
+### `internal/eventlog` (The Persistence & Projection Layer)
+
+- `store.go`: Thread-safe, cross-source repository for chronological `IssueEvents`.
+- `event.go`: Schema definitions for atomic event types and partitioning logic.
+- `provider.go`: `LogProvider` implementation for orchestrating staged ingestion.
+- `transformer.go`: Critical logic for converting Jira snapshots into atomic events.
+- `projections.go`: Logic for reconstructing domain models (`WIP`, `Throughput`, `Issue`) from the log.
+
 ### `internal/stats` (The Analytical Engine)
 
-- `processor.go`: DTO-to-Domain mapping and status residency calculation.
+- `processor.go`: Internal residency math and historical baseline utilities.
 - `stability.go`: XmR charts, Three-Way Control Charts, and Stability Index heuristics.
 - `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and probe metrics.
 - `persistence.go`: Status residency distributions (P50, P85, etc.).
@@ -312,14 +337,13 @@ The codebase follows a high-cohesion design, with logic strictly separated by fu
 
 ### `internal/mcp` (The Glue Layer)
 
-- `server.go`: The core MCP server and tool dispatching loop.
+- `server.go`: The core MCP server, managing `LogProvider` and `EventStore`.
 - `tools.go`: AI-discoverable definitions and descriptions for all tools.
 - `handlers.go`: Internal shared logic, roadmap tools, and backflow policies.
-- `handlers_forecasting.go`: Tools for simulations and cycle time assessments.
-- `handlers_diagnostics.go`: Tools for aging, stability, progress yield, and items journeys.
-- `handlers_discovery.go`: Tools for metadata probing and workflow detection.
-- `ingestion.go`: Centralized Jira data fetching logic.
-- `context.go`: Unified analysis context and status weighting resolution.
+- `handlers_forecasting.go`: Tools for simulations and cycle time assessments (Stage 3).
+- `handlers_diagnostics.go`: Tools for aging, stability, progress yield, and items journeys (Stage 2).
+- `handlers_discovery.go`: Tools for metadata probing and workflow detection (Stage 1).
+- `context.go`: Unified analysis context and default commitment point resolution.
 - `helpers.go`: General utility methods and type conversion.
 
 ---
