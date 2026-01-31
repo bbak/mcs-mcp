@@ -9,16 +9,15 @@ import (
 // StatusPersistence provides historical residency analysis for a single status.
 type StatusPersistence struct {
 	StatusName     string  `json:"statusName"`
-	Share          float64 `json:"share"`              // % of sample that visited this status
-	Category       string  `json:"category,omitempty"` // Jira Category (To Do, In Progress, Done)
-	Role           string  `json:"role,omitempty"`     // Functional Role (active, queue, ignore)
-	Tier           string  `json:"tier,omitempty"`     // Meta-Workflow Tier (Demand, Upstream, Downstream, Finished)
-	P50            float64 `json:"coin_toss"`          // P50
-	P70            float64 `json:"probable"`           // P70
-	P85            float64 `json:"likely"`             // P85
-	P95            float64 `json:"safe_bet"`           // P95
-	IQR            float64 `json:"iqr"`                // P75-P25
-	Inner80        float64 `json:"inner_80"`           // P90-P10
+	Share          float64 `json:"share"`          // % of sample that visited this status
+	Role           string  `json:"role,omitempty"` // Functional Role (active, queue, ignore)
+	Tier           string  `json:"tier,omitempty"` // Meta-Workflow Tier (Demand, Upstream, Downstream, Finished)
+	P50            float64 `json:"coin_toss"`      // P50
+	P70            float64 `json:"probable"`       // P70
+	P85            float64 `json:"likely"`         // P85
+	P95            float64 `json:"safe_bet"`       // P95
+	IQR            float64 `json:"iqr"`            // P75-P25
+	Inner80        float64 `json:"inner_80"`       // P90-P10
 	Interpretation string  `json:"interpretation,omitempty"`
 }
 
@@ -89,29 +88,13 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 }
 
 // EnrichStatusPersistence adds semantic context to the persistence results.
-func EnrichStatusPersistence(results []StatusPersistence, categories map[string]string, mappings map[string]StatusMetadata) []StatusPersistence {
+func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]StatusMetadata) []StatusPersistence {
 	for i := range results {
 		s := &results[i]
-		if cat, ok := categories[s.StatusName]; ok {
-			s.Category = cat
-		}
 
 		if m, ok := mappings[s.StatusName]; ok {
 			s.Role = m.Role
 			s.Tier = m.Tier
-		} else {
-			// Inferred defaults
-			switch s.Category {
-			case "to-do", "new":
-				s.Tier = "Demand"
-				s.Role = "active"
-			case "indeterminate":
-				s.Tier = "Downstream" // Conservative default
-				s.Role = "active"
-			case "done":
-				s.Tier = "Finished"
-				s.Role = "active"
-			}
 		}
 
 		// Interpretation Hint (Emphasize INTERNAL residency, not completion)

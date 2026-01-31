@@ -53,15 +53,11 @@ func TestEnrichStatusPersistence(t *testing.T) {
 		{StatusName: "Open"},
 		{StatusName: "In Dev"},
 	}
-	categories := map[string]string{
-		"Open":   "to-do",
-		"In Dev": "indeterminate",
-	}
 	mappings := map[string]StatusMetadata{
 		"Open": {Tier: "Demand", Role: "active"},
 	}
 
-	enriched := EnrichStatusPersistence(results, categories, mappings)
+	enriched := EnrichStatusPersistence(results, mappings)
 
 	for _, r := range enriched {
 		if r.StatusName == "Open" {
@@ -76,8 +72,8 @@ func TestEnrichStatusPersistence(t *testing.T) {
 			}
 		}
 		if r.StatusName == "In Dev" {
-			if r.Category != "indeterminate" {
-				t.Errorf("Expected Category 'indeterminate', got %s", r.Category)
+			if r.Tier != "" {
+				t.Errorf("Expected empty Tier for unmapped In Dev, got %s", r.Tier)
 			}
 		}
 	}
@@ -270,13 +266,7 @@ func TestProposeSemantics(t *testing.T) {
 		{StatusName: "In Dev", P50: 5.0},
 		{StatusName: "Done", P50: 0.0},
 	}
-	proposal := ProposeSemantics(issues, persistence, map[string]string{
-		"Backlog":       "to-do",
-		"Refinement":    "to-do",
-		"Ready for Dev": "indeterminate",
-		"In Dev":        "indeterminate",
-		"Done":          "done",
-	})
+	proposal := ProposeSemantics(issues, persistence)
 
 	// Verify "Backlog" is Demand (detected as first entry point)
 	if proposal["Backlog"].Tier != "Demand" {
@@ -369,13 +359,7 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{StatusName: "Done"},
 	}
 
-	proposal := ProposeSemantics(issues, persistence, map[string]string{
-		"Open":                 "to-do",
-		"refining":             "to-do",
-		"awaiting development": "indeterminate",
-		"developing":           "indeterminate",
-		"Done":                 "done",
-	})
+	proposal := ProposeSemantics(issues, persistence)
 	order := DiscoverStatusOrder(issues)
 
 	// Verify Tiers

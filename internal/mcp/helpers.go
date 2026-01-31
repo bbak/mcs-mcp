@@ -119,44 +119,6 @@ func (s *Server) extractProjectKeys(issues []jira.Issue) []string {
 	return keys
 }
 
-func (s *Server) getStatusCategories(projectKeys []string) map[string]string {
-	cats := make(map[string]string)
-	for _, projectKey := range projectKeys {
-		if projectKey == "" {
-			continue
-		}
-
-		if data, err := s.jira.GetProjectStatuses(projectKey); err == nil {
-			statusesList, ok := data.([]interface{})
-			if !ok {
-				continue
-			}
-			for _, itm := range statusesList {
-				issueTypeMap, ok := itm.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				statusList, ok := issueTypeMap["statuses"].([]interface{})
-				if !ok {
-					continue
-				}
-				for _, sObj := range statusList {
-					sMap, ok := sObj.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					name := asString(sMap["name"])
-					cat, ok := sMap["statusCategory"].(map[string]interface{})
-					if ok {
-						cats[name] = asString(cat["key"])
-					}
-				}
-			}
-		}
-	}
-	return cats
-}
-
 func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions []string) []float64 {
 	mappings := s.workflowMappings[sourceID]
 	resMap := make(map[string]bool)

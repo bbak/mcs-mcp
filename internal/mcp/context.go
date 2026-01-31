@@ -16,8 +16,7 @@ type AnalysisContext struct {
 }
 
 func (s *Server) prepareAnalysisContext(sourceID string, issues []jira.Issue) *AnalysisContext {
-	projectKeys := s.extractProjectKeys(issues)
-	statusWeights := s.getStatusWeights(projectKeys)
+	statusWeights := s.getStatusWeights(issues)
 
 	mappings := s.workflowMappings[sourceID]
 	if mappings == nil {

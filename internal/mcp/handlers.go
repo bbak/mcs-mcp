@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"mcs-mcp/internal/jira"
@@ -61,25 +60,20 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 
 // Internal shared logic
 
-func (s *Server) getStatusWeights(projectKeys []string) map[string]int {
+func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
 	weights := make(map[string]int)
-	// Apply common defaults for stability
-	weights["To Do"] = 1
-	weights["In Progress"] = 2
-	weights["Done"] = 3
 
-	// Fetch actual statuses from project to refine if possible
-	categories := s.getStatusCategories(projectKeys)
-	for name, cat := range categories {
-		switch strings.ToLower(cat) {
-		case "to-do", "new":
-			weights[name] = 1
-		case "indeterminate":
-			weights[name] = 2
-		case "done":
-			weights[name] = 3
-		}
+	// Discover the backbone path order from recent data
+	order := stats.DiscoverStatusOrder(issues)
+
+	// Use the index in the path as the weight.
+	// Statuses occurring earlier have lower weights.
+	// Transitions to a status with a lower weight are treated as backflows.
+	for i, name := range order {
+		// Use 1-based indexing for weights to avoid confusion with zero-values
+		weights[name] = i + 1
 	}
+
 	return weights
 }
 

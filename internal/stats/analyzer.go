@@ -129,19 +129,37 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 }
 
 // ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
-func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence, statusCats map[string]string) map[string]StatusMetadata {
+func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[string]StatusMetadata {
 	proposal := make(map[string]StatusMetadata)
 	if len(persistence) == 0 {
 		return proposal
 	}
 
-	// 1. Identify the Birth Status (Entry point)
-	entryCounts := make(map[string]int)
+	// 1. Gather facts from actual data
+	entryCounts := make(map[string]int) // Number of issues that started in this status
+	resolvedCounts := make(map[string]int)
+	transitionsInto := make(map[string]int)
+	transitionsOutOf := make(map[string]int)
+
 	for _, issue := range issues {
+		// Entry point detection (Demand)
 		if !issue.IsMoved && len(issue.Transitions) > 0 {
 			entryCounts[issue.Transitions[0].FromStatus]++
 		}
+
+		// Resolution detection (Finished)
+		if issue.ResolutionDate != nil {
+			resolvedCounts[issue.Status]++
+		}
+
+		// Flow graph analysis (Asymmetry)
+		for _, t := range issue.Transitions {
+			transitionsInto[t.ToStatus]++
+			transitionsOutOf[t.FromStatus]++
+		}
 	}
+
+	// Identify Birth Status (The source of demand)
 	birthStatus := ""
 	maxEntry := 0
 	for s, count := range entryCounts {
@@ -151,33 +169,63 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence, stat
 		}
 	}
 
+	// Get the Path Order for biasing Upstream/Downstream
+	pathOrder := DiscoverStatusOrder(issues)
+	pathIndices := make(map[string]int)
+	for i, s := range pathOrder {
+		pathIndices[s] = i
+	}
+
 	queueCandidates := findQueuingColumns(persistence)
+
+	// Keyword sets for tier biasing
+	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
+	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging"}
 
 	for _, p := range persistence {
 		name := p.StatusName
-		cat := statusCats[name]
+		lowerName := strings.ToLower(name)
 		tier := "Downstream" // Default catch-all
 		role := "active"
 
-		// Tier Assignment Logic (Refined)
+		// --- TIER HEURISTICS ---
+
+		// A. Demand (Entry)
 		if name == birthStatus {
 			tier = "Demand"
-		} else if cat == "done" || cat == "finished" || cat == "complete" {
-			tier = "Finished"
-		} else if cat == "to-live" || cat == "to-do" || cat == "new" {
-			tier = "Upstream"
-		} else if cat == "indeterminate" {
-			// Historically, Jira "Indeterminate" covers everything In Progress.
-			// However, if we've already identified Upstream vs Downstream based on path,
-			// we can refine this. For the proposal we stick to the category signal.
-			tier = "Downstream"
+		} else {
+			// B. Finished (Terminal)
+			isResolvedFact := resolvedCounts[name] > 0
+			// Terminal Asymmetry: High entry, low exit (sinks).
+			// We define a sink as status where we entered it many times but rarely left it.
+			isTerminalSink := transitionsInto[name] > 5 && transitionsInto[name] > (transitionsOutOf[name]*3)
+
+			if isResolvedFact || isTerminalSink {
+				tier = "Finished"
+			} else {
+				// C. Upstream vs Downstream biasing
+				isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
+				isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
+
+				idx, inPath := pathIndices[name]
+				isEarlyInPath := inPath && idx < (len(pathOrder)/2)
+
+				if isUpstreamKeyword {
+					tier = "Upstream"
+				} else if isDownstreamKeyword {
+					tier = "Downstream"
+				} else if isEarlyInPath {
+					// Fallback to path location if no keywords match
+					tier = "Upstream"
+				}
+			}
 		}
 
-		// Role Assignment
+		// --- ROLE HEURISTICS ---
 		if tier == "Demand" {
 			role = "queue"
 		} else if tier == "Finished" {
-			role = "active"
+			role = "active" // Terminal is always active in results context
 		} else if queueCandidates[name] {
 			role = "queue"
 		}
@@ -189,6 +237,15 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence, stat
 	}
 
 	return proposal
+}
+
+func matchesAny(s string, keywords []string) bool {
+	for _, kw := range keywords {
+		if strings.Contains(s, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 // DiscoverStatusOrder derives the workflow backbone by tracing the most frequent journeys.

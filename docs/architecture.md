@@ -6,11 +6,14 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
 
 ## 2. Core Architectural Principles
 
-### Data-Driven Probabilism
+### Observation-Driven Analytics (Data Archeology)
 
-- **No Averages**: The system rejects single-point averages in favor of ranges and percentiles.
-- **Monte-Carlo Focus**: All forecasts are derived from 10,000+ random trials using historical throughput distributions.
-- **Simulation Resilience (Safety Brakes)**: To ensure system availability, simulations implement safety brakes (e.g., 20,000 day cap) and early-exit warnings when historical throughput is zero, preventing infinite loops or resource exhaustion in sparse data scenarios.
+- **Metadata Independence**: The system rejects reliance on Jira-specific metadata like `statusCategory`, which is often misconfigured or inconsistent.
+- **Fact-Based Discovery**: Workflow semantics are inferred from objective facts in the transition log:
+    - **Birth Status**: The earliest entry point identifies the system's source of demand.
+    - **Terminal Sinks**: Statuses showing high entry but low exit ratios identify logical completion points even when resolutions are missing.
+    - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions.
+- **Deterministic Identity**: Events are identified by their physical properties (Key, Timestamp, Type) rather than system-generated IDs.
 
 ### Operational Flow (The Interaction Model)
 
@@ -24,8 +27,8 @@ graph TD
 
 1.  **Guidance Phase**: The AI uses `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of tools.
 2.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source for scale and quality.
-3.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool identifies the residence time and Jira categories. The user/AI maps statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore) using `set_workflow_mapping`.
-4.  **Selection Phase**: Based on the discovery results, the user confirms the **Commitment Point**. If not explicitly confirmed, the system defaults to the first status in the **Downstream** tier to ensure continuity of analysis.
+3.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool uses **Data Archeology** (birth status, terminal asymmetry, and backbone pathing) to propose a mapping of statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore). Approval via `set_workflow_mapping` persists this state.
+4.  **Selection Phase**: Based on the discovery results, the user confirms the **Commitment Point**. If not explicitly confirmed, the system defaults to the first status in the **Downstream** tier (the first active implementation stage) to ensure continuity of analysis.
 5.  **Analytics Phase**:
     - Use `run_simulation` for aggregate/bulk forecasts.
     - Use `get_aging_analysis` and `get_status_persistence` for process health.
@@ -42,11 +45,11 @@ To ensure the AI Agent selects the most reliable path for complex goals, the ser
 
 To ensure conceptual integrity, the AI **must never assume** the semantic tiers or roles of a project. Before providing process diagnostics, the following loop is required:
 
-1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes pattern matching (e.g., "Ready for X" → queue role)
-    - **Inform & Veto**: Diagnostics (Simulation, Aging, Stability) require a verified Commitment Point. If unavailable, the tool uses a **Safe Default** (the first Downstream status) and clearly notifies the user in the results:
-        - Patterns: Automatic "queue" role for "Ready for X" or "-ed" statuses if an active counterpart exists.
-        - Residency: P50 spikes often indicate queuing or commitment boundaries.
-        - User Approval: AI proposes the mapping; user confirms/refines via `set_workflow_mapping`.
+1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes **Pure Observation** (archeology):
+    - **Demand Tier**: Status identified as the primary entry point (`birthStatus`).
+    - **Finished Tier**: Statuses associated with a `resolutiondate` (Fact) or identified as a **Terminal Sink** (Asymmetry).
+    - **Backflow Weighting**: Backflow detection (reverting to a 'lower' status) is based on the **Observed Backbone Path Index**, not system categories.
+    - **Functional Roles**: Automatic "queue" role for statuses matching patterns like "Ready for X" or "Awaiting" when an active counterpart exists.
     - **API Strategy**: The server intentionally avoids the Jira Board Configuration API (`/rest/agile/1.0/board/{id}/configuration`) for several reasons:
         - **Deprecation Risk**: The endpoint is not present in Jira REST API versions 2.0 and 3.0, indicating it may be removed or replaced.
         - **Structural Mismatch**: Board columns often group multiple statuses or use names that diverge from the underlying workflow, which would require complex resolution logic (like the `/status` endpoint) to maintain cohesion.
@@ -94,8 +97,9 @@ Within these tiers, statuses can be further tagged:
 The server distinguishes **how** and **where** work exits the process through **Workflow Outcome Calibration**. Because Jira workflows are often inconsistent, the server employs a dual-signal methodology:
 
 - **The "Finished" Signal**: Detection of the terminal state.
-    - **Primary**: Occurrence of a `resolutiondate` (The "Stop the Clock" event).
-    - **Secondary**: Reaching a status mapped to the **Finished** tier.
+    - **Primary (Fact)**: Occurrence of a `resolutiondate` in the changelog.
+    - **Secondary (Asymmetry)**: Detection of a **Terminal Sink** (Status where entries significantly exceed exits).
+    - **Tertiary (Mapping)**: Reaching a status explicitly mapped to the **Finished** tier.
 - **Outcome Classification**: Once finished, items are classified into semantic outcomes:
     - **Outcome: Delivered**: Item reached "Finished" with a resolution or status outcome mapped as value-providing (e.g., "Fixed", "Done"). This is the only population used for **Throughput** and **Simulation**.
     - **Outcome: Abandoned**: Item reached "Finished" with a resolution or status outcome mapped as waste (e.g., "Won't Do", "Discarded").

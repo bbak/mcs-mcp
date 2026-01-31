@@ -74,7 +74,6 @@ func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string
 }
 
 func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) interface{} {
-	projectKeys := s.extractProjectKeys(issues)
 	persistence := stats.CalculateStatusPersistence(issues)
 
 	// Build a map of significant statuses for quick lookup
@@ -83,8 +82,8 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		significant[p.StatusName] = true
 	}
 
-	statusCats := s.getStatusCategories(projectKeys)
-	proposal := stats.ProposeSemantics(issues, persistence, statusCats)
+	// No longer need to fetch status categories from Jira
+	proposal := stats.ProposeSemantics(issues, persistence)
 
 	finalProposal := make(map[string]stats.StatusMetadata)
 	for name, meta := range proposal {
