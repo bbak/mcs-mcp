@@ -46,7 +46,7 @@ func (p *LogProvider) EnsureProbe(sourceID string, jql string) error {
 
 	// Multi-stage fetch logic:
 	// A. Fetch up to 200 items created within 1 year
-	oneYearJQL := fmt.Sprintf("(%s) AND created >= '-365d' ORDER BY updated DESC", jql)
+	oneYearJQL := fmt.Sprintf("(%s) AND created >= startOfDay(-1y) ORDER BY updated DESC", jql)
 	events, err := p.fetchAll(oneYearJQL, 200)
 	if err != nil {
 		return fmt.Errorf("probe fetch 1y failed: %w", err)
@@ -60,11 +60,11 @@ func (p *LogProvider) EnsureProbe(sourceID string, jql string) error {
 		var fallbackJQL string
 		if count1y < 100 {
 			// Extend to 3 years
-			fallbackJQL = fmt.Sprintf("(%s) AND created < '-365d' AND created >= '-1095d' ORDER BY updated DESC", jql)
+			fallbackJQL = fmt.Sprintf("(%s) AND created < startOfDay(-1y) AND created >= startOfDay(-3y) ORDER BY updated DESC", jql)
 			log.Debug().Int("count1y", count1y).Msg("Sample sparse (<100), extending discovery window to 3 years")
 		} else {
 			// Extend to 2 years
-			fallbackJQL = fmt.Sprintf("(%s) AND created < '-365d' AND created >= '-730d' ORDER BY updated DESC", jql)
+			fallbackJQL = fmt.Sprintf("(%s) AND created < startOfDay(-1y) AND created >= startOfDay(-2y) ORDER BY updated DESC", jql)
 			log.Debug().Int("count1y", count1y).Msg("Sample sufficient (>100), extending discovery window to 2 years")
 		}
 

@@ -132,11 +132,11 @@ func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions 
 			continue
 		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		} else if len(resolutions) == 0 {
-			if m, ok := mappings[issue.Status]; !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		}
@@ -161,7 +161,7 @@ func (s *Server) getResolutionMap(sourceID string) map[string]string {
 		"Complete":         "delivered",
 		"Resolved":         "delivered",
 		"Approved":         "delivered",
-		"Closed":           "delivered",
+		"Closed":           "abandoned",
 		"Won't Do":         "abandoned",
 		"Discarded":        "abandoned",
 		"Obsolete":         "abandoned",

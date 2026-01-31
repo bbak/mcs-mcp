@@ -125,7 +125,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 0. Determine Tier Context
 		currentTier := "Demand"
 		isFinished := false
-		if m, ok := mappings[issue.Status]; ok {
+		if m, ok := GetMetadataCaseInsensitive(mappings, issue.Status); ok {
 			currentTier = m.Tier
 			if m.Tier == "Finished" {
 				isFinished = true
@@ -155,7 +155,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		for status, seconds := range issue.StatusResidency {
 			days := float64(seconds) / 86400.0
 			totalDays += days
-			if m, ok := mappings[status]; ok {
+			if m, ok := GetMetadataCaseInsensitive(mappings, status); ok {
 				switch m.Tier {
 				case "Upstream", "Demand":
 					upstreamDays += days
@@ -185,18 +185,19 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			isStarted := false
 
 			// Is current status started?
-			if weight, ok := statusWeights[issue.Status]; (ok && weight >= commitmentWeight) || (startStatus == "" && ok && weight >= 2) {
+			weight, hasWeight := GetWeightCaseInsensitive(statusWeights, issue.Status)
+			if (hasWeight && weight >= commitmentWeight) || (startStatus == "" && hasWeight && weight >= 2) {
 				isStarted = true
 			}
 
 			// Chronological scan to find the earliest commitment after the last backflow
 			for _, t := range issue.Transitions {
-				weight, ok := statusWeights[t.ToStatus]
-				if ok && weight < commitmentWeight {
+				weight, hasWeight := GetWeightCaseInsensitive(statusWeights, t.ToStatus)
+				if hasWeight && weight < commitmentWeight {
 					// Backflow! Discard previous WIP history
 					earliestAfterBackflow = nil
 					isStarted = false
-				} else if (startStatus != "" && t.ToStatus == startStatus) || (ok && weight >= commitmentWeight) {
+				} else if (startStatus != "" && EqualFold(t.ToStatus, startStatus)) || (hasWeight && weight >= commitmentWeight) {
 					if earliestAfterBackflow == nil {
 						st := t.Date
 						earliestAfterBackflow = &st
@@ -231,8 +232,8 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			if ageSinceCommitment == nil {
 				continue
 			}
-			currentWeight, ok := statusWeights[issue.Status]
-			if ok && currentWeight < commitmentWeight && !isFinished {
+			currentWeight, hasCurrentWeight := GetWeightCaseInsensitive(statusWeights, issue.Status)
+			if hasCurrentWeight && currentWeight < commitmentWeight && !isFinished {
 				continue
 			}
 		}
