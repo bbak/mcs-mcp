@@ -14,8 +14,8 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
     2.  AI identifies the source and calls `get_process_stability` to check the **Predictability Guardrail**.
-    3.  If stable, AI calls `run_simulation` with `mode: "duration"`, `additional_items: 50`.
-    4.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput.
+    3.  If stable, AI calls `run_simulation` with `mode: "duration"`. It can use `additional_items: 50` or a granular `targets: {"Story": 50}` map for higher precision.
+    4.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
     5.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
 
 ---
@@ -201,13 +201,14 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Dynamic Sampling & Baseline Shifting**: Ignore holiday dips or focus on high-velocity periods for realistic forecasting.
 - **Statistical Guardrails**: Detection of fat-tails and extreme volatility.
 
-- **Primary Actor:** User (Project Manager/Product Owner)
-- **Trigger:** User asks "What if we prioritize X over Y?" or "How does adding a new team member affect our forecast?"
-- **Main Success Scenario:**
-    1. AI calls `run_simulation` with various `scenario_parameters` (e.g., `priority_shift`, `resource_change`, `item_type_mix`).
-    2. MCP Server runs multiple Monte-Carlo simulations based on the defined scenarios, adjusting historical throughput and cycle time distributions as per the parameters.
-    3. AI presents a comparative analysis of the scenarios, highlighting the probabilistic outcomes for completion dates or scope delivery under each.
-    4. AI identifies potential risks or opportunities associated with each scenario, leveraging statistical guardrails to flag extreme volatility or fat-tail distributions.
+- **Primary Actor**: User (Project Manager/Product Owner)
+- **Trigger**: User asks "What if we spend more time on Bugs?" or "How does our forecast change if we target 20 Stories and 5 Improvements?"
+- **Main Success Scenario**:
+    1. AI calls `run_simulation` with `targets` (e.g., `{"Story": 20, "Improvement": 5}`) to define an explicit backlog mix.
+    2. AI optionally applies `mix_overrides` (e.g., `{"Bug": 0.25}`) to simulate a strategic shift in capacity towards bug-fixing.
+    3. MCP Server runs Monte-Carlo trials where background capacity is re-allocated based on the overrides and remaining work is sampled from the structured targets.
+    4. AI presents a comparative analysis, highlighting how the delivery of the main backlog is impacted by the background "friction" or strategic capacity shifts.
+    5. AI identifies potential risks or opportunities associated with each scenario, leveraging statistical guardrails to flag extreme volatility or fat-tail distributions.
 
 ---
 

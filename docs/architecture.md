@@ -13,6 +13,7 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
     - **Birth Status**: The earliest entry point identifies the system's source of demand.
     - **Terminal Sinks**: Statuses showing high entry but low exit ratios identify logical completion points even when resolutions are missing.
     - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions.
+    - **Unified Regex Stemming**: Discovery logic used capturing groups to both categorize roles (Queue/Active) and extract a normalized "stem" for pair identification, ensuring that "Ready for Test" and "Testing" are semantically linked via their shared core.
 - **Deterministic Identity**: Events are identified by their physical properties (Key, Timestamp, Type, and **StatusID**) rather than just system-generated names.
 - **Robust ID-Based Mapping**: The system prioritizes Jira `StatusID` for all workflow mapping and analytical lookups, falling back to case-insensitive name matching only when IDs are unavailable. This ensures consistency even if statuses are renamed or mappings are provided via external agent interactions.
 
@@ -88,11 +89,12 @@ Every status belongs to one of four logical process layers:
 
 Within these tiers, statuses can be further tagged:
 
-| Role       | Meaning                           | Impact on Analytics                                          |
-| :--------- | :-------------------------------- | :----------------------------------------------------------- |
-| **Active** | Primary working stage.            | High residence here indicates a process bottleneck.          |
-| **Queue**  | Passive waiting stage (Hand-off). | Persistence is flagged as "Flow Debt" or "Waiting Waste".    |
-| **Ignore** | Administrative stage.             | Resident time is excluded from core cycle time calculations. |
+| Role         | Meaning                           | Impact on Analytics                                          |
+| :----------- | :-------------------------------- | :----------------------------------------------------------- |
+| **Active**   | Primary working stage.            | High residence here indicates a process bottleneck.          |
+| **Queue**    | Passive waiting stage (Hand-off). | Persistence is flagged as "Flow Debt" or "Waiting Waste".    |
+| **Terminal** | Finished/Resolution stage.        | Explicitly stops the aging clock and pins duration.          |
+| **Ignore**   | Administrative stage.             | Resident time is excluded from core cycle time calculations. |
 
 #### 3. Abandonment & Outcome
 
@@ -191,9 +193,9 @@ To ensure conceptual integrity in cross-project environments (e.g., items moving
 
 To prevent archive data from skewing delivery metrics, the system implements a "Stop the Clock" policy for terminal statuses:
 
-- **Pinned Residency**: When an item enters a status mapped to the **Finished** tier, the residency calculation for that status (and the total process age) is pinned to the point of entry (or the resolution date if available).
+- **Pinned Residency**: When an item enters a status mapped to the **Finished** tier or a **Terminal** role, the residency calculation for that status (and the total process age) is pinned to the point of entry (or the resolution date if available).
 - **Cycle Time vs Aging**: Items in terminal statuses cease to "age". Their calculated duration is treated as a fixed **Cycle Time**.
-- **WIP Exclusion**: Diagnostic tools like `get_aging_analysis` can explicitly filter out "Finished" items to ensure the focus remains on the active inventory (WIP).
+- **WIP Exclusion**: Diagnostic tools like `get_aging_analysis` can explicitly filter out "Finished/Terminal" items to ensure the focus remains on the active inventory (WIP).
 - **Data Integrity**: This policy ensures that items delivered 6 months ago don't show an "Age" of 180 days in aging reports; they show the exact number of days they took to complete.
 
 #### 7. History Fallback Policy
@@ -232,6 +234,8 @@ To handle realistic scenarios where background work (e.g., Bugs, Administrative 
 
 - **The Slot Model**: Instead of slicing the historical throughput to just one item type, the system models the **Total System Capacity**.
 - **Historical Mix Distribution**: In each simulation trial, every "delivery slot" is assigned a work item type based on the observed historical probability (e.g., 60% Stories, 30% Bugs).
+- **Capacity Overrides (What-if)**: Users can apply `mix_overrides` to the historical distribution (e.g., "What if we spend 20% more time on Bugs?"). The engine re-normalizes remaining capacity proportionally among the non-overridden types.
+- **Structured Targets**: Backlogs can be defined as explicit type maps (`targets`), preventing the "Unknown" bucket from skewing high-fidelity type forecasts.
 - **Expansion Logic**: If a sampled type (e.g., Bug) is NOT in the target backlog provided by the user, it is treated as **Background Work**. This consumes a capacity slot but does not progress the user's specific target.
 - **Strategic Insight**: This model naturally produces longer, more realistic forecasts that account for the friction of background noise without requiring the user to explicitly define or estimate it.
 
@@ -315,7 +319,7 @@ To minimize latency, the system utilizes an **Incremental Fetch** strategy:
 
 - **Latest Timestamp Detection**: Upon hydration, the server identifies the timestamp of the most recent event in the local cache.
 - **Freshness Cache Policy**: If the cache is non-empty and has been updated within the last 30 minutes, the server skips the API sync to minimize latency and Jira API load.
-- **Delta Retrieval**: For active updates, the server utilizes the `updated DESC` sort order to efficiently merge new activity into the existing event log.
+- **JQL Delta Retrieval**: For active updates, the server appends `AND updated >= "YYYY-MM-DD HH:MM"` to the JQL query, retrieving only modified or new issues since the last ingestion.
 - **Paginated Recovery**: For high-churn environments, the server implements robust pagination using offsets, ensuring no events are missed between snapshots.
 
 ### 5.4. Recency Bias & Age-Constrained Sampling
