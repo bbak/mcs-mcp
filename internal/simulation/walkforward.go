@@ -249,7 +249,7 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 		// For the purpose of "Finished Map" in ReconstructIssue,
 		// we can probably assume the standard Reconstruct logic handles explicit resolution events.
 		// Passing empty map means it relies on explicit events, which is fine.
-		issue := eventlog.ReconstructIssue(evts, nil)
+		issue := eventlog.ReconstructIssue(evts, nil, refDate)
 
 		// Force Resolution Date to nil if it happened after refDate?
 		// (Already handled by event slicing, but explicit check is good)
@@ -266,7 +266,7 @@ func (w *WalkForwardEngine) countFinishedInWindow(allIssues []jira.Issue, start,
 	count := 0
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil {
-			if i.ResolutionDate.After(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
+			if !i.ResolutionDate.Before(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
 				// Also check if it was "Active" or valid outcome?
 				// For Scope, we usually count "Throughput".
 				// We assume all resolutions are valid throughput for now.

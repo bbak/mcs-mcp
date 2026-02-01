@@ -139,9 +139,10 @@ To ensure conceptual integrity and transparency, the server adheres to a strict 
 
 #### 1. Precision & Storage
 
-- **Internal Resolution**: The server parses Jira's changelog and calculates residence time for every status in **Microseconds** (`int64`).
-- **Serialization**: Integer microseconds are used for all caching and cross-process communication. This provides a deterministic "Physical Identity" for events, simplifying deduplication.
-- **Conversion**: Conversion to "Days" or "Seconds" only occurs at the analytical or reporting boundary: `Days = float64(Microseconds) / 86400000000.0`.
+- **Internal Resolution**: The server parses Jira's changelog and calculates events in **Microseconds** (`int64`) for precise sequencing in the event log.
+- **Residency Resolution**: For statistical analysis and residency tracking (e.g., time spent in a status), the server uses **Seconds** (`int64`). This simplifies calculations while maintaining sufficient precision for project-level forecasting.
+- **Serialization**: Integer microseconds are used for event timestamps to ensure a deterministic "Physical Identity" for events and simplify deduplication.
+- **Conversion**: Conversion to "Days" occurs at the analytical or reporting boundary: `Days = float64(Seconds) / 86400.0`.
 
 #### 2. Aging Definitions
 

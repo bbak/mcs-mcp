@@ -113,7 +113,8 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 }
 
 // ReconstructIssue builds a Domain Issue from a chronological stream of events.
-func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jira.Issue {
+// If referenceDate is non-zero, it is used as the "Now" for open items.
+func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, referenceDate time.Time) jira.Issue {
 	if len(events) == 0 {
 		return jira.Issue{}
 	}
@@ -158,7 +159,7 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 	// We pass time.Time{} as referenceDate to behave as "Now" for backward compatibility
 	// effectively relying on CalculateResidencyFromEvents default behavior or we can pass Now explicitly.
 	// Actually, ReconstructIssue doesn't have a reference date argument, so it inevitably uses "Now" for open items.
-	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastSinceMove(lastMoveDate), time.Time{})
+	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastSinceMove(lastMoveDate), referenceDate)
 
 	return issue
 }
@@ -167,54 +168,32 @@ func lastSinceMove(lastMove int64) int64 {
 	return lastMove
 }
 
-// CalculateResidencyFromEvents computes residency times from an event stream.
+// CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
 func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove int64, referenceDate time.Time) map[string]int64 {
-	residency := make(map[string]int64)
-	if len(events) == 0 {
-		return residency
-	}
+	var transitions []jira.StatusTransition
 
-	var transitions []IssueEvent
+	// Track the very first "From" status if possible for the birth duration
+	var initialStatus string
+
 	for _, e := range events {
-		if e.EventType == Transitioned || e.EventType == Created {
-			if lastMove == 0 || e.Timestamp >= lastMove {
-				transitions = append(transitions, e)
+		if (e.EventType == Transitioned || e.EventType == Created) && (lastMove == 0 || e.Timestamp >= lastMove) {
+			if initialStatus == "" && e.EventType == Created {
+				initialStatus = e.ToStatus
+			} else if initialStatus == "" && e.EventType == Transitioned {
+				initialStatus = e.FromStatus
+			}
+
+			if e.EventType == Transitioned {
+				transitions = append(transitions, jira.StatusTransition{
+					FromStatus:   e.FromStatus,
+					FromStatusID: e.FromStatusID,
+					ToStatus:     e.ToStatus,
+					ToStatusID:   e.ToStatusID,
+					Date:         time.UnixMicro(e.Timestamp),
+				})
 			}
 		}
 	}
 
-	if len(transitions) == 0 {
-		return residency
-	}
-
-	for i := 0; i < len(transitions)-1; i++ {
-		curr := transitions[i]
-		next := transitions[i+1]
-		duration := (next.Timestamp - curr.Timestamp) / 1000000 // microseconds to seconds
-		if duration <= 0 {
-			duration = 1
-		}
-		residency[curr.ToStatus] += duration
-	}
-
-	last := transitions[len(transitions)-1]
-
-	finalMicros := time.Now().UnixMicro()
-	if !referenceDate.IsZero() {
-		finalMicros = referenceDate.UnixMicro()
-	}
-
-	if resolved != nil {
-		finalMicros = resolved.UnixMicro()
-	} else if finished[currentStatus] {
-		finalMicros = last.Timestamp
-	}
-
-	duration := (finalMicros - last.Timestamp) / 1000000
-	if duration <= 0 {
-		duration = 1
-	}
-	residency[last.ToStatus] += duration
-
-	return residency
+	return stats.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
 }

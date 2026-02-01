@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"fmt"
-	"time"
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -61,87 +60,16 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 // Internal shared logic
 
 func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
-	weights := make(map[string]int)
-
-	// Discover the backbone path order from recent data
+	// Discover the backbone path order and return indexed weights
 	order := stats.DiscoverStatusOrder(issues)
-
-	// Use the index in the path as the weight.
-	// Statuses occurring earlier have lower weights.
-	// Transitions to a status with a lower weight are treated as backflows.
+	weights := make(map[string]int)
 	for i, name := range order {
-		// Use 1-based indexing for weights to avoid confusion with zero-values
 		weights[name] = i + 1
 	}
-
 	return weights
 }
 
-func (s *Server) applyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitmentWeight int) []jira.Issue {
-	clean := make([]jira.Issue, 0, len(issues))
-	for _, issue := range issues {
-		lastBackflowIdx := -1
-		for j, t := range issue.Transitions {
-			if w, ok := weights[t.ToStatus]; ok && w < commitmentWeight {
-				lastBackflowIdx = j
-			}
-		}
-
-		if lastBackflowIdx == -1 {
-			clean = append(clean, issue)
-			continue
-		}
-
-		newIssue := issue
-		newIssue.Transitions = stats.FilterTransitions(issue.Transitions, issue.Transitions[lastBackflowIdx].Date)
-		newIssue.StatusResidency = s.recalculateResidency(newIssue, issue.Transitions[lastBackflowIdx].ToStatus)
-		clean = append(clean, newIssue)
-	}
-	return clean
-}
-
-func (s *Server) recalculateResidency(issue jira.Issue, initialStatus string) map[string]int64 {
-	residency := make(map[string]int64)
-	if len(issue.Transitions) == 0 {
-		var finalDate time.Time
-		if issue.ResolutionDate != nil {
-			finalDate = *issue.ResolutionDate
-		} else {
-			finalDate = time.Now()
-		}
-		duration := int64(finalDate.Sub(issue.Created).Seconds())
-		if duration > 0 {
-			residency[initialStatus] = duration
-		}
-		return residency
-	}
-
-	firstDuration := int64(issue.Transitions[0].Date.Sub(issue.Created).Seconds())
-	if firstDuration > 0 {
-		residency[initialStatus] = firstDuration
-	}
-
-	for i := 0; i < len(issue.Transitions)-1; i++ {
-		duration := int64(issue.Transitions[i+1].Date.Sub(issue.Transitions[i].Date).Seconds())
-		if duration > 0 {
-			residency[issue.Transitions[i].ToStatus] += duration
-		}
-	}
-
-	var finalDate time.Time
-	if issue.ResolutionDate != nil {
-		finalDate = *issue.ResolutionDate
-	} else {
-		finalDate = time.Now()
-	}
-	lastTrans := issue.Transitions[len(issue.Transitions)-1]
-	finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
-	if finalDuration > 0 {
-		residency[lastTrans.ToStatus] += finalDuration
-	}
-
-	return residency
-}
+// Note: ApplyBackflowPolicy and RecalculateResidency have been moved to internal/stats/processor.go
 
 func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issues []jira.Issue) []string {
 	if order, ok := s.statusOrderings[sourceID]; ok {

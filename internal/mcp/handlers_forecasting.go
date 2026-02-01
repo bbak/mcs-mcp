@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"mcs-mcp/internal/simulation"
+	"mcs-mcp/internal/stats"
 )
 
 func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string) (interface{}, error) {
@@ -37,7 +38,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 			cWeight = w
 		}
 	}
-	issues = s.applyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
+	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
 
 	var wipAges []float64
 	wipCount := 0
@@ -53,9 +54,8 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 	}
 
 	if includeWIP {
-		// Filter issues for those that are logically WIP
 		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
-		wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+		wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 		cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 		wipAges = calcWipAges
@@ -175,7 +175,7 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 			cWeight = w
 		}
 	}
-	issues = s.applyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
+	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
 	cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
 
 	if len(cycleTimes) == 0 {
@@ -183,11 +183,9 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 	}
 
 	var wipAges []float64
-	if analyzeWIP {
-		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
-		wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-		wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
-	}
+	wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
+	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+	wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 
 	engine := simulation.NewEngine(nil)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes)

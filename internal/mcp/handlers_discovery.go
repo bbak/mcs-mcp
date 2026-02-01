@@ -73,7 +73,7 @@ func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string
 
 	var issues []jira.Issue
 	for _, issueEvents := range grouped {
-		issue := eventlog.ReconstructIssue(issueEvents, finished)
+		issue := eventlog.ReconstructIssue(issueEvents, finished, time.Now())
 		if !issue.IsSubtask {
 			issues = append(issues, issue)
 		}

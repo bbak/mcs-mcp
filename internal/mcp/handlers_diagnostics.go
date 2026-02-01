@@ -62,7 +62,7 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 		}
 	}
 	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
-	wipIssues = s.applyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
 	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
@@ -165,7 +165,7 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
 
-	issues = s.applyBackflowPolicy(issues, analysisCtx.StatusWeights, 2)
+	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, 2)
 	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
@@ -227,7 +227,9 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	}
 
 	finished := s.getFinishedStatuses(sourceID)
-	issue := eventlog.ReconstructIssue(events, finished)
+	issue := eventlog.ReconstructIssue(events, finished, time.Now())
+
+	residency := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finished, "", time.Now())
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -235,12 +237,13 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	}
 	var steps []JourneyStep
 
+	// Reconstruct path for display
 	if len(issue.Transitions) > 0 {
 		birthStatus := issue.Transitions[0].FromStatus
 		if birthStatus == "" {
-			// Fallback to the status it moved into if From is empty (shouldn't happen with new transformer but good to have)
 			birthStatus = issue.Transitions[0].ToStatus
 		}
+
 		firstDuration := issue.Transitions[0].Date.Sub(issue.Created).Seconds()
 		steps = append(steps, JourneyStep{
 			Status: birthStatus,
@@ -268,6 +271,7 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 			Days:   math.Round((finalDuration/86400.0)*10) / 10,
 		})
 	}
+	issue.StatusResidency = residency
 
 	residencyDays := make(map[string]float64)
 	for s, sec := range issue.StatusResidency {

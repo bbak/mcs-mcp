@@ -13,7 +13,7 @@ func TestWalkForwardEngine_Execute_Scope(t *testing.T) {
 	events := make([]eventlog.IssueEvent, 0)
 
 	// Consistent 1 item per day for 240 days
-	for i := 0; i < 240; i++ {
+	for i := 0; i < 250; i++ {
 		key := "PROJ-" + string(rune(i))
 		ts := t0.AddDate(0, 0, i)
 

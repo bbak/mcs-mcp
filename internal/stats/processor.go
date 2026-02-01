@@ -192,6 +192,113 @@ func FilterTransitions(transitions []jira.StatusTransition, since time.Time) []j
 	return filtered
 }
 
+// ApplyBackflowPolicy resets the implementation clock if an item returns to the Demand tier.
+func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitmentWeight int) []jira.Issue {
+	clean := make([]jira.Issue, 0, len(issues))
+	for _, issue := range issues {
+		lastBackflowIdx := -1
+		for j, t := range issue.Transitions {
+			// Weights are numeric: 1=Demand, 2=Start of Downstream.
+			// Any move TO a status with weight < commitmentWeight is a backflow.
+			statusID := t.ToStatusID
+			if statusID == "" {
+				statusID = t.ToStatus
+			}
+			if w, ok := GetWeightRobust(weights, t.ToStatusID, t.ToStatus); ok && w < commitmentWeight {
+				lastBackflowIdx = j
+			}
+		}
+
+		if lastBackflowIdx == -1 {
+			clean = append(clean, issue)
+			continue
+		}
+
+		newIssue := issue
+		newIssue.Transitions = FilterTransitions(issue.Transitions, issue.Transitions[lastBackflowIdx].Date)
+		newIssue.IsMoved = true // Treat as a reset
+
+		// Recalculate residency starting from the backflow point
+		newIssue.StatusResidency = CalculateResidency(
+			newIssue.Transitions,
+			issue.Created,
+			issue.ResolutionDate,
+			issue.Status,
+			nil, // finishedStatuses not needed if we are just rebuilding from trans
+			issue.Transitions[lastBackflowIdx].ToStatus,
+			time.Time{}, // Use Now
+		)
+		clean = append(clean, newIssue)
+	}
+	return clean
+}
+
+// CalculateResidency provides a unified way to compute status durations in seconds.
+// If referenceDate is non-zero, it is used as the "Now" for open items (Time-Travel).
+func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool, initialStatus string, referenceDate time.Time) map[string]int64 {
+	residency := make(map[string]int64)
+
+	now := time.Now()
+	if !referenceDate.IsZero() {
+		now = referenceDate
+	}
+
+	if len(transitions) == 0 {
+		var finalDate time.Time
+		if resolved != nil {
+			finalDate = *resolved
+		} else if finishedStatuses != nil && finishedStatuses[currentStatus] {
+			finalDate = created
+		} else {
+			finalDate = now
+		}
+		duration := int64(finalDate.Sub(created).Seconds())
+		if duration <= 0 {
+			duration = 1
+		}
+		residency[currentStatus] = duration
+		return residency
+	}
+
+	// 1. Time from creation to first transition
+	if initialStatus == "" {
+		initialStatus = transitions[0].FromStatus
+	}
+	firstDuration := int64(transitions[0].Date.Sub(created).Seconds())
+	if firstDuration <= 0 {
+		firstDuration = 1
+	}
+	residency[initialStatus] = firstDuration
+
+	// 2. Time between transitions
+	for i := 0; i < len(transitions)-1; i++ {
+		duration := int64(transitions[i+1].Date.Sub(transitions[i].Date).Seconds())
+		if duration <= 0 {
+			duration = 1
+		}
+		residency[transitions[i].ToStatus] += duration
+	}
+
+	// 3. Time since last transition
+	var finalDate time.Time
+	if resolved != nil {
+		finalDate = *resolved
+	} else if finishedStatuses != nil && finishedStatuses[currentStatus] {
+		finalDate = transitions[len(transitions)-1].Date
+	} else {
+		finalDate = now
+	}
+
+	lastTrans := transitions[len(transitions)-1]
+	finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
+	if finalDuration <= 0 {
+		finalDuration = 1
+	}
+	residency[lastTrans.ToStatus] += finalDuration
+
+	return residency
+}
+
 // GetDailyThroughput returns count of items resolved each day.
 func GetDailyThroughput(issues []jira.Issue) []int {
 	if len(issues) == 0 {
