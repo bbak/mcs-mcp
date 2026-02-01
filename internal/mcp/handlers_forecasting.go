@@ -2,13 +2,14 @@ package mcp
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
+func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -134,33 +135,66 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		engine = simulation.NewEngine(h)
 
 		// Prepare targets and distribution
-		targets := make(map[string]int)
-		if len(issueTypes) > 0 {
-			// Distribution: If multiple types requested, we split the backlog equally for now
-			// or we could use the historical ratio within those types.
-			// However, usually additionalItems refers to the primary type.
-			for _, t := range issueTypes {
-				targets[t] = totalBacklog / len(issueTypes)
-			}
-			// Add remainder to the first one
-			if len(issueTypes) > 0 {
-				targets[issueTypes[0]] += totalBacklog % len(issueTypes)
-			}
-		} else {
-			// If no types specified, we use the historical distribution to fill the backlog
-			// But usually duration simulation is "when will these X items be done".
-			// Let's assume the backlog matches the historical distribution if not specified.
-			if dist, ok := h.Meta["type_distribution"].(map[string]float64); ok {
-				for t, p := range dist {
-					targets[t] = int(float64(totalBacklog) * p)
-				}
-			} else {
-				targets["Unknown"] = totalBacklog
+		simTargets := make(map[string]int)
+		for k, v := range targets {
+			simTargets[k] = v
+		}
+
+		dist := make(map[string]float64)
+		if d, ok := h.Meta["type_distribution"].(map[string]float64); ok {
+			for t, p := range d {
+				dist[t] = p
 			}
 		}
 
-		dist, _ := h.Meta["type_distribution"].(map[string]float64)
-		resObj := engine.RunMultiTypeDurationSimulation(targets, dist, 10000)
+		// Apply Mix Overrides & Re-normalize
+		if len(mixOverrides) > 0 {
+			newDist := make(map[string]float64)
+			overrideSum := 0.0
+			for t, p := range mixOverrides {
+				newDist[t] = p
+				overrideSum += p
+			}
+
+			if overrideSum > 1.0 {
+				return nil, fmt.Errorf("mix_overrides sum exceeds 1.0 (%.2f)", overrideSum)
+			}
+
+			// Distribute remaining probability among non-overridden types
+			remainingProb := 1.0 - overrideSum
+			histRemainingSum := 0.0
+			for t, p := range dist {
+				if _, overridden := mixOverrides[t]; !overridden {
+					histRemainingSum += p
+				}
+			}
+
+			for t, p := range dist {
+				if _, overridden := mixOverrides[t]; !overridden {
+					if histRemainingSum > 0 {
+						newDist[t] = (p / histRemainingSum) * remainingProb
+					} else {
+						// Distribution fallback
+						newDist[t] = 0.0
+					}
+				}
+			}
+			dist = newDist
+		}
+
+		// Populate simTargets from total backlog if targets not explicitly provided
+		if len(simTargets) == 0 {
+			for t, p := range dist {
+				simTargets[t] = int(math.Round(float64(totalBacklog) * p))
+			}
+			// Safe fallback if still empty
+			if len(simTargets) == 0 {
+				simTargets["Unknown"] = totalBacklog
+				dist["Unknown"] = 1.0
+			}
+		}
+
+		resObj := engine.RunMultiTypeDurationSimulation(simTargets, dist, 1000)
 
 		if includeWIP {
 			cycleTimes := s.getCycleTimes(sourceID, issues, startStatus, endStatus, resolutions)
@@ -194,7 +228,7 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 
 	default:
 		if targetDays > 0 || targetDate != "" {
-			return s.handleRunSimulation(sourceID, sourceType, "scope", false, 0, targetDays, targetDate, "", "", nil, false, resolutions, sampleDays, sampleStartDate, sampleEndDate)
+			return s.handleRunSimulation(sourceID, sourceType, "scope", false, 0, targetDays, targetDate, "", "", nil, false, resolutions, sampleDays, sampleStartDate, sampleEndDate, targets, mixOverrides)
 		}
 		return nil, fmt.Errorf("mode required: 'duration' (backlog forecast) or 'scope' (volume forecast)")
 	}
@@ -263,7 +297,7 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 	return resObj, nil
 }
 
-func (s *Server) handleGetForecastAccuracy(sourceID, sourceType, mode string, itemsToForecast, forecastHorizon int, resolutions []string) (interface{}, error) {
+func (s *Server) handleGetForecastAccuracy(sourceID, sourceType, mode string, itemsToForecast, forecastHorizon int, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
 		return nil, err
@@ -274,7 +308,24 @@ func (s *Server) handleGetForecastAccuracy(sourceID, sourceType, mode string, it
 		return nil, err
 	}
 
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	// Determine Sampling Window
+	histEnd := time.Now()
+	if sampleEndDate != "" {
+		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
+			histEnd = t
+		}
+	}
+
+	histStart := histEnd.AddDate(0, -6, 0) // Default 6 months
+	if sampleStartDate != "" {
+		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
+			histStart = t
+		}
+	} else if sampleDays > 0 {
+		histStart = histEnd.AddDate(0, 0, -sampleDays)
+	}
+
+	events := s.events.GetEventsInRange(sourceID, histStart, histEnd)
 
 	// Mapping
 	// We pass the CURRENT mapping. This assumes mapping hasn't changed drastically.
@@ -295,10 +346,12 @@ func (s *Server) handleGetForecastAccuracy(sourceID, sourceType, mode string, it
 		resolutions = s.getDeliveredResolutions(sourceID)
 	}
 
+	lookback := int(histEnd.Sub(histStart).Hours() / 24)
+
 	cfg := simulation.WalkForwardConfig{
 		SourceID:        sourceID,
 		SimulationMode:  mode,
-		LookbackWindow:  90, // Check last 3 months
+		LookbackWindow:  lookback,
 		StepSize:        14, // Every 2 weeks
 		ForecastHorizon: forecastHorizon,
 		ItemsToForecast: itemsToForecast,

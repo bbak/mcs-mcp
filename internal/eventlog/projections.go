@@ -55,8 +55,10 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 			s.isFinished = true
 		}
 
-		if m, ok := mappings[s.currentStatus]; ok && m.Tier == "Finished" {
-			s.isFinished = true
+		if m, ok := mappings[s.currentStatus]; ok {
+			if m.Tier == "Finished" || m.Role == "terminal" {
+				s.isFinished = true
+			}
 		}
 	}
 
@@ -88,7 +90,7 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 	for _, e := range events {
 		isDelivery := e.EventType == Resolved
 		if !isDelivery && e.EventType == Transitioned {
-			if m, ok := mappings[e.ToStatus]; ok && m.Tier == "Finished" && m.Outcome == "delivered" {
+			if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
 				isDelivery = true
 			}
 		}

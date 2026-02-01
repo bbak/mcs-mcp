@@ -193,7 +193,27 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleStart := asString(call.Arguments["sample_start_date"])
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
-		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd)
+		var targets map[string]int
+		if t, ok := call.Arguments["targets"].(map[string]interface{}); ok {
+			targets = make(map[string]int)
+			for k, v := range t {
+				targets[k] = asInt(v)
+			}
+		}
+
+		var mix map[string]float64
+		if m, ok := call.Arguments["mix_overrides"].(map[string]interface{}); ok {
+			mix = make(map[string]float64)
+			for k, v := range m {
+				if f, ok := v.(float64); ok {
+					mix[k] = f
+				} else if i, ok := v.(int); ok {
+					mix[k] = float64(i)
+				}
+			}
+		}
+
+		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd, targets, mix)
 	case "get_status_persistence":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
@@ -294,7 +314,11 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleGetForecastAccuracy(id, sType, mode, items, horizon, res)
+		sampleDays := asInt(call.Arguments["sample_days"])
+		sampleStart := asString(call.Arguments["sample_start_date"])
+		sampleEnd := asString(call.Arguments["sample_end_date"])
+
+		data, err = s.handleGetForecastAccuracy(id, sType, mode, items, horizon, res, sampleDays, sampleStart, sampleEnd)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}

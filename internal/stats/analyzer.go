@@ -2,6 +2,7 @@ package stats
 
 import (
 	"mcs-mcp/internal/jira"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -102,7 +103,7 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 		}
 
 		// Inventory Heuristic (Category-Aware)
-		// We only count items that have NO resolution AND are not in a mapped Finished status
+		// We only count items as WIP/Backlog if they are NOT resolution AND not Terminal/Finished
 		if issue.ResolutionDate == nil && !finishedStatuses[issue.Status] {
 			switch issue.StatusCategory {
 			case "indeterminate":
@@ -234,10 +235,8 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		}
 
 		// --- ROLE HEURISTICS ---
-		if tier == "Demand" {
-			role = "queue"
-		} else if tier == "Finished" {
-			role = "active"
+		if tier == "Finished" {
+			role = "terminal"
 		} else if queueCandidates[name] {
 			role = "queue"
 		}
@@ -433,60 +432,68 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	return order
 }
 
+// findQueuingColumns applies regex-based heuristics to identify queue/buffer statuses.
+//
+// [STABILITY GUARDRAIL]
+// This logic is central to the system's "Conceptual Integrity". The regex priority
+// (isQueue > isActive) and the stemming normalization are carefully tuned to discover
+// workflow pairs. CASUAL MODIFICATION MAY BREAK WIP VS LEAD-TIME MEASUREMENTS.
 func findQueuingColumns(persistence []StatusPersistence) map[string]bool {
 	queues := make(map[string]bool)
-	lowerToOriginal := make(map[string]string)
+	lowerConfigs := make(map[string]string)
 	for _, p := range persistence {
-		lowerToOriginal[strings.ToLower(p.StatusName)] = p.StatusName
+		lowerConfigs[strings.ToLower(p.StatusName)] = p.StatusName
 	}
 
-	patterns := []string{"ready for ", "awaiting ", "waiting for ", "pending ", "to be "}
+	queueRegex := regexp.MustCompile(`(?i)^(?:ready for|awaiting|waiting\s+for|pending|to be|next)\s+([\w\s-]+?)(?:\s+ed|ment|ion)?$`)
+	suffixOnlyQueueRegex := regexp.MustCompile(`(?i)^([\w\s-]+?)ed$`)
+	activeRegex := regexp.MustCompile(`(?i)^(?:in\s+[\w\s-]+|[\w\s-]+ing)$`)
 
-	// Helper to strip common activity suffixes for fuzzy matching
-	stripSuffixes := func(s string) string {
-		s = strings.TrimSpace(s)
-		suffixes := []string{"ing", "ment", "ed", "ion"}
-		for _, suff := range suffixes {
-			if strings.HasSuffix(s, suff) {
-				return s[:len(s)-len(suff)]
-			}
-		}
-		return s
+	isQueue := func(s string) bool {
+		return queueRegex.MatchString(s) || suffixOnlyQueueRegex.MatchString(s)
+	}
+	isActive := func(s string) bool {
+		// Priority: If it looks like a queue, it's NOT active.
+		return activeRegex.MatchString(s) && !isQueue(s)
 	}
 
-	for lower, original := range lowerToOriginal {
-		// 1. Explicit Prefix Patterns
-		for _, pat := range patterns {
-			if strings.HasPrefix(lower, pat) {
-				action := strings.TrimPrefix(lower, pat)
-				stem := stripSuffixes(action)
-
-				// Check if there is an active counterpart
-				found := false
-				for otherLower := range lowerToOriginal {
-					if otherLower == lower {
-						continue
-					}
-					otherStem := stripSuffixes(otherLower)
-					if otherStem != "" && (strings.Contains(otherStem, stem) || strings.Contains(stem, otherStem)) {
-						found = true
-						break
-					}
-				}
-				if found {
-					queues[original] = true
-				}
-			}
-		}
-
-		// 2. Suffix patterns: "Developed" (done with dev, waiting for something else)
-		// We avoid "ing" which usually implies active work.
-		if strings.HasSuffix(lower, "ed") && !strings.HasSuffix(lower, "ing") {
+	// 1. Direct Role Matching
+	for lower, original := range lowerConfigs {
+		if isQueue(lower) {
 			queues[original] = true
 		}
 	}
 
+	// 2. Pair Discovery (Stem matching)
+	stems := make(map[string]string) // stem -> original status name
+	for lower, original := range lowerConfigs {
+		stem := extractStatusStem(lower)
+		if stem == "" {
+			continue
+		}
+
+		if existing, ok := stems[stem]; ok {
+			lowerExisting := strings.ToLower(existing)
+			// Confirm it's a valid semantic pair (one queue, one active)
+			if isQueue(lower) && isActive(lowerExisting) {
+				queues[original] = true
+			} else if isQueue(lowerExisting) && isActive(lower) {
+				queues[existing] = true
+			}
+		} else {
+			stems[stem] = original
+		}
+	}
+
 	return queues
+}
+
+func extractStatusStem(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	// Unify: Strip prefixes and suffixes to get the 'core'
+	re := regexp.MustCompile(`(?i)^(?:ready for|awaiting|waiting\s+for|pending|to be|in|at)\s+|(?:\s+ing|ed|ment|ion|stage)$`)
+	stem := re.ReplaceAllString(s, "")
+	return strings.TrimSpace(stem)
 }
 
 // SelectDiscoverySample filters a set of issues to provide a 200-item "healthy" subset for discovery.

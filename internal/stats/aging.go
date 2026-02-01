@@ -125,7 +125,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		isFinished := false
 		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
 			currentTier = m.Tier
-			if m.Tier == "Finished" {
+			if m.Tier == "Finished" || m.Role == "terminal" {
 				isFinished = true
 			}
 		}

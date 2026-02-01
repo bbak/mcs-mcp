@@ -50,7 +50,15 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 	// Stage 1: Recent Activity & WIP
 	log.Info().Str("source", sourceID).Msg("Hydrate Stage 1: Fetching activity")
 
-	hydrateJQL := fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
+	hydrateJQL := jql
+	if !latest.IsZero() {
+		// Use ISO format for JQL updated field
+		tsStr := latest.Format("2006-01-02 15:04")
+		hydrateJQL = fmt.Sprintf("(%s) AND updated >= \"%s\" ORDER BY updated DESC", jql, tsStr)
+	} else {
+		hydrateJQL = fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
+	}
+
 	targetDate := time.Now().AddDate(-1, 0, 0) // 1 year ago
 
 	totalFetched := 0

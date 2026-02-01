@@ -15,14 +15,16 @@ import (
 
 // EventStore provides thread-safe, chronological storage for IssueEvents.
 type EventStore struct {
-	mu   sync.RWMutex
-	logs map[string][]IssueEvent // Partitioned by SourceID (Board ID)
+	mu       sync.RWMutex
+	logs     map[string][]IssueEvent // Partitioned by SourceID (Board ID)
+	latestTs map[string]time.Time    // In-memory cache of latest event per source
 }
 
 // NewEventStore creates a new empty EventStore.
 func NewEventStore() *EventStore {
 	return &EventStore{
-		logs: make(map[string][]IssueEvent),
+		logs:     make(map[string][]IssueEvent),
+		latestTs: make(map[string]time.Time),
 	}
 }
 
@@ -62,6 +64,11 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 	})
 
 	s.logs[sourceID] = log
+
+	// 4. Update memory-cached latest timestamp
+	if len(log) > 0 {
+		s.latestTs[sourceID] = time.UnixMicro(log[len(log)-1].Timestamp)
+	}
 }
 
 // Load reads events from a JSONL cache file for the given source.
@@ -145,18 +152,10 @@ func (s *EventStore) Save(cacheDir string, sourceID string) error {
 	return nil
 }
 
-// GetLatestTimestamp returns the timestamp of the most recent event for a source.
 func (s *EventStore) GetLatestTimestamp(sourceID string) time.Time {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	logData, ok := s.logs[sourceID]
-	if !ok || len(logData) == 0 {
-		return time.Time{}
-	}
-
-	// Events are sorted, so the last one is the latest
-	return time.UnixMicro(logData[len(logData)-1].Timestamp)
+	return s.latestTs[sourceID]
 }
 
 // Count returns the number of events in the store for a source.
