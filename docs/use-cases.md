@@ -194,7 +194,24 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC14: Forensic Forecast Accuracy Backtesting
+## UC14: Strategic Scenario Planning
+
+**Goal:** Multi-Type Shared Capacity Forecasting: Forecast stories while background bugs consume throughput.
+
+- **Dynamic Sampling & Baseline Shifting**: Ignore holiday dips or focus on high-velocity periods for realistic forecasting.
+- **Statistical Guardrails**: Detection of fat-tails and extreme volatility.
+
+- **Primary Actor:** User (Project Manager/Product Owner)
+- **Trigger:** User asks "What if we prioritize X over Y?" or "How does adding a new team member affect our forecast?"
+- **Main Success Scenario:**
+    1. AI calls `run_simulation` with various `scenario_parameters` (e.g., `priority_shift`, `resource_change`, `item_type_mix`).
+    2. MCP Server runs multiple Monte-Carlo simulations based on the defined scenarios, adjusting historical throughput and cycle time distributions as per the parameters.
+    3. AI presents a comparative analysis of the scenarios, highlighting the probabilistic outcomes for completion dates or scope delivery under each.
+    4. AI identifies potential risks or opportunities associated with each scenario, leveraging statistical guardrails to flag extreme volatility or fat-tail distributions.
+
+---
+
+## UC15: Forensic Forecast Accuracy Backtesting
 
 **Goal:** Empirically validate the reliability of forecasts by "time-travelling" into the past and comparing predictions against actual outcomes.
 

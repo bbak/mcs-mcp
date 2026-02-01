@@ -189,7 +189,11 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		if len(res) == 0 {
 			res = s.getDeliveredResolutions(id)
 		}
-		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res)
+		sampleDays := asInt(call.Arguments["sample_days"])
+		sampleStart := asString(call.Arguments["sample_start_date"])
+		sampleEnd := asString(call.Arguments["sample_end_date"])
+
+		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd)
 	case "get_status_persistence":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])

@@ -30,27 +30,34 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	}
 
 	buckets := make([]int, days)
-	typeDist := make(map[string]int)
-	for _, issue := range issues {
-		typeDist[issue.IssueType]++
-	}
+	typeCounts := make(map[string]int)
+	totalDelivered := 0
 
-	analyzedCount := 0
 	for _, issue := range issues {
 		if issue.ResolutionDate == nil {
 			continue
 		}
-		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
-			continue
-		}
+		// Count all delivered items for distribution, regardless of filters
+		// (but respecting resolutions if provided to exclude 'Abandoned')
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
 			continue
 		}
+		typeCounts[issue.IssueType]++
+		totalDelivered++
 
-		analyzedCount++
+		// Fill throughput buckets based on ALL types (System Capacity)
+		// We use total throughput because Approach B models shared capacity slots.
 		dayIdx := int(issue.ResolutionDate.Sub(startTime).Hours() / 24)
 		if dayIdx >= 0 && dayIdx < days {
 			buckets[dayIdx]++
+		}
+	}
+
+	// Calculate normalized distribution
+	typeDist := make(map[string]float64)
+	if totalDelivered > 0 {
+		for t, c := range typeCounts {
+			typeDist[t] = float64(c) / float64(totalDelivered)
 		}
 	}
 
@@ -75,11 +82,12 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 
 	meta := map[string]interface{}{
 		"issues_total":       len(issues),
-		"issues_analyzed":    analyzedCount,
+		"issues_analyzed":    totalDelivered,
 		"days_in_sample":     days,
 		"throughput_overall": avgAcross,
 		"throughput_recent":  recentAvg,
 		"type_distribution":  typeDist,
+		"type_counts":        typeCounts,
 	}
 
 	return &Histogram{

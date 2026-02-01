@@ -61,11 +61,12 @@ type Result struct {
 	StaleWIPCount     int                    `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
-	Composition        Composition       `json:"composition"`
-	WIPAgeDistribution map[string]int    `json:"wip_age_distribution,omitempty"`
-	ThroughputTrend    ThroughputTrend   `json:"throughput_trend"`
-	Insights           []string          `json:"insights,omitempty"`
-	PercentileLabels   map[string]string `json:"percentile_labels,omitempty"`
+	Composition              Composition       `json:"composition"`
+	WIPAgeDistribution       map[string]int    `json:"wip_age_distribution,omitempty"`
+	ThroughputTrend          ThroughputTrend   `json:"throughput_trend"`
+	Insights                 []string          `json:"insights,omitempty"`
+	PercentileLabels         map[string]string `json:"percentile_labels,omitempty"`
+	BackgroundItemsPredicted map[string]int    `json:"background_items_predicted,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -75,26 +76,59 @@ func NewEngine(h *Histogram) *Engine {
 	}
 }
 
-// RunDurationSimulation predicts how many days it will take to finish a backlog.
+// RunDurationSimulation is a backward-compatible wrapper for simple backlog forecasts.
+// It assumes the backlog follows the historical distribution.
 func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
+	targets := make(map[string]int)
+	dist := make(map[string]float64)
+
+	if e.histogram != nil {
+		if d, ok := e.histogram.Meta["type_distribution"].(map[string]float64); ok && len(d) > 0 {
+			dist = d
+			for t, p := range dist {
+				targets[t] = int(math.Round(float64(backlogSize) * p))
+			}
+		}
+	}
+
+	// Fallback if no distribution found
+	if len(targets) == 0 {
+		targets["Unknown"] = backlogSize
+		dist["Unknown"] = 1.0
+	}
+
+	return e.RunMultiTypeDurationSimulation(targets, dist, trials)
+}
+
+// RunMultiTypeDurationSimulation predicts how long it takes to finish specific targets while others consume capacity.
+func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribution map[string]float64, trials int) Result {
 	if e.histogram == nil || len(e.histogram.Counts) == 0 {
 		return Result{}
 	}
 
 	durations := make([]int, trials)
-	totalPossible := 0
-	for _, c := range e.histogram.Counts {
-		totalPossible += c
+	backgroundCounts := make(map[string][]int)
+	for t := range distribution {
+		backgroundCounts[t] = make([]int, trials)
 	}
 
-	isInfinite := totalPossible == 0
-
-	log.Info().Int("trials", trials).Int("backlog", backlogSize).Msg("Starting duration simulation")
+	log.Info().Int("trials", trials).Interface("targets", targets).Msg("Starting multi-type duration simulation")
 	for i := 0; i < trials; i++ {
-		durations[i] = e.simulateDurationTrial(backlogSize)
+		duration, bg := e.simulateDurationTrialWithTypeMix(targets, distribution)
+		durations[i] = duration
+		for t, c := range bg {
+			backgroundCounts[t][i] = c
+		}
 	}
 
 	sort.Ints(durations)
+
+	// Calculate median background items
+	medianBG := make(map[string]int)
+	for t, counts := range backgroundCounts {
+		sort.Ints(counts)
+		medianBG[t] = counts[trials/2]
+	}
 
 	res := Result{
 		Percentiles: Percentiles{
@@ -121,13 +155,24 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 			"safe":           "P95 (Safe Bet)",
 			"almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
 		},
+		BackgroundItemsPredicted: medianBG,
 	}
-	log.Debug().Interface("result", res).Msg("Simulation calculation complete")
+
 	e.assessPredictability(&res)
+
+	// Check for infinite duration / zero throughput
+	isInfinite := true
+	for _, c := range e.histogram.Counts {
+		if c > 0 {
+			isInfinite = false
+			break
+		}
+	}
 	if isInfinite {
 		log.Warn().Msg("Simulation resulted in infinite duration due to zero throughput")
 		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
 	}
+
 	return res
 }
 
@@ -359,31 +404,69 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 	}
 }
 
-func (e *Engine) simulateDurationTrial(backlog int) int {
+func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distribution map[string]float64) (int, map[string]int) {
 	days := 0
-	remaining := backlog
-
-	// Early check: if all counts are 0, duration is infinite (capped at safety limit)
-	totalPossible := 0
-	for _, c := range e.histogram.Counts {
-		totalPossible += c
-	}
-	if totalPossible == 0 {
-		return 20000
+	remaining := make(map[string]int)
+	totalRemaining := 0
+	for t, c := range targets {
+		remaining[t] = c
+		totalRemaining += c
 	}
 
-	for remaining > 0 {
+	background := make(map[string]int)
+
+	// Early check for infinite loop
+	totalProb := 0.0
+	for t := range targets {
+		totalProb += distribution[t]
+	}
+	if totalProb == 0 {
+		return 20000, background
+	}
+
+	for totalRemaining > 0 {
 		days++
 		idx := e.rng.Intn(len(e.histogram.Counts))
-		throughput := e.histogram.Counts[idx]
-		remaining -= throughput
+		slots := e.histogram.Counts[idx]
 
-		if days > 20000 { // Safety brake
-			log.Warn().Int("backlog", backlog).Int("days", days).Msg("Simulation safety brake triggered")
+		for s := 0; s < slots; s++ {
+			// Sample type
+			r := e.rng.Float64()
+			var sampledType string
+			acc := 0.0
+			for t, p := range distribution {
+				acc += p
+				if r <= acc {
+					sampledType = t
+					break
+				}
+			}
+
+			if sampledType == "" {
+				// Fallback if float precision issues
+				for t := range distribution {
+					sampledType = t
+					break
+				}
+			}
+
+			if count, ok := remaining[sampledType]; ok && count > 0 {
+				remaining[sampledType]--
+				totalRemaining--
+			} else {
+				background[sampledType]++
+			}
+
+			if totalRemaining <= 0 {
+				break
+			}
+		}
+
+		if days >= 20000 {
 			break
 		}
 	}
-	return days
+	return days, background
 }
 
 func (e *Engine) simulateScopeTrial(targetDays int) int {

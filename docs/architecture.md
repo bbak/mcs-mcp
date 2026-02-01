@@ -226,6 +226,25 @@ To identify process instability and the presence of extreme outliers (Fat-Tails)
 | **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
 | **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
 
+### 4.5. Multi-Type Forecasting (Shared Capacity)
+
+To handle realistic scenarios where background work (e.g., Bugs, Administrative Tasks) consumes the team's capacity during a project goal, the system utilizes **Demand Expansion (Slot-based Sampling)**.
+
+- **The Slot Model**: Instead of slicing the historical throughput to just one item type, the system models the **Total System Capacity**.
+- **Historical Mix Distribution**: In each simulation trial, every "delivery slot" is assigned a work item type based on the observed historical probability (e.g., 60% Stories, 30% Bugs).
+- **Expansion Logic**: If a sampled type (e.g., Bug) is NOT in the target backlog provided by the user, it is treated as **Background Work**. This consumes a capacity slot but does not progress the user's specific target.
+- **Strategic Insight**: This model naturally produces longer, more realistic forecasts that account for the friction of background noise without requiring the user to explicitly define or estimate it.
+
+### 2.6 Dynamic Sampling Windows
+
+To ensure that the historical baseline reflects the expected future context (e.g., avoiding low-throughput holiday periods or focusing on a specific project phase), the system allows **baseline shifting**:
+
+- **Sliding Windows**: Users can specify `sample_days` (e.g., "last 30 days") to focus only on recent performance.
+- **Explicit Fixed Windows**: Users can define `sample_start_date` and `sample_end_date` (e.g., "use entire month of November") to capture a specific behavior pattern as the forecast engine.
+- **AI-Driven Baseline Selection**: AI agents are instructed to analyze process stability (`get_process_stability`) before selecting a sampling window to ensure the baseline itself is "in control."
+
+---
+
 ### 4.5. Process Stability & Evolution (XmR)
 
 While Monte-Carlo simulations provide forecasts, Process Behavior Charts (XmR) assess the **validity** of those forecasts by identifying "Special Cause" variation.
