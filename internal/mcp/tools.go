@@ -27,7 +27,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_project_details",
-				"description": "Get detailed metadata for a single project by its key.",
+				"description": "Get detailed metadata and a data distribution summary (items, types, health) for a single project. SHOULD be called immediately after 'find_jira_projects'.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -38,25 +38,13 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_board_details",
-				"description": "Get metadata for a single Agile board by its ID.",
+				"description": "Get metadata and a data distribution summary (items, types, health) for a single Agile board. SHOULD be called immediately after 'find_jira_boards'.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"board_id": map[string]interface{}{"type": "integer", "description": "The board ID"},
 					},
 					"required": []string{"board_id"},
-				},
-			},
-			map[string]interface{}{
-				"name":        "get_data_metadata",
-				"description": "Performs a diagnostic probe on a data source (board/filter) to assess volume, health, and distribution. Returns a summary of a 50-item sample (SampleResolvedRatio, inventory counts). This is a tool for data inventory, NOT for team performance metrics.",
-				"inputSchema": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
-					},
-					"required": []string{"source_id", "source_type"},
 				},
 			},
 			map[string]interface{}{

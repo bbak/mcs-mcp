@@ -13,7 +13,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 			"title":       "Analytical Workflow: Professional Forecasting",
 			"description": "Recommended sequence to produce reliable delivery dates or volume forecasts.",
 			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "get_workflow_discovery", "description": "Establish the semantic 'Happy Path'. Verify tiers and roles with the user."},
+				map[string]interface{}{"step": 1, "tool": "get_workflow_discovery", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
 				map[string]interface{}{"step": 2, "tool": "get_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
 				map[string]interface{}{"step": 3, "tool": "get_cycle_time_assessment", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
 				map[string]interface{}{"step": 4, "tool": "get_aging_analysis", "description": "Check if current WIP is clogging the system."},

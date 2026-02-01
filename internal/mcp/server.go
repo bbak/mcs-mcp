@@ -124,7 +124,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"projects": projects,
 				"_guidance": []string{
-					"Before performing analysis on a discovered project, you SHOULD fetch its full details via 'get_project_details' to ensure valid metadata and context.",
+					"Project located. You MUST now call 'get_project_details' to anchor on the data distribution before planning analysis.",
 				},
 			}
 		}
@@ -137,21 +137,17 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"boards": boards,
 				"_guidance": []string{
-					"Once a board is identified, you SHOULD fetch its configuration using 'get_board_details' to understand its mapping to projects and statuses.",
+					"Board located. You MUST now call 'get_board_details' to anchor on the data distribution and metadata before planning analysis.",
 				},
 			}
 		}
 		err = findErr
 	case "get_project_details":
 		key := asString(call.Arguments["project_key"])
-		data, err = s.jira.GetProject(key)
+		data, err = s.handleGetProjectDetails(key)
 	case "get_board_details":
 		id := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetBoardDetails(id)
-	case "get_data_metadata":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
-		data, err = s.handleGetDataMetadata(id, sType)
 	case "run_simulation":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])

@@ -13,10 +13,13 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** User asks a "When?" question regarding a specific number of items.
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
-    2.  AI identifies the source and calls `get_process_stability` to check the **Predictability Guardrail**.
-    3.  If stable, AI calls `run_simulation` with `mode: "duration"`. It can use `additional_items: 50` or a granular `targets: {"Story": 50}` map for higher precision.
-    4.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
-    5.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
+    2.  AI calls `find_jira_projects` and identifies "PROJX".
+    3.  AI automatically calls `get_project_details` which anchors on the data shape and confirms volume (e.g., "500 total stories found").
+    4.  AI calls `get_workflow_discovery` to establish the semantic mapping.
+    5.  AI identifies the goal and calls `get_diagnostic_roadmap` (Forecasting).
+    6.  AI calls `run_simulation` with `mode: "duration"`.
+    7.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
+    8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
 
 ---
 
@@ -126,11 +129,12 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Proactive)
 - **Trigger:** AI sees high persistence in a "To Do" category status.
 - **Main Success Scenario:**
-    1. AI calls `get_workflow_discovery`.
-    2. AI notices status "Open" has high residency but is categorized as "To Do".
-    3. AI informs User: "I've mapped 'Open' as your **Backlog**. I will treat its high persistence as expected storage time unless you tell me otherwise."
-    4. User confirms or vetos.
-    5. AI calls `set_workflow_mapping` if changes are needed. The server now captures **Status IDs** to ensure mappings are robust against status renames.
+    1. AI identifies a new board via `find_jira_boards`.
+    2. AI calls `get_board_details` to anchor on data metadata and volume.
+    3. AI calls `get_workflow_discovery` and notices status "Open" has high residency but is categorized as "To-Do".
+    4. AI informs User: "I've mapped 'Open' as your **Backlog**. I will treat its high persistence as expected storage time unless you tell me otherwise."
+    5. User confirms or vetos.
+    6. AI calls `set_workflow_mapping` if changes are needed.
 
 ---
 

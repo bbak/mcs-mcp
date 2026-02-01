@@ -21,19 +21,17 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
 
 ```mermaid
 graph TD
-    A["<b>1. Goal Identification</b><br/>get_diagnostic_roadmap"] --> B["<b>2. Discovery</b><br/>get_data_metadata"]
+    A["<b>1. Identification</b><br/>find_jira_boards"] --> B["<b>2. Context Anchoring</b><br/>get_board_details"]
     B --> C["<b>3. Semantic Mapping</b><br/>get_workflow_discovery"]
-    C --> D["<b>4. Selection</b><br/>User choosing Commitment Point"]
+    C --> D["<b>4. Planning</b><br/>get_diagnostic_roadmap"]
     D --> E["<b>5. Forecast & Diagnostics</b><br/>run_simulation / get_aging_analysis"]
 ```
 
-1.  **Guidance Phase**: The AI uses `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of tools.
-2.  **Discovery Phase**: The `find_jira_projects` and `find_jira_boards` tools are used to locate the target data source. Once identified, `get_data_metadata` is used to probe the source for scale and quality.
-3.  **Semantic Mapping Phase**: The `get_workflow_discovery` tool uses **Data Archeology** (birth status, terminal asymmetry, and backbone pathing) to propose a mapping of statuses to **Meta-Workflow Tiers** (Demand, Upstream, Downstream) and **Functional Roles** (Active, Queue, Ignore). Approval via `set_workflow_mapping` persists this state.
-4.  **Selection Phase**: Based on the discovery results, the user confirms the **Commitment Point**. If not explicitly confirmed, the system defaults to the first status in the **Downstream** tier (the first active implementation stage) to ensure continuity of analysis.
-5.  **Analytics Phase**:
-    - Use `run_simulation` for aggregate/bulk forecasts.
-    - Use `get_aging_analysis` and `get_status_persistence` for process health.
+1.  **Identification Phase**: Use `find_jira_projects` and `find_jira_boards` to locate the target. Guidance automatically triggers the next step.
+2.  **Context Anchoring Phase**: Use `get_board_details` (or `get_project_details`). This tool performs an **Eager Fetch** of history and a **Data Probe** to determine volume, issue type distribution, and data density.
+3.  **Semantic Mapping Phase**: Use `get_workflow_discovery` to establish tiers and roles via **Data Archeology**.
+4.  **Planning Phase**: Use `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of analytical tools based on the now-confirmed context.
+5.  **Analytics Phase**: Perform high-fidelity diagnostics (Aging, Stability, Simulation) using the established mapping and baseline.
     - Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
 
 ### Analytical Roadmap (AI Guidance)
@@ -73,6 +71,14 @@ The server employs high-fidelity residency tracking. Instead of calculating a si
 ### Workflow Semantic Tiers & Roles
 
 To prevent the AI from misinterpreting administrative or storage stages as process bottlenecks, statuses are mapped to **Meta-Workflow Tiers** and specific **Roles**.
+
+### Throttling & Burst Mode Policy
+
+To maintain a high-performance experience during the multi-step discovery process while protecting Jira Data Center from excessive load:
+
+- **Safety Brake**: Heavy analytical queries (Search with History, JQL Hydration) are subject to `JIRA_REQUEST_DELAY_SECONDS` (default: 10s).
+- **Burst Mode**: "Cheap" metadata requests (Get Board, Get Config, Get Project Statuses) bypass the artificial throttle when executed sequentially.
+- **Result**: Automated discovery chains (Find -> Details -> Mapping) feel immediate, while analytical workloads remain governed.
 
 #### 1. Meta-Workflow Tiers
 

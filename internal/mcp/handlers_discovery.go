@@ -10,38 +10,6 @@ import (
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}, error) {
-	ctx, err := s.resolveSourceContext(sourceID, sourceType)
-	if err != nil {
-		return nil, err
-	}
-
-	// Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
-		return nil, err
-	}
-
-	// Fetch events and reconstruct issues for analysis
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events, sourceID)
-
-	// Apply age-constrained sampling (200 healthy items)
-	sample := stats.SelectDiscoverySample(domainIssues, 200)
-
-	summary := stats.AnalyzeProbe(sample, len(sample), s.getFinishedStatuses(sourceID))
-
-	return map[string]interface{}{
-		"summary":            summary,
-		"total_source_items": len(domainIssues),
-		"_guidance": []string{
-			"This is a DATA PROBE on a 200-item recent sample. Use it to understand data volume and distribution.",
-			"Items are selected based on recent activity (updated DESC) with an age-weighted fallback (1-3 years creation) to avoid noisy ancient history.",
-			"SampleResolvedRatio is a diagnostic of the sample's completeness, NOT a team performance metric.",
-			"Inventory counts (WIP/Backlog) are HEURISTICS. Unreliable until 'set_workflow_mapping' and 'set_workflow_order' are confirmed.",
-		},
-	}, nil
-}
-
 func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(sourceID, sourceType)
 	if err != nil {
@@ -129,11 +97,17 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		return i < j
 	})
 
+	// Data Summary for context
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	domainIssues := s.reconstructIssues(events, sourceID)
+	summary := stats.AnalyzeProbe(issues, len(domainIssues), s.getFinishedStatuses(sourceID))
+
 	return map[string]interface{}{
 		"source_id":         sourceID,
 		"proposed_mapping":  finalProposal,
 		"discovered_order":  discoveredOrder,
 		"persistence_stats": persistence,
+		"data_summary":      summary,
 		"_guidance": []string{
 			"AI MUST verify this semantic mapping with the user via 'set_workflow_mapping' before performing deeper analysis.",
 			"Tiers (Demand, Upstream, Downstream, Finished) determine the analytical scope. 'Upstream' covers refinement, 'Downstream' covers execution.",

@@ -86,7 +86,14 @@ func (c *dcClient) addToCache(key string, value interface{}, ttl time.Duration) 
 	log.Debug().Str("key", key).Dur("ttl", ttl).Msg("Added to cache")
 }
 
-func (c *dcClient) throttle() {
+func (c *dcClient) throttle(isMetadata bool) {
+	// Metadata requests (Board, Config, Project) are allowed to "burst" sequentially
+	// to avoid artificial delay during the setup phase.
+	if isMetadata {
+		c.lastRequest = time.Now()
+		return
+	}
+
 	elapsed := time.Since(c.lastRequest)
 	if elapsed < c.cfg.RequestDelay {
 		wait := c.cfg.RequestDelay - elapsed
@@ -143,7 +150,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 		return val.(*SearchResponse), nil
 	}
 
-	c.throttle()
+	c.throttle(false)
 
 	// Use url.Values for better query param handling
 	params := url.Values{}
@@ -202,7 +209,7 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 		return val, nil
 	}
 
-	c.throttle()
+	c.throttle(true)
 
 	url := fmt.Sprintf("%s/rest/api/2/project/%s", c.cfg.BaseURL, key)
 	req, err := http.NewRequest("GET", url, nil)
@@ -246,7 +253,7 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 		return val, nil
 	}
 
-	c.throttle()
+	c.throttle(true)
 
 	url := fmt.Sprintf("%s/rest/api/2/project/%s/statuses", c.cfg.BaseURL, key)
 	req, err := http.NewRequest("GET", url, nil)
@@ -288,7 +295,7 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 		return val, nil
 	}
 
-	c.throttle()
+	c.throttle(true)
 
 	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d", c.cfg.BaseURL, id)
 	req, err := http.NewRequest("GET", url, nil)
@@ -330,7 +337,7 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 		return val.([]interface{}), nil
 	}
 
-	c.throttle()
+	c.throttle(false)
 
 	// Use /projects/picker for efficient server-side search
 	params := url.Values{}
@@ -396,7 +403,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 		return val.([]interface{}), nil
 	}
 
-	c.throttle()
+	c.throttle(false)
 
 	params := url.Values{}
 	if projectKey != "" {
@@ -531,7 +538,7 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 		return val, nil
 	}
 
-	c.throttle()
+	c.throttle(true)
 
 	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d/configuration", c.cfg.BaseURL, id)
 	req, err := http.NewRequest("GET", url, nil)
@@ -574,7 +581,7 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 		return val, nil
 	}
 
-	c.throttle()
+	c.throttle(true)
 
 	url := fmt.Sprintf("%s/rest/api/2/filter/%s", c.cfg.BaseURL, id)
 	req, err := http.NewRequest("GET", url, nil)
