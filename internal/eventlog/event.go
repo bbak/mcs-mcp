@@ -30,8 +30,12 @@ type IssueEvent struct {
 
 	// FromStatus is the status the item moved from (for Transitioned events).
 	FromStatus string `json:"fromStatus,omitempty"`
+	// FromStatusID is the numeric ID of the status the item moved from.
+	FromStatusID string `json:"fromStatusId,omitempty"`
 	// ToStatus is the status the item moved to (for Transitioned events).
 	ToStatus string `json:"toStatus,omitempty"`
+	// ToStatusID is the numeric ID of the status the item moved to.
+	ToStatusID string `json:"toStatusId,omitempty"`
 	// Resolution is the Jira resolution name (for Resolved events).
 	Resolution string `json:"resolution,omitempty"`
 

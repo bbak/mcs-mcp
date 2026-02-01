@@ -150,7 +150,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	params.Set("jql", jql)
 	params.Set("startAt", fmt.Sprintf("%d", startAt))
 	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
-	params.Set("fields", "issuetype,status,resolution,resolutiondate,created")
+	params.Set("fields", "issuetype,status,resolution,resolutiondate,created,updated")
 	if expand != "" {
 		params.Set("expand", expand)
 	}

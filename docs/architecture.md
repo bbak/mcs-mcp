@@ -13,7 +13,8 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
     - **Birth Status**: The earliest entry point identifies the system's source of demand.
     - **Terminal Sinks**: Statuses showing high entry but low exit ratios identify logical completion points even when resolutions are missing.
     - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions.
-- **Deterministic Identity**: Events are identified by their physical properties (Key, Timestamp, Type) rather than system-generated IDs.
+- **Deterministic Identity**: Events are identified by their physical properties (Key, Timestamp, Type, and **StatusID**) rather than just system-generated names.
+- **Robust ID-Based Mapping**: The system prioritizes Jira `StatusID` for all workflow mapping and analytical lookups, falling back to case-insensitive name matching only when IDs are unavailable. This ensures consistency even if statuses are renamed or mappings are provided via external agent interactions.
 
 ### Operational Flow (The Interaction Model)
 
@@ -254,23 +255,21 @@ To enable high-fidelity metrics and progressive data loading, the system utilize
 
 ```mermaid
 graph TD
-    A[JQL/SourceID] --> B[LogProvider]
-    B --> C{Staged Ingestion}
-    C -->|Stage 1: Probe| D[EventStore]
-    C -->|Stage 2: WIP| D
-    C -->|Stage 3: Baseline| D
+    A[JQL/SourceContext] --> B[LogProvider.Hydrate]
+    B --> C{Two-Stage Hydration}
+    C -->|Stage 1: Activity| D[EventStore]
+    C -->|Stage 2: Baseline| D
     D --> E[Projections]
     E --> F[Domain Issues]
     F --> G[Analysis Tools]
 ```
 
-1.  **LogProvider**: Orchestrates the data flow. It ensures that the required level of data detail is available in the local log before analysis begins.
-2.  **Staged Ingestion**:
-    - **Stage 1: Probe**: Fetches a small sample (50 items) to enable `get_data_metadata` and `get_workflow_discovery`.
-    - **Stage 2: WIP**: Fetches all active items (those not in the 'Finished' status category) to ensure accurate `get_aging_analysis`.
-    - **Stage 3: Baseline**: Fetches a deep historical baseline (defaulting to 6 months) for forecasting and stability analysis.
+1.  **LogProvider**: Orchestrates the data flow. It ensures that the required level of data detail is available in the local log via an **Eager Fetch** policy triggered upon board/filter selection.
+2.  **Two-Stage Hydration**:
+    - **Stage 1: Recent Activity & WIP**: Fetches items sorted by `updated DESC` to ensure all active WIP and recent delivery history (up to 1000 items or 1 year) are captured immediately.
+    - **Stage 2: Baseline Depth**: If the first stage did not yield enough resolved items for a statistically significant baseline (default 200 items), the system performs an explicit fetch for historical resolutions (`resolution is not EMPTY`).
 3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` (Unix Microseconds).
-4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Moved`). It ensures "Birth Status Alignment" by identifying the functional status an item landed in from its first transition.
+4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Moved`). It captures **Status IDs** for every transition to ensure robust analytical mapping.
 5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses (e.g., `ReconstructIssue`, `WIPProjection`).
 
 ### 5.1. The Event Log as Source of Truth
@@ -294,9 +293,10 @@ To ensure performance and reliability across sessions, the server implements a f
 
 To minimize latency, the system utilizes an **Incremental Fetch** strategy:
 
-- **Latest Timestamp Detection**: Upon loading a board/filter, the server identifies the timestamp of the most recent event in the local cache.
-- **Delta Retrieval**: If a recent cache exists, the server updates its JQL to fetch only items modified since that timestamp (`updated >= {latest_ts}`).
-- **Paginated Recovery**: For high-churn environments or deep catch-ups, the server implements robust pagination, fetching data in configurable pages to stay within Jira's `maxResults` constraints while ensuring no events are missed.
+- **Latest Timestamp Detection**: Upon hydration, the server identifies the timestamp of the most recent event in the local cache.
+- **Freshness Cache Policy**: If the cache is non-empty and has been updated within the last 30 minutes, the server skips the API sync to minimize latency and Jira API load.
+- **Delta Retrieval**: For active updates, the server utilizes the `updated DESC` sort order to efficiently merge new activity into the existing event log.
+- **Paginated Recovery**: For high-churn environments, the server implements robust pagination using offsets, ensuring no events are missed between snapshots.
 
 ### 5.4. Recency Bias & Age-Constrained Sampling
 

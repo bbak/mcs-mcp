@@ -15,8 +15,8 @@ func (s *Server) handleGetStatusPersistence(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	// Stage 3: Baseline Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -46,12 +46,8 @@ func (s *Server) handleGetAgingAnalysis(sourceID, sourceType, agingType, tierFil
 		return nil, err
 	}
 
-	// Stage 3 & 2 Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
-		return nil, err
-	}
-	active := s.getActiveStatuses(sourceID)
-	if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -103,8 +99,8 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string) (interfac
 		return nil, err
 	}
 
-	// Stage 3: Baseline Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -128,12 +124,8 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string) (interfa
 		return nil, err
 	}
 
-	// Stage 3 & 2 Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
-		return nil, err
-	}
-	active := s.getActiveStatuses(sourceID)
-	if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -162,8 +154,8 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 		return nil, err
 	}
 
-	// Stage 3 Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, windowMonths); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -195,8 +187,8 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	// Stage 3: Baseline Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -217,7 +209,7 @@ func (s *Server) handleGetProcessYield(sourceID, sourceType string) (interface{}
 func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	// SINGLE ITEM probe
 	jql := fmt.Sprintf("key = %s", issueKey)
-	if err := s.events.EnsureProbe(issueKey, jql); err != nil {
+	if err := s.events.Hydrate(issueKey, jql); err != nil {
 		return nil, err
 	}
 

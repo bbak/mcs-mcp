@@ -16,8 +16,8 @@ func (s *Server) handleGetDataMetadata(sourceID, sourceType string) (interface{}
 		return nil, err
 	}
 
-	// Stage 1: Ensure Probe
-	if err := s.events.EnsureProbe(sourceID, ctx.JQL); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
@@ -48,8 +48,8 @@ func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interf
 		return nil, err
 	}
 
-	// Stage 1: Ensure Probe
-	if err := s.events.EnsureProbe(sourceID, ctx.JQL); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 

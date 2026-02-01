@@ -17,7 +17,7 @@ type WIPItem struct {
 }
 
 // BuildWIPProjection identifies active items based on a commitment point and current mappings.
-func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings map[string]stats.StatusMetadata) []WIPItem {
+func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings map[string]stats.StatusMetadata, referenceDate time.Time) []WIPItem {
 	type state struct {
 		key            string
 		issueType      string
@@ -27,7 +27,16 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 	}
 	states := make(map[string]*state)
 
+	refMicros := referenceDate.UnixMicro()
+	if referenceDate.IsZero() {
+		refMicros = time.Now().UnixMicro()
+	}
+
 	for _, e := range events {
+		if e.Timestamp > refMicros {
+			continue
+		}
+
 		s, ok := states[e.IssueKey]
 		if !ok {
 			s = &state{key: e.IssueKey, issueType: e.IssueType}
@@ -52,7 +61,6 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 	}
 
 	var wip []WIPItem
-	now := time.Now().UnixMicro()
 	for _, s := range states {
 		if s.commitmentDate != 0 && !s.isFinished {
 			wip = append(wip, WIPItem{
@@ -60,7 +68,7 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 				IssueType:          s.issueType,
 				CurrentStatus:      s.currentStatus,
 				CommitmentDate:     time.UnixMicro(s.commitmentDate),
-				AgeSinceCommitment: float64(now-s.commitmentDate) / 86400000000.0, // 86.4B micros in a day
+				AgeSinceCommitment: float64(refMicros-s.commitmentDate) / 86400000000.0, // 86.4B micros in a day
 			})
 		}
 	}
@@ -126,13 +134,17 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 		case Created:
 			issue.Created = time.UnixMicro(e.Timestamp)
 			issue.Status = e.ToStatus
+			issue.StatusID = e.ToStatusID
 		case Transitioned:
 			issue.Transitions = append(issue.Transitions, jira.StatusTransition{
-				FromStatus: e.FromStatus,
-				ToStatus:   e.ToStatus,
-				Date:       time.UnixMicro(e.Timestamp),
+				FromStatus:   e.FromStatus,
+				FromStatusID: e.FromStatusID,
+				ToStatus:     e.ToStatus,
+				ToStatusID:   e.ToStatusID,
+				Date:         time.UnixMicro(e.Timestamp),
 			})
 			issue.Status = e.ToStatus
+			issue.StatusID = e.ToStatusID
 		case Resolved:
 			ts := time.UnixMicro(e.Timestamp)
 			issue.ResolutionDate = &ts
@@ -143,13 +155,20 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool) jir
 		}
 	}
 
-	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastMoveDate)
+	// We pass time.Time{} as referenceDate to behave as "Now" for backward compatibility
+	// effectively relying on CalculateResidencyFromEvents default behavior or we can pass Now explicitly.
+	// Actually, ReconstructIssue doesn't have a reference date argument, so it inevitably uses "Now" for open items.
+	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastSinceMove(lastMoveDate), time.Time{})
 
 	return issue
 }
 
+func lastSinceMove(lastMove int64) int64 {
+	return lastMove
+}
+
 // CalculateResidencyFromEvents computes residency times from an event stream.
-func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove int64) map[string]int64 {
+func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove int64, referenceDate time.Time) map[string]int64 {
 	residency := make(map[string]int64)
 	if len(events) == 0 {
 		return residency
@@ -179,12 +198,18 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 	}
 
 	last := transitions[len(transitions)-1]
+
 	finalMicros := time.Now().UnixMicro()
+	if !referenceDate.IsZero() {
+		finalMicros = referenceDate.UnixMicro()
+	}
+
 	if resolved != nil {
 		finalMicros = resolved.UnixMicro()
 	} else if finished[currentStatus] {
 		finalMicros = last.Timestamp
 	}
+
 	duration := (finalMicros - last.Timestamp) / 1000000
 	if duration <= 0 {
 		duration = 1

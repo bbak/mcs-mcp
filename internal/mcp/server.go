@@ -147,7 +147,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		data, err = s.jira.GetProject(key)
 	case "get_board_details":
 		id := asInt(call.Arguments["board_id"])
-		data, err = s.jira.GetBoard(id)
+		data, err = s.handleGetBoardDetails(id)
 	case "get_data_metadata":
 		id := asString(call.Arguments["source_id"])
 		sType := asString(call.Arguments["source_type"])
@@ -277,6 +277,20 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "get_item_journey":
 		key := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(key)
+	case "get_forecast_accuracy":
+		id := asString(call.Arguments["source_id"])
+		sType := asString(call.Arguments["source_type"])
+		mode := asString(call.Arguments["simulation_mode"])
+		items := asInt(call.Arguments["items_to_forecast"])
+		horizon := asInt(call.Arguments["forecast_horizon_days"])
+
+		var res []string
+		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
+			for _, v := range r {
+				res = append(res, asString(v))
+			}
+		}
+		data, err = s.handleGetForecastAccuracy(id, sType, mode, items, horizon, res)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}

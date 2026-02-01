@@ -3,205 +3,150 @@ package eventlog
 import (
 	"fmt"
 	"mcs-mcp/internal/jira"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
-// LogProvider orchestrates the progressive ingestion of events from Jira.
+// LogProvider orchestrates data ingestion and event retrieval.
 type LogProvider struct {
-	jira     jira.Client
+	client   jira.Client
 	store    *EventStore
 	cacheDir string
 }
 
-// NewLogProvider creates a new LogProvider.
 func NewLogProvider(client jira.Client, store *EventStore, cacheDir string) *LogProvider {
 	return &LogProvider{
-		jira:     client,
+		client:   client,
 		store:    store,
 		cacheDir: cacheDir,
 	}
 }
 
-// EnsureProbe (Stage 1) fetches the most recent items to build discovery metadata.
-func (p *LogProvider) EnsureProbe(sourceID string, jql string) error {
-	// 1. Try to load from cache first
-	if err := p.store.Load(p.cacheDir, sourceID); err != nil {
-		log.Warn().Err(err).Str("source", sourceID).Msg("Failed to load cache, proceeding with full probe")
+// Hydrate ensures the event log is populated with sufficient history for analysis.
+func (p *LogProvider) Hydrate(sourceID string, jql string) error {
+	const (
+		MinTotalItems    = 1000
+		MinResolvedItems = 200
+		HardLimit        = 5000
+		BatchSize        = 50
+	)
+
+	// 1. Try to Load from Cache
+	if p.cacheDir != "" {
+		if err := p.store.Load(p.cacheDir, sourceID); err == nil {
+			log.Debug().Str("source", sourceID).Msg("Hydrate: Loaded from cache")
+		}
 	}
 
-	// 2. Try incremental sync if we have a recent timestamp
-	synced, err := p.tryIncrementalSync(sourceID, jql)
-	if err != nil {
-		log.Warn().Err(err).Str("source", sourceID).Msg("Incremental sync failed, falling back to standard probe")
-	}
-
-	if synced {
+	// 2. Incremental or Full?
+	latest := p.store.GetLatestTimestamp(sourceID)
+	// If it's very recent (last 30 mins), skip hydration to save API calls
+	if !latest.IsZero() && time.Since(latest) < 30*time.Minute {
+		log.Debug().Str("source", sourceID).Msg("Hydrate: Cache is fresh, skipping API sync")
 		return nil
 	}
 
-	log.Info().Str("source", sourceID).Msg("Stage 1: Running Age-Constrained Discovery Probe")
+	// Stage 1: Recent Activity & WIP
+	log.Info().Str("source", sourceID).Msg("Hydrate Stage 1: Fetching activity")
 
-	// Multi-stage fetch logic:
-	// A. Fetch up to 200 items created within 1 year
-	oneYearJQL := fmt.Sprintf("(%s) AND created >= startOfDay(-1y) ORDER BY updated DESC", jql)
-	events, err := p.fetchAll(oneYearJQL, 200)
-	if err != nil {
-		return fmt.Errorf("probe fetch 1y failed: %w", err)
-	}
+	hydrateJQL := fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
+	targetDate := time.Now().AddDate(-1, 0, 0) // 1 year ago
 
-	count1y := p.countUniqueIssues(events)
+	totalFetched := 0
+	resolvedFetched := 0
 
-	if count1y < 200 {
-		// B. Expansion logic based on count
-		targetDiff := 200 - count1y
-		var fallbackJQL string
-		if count1y < 100 {
-			// Extend to 3 years
-			fallbackJQL = fmt.Sprintf("(%s) AND created < startOfDay(-1y) AND created >= startOfDay(-3y) ORDER BY updated DESC", jql)
-			log.Debug().Int("count1y", count1y).Msg("Sample sparse (<100), extending discovery window to 3 years")
-		} else {
-			// Extend to 2 years
-			fallbackJQL = fmt.Sprintf("(%s) AND created < startOfDay(-1y) AND created >= startOfDay(-2y) ORDER BY updated DESC", jql)
-			log.Debug().Int("count1y", count1y).Msg("Sample sufficient (>100), extending discovery window to 2 years")
-		}
-
-		extraEvents, err := p.fetchAll(fallbackJQL, targetDiff)
+	for totalFetched < HardLimit {
+		resp, err := p.client.SearchIssuesWithHistory(hydrateJQL, totalFetched, BatchSize)
 		if err != nil {
-			log.Warn().Err(err).Msg("Discovery fallback fetch failed, proceeding with partial sample")
-		} else {
-			events = append(events, extraEvents...)
+			return fmt.Errorf("hydrate stage 1 failed: %w", err)
 		}
-	}
 
-	p.store.Append(sourceID, events)
-	return p.store.Save(p.cacheDir, sourceID)
-}
-
-func (p *LogProvider) countUniqueIssues(events []IssueEvent) int {
-	keys := make(map[string]bool)
-	for _, e := range events {
-		keys[e.IssueKey] = true
-	}
-	return len(keys)
-}
-
-// EnsureWIP (Stage 2) ensures all currently active (logical WIP) items are in the log.
-func (p *LogProvider) EnsureWIP(sourceID string, jql string, activeStatuses []string) error {
-	log.Info().Str("source", sourceID).Msg("Stage 2: Completing WIP population")
-
-	// Fetch all issues in active statuses
-	statusJQL := ""
-	if len(activeStatuses) > 0 {
-		statusJQL = fmt.Sprintf("AND status in (%s)", formatJQLList(activeStatuses))
-	} else {
-		statusJQL = "AND resolution is EMPTY"
-	}
-
-	wipJQL := fmt.Sprintf("(%s) %s", jql, statusJQL)
-	events, err := p.fetchAll(wipJQL, 0) // Fetch all WIP
-	if err != nil {
-		return fmt.Errorf("wip fetch failed: %w", err)
-	}
-
-	p.store.Append(sourceID, events)
-	return p.store.Save(p.cacheDir, sourceID)
-}
-
-// EnsureBaseline (Stage 3) fetches historical resolution events for the baseline.
-func (p *LogProvider) EnsureBaseline(sourceID string, jql string, months int) error {
-	startTime := time.Now().AddDate(0, -months, 0)
-	log.Info().Str("source", sourceID).Time("since", startTime).Msg("Stage 3: Fetching historical baseline")
-
-	baselineJQL := fmt.Sprintf("(%s) AND (resolutiondate >= '%s' OR updated >= '%s')",
-		jql, startTime.Format("2006-01-02"), startTime.Format("2006-01-02"))
-
-	events, err := p.fetchAll(baselineJQL, 0) // Fetch all historical
-	if err != nil {
-		return fmt.Errorf("baseline fetch failed: %w", err)
-	}
-
-	p.store.Append(sourceID, events)
-	return p.store.Save(p.cacheDir, sourceID)
-}
-
-// tryIncrementalSync attempts to fetch only items updated since the last known event.
-func (p *LogProvider) tryIncrementalSync(sourceID string, jql string) (bool, error) {
-	latest := p.store.GetLatestTimestamp(sourceID)
-	if latest.IsZero() {
-		return false, nil
-	}
-
-	// Safety check: if the last event is too old (e.g. > 30 days), don't trust incremental sync
-	// to satisfy stages that might need a wider window.
-	if time.Since(latest) > 30*24*time.Hour {
-		return false, nil
-	}
-
-	log.Info().Str("source", sourceID).Time("since", latest).Msg("Attempting incremental sync")
-
-	// We use >= and subtract 1 second to be safe and avoid missing events exactly at the timestamp
-	// Jira's JQL resolution is usually by minute, but some APIs support second.
-	// To be truly safe with deduplication, we fetch from the start of the minute.
-	sinceStr := latest.Add(-1 * time.Minute).Format("2006-01-02 15:04")
-	incJQL := fmt.Sprintf("(%s) AND updated >= '%s'", jql, sinceStr)
-
-	events, err := p.fetchAll(incJQL, 0)
-	if err != nil {
-		return false, err
-	}
-
-	p.store.Append(sourceID, events)
-	// We only call Save here if we actually found something
-	if len(events) > 0 {
-		_ = p.store.Save(p.cacheDir, sourceID)
-	}
-
-	return true, nil
-}
-
-// fetchAll handles paged fetching of issues and their history.
-func (p *LogProvider) fetchAll(jql string, limit int) ([]IssueEvent, error) {
-	var allEvents []IssueEvent
-	startAt := 0
-	maxResults := 50 // Standard Jira page size
-
-	for {
-		log.Debug().Str("jql", jql).Int("startAt", startAt).Msg("Fetching page from Jira")
-		resp, err := p.jira.SearchIssuesWithHistory(jql, startAt, maxResults)
-		if err != nil {
-			return nil, err
+		if len(resp.Issues) == 0 {
+			break
 		}
+
+		var batchEvents []IssueEvent
+		var oldestInBatch int64
 
 		for _, dto := range resp.Issues {
-			allEvents = append(allEvents, TransformIssue(dto)...)
+			evts := TransformIssue(dto)
+			batchEvents = append(batchEvents, evts...)
+
+			if dto.Fields.ResolutionDate != "" || dto.Fields.Resolution.Name != "" {
+				resolvedFetched++
+			}
+
+			if upd, err := jira.ParseTime(dto.Fields.Updated); err == nil {
+				if upd.UnixMicro() < oldestInBatch || oldestInBatch == 0 {
+					oldestInBatch = upd.UnixMicro()
+				}
+			}
 		}
 
-		startAt += len(resp.Issues)
+		p.store.Append(sourceID, batchEvents)
+		totalFetched += len(resp.Issues)
 
-		// Break if we've reached the total or a specific limit
-		if len(resp.Issues) == 0 || startAt >= resp.Total || (limit > 0 && startAt >= limit) {
+		oldestTime := time.UnixMicro(oldestInBatch)
+		if totalFetched >= MinTotalItems && oldestTime.Before(targetDate) {
 			break
 		}
 	}
 
-	return allEvents, nil
+	// Stage 2: Baseline Depth
+	if resolvedFetched < MinResolvedItems && totalFetched < HardLimit {
+		log.Info().Int("current", resolvedFetched).Msg("Hydrate Stage 2: Fetching explicit baseline")
+		baselineJQL := fmt.Sprintf("(%s) AND resolution is not EMPTY ORDER BY resolutiondate DESC", jql)
+
+		baselineOffset := 0
+		for totalFetched < HardLimit && resolvedFetched < MinResolvedItems {
+			resp, err := p.client.SearchIssuesWithHistory(baselineJQL, baselineOffset, BatchSize)
+			if err != nil {
+				break
+			}
+			if len(resp.Issues) == 0 {
+				break
+			}
+
+			var batchEvents []IssueEvent
+			for _, dto := range resp.Issues {
+				evts := TransformIssue(dto)
+				batchEvents = append(batchEvents, evts...)
+				resolvedFetched++
+			}
+			p.store.Append(sourceID, batchEvents)
+			totalFetched += len(resp.Issues)
+			baselineOffset += len(resp.Issues)
+
+			if len(resp.Issues) < BatchSize {
+				break
+			}
+		}
+	}
+
+	// 3. Save to Cache
+	if p.cacheDir != "" {
+		if err := p.store.Save(p.cacheDir, sourceID); err != nil {
+			log.Warn().Err(err).Str("source", sourceID).Msg("Hydrate: Failed to save cache")
+		}
+	}
+
+	log.Info().Int("total", totalFetched).Int("resolved", resolvedFetched).Msg("Hydration complete")
+	return nil
 }
 
-// GetEventsInRange delegates to the underlying store.
 func (p *LogProvider) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
 	return p.store.GetEventsInRange(sourceID, start, end)
 }
 
-func formatJQLList(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-	var escaped []string
-	for _, item := range items {
-		escaped = append(escaped, fmt.Sprintf("'%s'", item))
-	}
-	return strings.Join(escaped, ",")
+func (p *LogProvider) GetEventsForIssue(sourceID, issueKey string) []IssueEvent {
+	return p.store.GetEventsForIssue(sourceID, issueKey)
+}
+
+func (p *LogProvider) GetLatestTimestamp(sourceID string) time.Time {
+	return p.store.GetLatestTimestamp(sourceID)
+}
+
+func (p *LogProvider) GetEventCount(sourceID string) int {
+	return p.store.Count(sourceID)
 }

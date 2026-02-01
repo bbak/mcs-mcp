@@ -159,6 +159,13 @@ func (s *EventStore) GetLatestTimestamp(sourceID string) time.Time {
 	return time.UnixMicro(logData[len(logData)-1].Timestamp)
 }
 
+// Count returns the number of events in the store for a source.
+func (s *EventStore) Count(sourceID string) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.logs[sourceID])
+}
+
 // GetEventsInRange returns a copy of events within the specified time window.
 func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
 	s.mu.RLock()

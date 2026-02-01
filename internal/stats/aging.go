@@ -74,6 +74,7 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 			DaysInStatus: daysDisplay,
 		}
 
+		// Lookups in pMap are currently name-based because persistence stats are calculated by name.
 		if p, ok := pMap[issue.Status]; ok {
 			if daysRaw > p.P95 {
 				analysis.Percentile = 95
@@ -101,9 +102,6 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 }
 
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
-// NOTE: This is a core high-performance analytical function. Modify with extreme caution.
-// Technical Context: Metrics may appear slightly lower than other tools due to high-fidelity, minute-level resolution
-// in transition logic, avoiding the overhead/inaccuracy of day-only granularity.
 func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAge {
 	var results []InventoryAge
 
@@ -125,7 +123,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 0. Determine Tier Context
 		currentTier := "Demand"
 		isFinished := false
-		if m, ok := GetMetadataCaseInsensitive(mappings, issue.Status); ok {
+		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
 			currentTier = m.Tier
 			if m.Tier == "Finished" {
 				isFinished = true
@@ -152,10 +150,16 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 
 		// 2. Tier Residency & Total Age (Stop the clock)
 		var upstreamDays, downstreamDays, totalDays float64
+
+		// Re-evaluate residency loop with ID robustness
 		for status, seconds := range issue.StatusResidency {
 			days := float64(seconds) / 86400.0
 			totalDays += days
-			if m, ok := GetMetadataCaseInsensitive(mappings, status); ok {
+
+			// Try to find if this status name corresponds to an ID in our current mapping
+			// Since StatusResidency ONLY has name, we must use Name-based lookup or a Name->ID map.
+			// But mappings map can contain Names too.
+			if m, ok := GetMetadataRobust(mappings, "", status); ok {
 				switch m.Tier {
 				case "Upstream", "Demand":
 					upstreamDays += days
@@ -168,7 +172,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 3. Age (Process-wide)
 		var ageSinceCommitment *float64
 		var ageRaw float64
-		totalAgeRaw := totalDays // Already pinned in StatusResidency by ProcessChangelog
+		totalAgeRaw := totalDays
 
 		if agingType == "total" {
 			ageRaw = totalAgeRaw
@@ -176,7 +180,9 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			// WIP Age logic
 			commitmentWeight := 2
 			if startStatus != "" {
-				if w, ok := statusWeights[startStatus]; ok {
+				// startStatus is assumed to be a name or ID provided by the tool call.
+				// We need robust weight lookup.
+				if w, ok := GetWeightRobust(statusWeights, "", startStatus); ok {
 					commitmentWeight = w
 				}
 			}
@@ -185,19 +191,19 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			isStarted := false
 
 			// Is current status started?
-			weight, hasWeight := GetWeightCaseInsensitive(statusWeights, issue.Status)
+			weight, hasWeight := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
 			if (hasWeight && weight >= commitmentWeight) || (startStatus == "" && hasWeight && weight >= 2) {
 				isStarted = true
 			}
 
 			// Chronological scan to find the earliest commitment after the last backflow
 			for _, t := range issue.Transitions {
-				weight, hasWeight := GetWeightCaseInsensitive(statusWeights, t.ToStatus)
+				weight, hasWeight := GetWeightRobust(statusWeights, t.ToStatusID, t.ToStatus)
 				if hasWeight && weight < commitmentWeight {
 					// Backflow! Discard previous WIP history
 					earliestAfterBackflow = nil
 					isStarted = false
-				} else if (startStatus != "" && EqualFold(t.ToStatus, startStatus)) || (hasWeight && weight >= commitmentWeight) {
+				} else if (startStatus != "" && (EqualFold(t.ToStatus, startStatus) || t.ToStatusID == startStatus)) || (hasWeight && weight >= commitmentWeight) {
 					if earliestAfterBackflow == nil {
 						st := t.Date
 						earliestAfterBackflow = &st
@@ -214,11 +220,9 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 					start = issue.Created
 				}
 
-				// WIP Age / Cycle Time (Stopped for Finished)
 				if isFinished && issue.ResolutionDate != nil {
 					ageRaw = issue.ResolutionDate.Sub(start).Hours() / 24.0
 				} else if isFinished && len(issue.Transitions) > 0 {
-					// Pinned at entrance to Finished
 					ageRaw = issue.Transitions[len(issue.Transitions)-1].Date.Sub(start).Hours() / 24.0
 				} else {
 					ageRaw = time.Since(start).Hours() / 24.0
@@ -228,11 +232,10 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 				ageSinceCommitment = &rounded
 			}
 
-			// Strictly filter out items that are not currently in a WIP status (unless Finished and we didn't filter it earlier)
 			if ageSinceCommitment == nil {
 				continue
 			}
-			currentWeight, hasCurrentWeight := GetWeightCaseInsensitive(statusWeights, issue.Status)
+			currentWeight, hasCurrentWeight := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
 			if hasCurrentWeight && currentWeight < commitmentWeight && !isFinished {
 				continue
 			}
@@ -256,7 +259,6 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			analysis.Percentile = getP(ageRaw)
 		} else if ageSinceCommitment != nil {
 			analysis.Percentile = getP(ageRaw)
-			// Heuristic stale: > P85 (only for non-finished)
 			if len(persistence) > 0 && !isFinished {
 				p85 := persistence[int(float64(len(persistence))*0.85)]
 				if ageRaw > p85 {

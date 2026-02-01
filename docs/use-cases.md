@@ -130,7 +130,7 @@ This document describes the primary interaction scenarios between the User (Proj
     2. AI notices status "Open" has high residency but is categorized as "To Do".
     3. AI informs User: "I've mapped 'Open' as your **Backlog**. I will treat its high persistence as expected storage time unless you tell me otherwise."
     4. User confirms or vetos.
-    5. AI calls `set_workflow_mapping` if changes are needed.
+    5. AI calls `set_workflow_mapping` if changes are needed. The server now captures **Status IDs** to ensure mappings are robust against status renames.
 
 ---
 
@@ -191,3 +191,18 @@ This document describes the primary interaction scenarios between the User (Proj
         - `get_aging_analysis` (Identify current WIP risk)
     3.  AI follows the sequence, explaining each step to the user.
     4.  AI synthesizes the results into a cohesive diagnostic report.
+
+---
+
+## UC14: Forensic Forecast Accuracy Backtesting
+
+**Goal:** Empirically validate the reliability of forecasts by "time-travelling" into the past and comparing predictions against actual outcomes.
+
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** AI wants to verify if MCS is reliable for a specific board before presenting a high-stakes forecast.
+- **Main Success Scenario:**
+    1.  AI calls `get_forecast_accuracy` with `simulation_mode: "scope"`.
+    2.  MCP Server utilizes **Time-Travel Logic** to reconstruct the state of the system at several past checkpoints (e.g., every 14 days for the last 6 months).
+    3.  For each checkpoint, the server runs a simulation and compares it to the **actual** completion history that followed.
+    4.  AI detects if the accuracy score is below the **70% threshold**.
+    5.  AI reports: "I've backtested my forecasting model against your last 6 months of data. It achieved **67% accuracy**. While helpful, you should treat these dates with caution due to the high volatility detected in late 2025."

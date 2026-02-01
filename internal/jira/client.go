@@ -15,6 +15,7 @@ type Issue struct {
 	ResolutionDate  *time.Time
 	Resolution      string
 	Status          string
+	StatusID        string
 	StatusCategory  string
 	StatusResidency map[string]int64 // Seconds spent in each status
 	Transitions     []StatusTransition
@@ -33,9 +34,11 @@ type SourceContext struct {
 
 // StatusTransition represents a change in an issue's status.
 type StatusTransition struct {
-	FromStatus string
-	ToStatus   string
-	Date       time.Time
+	FromStatus   string
+	FromStatusID string
+	ToStatus     string
+	ToStatusID   string
+	Date         time.Time
 }
 
 // Client is the interface for interacting with Jira.

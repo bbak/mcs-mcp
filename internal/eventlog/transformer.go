@@ -10,8 +10,9 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	issueKey := dto.Key
 	issueType := dto.Fields.IssueType.Name
 
-	// 1. Identify Initial Status
+	// 1. Identify Initial Status and ID
 	initialStatus := dto.Fields.Status.Name
+	initialStatusID := dto.Fields.Status.ID
 	if dto.Changelog != nil {
 		var earliestTS int64
 		for _, h := range dto.Changelog.Histories {
@@ -25,8 +26,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					if earliestTS == 0 || ts < earliestTS {
 						earliestTS = ts
 						initialStatus = item.FromString
+						initialStatusID = item.From
 						if initialStatus == "" {
 							initialStatus = item.ToString
+							initialStatusID = item.To
 						}
 					}
 				}
@@ -38,11 +41,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	createdTime, err := jira.ParseTime(dto.Fields.Created)
 	if err == nil {
 		events = append(events, IssueEvent{
-			IssueKey:  issueKey,
-			IssueType: issueType,
-			EventType: Created,
-			Timestamp: createdTime.UnixMicro(),
-			ToStatus:  initialStatus,
+			IssueKey:   issueKey,
+			IssueType:  issueType,
+			EventType:  Created,
+			Timestamp:  createdTime.UnixMicro(),
+			ToStatus:   initialStatus,
+			ToStatusID: initialStatusID,
 		})
 	}
 
@@ -62,12 +66,14 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				switch item.Field {
 				case "status":
 					events = append(events, IssueEvent{
-						IssueKey:   issueKey,
-						IssueType:  issueType,
-						EventType:  Transitioned,
-						Timestamp:  ts,
-						FromStatus: item.FromString,
-						ToStatus:   item.ToString,
+						IssueKey:     issueKey,
+						IssueType:    issueType,
+						EventType:    Transitioned,
+						Timestamp:    ts,
+						FromStatus:   item.FromString,
+						FromStatusID: item.From,
+						ToStatus:     item.ToString,
+						ToStatusID:   item.To,
 					})
 				case "resolution":
 					if item.ToString != "" {

@@ -22,6 +22,7 @@ type FieldsDTO struct {
 		Subtask bool   `json:"subtask"`
 	} `json:"issuetype"`
 	Status struct {
+		ID             string `json:"id"`
 		Name           string `json:"name"`
 		StatusCategory struct {
 			Key string `json:"key"`
@@ -32,6 +33,7 @@ type FieldsDTO struct {
 	} `json:"resolution"`
 	ResolutionDate string `json:"resolutiondate"`
 	Created        string `json:"created"`
+	Updated        string `json:"updated"`
 }
 
 // ChangelogDTO contains historical transitions.
@@ -50,6 +52,8 @@ type ItemDTO struct {
 	Field      string `json:"field"`
 	ToString   string `json:"toString"`
 	FromString string `json:"fromString"`
+	To         string `json:"to"`   // ID
+	From       string `json:"from"` // ID
 }
 
 // FindBoardsResponse is used for the board search API.

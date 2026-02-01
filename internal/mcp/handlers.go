@@ -215,7 +215,8 @@ func (s *Server) getEarliestCommitment(sourceID string, issues []jira.Issue) (st
 	}
 
 	for _, status := range order {
-		if m, ok := stats.GetMetadataCaseInsensitive(mapping, status); ok && m.Tier == "Downstream" {
+		// status might be a name from DiscoverStatusOrder, but GetMetadataRobust handles that
+		if m, ok := stats.GetMetadataRobust(mapping, "", status); ok && m.Tier == "Downstream" {
 			return status, true
 		}
 	}
@@ -253,11 +254,11 @@ func (s *Server) calculateCycleTimesList(sourceID string, issues []jira.Issue, s
 			continue
 		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		} else if len(resolutions) == 0 {
-			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		}

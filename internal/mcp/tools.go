@@ -300,6 +300,25 @@ func (s *Server) listTools() interface{} {
 					"required": []string{"goal"},
 				},
 			},
+
+			map[string]interface{}{
+				"name": "get_forecast_accuracy",
+				"description": "Perform a 'Walk-Forward Analysis' (Backtesting) to empirically validate the accuracy of Monte-Carlo Forecasts. \n\n" +
+					"This tool uses Time-Travel logic to reconstruct the state of the system at past points in time, runs a simulation, and checks if the ACTUAL outcome fell within the predicted cone. \n" +
+					"Drift Protection: The analysis automatically stops blindly backtesting if it detects a System Drift (Process Shift via 3-Way Chart).",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"source_id":             map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"source_type":           map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"simulation_mode":       map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}},
+						"items_to_forecast":     map[string]interface{}{"type": "integer", "description": "Number of items to forecast (duration mode). Default: 5"},
+						"forecast_horizon_days": map[string]interface{}{"type": "integer", "description": "Number of days to forecast (scope mode). Default: 14"},
+						"resolutions":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done'."},
+					},
+					"required": []string{"source_id", "source_type", "simulation_mode"},
+				},
+			},
 		},
 	}
 }

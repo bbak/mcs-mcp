@@ -132,11 +132,11 @@ func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions 
 			continue
 		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		} else if len(resolutions) == 0 {
-			if m, ok := stats.GetMetadataCaseInsensitive(mappings, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		}
@@ -222,6 +222,7 @@ func (s *Server) getActiveStatuses(sourceID string) []string {
 
 func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) []float64 {
 	var ages []float64
+	// Note: CalculateInventoryAge inside aging.go already handles IDs if we passed them correctly.
 	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip")
 	for _, res := range results {
 		if res.AgeSinceCommitment != nil {
@@ -240,11 +241,11 @@ func (s *Server) filterWIPIssues(issues []jira.Issue, startStatus string, finish
 		}
 
 		isCommitted := false
-		if issue.Status == startStatus {
+		if issue.Status == startStatus || issue.StatusID == startStatus {
 			isCommitted = true
 		} else {
 			for _, t := range issue.Transitions {
-				if t.ToStatus == startStatus {
+				if t.ToStatus == startStatus || t.ToStatusID == startStatus {
 					isCommitted = true
 					break
 				}

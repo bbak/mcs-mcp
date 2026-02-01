@@ -13,17 +13,9 @@ func (s *Server) handleRunSimulation(sourceID, sourceType, mode string, includeE
 		return nil, err
 	}
 
-	// Stage 3: Baseline Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
-	}
-
-	// Stage 2: WIP/Backlog Completion if requested
-	if includeExistingBacklog || includeWIP {
-		active := s.getActiveStatuses(sourceID)
-		if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
-			return nil, err
-		}
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
@@ -160,15 +152,9 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 		return nil, err
 	}
 
-	// Stage 3 & 2 Completion
-	if err := s.events.EnsureBaseline(sourceID, ctx.JQL, 6); err != nil {
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
-	}
-	if analyzeWIP {
-		active := s.getActiveStatuses(sourceID)
-		if err := s.events.EnsureWIP(sourceID, ctx.JQL, active); err != nil {
-			return nil, err
-		}
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
@@ -212,4 +198,61 @@ func (s *Server) handleGetCycleTimeAssessment(sourceID, sourceType string, analy
 	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 	return resObj, nil
+}
+
+func (s *Server) handleGetForecastAccuracy(sourceID, sourceType, mode string, itemsToForecast, forecastHorizon int, resolutions []string) (interface{}, error) {
+	ctx, err := s.resolveSourceContext(sourceID, sourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+		return nil, err
+	}
+
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+
+	// Mapping
+	// We pass the CURRENT mapping. This assumes mapping hasn't changed drastically.
+	// Time-travel mapping is hard, so we stick to current mapping.
+	mapping := s.workflowMappings[sourceID]
+
+	wfa := simulation.NewWalkForwardEngine(events, mapping)
+
+	// Default Parameters if not provided
+	if forecastHorizon <= 0 {
+		forecastHorizon = 14
+	}
+	if itemsToForecast <= 0 {
+		itemsToForecast = 5 // Default batch size
+	}
+
+	if len(resolutions) == 0 {
+		resolutions = s.getDeliveredResolutions(sourceID)
+	}
+
+	cfg := simulation.WalkForwardConfig{
+		SourceID:        sourceID,
+		SimulationMode:  mode,
+		LookbackWindow:  90, // Check last 3 months
+		StepSize:        14, // Every 2 weeks
+		ForecastHorizon: forecastHorizon,
+		ItemsToForecast: itemsToForecast,
+		Resolutions:     resolutions,
+	}
+
+	res, err := wfa.Execute(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"accuracy": res,
+		"_guidance": []string{
+			"If accuracy is < 70%, users should be cautious with forecasts.",
+			"Drift Detection stops the backtest to prevent comparing apples to oranges.",
+			"This tool is computationally expensive; cache the result if possible.",
+		},
+	}, nil
 }
