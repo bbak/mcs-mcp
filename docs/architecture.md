@@ -28,8 +28,8 @@ graph TD
 ```
 
 1.  **Identification Phase**: Use `find_jira_projects` and `find_jira_boards` to locate the target. Guidance automatically triggers the next step.
-2.  **Context Anchoring Phase**: Use `get_board_details` (or `get_project_details`). This tool performs an **Eager Fetch** of history and a **Data Probe** to determine volume, issue type distribution, and data density.
-3.  **Semantic Mapping Phase**: Use `get_workflow_discovery` to establish tiers and roles via **Data Archeology**.
+2.  **Context Anchoring Phase**: Use `get_board_details` (or `get_project_details`). This tool performs an **Eager Fetch** of history and produces a **Data Shape Anchor**. It clarifies the difference between `totalIngestedIssues` (the cached history size) and the `discoverySampleSize` (the recent healthy subset used for heuristics).
+3.  **Semantic Mapping Phase**: Use `get_workflow_discovery` to establish tiers and roles via **Data Archeology**. It utilizes the `identifiedStatusesFromSample` list for status identification.
 4.  **Planning Phase**: Use `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of analytical tools based on the now-confirmed context.
 5.  **Analytics Phase**: Perform high-fidelity diagnostics (Aging, Stability, Simulation) using the established mapping and baseline.
     - Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
@@ -332,7 +332,7 @@ To minimize latency, the system utilizes an **Incremental Fetch** strategy:
 
 To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts or legacy configurations, the system applies a mandatory age-constrained sampling policy:
 
-- **Workflow Discovery Sampling**: The `get_workflow_discovery` tool builds its analytical backbone from a controlled subset of the event log. It employs a **Multi-Stage Age Constraint**:
+- **Workflow Discovery Sampling**: The `get_workflow_discovery` tool builds its analytical backbone from a controlled subset of the event log. It produces a `discoverySampleSize` (default 200 items) to represent the current "active" process:
     - **Target Sample**: 200 issues.
     - **Priority Window (1 year)**: Only issues created within the last 365 days are selected.
     - **Adaptive Fallback**: If the priority window is sparse (< 100 items), the system expands up to 3 years. If sufficient (> 100), it expands to 2 years.

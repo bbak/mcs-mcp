@@ -5,7 +5,7 @@ func (s *Server) listTools() interface{} {
 		"tools": []interface{}{
 			map[string]interface{}{
 				"name":        "find_jira_projects",
-				"description": "Search for Jira projects by name or key. Uses server-side fuzzy matching and returns up to 30 results.",
+				"description": "Search for Jira projects by name or key. Guidance: Call 'get_project_details' next to anchor on the data shape.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -16,7 +16,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "find_jira_boards",
-				"description": "Search for Agile boards, optionally filtering by project key or name. Returns up to 30 results.",
+				"description": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'get_board_details' next to anchor on the data shape.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -27,7 +27,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_project_details",
-				"description": "Get detailed metadata and a data distribution summary (items, types, health) for a single project. SHOULD be called immediately after 'find_jira_projects'.",
+				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for a project. MUST be called before workflow discovery.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -38,7 +38,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_board_details",
-				"description": "Get metadata and a data distribution summary (items, types, health) for a single Agile board. SHOULD be called immediately after 'find_jira_boards'.",
+				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for an Agile board. MUST be called before workflow discovery.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

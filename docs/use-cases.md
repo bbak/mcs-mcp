@@ -14,7 +14,7 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
     2.  AI calls `find_jira_projects` and identifies "PROJX".
-    3.  AI automatically calls `get_project_details` which anchors on the data shape and confirms volume (e.g., "500 total stories found").
+    3.  AI automatically calls `get_project_details` which anchors on the data shape and confirms volume (e.g., "500 totalIngestedIssues found").
     4.  AI calls `get_workflow_discovery` to establish the semantic mapping.
     5.  AI identifies the goal and calls `get_diagnostic_roadmap` (Forecasting).
     6.  AI calls `run_simulation` with `mode: "duration"`.

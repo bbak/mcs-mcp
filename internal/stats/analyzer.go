@@ -8,25 +8,16 @@ import (
 	"time"
 )
 
-// MetadataSummary provides a high-level overview of a Jira data source.
+// MetadataSummary provides a high-level overview of a Jira data source's scope and volume.
 type MetadataSummary struct {
-	TotalIssues            int                       `json:"totalIssues"`
-	SampleSize             int                       `json:"sampleSize"`
-	IssueTypes             map[string]int            `json:"issueTypes"`
-	Statuses               map[string]int            `json:"statuses"`
-	ResolutionNames        map[string]int            `json:"resolutionNames"`
-	SampleResolvedRatio    float64                   `json:"sampleResolvedRatio"` // Diagnostic: % of sample with resolution
-	CurrentWIPCount        int                       `json:"currentWIPCount"`
-	CurrentBacklogCount    int                       `json:"currentBacklogCount"`
-	FirstResolution        *time.Time                `json:"firstResolution,omitempty"`
-	LastResolution         *time.Time                `json:"lastResolution,omitempty"`
-	AverageCycleTime       float64                   `json:"averageCycleTime,omitempty"` // Days
-	AvailableStatuses      interface{}               `json:"availableStatuses,omitempty"`
-	HistoricalReachability map[string]int            `json:"historicalReachability,omitempty"` // How many issues visited each status
-	StatusAtResolution     map[string]int            `json:"statusAtResolution"`               // Frequency of Status when ResolutionDate is set
-	ResolutionToStatus     map[string]map[string]int `json:"resolutionToStatus"`               // Resolution -> Status -> Count correlation
-	CommitmentPointHints   []string                  `json:"commitmentPointHints,omitempty"`
-	BacklogSize            int                       `json:"backlogSize,omitempty"`
+	TotalIngestedIssues          int            `json:"totalIngestedIssues"`
+	DiscoverySampleSize          int            `json:"discoverySampleSize"`
+	IssueTypes                   map[string]int `json:"issueTypes"`
+	Statuses                     map[string]int `json:"statuses"`
+	ResolutionNames              map[string]int `json:"resolutionNames"`
+	FirstResolution              *time.Time     `json:"firstResolution,omitempty"`
+	LastResolution               *time.Time     `json:"lastResolution,omitempty"`
+	IdentifiedStatusesFromSample []string       `json:"identifiedStatusesFromSample,omitempty"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
@@ -47,25 +38,22 @@ func SumRangeDuration(issue jira.Issue, rangeStatuses []string) float64 {
 	return total
 }
 
-// AnalyzeProbe performs a preliminary analysis on a sample of issues.
+// AnalyzeProbe performs a preliminary analysis on a sample of issues to anchor the AI on the data shape.
 func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[string]bool) MetadataSummary {
 	summary := MetadataSummary{
-		TotalIssues:            totalCount,
-		SampleSize:             len(issues),
-		IssueTypes:             make(map[string]int),
-		Statuses:               make(map[string]int),
-		ResolutionNames:        make(map[string]int),
-		HistoricalReachability: make(map[string]int),
-		StatusAtResolution:     make(map[string]int),
-		ResolutionToStatus:     make(map[string]map[string]int),
+		TotalIngestedIssues: totalCount,
+		DiscoverySampleSize: len(issues),
+		IssueTypes:          make(map[string]int),
+		Statuses:            make(map[string]int),
+		ResolutionNames:     make(map[string]int),
 	}
 
 	if len(issues) == 0 {
 		return summary
 	}
 
-	resolvedCount := 0
 	var first, last *time.Time
+	reachableSet := make(map[string]bool)
 
 	for _, issue := range issues {
 		summary.IssueTypes[issue.IssueType]++
@@ -74,26 +62,13 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 			summary.ResolutionNames[issue.Resolution]++
 		}
 
-		// Track reachability from transitions
-		visited := make(map[string]bool)
-		visited[issue.Status] = true
+		// Track reachability (all statuses ever visited in this sample)
+		reachableSet[issue.Status] = true
 		for _, t := range issue.Transitions {
-			visited[t.ToStatus] = true
-		}
-		for status := range visited {
-			summary.HistoricalReachability[status]++
+			reachableSet[t.ToStatus] = true
 		}
 
 		if issue.ResolutionDate != nil {
-			resolvedCount++
-			summary.StatusAtResolution[issue.Status]++
-			if issue.Resolution != "" {
-				if _, ok := summary.ResolutionToStatus[issue.Resolution]; !ok {
-					summary.ResolutionToStatus[issue.Resolution] = make(map[string]int)
-				}
-				summary.ResolutionToStatus[issue.Resolution][issue.Status]++
-			}
-
 			if first == nil || issue.ResolutionDate.Before(*first) {
 				first = issue.ResolutionDate
 			}
@@ -101,28 +76,14 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 				last = issue.ResolutionDate
 			}
 		}
-
-		// Inventory Heuristic (Category-Aware)
-		// We only count items as WIP/Backlog if they are NOT resolution AND not Terminal/Finished
-		if issue.ResolutionDate == nil && !finishedStatuses[issue.Status] {
-			switch issue.StatusCategory {
-			case "indeterminate":
-				summary.CurrentWIPCount++
-			case "to-do", "new":
-				summary.CurrentBacklogCount++
-			default:
-				// Fallback: if category is unknown or missing, try common names
-				if issue.Status == "In Progress" || issue.Status == "Development" || issue.Status == "QA" || issue.Status == "Testing" {
-					summary.CurrentWIPCount++
-				} else if issue.StatusCategory != "done" {
-					// Only count as backlog if it's NOT in the 'done' category
-					summary.CurrentBacklogCount++
-				}
-			}
-		}
 	}
 
-	summary.SampleResolvedRatio = float64(resolvedCount) / float64(len(issues))
+	// Finalize status list
+	for s := range reachableSet {
+		summary.IdentifiedStatusesFromSample = append(summary.IdentifiedStatusesFromSample, s)
+	}
+	sort.Strings(summary.IdentifiedStatusesFromSample)
+
 	summary.FirstResolution = first
 	summary.LastResolution = last
 
