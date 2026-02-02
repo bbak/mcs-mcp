@@ -192,6 +192,21 @@ func FilterTransitions(transitions []jira.StatusTransition, since time.Time) []j
 	return filtered
 }
 
+// FilterIssuesByResolutionWindow returns items resolved within the last N days.
+func FilterIssuesByResolutionWindow(issues []jira.Issue, days int) []jira.Issue {
+	if days <= 0 {
+		return issues
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	var filtered []jira.Issue
+	for _, iss := range issues {
+		if iss.ResolutionDate != nil && !iss.ResolutionDate.Before(cutoff) {
+			filtered = append(filtered, iss)
+		}
+	}
+	return filtered
+}
+
 // ApplyBackflowPolicy resets the implementation clock if an item returns to the Demand tier.
 func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitmentWeight int) []jira.Issue {
 	clean := make([]jira.Issue, 0, len(issues))
@@ -299,36 +314,25 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 	return residency
 }
 
-// GetDailyThroughput returns count of items resolved each day.
-func GetDailyThroughput(issues []jira.Issue) []int {
+// GetDailyThroughput returns count of items resolved each day in the requested window.
+func GetDailyThroughput(issues []jira.Issue, windowDays int) []int {
 	if len(issues) == 0 {
 		return nil
 	}
 
-	minDate := time.Now()
-	maxDate := time.Now()
+	now := time.Now()
+	// Normalize to start of today
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	minDate := today.AddDate(0, 0, -windowDays+1)
 
-	resolvedItems := make([]jira.Issue, 0)
+	daily := make([]int, windowDays)
+
 	for _, issue := range issues {
 		if issue.ResolutionDate != nil {
-			resolvedItems = append(resolvedItems, issue)
-			if issue.ResolutionDate.Before(minDate) {
-				minDate = *issue.ResolutionDate
+			d := int(issue.ResolutionDate.Sub(minDate).Hours() / 24)
+			if d >= 0 && d < windowDays {
+				daily[d]++
 			}
-		}
-	}
-
-	if len(resolvedItems) == 0 {
-		return nil
-	}
-
-	days := int(maxDate.Sub(minDate).Hours()/24) + 1
-	daily := make([]int, days)
-
-	for _, issue := range resolvedItems {
-		d := int(issue.ResolutionDate.Sub(minDate).Hours() / 24)
-		if d >= 0 && d < days {
-			daily[d]++
 		}
 	}
 	return daily

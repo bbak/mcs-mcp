@@ -78,6 +78,7 @@ To maintain a high-performance experience during the multi-step discovery proces
 
 - **Safety Brake**: Heavy analytical queries (Search with History, JQL Hydration) are subject to `JIRA_REQUEST_DELAY_SECONDS` (default: 10s).
 - **Burst Mode**: "Cheap" metadata requests (Get Board, Get Config, Get Project Statuses) bypass the artificial throttle when executed sequentially.
+- **Delta Sync Bypass**: Incremental hydration (syncing changes since a valid cache timestamp) remains sequential but processes all paged results without artificial caps, ensuring a complete log.
 - **Result**: Automated discovery chains (Find -> Details -> Mapping) feel immediate, while analytical workloads remain governed.
 
 #### 1. Meta-Workflow Tiers
@@ -324,9 +325,9 @@ To ensure performance and reliability across sessions, the server implements a f
 To minimize latency, the system utilizes an **Incremental Fetch** strategy:
 
 - **Latest Timestamp Detection**: Upon hydration, the server identifies the timestamp of the most recent event in the local cache.
-- **Freshness Cache Policy**: If the cache is non-empty and has been updated within the last 30 minutes, the server skips the API sync to minimize latency and Jira API load.
-- **JQL Delta Retrieval**: For active updates, the server appends `AND updated >= "YYYY-MM-DD HH:MM"` to the JQL query, retrieving only modified or new issues since the last ingestion.
-- **Paginated Recovery**: For high-churn environments, the server implements robust pagination using offsets, ensuring no events are missed between snapshots.
+- **Cache Validity (2-Week Rule)**: If the cache is non-empty but the latest event is older than 14 days, the server discards the cache and performs a full initial ingestion to ensure baseline integrity.
+- **JQL Delta Sync**: For valid caches (< 14 days), the server appends `AND updated >= "YYYY-MM-DD HH:MM"` and fetches ALL paged results in chronological order (`ORDER BY updated ASC`). Once synced, the server operations are independent of further Jira issue queries.
+- **Initial Hydration**: If no valid cache exists, the server performs a deep fetch (Stage 1: Recent activity and WIP, Stage 2: Historical baseline depth) to establish the long-term cache.
 
 ### 5.4. Recency Bias & Age-Constrained Sampling
 

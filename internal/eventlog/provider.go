@@ -39,35 +39,44 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		}
 	}
 
-	// 2. Incremental or Full?
 	latest := p.store.GetLatestTimestamp(sourceID)
-	// If it's very recent (last 30 mins), skip hydration to save API calls
-	if !latest.IsZero() && time.Since(latest) < 30*time.Minute {
-		log.Debug().Str("source", sourceID).Msg("Hydrate: Cache is fresh, skipping API sync")
-		return nil
+
+	// 2. Validate Cache Recency (2-week rule)
+	if !latest.IsZero() && time.Since(latest) > (14*24*time.Hour) {
+		log.Info().Str("source", sourceID).Time("latest", latest).Msg("Cache is older than 2 weeks, evicting and performing full re-ingestion")
+		p.store.Clear(sourceID)
+		if p.cacheDir != "" {
+			_ = DeleteCache(p.cacheDir, sourceID)
+		}
+		latest = time.Time{} // Treat as fresh
 	}
 
-	// Stage 1: Recent Activity & WIP
-	log.Info().Str("source", sourceID).Msg("Hydrate Stage 1: Fetching activity")
+	// 3. Identification: Is this an Incremental Sync or Initial Hydration?
+	isIncremental := !latest.IsZero()
 
-	hydrateJQL := jql
-	if !latest.IsZero() {
-		// Use ISO format for JQL updated field
-		tsStr := latest.Format("2006-01-02 15:04")
-		hydrateJQL = fmt.Sprintf("(%s) AND updated >= \"%s\" ORDER BY updated DESC", jql, tsStr)
-	} else {
-		hydrateJQL = fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
-	}
-
-	targetDate := time.Now().AddDate(-1, 0, 0) // 1 year ago
+	// 4. Hydration / Sync Loop
+	log.Info().Str("source", sourceID).Bool("incremental", isIncremental).Msg("Starting hydration process")
 
 	totalFetched := 0
 	resolvedFetched := 0
+	targetDate := time.Now().AddDate(-1, 0, 0) // 1 year ago for initial baseline
 
-	for totalFetched < HardLimit {
+	// Determine JQL and Ordering
+	var hydrateJQL string
+	if isIncremental {
+		// Incremental Sync: Fetch EVERYTHING between latest and now
+		// Order by ASC to ensure we process changes in chronological sequence
+		tsStr := latest.Format("2006-01-02 15:04")
+		hydrateJQL = fmt.Sprintf("(%s) AND updated >= \"%s\" ORDER BY updated ASC", jql, tsStr)
+	} else {
+		// Initial Hydration: Fetch enough for a robust baseline
+		hydrateJQL = fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
+	}
+
+	for {
 		resp, err := p.client.SearchIssuesWithHistory(hydrateJQL, totalFetched, BatchSize)
 		if err != nil {
-			return fmt.Errorf("hydrate stage 1 failed: %w", err)
+			return fmt.Errorf("hydration failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -95,15 +104,30 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		p.store.Append(sourceID, batchEvents)
 		totalFetched += len(resp.Issues)
 
-		oldestTime := time.UnixMicro(oldestInBatch)
-		if totalFetched >= MinTotalItems && oldestTime.Before(targetDate) {
-			break
+		// Exit Conditions
+		if isIncremental {
+			// Incremental Mode: Never break early until all paged results are processed
+			if len(resp.Issues) < BatchSize {
+				break
+			}
+		} else {
+			// Initial Mode: Apply baseline heuristics to avoid infinite initial ingestion
+			oldestTime := time.UnixMicro(oldestInBatch)
+			if totalFetched >= HardLimit {
+				break
+			}
+			if totalFetched >= MinTotalItems && oldestTime.Before(targetDate) {
+				break
+			}
+			if len(resp.Issues) < BatchSize {
+				break
+			}
 		}
 	}
 
-	// Stage 2: Baseline Depth
-	if resolvedFetched < MinResolvedItems && totalFetched < HardLimit {
-		log.Info().Int("current", resolvedFetched).Msg("Hydrate Stage 2: Fetching explicit baseline")
+	// 5. Stage 2 Baseline Depth (Only for Initial Hydration if needed)
+	if !isIncremental && resolvedFetched < MinResolvedItems && totalFetched < HardLimit {
+		log.Info().Int("current", resolvedFetched).Msg("Initial Hydrate Stage 2: Fetching explicit baseline")
 		baselineJQL := fmt.Sprintf("(%s) AND resolution is not EMPTY ORDER BY resolutiondate DESC", jql)
 
 		baselineOffset := 0
@@ -132,7 +156,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		}
 	}
 
-	// 3. Save to Cache
+	// 6. Save to Cache
 	if p.cacheDir != "" {
 		if err := p.store.Save(p.cacheDir, sourceID); err != nil {
 			log.Warn().Err(err).Str("source", sourceID).Msg("Hydrate: Failed to save cache")

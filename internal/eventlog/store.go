@@ -165,6 +165,24 @@ func (s *EventStore) Count(sourceID string) int {
 	return len(s.logs[sourceID])
 }
 
+// Clear removes all in-memory events and timestamp metadata for a source.
+func (s *EventStore) Clear(sourceID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.logs, sourceID)
+	delete(s.latestTs, sourceID)
+}
+
+// DeleteCache removes the physical cache file from disk.
+func DeleteCache(cacheDir, sourceID string) error {
+	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	err := os.Remove(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 // GetEventsInRange returns a copy of events within the specified time window.
 func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
 	s.mu.RLock()

@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"fmt"
-	"math"
+	"math" // Added for sorting operations
 	"time"
 
 	"mcs-mcp/internal/eventlog"
@@ -107,7 +107,7 @@ func (s *Server) handleGetDeliveryCadence(sourceID, sourceType string) (interfac
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
 	issues := s.reconstructIssues(events, sourceID)
 
-	daily := stats.GetDailyThroughput(issues)
+	daily := stats.GetDailyThroughput(issues, 26*7) // Default 26 weeks
 	weekly := aggregateToWeeks(daily)
 
 	return map[string]interface{}{
@@ -134,6 +134,10 @@ func (s *Server) handleGetProcessStability(sourceID, sourceType string) (interfa
 
 	analysisCtx := s.prepareAnalysisContext(sourceID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
+	// Stability usually looks at a 26-week window by default
+	windowWeeks := 26
+	issues = stats.FilterIssuesByResolutionWindow(issues, windowWeeks*7)
+
 	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
@@ -166,6 +170,13 @@ func (s *Server) handleGetProcessEvolution(sourceID, sourceType string, windowMo
 	deliveredResolutions := s.getDeliveredResolutions(sourceID)
 
 	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, 2)
+
+	// Enforce window
+	if windowMonths <= 0 {
+		windowMonths = 12 // Default
+	}
+	issues = stats.FilterIssuesByResolutionWindow(issues, windowMonths*30)
+
 	cycleTimes := s.getCycleTimes(sourceID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
 
 	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)

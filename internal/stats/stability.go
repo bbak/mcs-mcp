@@ -3,6 +3,7 @@ package stats
 import (
 	"math"
 	"mcs-mcp/internal/jira"
+	"sort"
 )
 
 // XmRResult represents the output of a Process Behavior Chart analysis.
@@ -196,6 +197,9 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 
 		groups[monthKey].Values = append(groups[monthKey].Values, cycleTimes[i])
 	}
+
+	// Sort keys chronologically
+	sort.Strings(keys)
 
 	var result []SubgroupStats
 	for _, k := range keys {
