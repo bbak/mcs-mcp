@@ -31,7 +31,7 @@ graph TD
 2.  **Context Anchoring Phase**: Use `get_board_details` (or `get_project_details`). This tool performs an **Eager Fetch** of history and produces a **Data Shape Anchor**. It clarifies the difference between `totalIngestedIssues` (the cached history size) and the `discoverySampleSize` (the recent healthy subset used for heuristics).
 3.  **Semantic Mapping Phase**: Use `get_workflow_discovery` to establish tiers and roles via **Data Archeology**. It utilizes the `identifiedStatusesFromSample` list for status identification.
 4.  **Planning Phase**: Use `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of analytical tools based on the now-confirmed context.
-5.  **Analytics Phase**: Perform high-fidelity diagnostics (Aging, Stability, Simulation) using the established mapping and baseline.
+5.  **Analytics Phase**: Perform high-fidelity diagnostics (Aging, Stability, Simulation) using the established mapping and baseline. **Mandatory Dual-Anchor Steering**: All analytical tools require both `project_key` and `board_id` to ensure analysis is performed against a confirmed project/board context.
     - Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
 
 ### Analytical Roadmap (AI Guidance)
@@ -79,6 +79,7 @@ To maintain a high-performance experience during the multi-step discovery proces
 - **Safety Brake**: Heavy analytical queries (Search with History, JQL Hydration) are subject to `JIRA_REQUEST_DELAY_SECONDS` (default: 10s).
 - **Burst Mode**: "Cheap" metadata requests (Get Board, Get Config, Get Project Statuses) bypass the artificial throttle when executed sequentially.
 - **Delta Sync Bypass**: Incremental hydration (syncing changes since a valid cache timestamp) remains sequential but processes all paged results without artificial caps, ensuring a complete log.
+- **Paging Optimization**: Hydration utilizes a `BatchSize` of 200 items per request and an optimized 2-second "paging floor" to balance ingestion speed with API safety.
 - **Result**: Automated discovery chains (Find -> Details -> Mapping) feel immediate, while analytical workloads remain governed.
 
 #### 1. Meta-Workflow Tiers
@@ -141,6 +142,7 @@ To ensure consistency and help non-statistical users interpret results, the serv
 - **Primary Algorithm**: Monte-Carlo Simulation (MCS)
 - **Data Source**: Jira Software (Data Center or Cloud)
 - **Communication**: Model Context Protocol (Standard)
+- **Transport Layer**: Stdio with `json.NewDecoder` for asynchronous, newline-independent message processing, ensuring zero-latency response times in complex host environments (e.g., Claude Desktop).
 
 ## 4. Aging Math & Precision
 
@@ -251,8 +253,9 @@ To handle realistic scenarios where background work (e.g., Bugs, Administrative 
 
 To ensure that the historical baseline reflects the expected future context (e.g., avoiding low-throughput holiday periods or focusing on a specific project phase), the system allows **baseline shifting**:
 
-- **Sliding Windows**: Users can specify `sample_days` (e.g., "last 30 days") to focus only on recent performance.
+- **Sliding Windows**: Users can specify `sample_days` (e.g., "last 30 days") to focus only on recent performance. Analytical tools strictly enforce these windows at the resolution date level to ensure chronological sensitivity.
 - **Explicit Fixed Windows**: Users can define `sample_start_date` and `sample_end_date` (e.g., "use entire month of November") to capture a specific behavior pattern as the forecast engine.
+- **Sensitivity Enforcement**: Statistical aggregations (Throughput, Monthly Subgroups) utilize precise filtering to ensure that system drifts or seasonal patterns are not masked by overlapping stale data.
 - **AI-Driven Baseline Selection**: AI agents are instructed to analyze process stability (`get_process_stability`) before selecting a sampling window to ensure the baseline itself is "in control."
 
 ---
@@ -310,6 +313,7 @@ The event log, partitioned by board ID, is the definitive source of truth for th
 
 - **Immutability**: Historical events are objective facts (e.g., "Item X moved to Dev at 10:00").
 - **Persistence (Long-term Cache)**: The log is persisted to disk using **JSON Lines (JSONL)**, enabling fast reloads between sessions and reducing reliance on Jira APIs.
+- **Cross-Source Optimization**: Individual research tools (like `get_item_journey`) utilize a project-wide cache lookup strategy, searching through all previously hydrated board logs in memory before resorting to a Jira fetch.
 - **Analytical Flexibility**: Metrics like "Cycle Time" or "Commitment Point" are just interpretations of the log and can be adjusted (via `set_workflow_mapping`) without re-fetching data.
 - **Progressive Consistency**: The system becomes more "knowledgeable" as stages are completed, but always operates on a consistent, deduplicated log.
 

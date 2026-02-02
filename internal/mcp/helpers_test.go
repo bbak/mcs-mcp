@@ -53,7 +53,7 @@ func TestResolveSourceContext_SafeAssertions(t *testing.T) {
 		},
 	}
 
-	_, err := s.resolveSourceContext("123", "board")
+	_, err := s.resolveSourceContext("123", 456)
 	if err == nil {
 		t.Error("expected error for malformed board response, got nil")
 	}
@@ -78,15 +78,15 @@ func TestResolveSourceContext_SafeAssertions(t *testing.T) {
 		return map[string]interface{}{"jql": "project = PROJ"}, nil
 	}
 
-	ctx, err := s.resolveSourceContext("123", "board")
+	ctx, err := s.resolveSourceContext("PROJ", 123)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if ctx.JQL != "(project = PROJ) AND issuetype not in subtaskIssueTypes()" {
 		t.Errorf("unexpected JQL: %s", ctx.JQL)
 	}
-	if ctx.PrimaryProject != "PROJ" {
-		t.Errorf("unexpected project key: %s", ctx.PrimaryProject)
+	if ctx.ProjectKey != "PROJ" {
+		t.Errorf("unexpected project key: %s", ctx.ProjectKey)
 	}
 
 	s.jira.(*mockJiraClient).getBoard = func(id int) (interface{}, error) {
@@ -95,8 +95,7 @@ func TestResolveSourceContext_SafeAssertions(t *testing.T) {
 	s.jira.(*mockJiraClient).getBoardConfig = func(id int) (interface{}, error) {
 		return nil, errors.New("config error")
 	}
-
-	_, err = s.resolveSourceContext("123", "board")
+	_, err = s.resolveSourceContext("123", 123)
 	if err == nil {
 		t.Error("expected error when filter missing in metadata and config retrieval fails, got nil")
 	}
@@ -110,8 +109,7 @@ func TestResolveSourceContext_SafeAssertions(t *testing.T) {
 		// Filter response not a map
 		return "not a map", nil
 	}
-
-	_, err = s.resolveSourceContext("123", "board")
+	_, err = s.resolveSourceContext("123", 123)
 	if err == nil {
 		t.Error("expected error for malformed filter response, got nil")
 	}
@@ -126,7 +124,7 @@ func TestResolveSourceContext_SafeAssertions(t *testing.T) {
 		return map[string]interface{}{"jql": "project = PROJ ORDER BY created DESC"}, nil
 	}
 
-	ctx, err = s.resolveSourceContext("123", "board")
+	ctx, err = s.resolveSourceContext("PROJ", 123)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

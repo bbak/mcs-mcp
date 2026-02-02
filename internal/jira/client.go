@@ -25,11 +25,10 @@ type Issue struct {
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.
 type SourceContext struct {
-	SourceID       string
-	SourceType     string // "board" or "filter"
-	JQL            string
-	PrimaryProject string // Inferred or user-provided anchor
-	FetchedAt      time.Time
+	ProjectKey string
+	BoardID    int
+	JQL        string
+	FetchedAt  time.Time
 }
 
 // StatusTransition represents a change in an issue's status.

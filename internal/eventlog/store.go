@@ -224,6 +224,25 @@ func (s *EventStore) GetEventsForIssue(sourceID string, issueKey string) []Issue
 	return result
 }
 
+// FindIssueInAllSources searches for an issue across all loaded sources.
+func (s *EventStore) FindIssueInAllSources(issueKey string) (string, []IssueEvent) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for sourceID, logData := range s.logs {
+		var result []IssueEvent
+		for _, e := range logData {
+			if e.IssueKey == issueKey {
+				result = append(result, e)
+			}
+		}
+		if len(result) > 0 {
+			return sourceID, result
+		}
+	}
+	return "", nil
+}
+
 // identity computes a unique string identifier for an event to aid deduplication.
 func (e IssueEvent) identity() string {
 	return fmt.Sprintf("%s|%d|%s|%s|%s",

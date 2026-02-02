@@ -1,9 +1,9 @@
 package mcp
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime/debug"
 
@@ -14,6 +14,20 @@ import (
 
 	"github.com/rs/zerolog/log"
 )
+
+type JSONRPCRequest struct {
+	Jsonrpc string          `json:"jsonrpc"`
+	ID      interface{}     `json:"id"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params"`
+}
+
+type JSONRPCResponse struct {
+	Jsonrpc string      `json:"jsonrpc"`
+	ID      interface{} `json:"id,omitempty"`
+	Result  interface{} `json:"result,omitempty"`
+	Error   interface{} `json:"error,omitempty"`
+}
 
 type Server struct {
 	jira               jira.Client
@@ -35,18 +49,21 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 }
 
 func (s *Server) Start() {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		var req struct {
-			Jsonrpc string          `json:"jsonrpc"`
-			ID      interface{}     `json:"id"`
-			Method  string          `json:"method"`
-			Params  json.RawMessage `json:"params"`
-		}
-
-		if err := json.Unmarshal(scanner.Bytes(), &req); err != nil {
+	decoder := json.NewDecoder(os.Stdin)
+	for {
+		var req JSONRPCRequest
+		if err := decoder.Decode(&req); err != nil {
+			if err == io.EOF {
+				break // End of input
+			}
+			log.Error().Err(err).Msg("Failed to decode JSON-RPC request")
 			continue
 		}
+
+		log.Info().
+			Str("method", req.Method).
+			Interface("id", req.ID).
+			Msg("Received JSON-RPC request")
 
 		switch req.Method {
 		case "initialize":
@@ -146,11 +163,12 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		key := asString(call.Arguments["project_key"])
 		data, err = s.handleGetProjectDetails(key)
 	case "get_board_details":
-		id := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetBoardDetails(id)
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleGetBoardDetails(projectKey, boardID)
 	case "run_simulation":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["mode"])
 		startStatus := asString(call.Arguments["start_status"])
 
@@ -183,7 +201,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 		if len(res) == 0 {
-			res = s.getDeliveredResolutions(id)
+			res = s.getDeliveredResolutions(projectKey, boardID)
 		}
 		sampleDays := asInt(call.Arguments["sample_days"])
 		sampleStart := asString(call.Arguments["sample_start_date"])
@@ -209,66 +227,64 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 
-		data, err = s.handleRunSimulation(id, sType, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd, targets, mix)
+		data, err = s.handleRunSimulation(projectKey, boardID, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd, targets, mix)
 	case "get_status_persistence":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
-		data, err = s.handleGetStatusPersistence(id, sType)
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleGetStatusPersistence(projectKey, boardID)
 	case "get_aging_analysis":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		agingType := asString(call.Arguments["aging_type"])
 		tierFilter := asString(call.Arguments["tier_filter"])
-		data, err = s.handleGetAgingAnalysis(id, sType, agingType, tierFilter)
+		data, err = s.handleGetAgingAnalysis(projectKey, boardID, agingType, tierFilter)
 	case "get_delivery_cadence":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
-		window := asInt(call.Arguments["window_weeks"])
-		if window == 0 {
-			window = 26
-		}
-		data, err = s.handleGetDeliveryCadence(id, sType)
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleGetDeliveryCadence(projectKey, boardID)
 	case "get_process_stability":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		window := asInt(call.Arguments["window_weeks"])
 		if window == 0 {
 			window = 26
 		}
-		data, err = s.handleGetProcessStability(id, sType)
+		data, err = s.handleGetProcessStability(projectKey, boardID)
 	case "get_process_evolution":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		window := asInt(call.Arguments["window_months"])
 		if window == 0 {
 			window = 12
 		}
-		data, err = s.handleGetProcessEvolution(id, sType, window)
+		data, err = s.handleGetProcessEvolution(projectKey, boardID, window)
 	case "get_process_yield":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
-		data, err = s.handleGetProcessYield(id, sType)
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleGetProcessYield(projectKey, boardID)
 	case "get_workflow_discovery":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
-		data, err = s.handleGetWorkflowDiscovery(id, sType)
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleGetWorkflowDiscovery(projectKey, boardID)
 	case "set_workflow_mapping":
-		id := asString(call.Arguments["source_id"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
 		resolutions, _ := call.Arguments["resolutions"].(map[string]interface{})
-		data, err = s.handleSetWorkflowMapping(id, mapping, resolutions)
+		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions)
 	case "set_workflow_order":
-		id := asString(call.Arguments["source_id"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		order := []string{}
 		if o, ok := call.Arguments["order"].([]interface{}); ok {
 			for _, v := range o {
 				order = append(order, asString(v))
 			}
 		}
-		data, err = s.handleSetWorkflowOrder(id, order)
+		data, err = s.handleSetWorkflowOrder(projectKey, boardID, order)
 	case "get_cycle_time_assessment":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		startStatus := asString(call.Arguments["start_status"])
 		endStatus := asString(call.Arguments["end_status"])
 
@@ -290,7 +306,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleGetCycleTimeAssessment(id, sType, analyzeWIP, startStatus, endStatus, res)
+		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, res)
 	case "get_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
@@ -298,8 +314,8 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		key := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(key)
 	case "get_forecast_accuracy":
-		id := asString(call.Arguments["source_id"])
-		sType := asString(call.Arguments["source_type"])
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["simulation_mode"])
 		items := asInt(call.Arguments["items_to_forecast"])
 		horizon := asInt(call.Arguments["forecast_horizon_days"])
@@ -314,7 +330,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleStart := asString(call.Arguments["sample_start_date"])
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
-		data, err = s.handleGetForecastAccuracy(id, sType, mode, items, horizon, res, sampleDays, sampleStart, sampleEnd)
+		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, res, sampleDays, sampleStart, sampleEnd)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}

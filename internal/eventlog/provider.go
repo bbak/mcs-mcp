@@ -29,7 +29,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		MinTotalItems    = 1000
 		MinResolvedItems = 200
 		HardLimit        = 5000
-		BatchSize        = 50
+		BatchSize        = 200
 	)
 
 	// 1. Try to Load from Cache
@@ -173,6 +173,10 @@ func (p *LogProvider) GetEventsInRange(sourceID string, start, end time.Time) []
 
 func (p *LogProvider) GetEventsForIssue(sourceID, issueKey string) []IssueEvent {
 	return p.store.GetEventsForIssue(sourceID, issueKey)
+}
+
+func (p *LogProvider) GetEventsForIssueInAllSources(issueKey string) (string, []IssueEvent) {
+	return p.store.FindIssueInAllSources(issueKey)
 }
 
 func (p *LogProvider) GetLatestTimestamp(sourceID string) time.Time {

@@ -12,82 +12,92 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (s *Server) resolveSourceContext(sourceID, sourceType string) (*jira.SourceContext, error) {
-	var jql string
-	var projectKey string
+func getCombinedID(projectKey string, boardID int) string {
+	return fmt.Sprintf("%s_%d", projectKey, boardID)
+}
 
-	if sourceType == "board" {
-		var id int
-		_, err := fmt.Sscanf(sourceID, "%d", &id)
-		if err != nil {
-			return nil, fmt.Errorf("invalid board ID: %s", sourceID)
-		}
-		config, err := s.jira.GetBoard(id)
-		if err != nil {
-			return nil, err
-		}
-		cMap, ok := config.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid board config response format from Jira")
-		}
-
-		// Extract Project Key from location if available
-		if loc, ok := cMap["location"].(map[string]interface{}); ok {
-			projectKey = asString(loc["projectKey"])
-		}
-
-		filterObj, ok := cMap["filter"].(map[string]interface{})
-		if !ok {
-			// Fallback: Try Board Configuration for filter info (common for many Jira versions/board types)
-			log.Debug().Int("boardId", id).Msg("Filter missing in board metadata, trying board configuration")
-			configObj, err := s.jira.GetBoardConfig(id)
-			if err == nil {
-				if conf, isMap := configObj.(map[string]interface{}); isMap {
-					filterObj, ok = conf["filter"].(map[string]interface{})
-				}
-			}
-		}
-
-		if !ok {
-			return nil, fmt.Errorf("board config missing filter information (looked in board metadata and config)")
-		}
-		filterID := asString(filterObj["id"])
-		filter, err := s.jira.GetFilter(filterID)
-		if err != nil {
-			return nil, err
-		}
-		fMap, ok := filter.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid filter response format from Jira")
-		}
-		jql = asString(fMap["jql"])
-
-		// STRIP ORDER BY BEFORE WRAPPING
-		jql = stripOrderBy(jql)
-
-		// Board-Specific refinement: Exclude sub-tasks
-		jql = fmt.Sprintf("(%s) AND issuetype not in subtaskIssueTypes()", jql)
-	} else {
-		filter, err := s.jira.GetFilter(sourceID)
-		if err != nil {
-			return nil, err
-		}
-		fMap, ok := filter.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid filter response format from Jira")
-		}
-		jql = asString(fMap["jql"])
-
-		// STRIP ORDER BY
-		jql = stripOrderBy(jql)
+func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.SourceContext, error) {
+	if boardID == 0 {
+		return &jira.SourceContext{
+			ProjectKey: projectKey,
+			BoardID:    0,
+			JQL:        fmt.Sprintf("project = \"%s\"", projectKey),
+			FetchedAt:  time.Now(),
+		}, nil
 	}
 
+	config, err := s.jira.GetBoard(boardID)
+	if err != nil {
+		return nil, err
+	}
+	cMap, ok := config.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid board config response format from Jira")
+	}
+
+	// Extract and Verify Project Key from location
+	boardProjectKey := ""
+	if loc, ok := cMap["location"].(map[string]interface{}); ok {
+		boardProjectKey = asString(loc["projectKey"])
+	}
+
+	if projectKey != "" && boardProjectKey != "" && projectKey != boardProjectKey {
+		return nil, fmt.Errorf("context mismatch: provided project %s does not match board project %s", projectKey, boardProjectKey)
+	}
+
+	// Use provided or board-implicit key
+	finalProjectKey := projectKey
+	if finalProjectKey == "" {
+		finalProjectKey = boardProjectKey
+	}
+
+	if finalProjectKey == "" {
+		return nil, fmt.Errorf("could not determine project key; please provide it explicitly")
+	}
+
+	filterObj, ok := cMap["filter"].(map[string]interface{})
+	if !ok {
+		// Fallback: Try Board Configuration
+		log.Debug().Int("boardId", boardID).Msg("Filter missing in board metadata, trying board configuration")
+		configObj, err := s.jira.GetBoardConfig(boardID)
+		if err == nil {
+			if conf, isMap := configObj.(map[string]interface{}); isMap {
+				filterObj, ok = conf["filter"].(map[string]interface{})
+			}
+		}
+	}
+
+	if !ok {
+		return nil, fmt.Errorf("board config missing filter information")
+	}
+
+	filterID := asString(filterObj["id"])
+	filter, err := s.jira.GetFilter(filterID)
+	if err != nil {
+		return nil, err
+	}
+	fMap, ok := filter.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid filter response format from Jira")
+	}
+	jql := asString(fMap["jql"])
+
+	// Strip and Normalize
+	jql = stripOrderBy(jql)
+
+	// Anchoring: Ensure JQL is scoped to the project
+	if !strings.Contains(strings.ToLower(jql), "project =") && !strings.Contains(strings.ToLower(jql), "project in") {
+		jql = fmt.Sprintf("(%s) AND project = \"%s\"", jql, finalProjectKey)
+	}
+
+	// Exclude sub-tasks
+	jql = fmt.Sprintf("(%s) AND issuetype not in subtaskIssueTypes()", jql)
+
 	return &jira.SourceContext{
-		SourceID:       sourceID,
-		SourceType:     sourceType,
-		JQL:            jql,
-		PrimaryProject: projectKey,
-		FetchedAt:      time.Now(),
+		ProjectKey: finalProjectKey,
+		BoardID:    boardID,
+		JQL:        jql,
+		FetchedAt:  time.Now(),
 	}, nil
 }
 

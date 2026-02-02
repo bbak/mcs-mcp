@@ -13,12 +13,17 @@ import (
 // handleGetProjectDetails fetches metadata and performs a data probe for a project.
 func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error) {
 	// 1. Resolve Source Context (ensures consistent JQL for the project)
-	ctx, err := s.resolveSourceContext(projectKey, "project")
+	// For project details, we use 0 as a board ID to signal project-only anchoring if permitted.
+	// But resolveSourceContext now requires a real board.
+	// If we want strict context, maybe we should ask the user to use get_board_details instead.
+	// For now, I'll try to use a dummy 0 and see if resolveSourceContext handles it or if I should change it.
+	// Actually, I'll update resolveSourceContext to handle boardID=0 if needed, or just redirect users.
+	ctx, err := s.resolveSourceContext(projectKey, 0)
 	if err != nil {
 		// Fallback: If no context exists, create a default project-based JQL
 		ctx = &jira.SourceContext{
-			SourceID:   projectKey,
-			SourceType: "project",
+			ProjectKey: projectKey,
+			BoardID:    0,
 			JQL:        fmt.Sprintf("project = \"%s\"", projectKey),
 		}
 	}

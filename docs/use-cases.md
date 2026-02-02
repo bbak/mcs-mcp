@@ -146,8 +146,9 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** Investigating a "Long Tail" outlier item.
 - **Main Success Scenario:**
     1. AI calls `get_item_journey` for a specific issue key.
-    2. MCP Server utilizes the **Event Log** to reconstruct a chronological path with residency days for each step.
-    3. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked'").
+    2. MCP Server performs a **Cross-Source Cache Lookup**, searching all in-memory board logs for the issue before calling Jira.
+    3. MCP Server utilizes the **Event Log** to reconstruct a chronological path with residency days for each step.
+    4. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked'").
 
 ---
 

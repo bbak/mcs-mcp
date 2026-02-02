@@ -5,7 +5,7 @@ func (s *Server) listTools() interface{} {
 		"tools": []interface{}{
 			map[string]interface{}{
 				"name":        "find_jira_projects",
-				"description": "Search for Jira projects by name or key. Guidance: Call 'get_project_details' next to anchor on the data shape.",
+				"description": "Search for Jira projects by name or key. Guidance: If you plan to run analysis, you MUST find the project's boards using 'find_jira_boards' next. Use 'get_project_details' only for general project metadata.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -16,7 +16,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "find_jira_boards",
-				"description": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'get_board_details' next to anchor on the data shape.",
+				"description": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'get_board_details' next to anchor on the data shape context.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -27,7 +27,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_project_details",
-				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for a project. MUST be called before workflow discovery.",
+				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'get_board_details' if you plan to run diagnostics or forecasts.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -42,9 +42,10 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"board_id": map[string]interface{}{"type": "integer", "description": "The board ID"},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key (e.g., PROJ)"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 					},
-					"required": []string{"board_id"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -65,8 +66,8 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":                map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type":              map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key":              map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":                 map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"mode":                     map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}, "description": "Simulation mode: 'duration' (forecast completion date for a number of work items) or 'scope' (forecast delivery volume)."},
 						"include_existing_backlog": map[string]interface{}{"type": "boolean", "description": "If true, automatically counts and includes all unstarted items (Demand Tier or Backlog) from Jira for this board/filter."},
 						"include_wip":              map[string]interface{}{"type": "boolean", "description": "If true, ALSO includes items already in progress (passed the Commitment Point or started)."},
@@ -91,7 +92,7 @@ func (s *Server) listTools() interface{} {
 							"additionalProperties": map[string]interface{}{"type": "number"},
 						},
 					},
-					"required": []string{"source_id", "source_type", "mode"},
+					"required": []string{"project_key", "board_id", "mode"},
 				},
 			},
 			map[string]interface{}{
@@ -102,15 +103,15 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":             map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type":           map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key":           map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":              map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"issue_types":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include in the calculation (e.g., ['Story', 'Bug'])."},
 						"analyze_wip_stability": map[string]interface{}{"type": "boolean", "description": "If true, performs a comparative analysis of current WIP against the historical baseline to detect early outliers."},
 						"start_status":          map[string]interface{}{"type": "string", "description": "Optional: Explicit start status (default: Commitment Point)."},
 						"end_status":            map[string]interface{}{"type": "string", "description": "Optional: Explicit end status (default: Finished Tier)."},
 						"resolutions":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done' for the baseline (e.g., ['Fixed'])."},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -121,10 +122,10 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -136,12 +137,12 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"aging_type":  map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
 						"tier_filter": map[string]interface{}{"type": "string", "enum": []string{"WIP", "Demand", "Upstream", "Downstream", "Finished", "All"}, "description": "Optional: Filter results to specific tiers. 'WIP' ('Work-in-process', default) excludes Demand and Finished."},
 					},
-					"required": []string{"source_id", "source_type", "aging_type"},
+					"required": []string{"project_key", "board_id", "aging_type"},
 				},
 			},
 			map[string]interface{}{
@@ -150,11 +151,11 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":    map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type":  map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key":  map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":     map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"window_weeks": map[string]interface{}{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -165,14 +166,14 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"window_weeks": map[string]interface{}{
 							"type":        "integer",
 							"description": "Number of weeks to analyze (default: 26)",
 						},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -183,14 +184,14 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"window_months": map[string]interface{}{
 							"type":        "integer",
 							"description": "Number of months to analyze (default: 12, supports up to 60 for deep history)",
 						},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -205,10 +206,10 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -221,7 +222,8 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id": map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"mapping": map[string]interface{}{
 							"type":        "object",
 							"description": "A map of status names to metadata (tier, role, and optional outcome).",
@@ -244,7 +246,7 @@ func (s *Server) listTools() interface{} {
 							},
 						},
 					},
-					"required": []string{"source_id", "mapping"},
+					"required": []string{"project_key", "board_id", "mapping"},
 				},
 			},
 			map[string]interface{}{
@@ -253,10 +255,10 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":   map[string]interface{}{"type": "string"},
-						"source_type": map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 					},
-					"required": []string{"source_id", "source_type"},
+					"required": []string{"project_key", "board_id"},
 				},
 			},
 			map[string]interface{}{
@@ -265,14 +267,15 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id": map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"order": map[string]interface{}{
 							"type":        "array",
 							"items":       map[string]interface{}{"type": "string"},
 							"description": "Ordered list of status names.",
 						},
 					},
-					"required": []string{"source_id", "order"},
+					"required": []string{"project_key", "board_id", "order"},
 				},
 			},
 			map[string]interface{}{
@@ -310,8 +313,8 @@ func (s *Server) listTools() interface{} {
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"source_id":             map[string]interface{}{"type": "string", "description": "ID of the board or filter"},
-						"source_type":           map[string]interface{}{"type": "string", "enum": []string{"board", "filter"}},
+						"project_key":           map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":              map[string]interface{}{"type": "integer", "description": "The board ID"},
 						"simulation_mode":       map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}},
 						"items_to_forecast":     map[string]interface{}{"type": "integer", "description": "Number of items to forecast (duration mode). Default: 5"},
 						"forecast_horizon_days": map[string]interface{}{"type": "integer", "description": "Number of days to forecast (scope mode). Default: 14"},
@@ -320,7 +323,7 @@ func (s *Server) listTools() interface{} {
 						"sample_start_date":     map[string]interface{}{"type": "string", "description": "Optional: Start date for historical baseline."},
 						"sample_end_date":       map[string]interface{}{"type": "string", "description": "Optional: End date for historical baseline."},
 					},
-					"required": []string{"source_id", "source_type", "simulation_mode"},
+					"required": []string{"project_key", "board_id", "simulation_mode"},
 				},
 			},
 		},

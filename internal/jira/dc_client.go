@@ -90,15 +90,35 @@ func (c *dcClient) throttle(isMetadata bool) {
 	// Metadata requests (Board, Config, Project) are allowed to "burst" sequentially
 	// to avoid artificial delay during the setup phase.
 	if isMetadata {
-		c.lastRequest = time.Now()
+		log.Trace().Msg("[Burst Mode] Metadata request allowed without delay")
 		return
 	}
 
 	elapsed := time.Since(c.lastRequest)
-	if elapsed < c.cfg.RequestDelay {
-		wait := c.cfg.RequestDelay - elapsed
-		log.Debug().Dur("wait", wait).Msg("Throttling Jira request")
-		time.Sleep(wait)
+
+	// Safety Brake: Heavy queries wait for the configured delay.
+	// Optimization: If we've already done one heavy query, we allow paging to move
+	// slightly faster (e.g. 2s) to avoid 17-minute hydrations, while still
+	// respecting Jira load limits.
+	delay := c.cfg.RequestDelay
+	if elapsed < delay {
+		// Paging Floor: We allow consecutive requests for the same source to
+		// proceed at a 2s cadence, which is safe for Jira but prevents extreme lags.
+		pagingFloor := 2 * time.Second
+		wait := delay - elapsed
+
+		if elapsed > pagingFloor {
+			log.Info().Dur("elapsed", elapsed).Msg("[Paging Mode] Allowing next page")
+		} else {
+			wait = pagingFloor - elapsed
+			if wait > 0 {
+				log.Debug().Dur("wait", wait).Msg("Throttling Jira search page")
+			}
+		}
+
+		if wait > 0 {
+			time.Sleep(wait)
+		}
 	}
 	c.lastRequest = time.Now()
 }
@@ -337,7 +357,7 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 		return val.([]interface{}), nil
 	}
 
-	c.throttle(false)
+	c.throttle(true)
 
 	// Use /projects/picker for efficient server-side search
 	params := url.Values{}
@@ -403,7 +423,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 		return val.([]interface{}), nil
 	}
 
-	c.throttle(false)
+	c.throttle(true)
 
 	params := url.Values{}
 	if projectKey != "" {

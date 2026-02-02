@@ -6,6 +6,8 @@ import (
 )
 
 type AnalysisContext struct {
+	ProjectKey               string
+	BoardID                  int
 	SourceID                 string
 	StatusWeights            map[string]int
 	WorkflowMappings         map[string]stats.StatusMetadata
@@ -15,7 +17,8 @@ type AnalysisContext struct {
 	StatusOrder              []string
 }
 
-func (s *Server) prepareAnalysisContext(sourceID string, issues []jira.Issue) *AnalysisContext {
+func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues []jira.Issue) *AnalysisContext {
+	sourceID := getCombinedID(projectKey, boardID)
 	statusWeights := s.getStatusWeights(issues)
 
 	mappings := s.workflowMappings[sourceID]
@@ -38,9 +41,11 @@ func (s *Server) prepareAnalysisContext(sourceID string, issues []jira.Issue) *A
 	finished := s.getFinishedStatuses(sourceID)
 
 	// Determine commitment point
-	commitment, found := s.getEarliestCommitment(sourceID, issues)
+	commitment, found := s.getEarliestCommitment(projectKey, boardID, issues)
 
 	return &AnalysisContext{
+		ProjectKey:               projectKey,
+		BoardID:                  boardID,
 		SourceID:                 sourceID,
 		StatusWeights:            statusWeights,
 		WorkflowMappings:         mappings,

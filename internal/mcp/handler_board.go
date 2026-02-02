@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"fmt"
 	"time"
 
 	"mcs-mcp/internal/stats"
@@ -10,11 +9,11 @@ import (
 )
 
 // handleGetBoardDetails fetches metadata and triggers Eager Ingestion (Hydrate).
-func (s *Server) handleGetBoardDetails(boardID int) (interface{}, error) {
-	sourceID := fmt.Sprintf("%d", boardID)
+func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interface{}, error) {
+	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Resolve Source Context (ensures consistent JQL and validates board exists)
-	ctx, err := s.resolveSourceContext(sourceID, "board")
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}

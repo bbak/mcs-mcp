@@ -10,11 +10,12 @@ import (
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) handleGetWorkflowDiscovery(sourceID, sourceType string) (interface{}, error) {
-	ctx, err := s.resolveSourceContext(sourceID, sourceType)
+func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int) (interface{}, error) {
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
+	sourceID := getCombinedID(projectKey, boardID)
 
 	// Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
@@ -119,7 +120,8 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 	}
 }
 
-func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]interface{}, resolutions map[string]interface{}) (interface{}, error) {
+func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}) (interface{}, error) {
+	sourceID := getCombinedID(projectKey, boardID)
 	m := make(map[string]stats.StatusMetadata)
 	for k, v := range mapping {
 		if vm, ok := v.(map[string]interface{}); ok {
@@ -143,7 +145,8 @@ func (s *Server) handleSetWorkflowMapping(sourceID string, mapping map[string]in
 	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow mapping for source %s", sourceID)}, nil
 }
 
-func (s *Server) handleSetWorkflowOrder(sourceID string, order []string) (interface{}, error) {
+func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []string) (interface{}, error) {
+	sourceID := getCombinedID(projectKey, boardID)
 	s.statusOrderings[sourceID] = order
 	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow order for source %s", sourceID)}, nil
 }

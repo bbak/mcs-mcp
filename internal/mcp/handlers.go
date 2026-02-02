@@ -71,7 +71,8 @@ func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
 
 // Note: ApplyBackflowPolicy and RecalculateResidency have been moved to internal/stats/processor.go
 
-func (s *Server) getInferredRange(sourceID, startStatus, endStatus string, issues []jira.Issue) []string {
+func (s *Server) getInferredRange(projectKey string, boardID int, startStatus, endStatus string, issues []jira.Issue) []string {
+	sourceID := getCombinedID(projectKey, boardID)
 	if order, ok := s.statusOrderings[sourceID]; ok {
 		return s.sliceRange(order, startStatus, endStatus)
 	}
@@ -131,7 +132,8 @@ func (s *Server) getCommitmentPointHints(issues []jira.Issue, weights map[string
 	return res
 }
 
-func (s *Server) getEarliestCommitment(sourceID string, issues []jira.Issue) (string, bool) {
+func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []jira.Issue) (string, bool) {
+	sourceID := getCombinedID(projectKey, boardID)
 	mapping := s.workflowMappings[sourceID]
 	if mapping == nil {
 		return "", false
@@ -151,7 +153,8 @@ func (s *Server) getEarliestCommitment(sourceID string, issues []jira.Issue) (st
 	return "", false
 }
 
-func (s *Server) getDeliveredResolutions(sourceID string) []string {
+func (s *Server) getDeliveredResolutions(projectKey string, boardID int) []string {
+	sourceID := getCombinedID(projectKey, boardID)
 	rm := s.getResolutionMap(sourceID)
 	delivered := make([]string, 0)
 	for name, outcome := range rm {
@@ -162,19 +165,20 @@ func (s *Server) getDeliveredResolutions(sourceID string) []string {
 	return delivered
 }
 
-func (s *Server) getCycleTimes(sourceID string, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
+func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
 	// Reusing logic from mcp package
-	return s.calculateCycleTimesList(sourceID, issues, startStatus, endStatus, resolutions)
+	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, resolutions)
 }
 
-func (s *Server) calculateCycleTimesList(sourceID string, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
+func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
+	sourceID := getCombinedID(projectKey, boardID)
 	mappings := s.workflowMappings[sourceID]
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
 	}
 
-	rangeStatuses := s.getInferredRange(sourceID, startStatus, endStatus, issues)
+	rangeStatuses := s.getInferredRange(projectKey, boardID, startStatus, endStatus, issues)
 
 	var cycleTimes []float64
 	for _, issue := range issues {
