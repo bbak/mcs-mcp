@@ -178,14 +178,15 @@ To avoid confusing users with "0.0 days" (for items visited on the same day) and
 - An item strictly **does not have** a WIP Age before it crosses the commitment point.
 - The server reports WIP Age as `null/nil` for items in the **Demand** tier or items that haven't transitioned into an **Active/Started** status yet.
 
-#### 5. Backflow Policy
+#### 5. Backflow and Un-Resolution Policy
 
-The system employs a strict "Restart on Backflow" policy for items returning to the **Demand** tier:
+The system employs a multi-layered strategy for items returning to active work from a terminal state (Backflow) or having their resolution explicitly removed (Un-Resolution):
 
-- **Reset**: If an item that has previously crossed the commitment point is moved back into a status mapped to the **Demand** tier, it is treated as a "Reset".
-- **History Consolidation**: Instead of wiping history or resetting the **Created** date, the system consolidates all time spent prior to the most recent backflow into the **Demand** tier. This preserves the original **Total Age** while ensuring **WIP Age** reflects only the most recent start.
-- **Fresh Start**: The item will only regain a WIP Age if and when it crosses the commitment point **again**. The new WIP Age will be calculated from this most recent crossing.
-- **Rationale**: This prevents "stale WIP" metrics from being skewed by failed starts, while accurately reflecting that the item has been "known" (Total Age) since its true creation.
+- **Capture (Case 1: Explicit Clear)**: If the Jira `resolution` field is explicitly cleared in history, the transformer emits an `Unresolved` event. This provides a high-fidelity "Birth Date" for the new active period.
+- **Reactive Projection (Case 2 & 3: Inconsistent Data)**: Projections are designed to be status-reactive. If a transition moves an item from a terminal status back to an active one, the projection automatically unsets the internal `ResolutionDate` and `Resolution` fields, regardless of whether they were cleared in Jira's snapshot data.
+- **Reset on Backflow**: If an item returns to the **Demand** tier, it is treated as a "Reset":
+    - **History Consolidation**: Time spent prior to the backflow is consolidated into the Demand tier, preserving **Total Age**.
+    - **Fresh Start**: **WIP Age** reflects only the most recent commitment crossing.
 
 #### 6. Project Move Boundary
 
@@ -300,8 +301,8 @@ graph TD
     - **Stage 1: Recent Activity & WIP**: Fetches items sorted by `updated DESC` to ensure all active WIP and recent delivery history (up to 1000 items or 1 year) are captured immediately.
     - **Stage 2: Baseline Depth**: If the first stage did not yield enough resolved items for a statistically significant baseline (default 200 items), the system performs an explicit fetch for historical resolutions (`resolution is not EMPTY`).
 3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` (Unix Microseconds).
-4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Moved`). It captures **Status IDs** for every transition to ensure robust analytical mapping.
-5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses (e.g., `ReconstructIssue`, `WIPProjection`).
+4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Unresolved`, `Moved`). It captures **Status IDs** for every transition and utilizes a **2-second grace period** to deduplicate redundant resolution signals between snapshots and history.
+5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses. Projections are **Status-Reactive**, ensuring that terminal metadata (like Resolution) is implicitly cleared if a status transition moves the item back to an active workflow tier.
 
 ### 5.1. The Event Log as Source of Truth
 

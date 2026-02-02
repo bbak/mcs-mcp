@@ -53,11 +53,18 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 			}
 		case Resolved, Closed:
 			s.isFinished = true
+		case Unresolved:
+			s.isFinished = false
 		}
 
-		if m, ok := mappings[s.currentStatus]; ok {
-			if m.Tier == "Finished" || m.Role == "terminal" {
-				s.isFinished = true
+		// Reactive check: If this was a transition, update finished state based on target status (Case 2 & 3)
+		if e.EventType == Transitioned || e.EventType == Created {
+			if m, ok := mappings[s.currentStatus]; ok {
+				if m.Tier == "Finished" || m.Role == "terminal" {
+					s.isFinished = true
+				} else {
+					s.isFinished = false
+				}
 			}
 		}
 	}
@@ -152,9 +159,25 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			ts := time.UnixMicro(e.Timestamp)
 			issue.ResolutionDate = &ts
 			issue.Resolution = e.Resolution
+		case Unresolved:
+			issue.ResolutionDate = nil
+			issue.Resolution = ""
 		case Moved:
 			issue.IsMoved = true
 			lastMoveDate = e.Timestamp
+		}
+
+		// Reactive check: If transitioning to a non-terminal status, implicitly clear resolution (Case 2 & 3)
+		if e.EventType == Transitioned || e.EventType == Created {
+			if !finishedStatuses[issue.Status] {
+				issue.ResolutionDate = nil
+				issue.Resolution = ""
+			} else {
+				// Item is at a terminal status, but we might not have a Resolved event yet.
+				// However, if it's terminal, we should probably treat it as resolved if it was before.
+				// Actually, if it RE-ENTERS terminal, we might want to wait for an explicit resolution
+				// or use the mapping's outcome. For now, let's just ensure we DON'T clear it if it's terminal.
+			}
 		}
 	}
 

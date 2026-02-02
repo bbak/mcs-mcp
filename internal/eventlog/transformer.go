@@ -84,6 +84,14 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 							Timestamp:  ts,
 							Resolution: item.ToString,
 						})
+					} else {
+						// Case 1: Resolution explicitly cleared in Jira
+						events = append(events, IssueEvent{
+							IssueKey:  issueKey,
+							IssueType: issueType,
+							EventType: Unresolved,
+							Timestamp: ts,
+						})
 					}
 				case "Key", "project":
 					moveSignal = true
@@ -105,13 +113,37 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	if dto.Fields.ResolutionDate != "" {
 		resTime, err := jira.ParseTime(dto.Fields.ResolutionDate)
 		if err == nil {
-			events = append(events, IssueEvent{
-				IssueKey:   issueKey,
-				IssueType:  issueType,
-				EventType:  Resolved,
-				Timestamp:  resTime.UnixMicro(),
-				Resolution: dto.Fields.Resolution.Name,
-			})
+			ts := resTime.UnixMicro()
+			resName := dto.Fields.Resolution.Name
+
+			// De-duplication check:
+			// If we already have a Resolved event for this resolution within a 2s grace period, skip fallback.
+			// Jira's API snapshots and history can have slight precision offsets.
+			duplicate := false
+			const gracePeriod = 2000000 // 2 seconds in microseconds
+
+			for _, e := range events {
+				if e.EventType == Resolved && e.Resolution == resName {
+					diff := ts - e.Timestamp
+					if diff < 0 {
+						diff = -diff
+					}
+					if diff <= gracePeriod {
+						duplicate = true
+						break
+					}
+				}
+			}
+
+			if !duplicate {
+				events = append(events, IssueEvent{
+					IssueKey:   issueKey,
+					IssueType:  issueType,
+					EventType:  Resolved,
+					Timestamp:  ts,
+					Resolution: resName,
+				})
+			}
 		}
 	}
 

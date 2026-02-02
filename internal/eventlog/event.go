@@ -10,6 +10,8 @@ const (
 	Transitioned EventType = "Transitioned"
 	// Resolved indicates the application of a Jira resolution.
 	Resolved EventType = "Resolved"
+	// Unresolved indicates the explicit clearing of a Jira resolution.
+	Unresolved EventType = "Unresolved"
 	// Moved indicates the item was moved to a different project or key.
 	Moved EventType = "Moved"
 	// Closed indicates the item has reached a terminal state in the process.

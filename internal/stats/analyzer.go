@@ -198,7 +198,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		// --- ROLE HEURISTICS ---
 		if tier == "Finished" {
 			role = "terminal"
-		} else if queueCandidates[name] {
+		} else if tier == "Demand" || queueCandidates[name] {
 			role = "queue"
 		}
 

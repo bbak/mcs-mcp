@@ -232,6 +232,8 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		newIssue := issue
 		newIssue.Transitions = FilterTransitions(issue.Transitions, issue.Transitions[lastBackflowIdx].Date)
 		newIssue.IsMoved = true // Treat as a reset
+		newIssue.ResolutionDate = nil
+		newIssue.Resolution = ""
 
 		// Recalculate residency starting from the backflow point
 		newIssue.StatusResidency = CalculateResidency(
