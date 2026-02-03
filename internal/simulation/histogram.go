@@ -34,6 +34,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	totalDelivered := 0
 
 	droppedByResolution := 0
+	droppedByWindow := 0
 	for _, issue := range issues {
 		if issue.ResolutionDate == nil {
 			continue
@@ -44,14 +45,16 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 			droppedByResolution++
 			continue
 		}
-		typeCounts[issue.IssueType]++
-		totalDelivered++
 
 		// Fill throughput buckets based on ALL types (System Capacity)
 		// We use total throughput because Approach B models shared capacity slots.
 		dayIdx := int(issue.ResolutionDate.Sub(startTime).Hours() / 24)
 		if dayIdx >= 0 && dayIdx < days {
 			buckets[dayIdx]++
+			typeCounts[issue.IssueType]++
+			totalDelivered++
+		} else {
+			droppedByWindow++
 		}
 	}
 
@@ -86,6 +89,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 		"issues_total":          len(issues),
 		"issues_analyzed":       totalDelivered,
 		"dropped_by_resolution": droppedByResolution,
+		"dropped_by_window":     droppedByWindow,
 		"days_in_sample":        days,
 		"throughput_overall":    avgAcross,
 		"throughput_recent":     recentAvg,

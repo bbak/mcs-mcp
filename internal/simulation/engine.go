@@ -185,6 +185,15 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		}
 	}
 
+	// Window exclusion warning
+	if droppedWindow, ok := e.histogram.Meta["dropped_by_window"].(int); ok && droppedWindow > 0 {
+		analyzed := e.histogram.Meta["issues_analyzed"].(int)
+		total := analyzed + droppedWindow
+		if total > 0 && float64(droppedWindow)/float64(total) > 0.5 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("WARNING: %d items (%d%%) were excluded because they fall outside the analysis time window. This suggests your time window is too narrow or the project is less active recently.", droppedWindow, int(float64(droppedWindow)/float64(total)*100)))
+		}
+	}
+
 	return res
 }
 
@@ -227,6 +236,15 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 			"almost_certain": "P98 (98% probability to deliver at least this much)",
 		},
 	}
+	// Window exclusion warning
+	if droppedWindow, ok := e.histogram.Meta["dropped_by_window"].(int); ok && droppedWindow > 0 {
+		analyzed := e.histogram.Meta["issues_analyzed"].(int)
+		total := analyzed + droppedWindow
+		if total > 0 && float64(droppedWindow)/float64(total) > 0.5 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("WARNING: %d items (%d%%) were excluded because they fall outside the analysis time window. This suggests your time window is too narrow or the project is less active recently.", droppedWindow, int(float64(droppedWindow)/float64(total)*100)))
+		}
+	}
+
 	// For scope, fat-tail detection is slightly different (low scope is the risk)
 	// But we use the same formula on the delivery volume distribution for consistency
 	// though usually fat-tail refers to Lead/Cycle Time.
