@@ -24,6 +24,12 @@ description: General user preferences and coding guidelines for the agent to fol
 
 - Never commit to `git` unless explicitly asked to do so. Typically, I will do that myself. If you think it is time to commit, ask me and provide a commit message.
 
+- **Current Focus: Reliability & Hardening**: We have shifted focus from feature expansion to mathematical and statistical hardening. Future changes should prioritize:
+    - **Defensive Design**: Safeguards against skewed data (e.g., small sample sizes, partially filled months).
+    - **Anti-Hallucination**: Strict guardrails preventing AI from guessing when tools fail.
+    - **Algorithmic Integrity**: Ensuring metrics (Cycle Time, Throughput) are defensible and calculated with high fidelity.
+    - **Feature Freeze**: Avoid adding new analytical features unless they directly support the reliability of existing ones.
+
 - Use Conventional Commits for git commit messages with the following prefixes:
     - `feat`: A new feature
     - `fix`: A bug fix
