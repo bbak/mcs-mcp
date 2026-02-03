@@ -17,6 +17,7 @@ type WalkForwardConfig struct {
 	StepSize        int      // Days between checkouts (e.g., 14 days)
 	ForecastHorizon int      // Days to forecast into the future (only for Scope mode, e.g. 14 days)
 	ItemsToForecast int      // Number of items (only for Duration mode)
+	IssueTypes      []string // Optional: Filter by issue types
 	Resolutions     []string // Resolutions to count as "Done"
 }
 
@@ -128,7 +129,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
 		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
-		h := NewHistogram(pastIssues, historyStart, d, nil, cfg.Resolutions)
+		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, cfg.Resolutions)
 		engine := NewEngine(h)
 
 		// 4. Run Simulation & Verify

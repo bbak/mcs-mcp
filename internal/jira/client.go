@@ -44,6 +44,7 @@ type StatusTransition struct {
 type Client interface {
 	SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error)
 	SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*SearchResponse, error)
+	GetIssueWithHistory(key string) (*IssueDTO, error)
 	GetProject(key string) (interface{}, error)
 	GetProjectStatuses(key string) (interface{}, error)
 	GetBoard(id int) (interface{}, error)

@@ -10,14 +10,14 @@ import (
 
 // MetadataSummary provides a high-level overview of a Jira data source's scope and volume.
 type MetadataSummary struct {
-	TotalIngestedIssues          int            `json:"totalIngestedIssues"`
-	DiscoverySampleSize          int            `json:"discoverySampleSize"`
-	IssueTypes                   map[string]int `json:"issueTypes"`
-	Statuses                     map[string]int `json:"statuses"`
-	ResolutionNames              map[string]int `json:"resolutionNames"`
-	FirstResolution              *time.Time     `json:"firstResolution,omitempty"`
-	LastResolution               *time.Time     `json:"lastResolution,omitempty"`
-	IdentifiedStatusesFromSample []string       `json:"identifiedStatusesFromSample,omitempty"`
+	TotalIngestedIssues        int            `json:"totalIngestedIssues"`
+	DiscoverySampleSize        int            `json:"discoverySampleSize"`
+	IssueTypes                 map[string]int `json:"issueTypes"`
+	ResolutionNames            map[string]int `json:"resolutionNames"`
+	ResolutionDensity          float64        `json:"resolutionDensity"` // % of issues with a resolution
+	FirstResolution            *time.Time     `json:"firstResolution,omitempty"`
+	LastResolution             *time.Time     `json:"lastResolution,omitempty"`
+	RecommendedCommitmentPoint string         `json:"recommendedCommitmentPoint,omitempty"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
@@ -44,7 +44,6 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 		TotalIngestedIssues: totalCount,
 		DiscoverySampleSize: len(issues),
 		IssueTypes:          make(map[string]int),
-		Statuses:            make(map[string]int),
 		ResolutionNames:     make(map[string]int),
 	}
 
@@ -57,7 +56,6 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 
 	for _, issue := range issues {
 		summary.IssueTypes[issue.IssueType]++
-		summary.Statuses[issue.Status]++
 		if issue.Resolution != "" {
 			summary.ResolutionNames[issue.Resolution]++
 		}
@@ -78,11 +76,13 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 		}
 	}
 
-	// Finalize status list
-	for s := range reachableSet {
-		summary.IdentifiedStatusesFromSample = append(summary.IdentifiedStatusesFromSample, s)
+	if summary.DiscoverySampleSize > 0 {
+		resolvedCount := 0
+		for _, count := range summary.ResolutionNames {
+			resolvedCount += count
+		}
+		summary.ResolutionDensity = float64(resolvedCount) / float64(summary.DiscoverySampleSize)
 	}
-	sort.Strings(summary.IdentifiedStatusesFromSample)
 
 	summary.FirstResolution = first
 	summary.LastResolution = last
@@ -91,10 +91,10 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 }
 
 // ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
-func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[string]StatusMetadata {
+func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) (map[string]StatusMetadata, string) {
 	proposal := make(map[string]StatusMetadata)
 	if len(persistence) == 0 {
-		return proposal
+		return proposal, ""
 	}
 
 	// 1. Gather facts from actual data
@@ -150,6 +150,8 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 	// Keyword sets for tier biasing
 	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
 	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging", "qa", "uat", "prod", "fix"}
+	deliveredKeywords := []string{"done", "resolved", "fixed", "complete", "approved", "shipped", "delivered"}
+	abandonedKeywords := []string{"cancel", "discard", "obsolete", "reject", "decline", "won't do", "wont do", "dropped", "abort"}
 
 	for _, p := range persistence {
 		name := p.StatusName
@@ -196,19 +198,46 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) map[
 		}
 
 		// --- ROLE HEURISTICS ---
+		outcome := ""
 		if tier == "Finished" {
 			role = "terminal"
+			if matchesAny(lowerName, abandonedKeywords) {
+				outcome = "abandoned"
+			} else if matchesAny(lowerName, deliveredKeywords) {
+				outcome = "delivered"
+			} else {
+				outcome = "delivered" // Default terminal outcome
+			}
 		} else if tier == "Demand" || queueCandidates[name] {
 			role = "queue"
 		}
 
 		proposal[name] = StatusMetadata{
-			Tier: tier,
-			Role: role,
+			Tier:    tier,
+			Role:    role,
+			Outcome: outcome,
 		}
 	}
 
-	return proposal
+	// 4. Identify Recommended Commitment Point: First Downstream status in path order
+	commitmentPoint := ""
+	for _, s := range pathOrder {
+		if m, ok := proposal[s]; ok && m.Tier == "Downstream" {
+			commitmentPoint = s
+			break
+		}
+	}
+	// Fallback to first Upstream if no Downstream
+	if commitmentPoint == "" {
+		for _, s := range pathOrder {
+			if m, ok := proposal[s]; ok && m.Tier == "Upstream" {
+				commitmentPoint = s
+				break
+			}
+		}
+	}
+
+	return proposal, commitmentPoint
 }
 
 func matchesAny(s string, keywords []string) bool {
@@ -338,11 +367,11 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 
 			for i, c := range candidates {
 				if c.isTerminal {
-					if bestTerminal == -1 || c.freq > candidates[bestTerminal].freq {
+					if bestTerminal == -1 || c.freq > candidates[bestTerminal].freq || (c.freq == candidates[bestTerminal].freq && c.name < candidates[bestTerminal].name) {
 						bestTerminal = i
 					}
 				} else {
-					if bestActive == -1 || c.freq > candidates[bestActive].freq {
+					if bestActive == -1 || c.freq > candidates[bestActive].freq || (c.freq == candidates[bestActive].freq && c.name < candidates[bestActive].name) {
 						bestActive = i
 					}
 				}
@@ -359,9 +388,11 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 			// Fallback: try pure frequency if no candidates met the share threshold
 			maxFreq = -1
 			for name, freq := range successors {
-				if !visited[name] && freq > maxFreq {
-					maxFreq = freq
-					next = name
+				if !visited[name] {
+					if next == "" || freq > maxFreq || (freq == maxFreq && name < next) {
+						maxFreq = freq
+						next = name
+					}
 				}
 			}
 		}

@@ -2,6 +2,13 @@
 
 **MCS-MCP** is a sophisticated Model Context Protocol (MCP) server that empowers AI assistants with deep analytical and forecasting capabilities for software delivery projects. By leveraging historical Jira data and high-performance Monte-Carlo simulations, it transforms raw project history into actionable, probabilistic delivery insights.
 
+> [!WARNING]
+> Currently, this must be considered _alpha_. Code is brittle,
+> API unstable and the Math just partially verified. Don't bet your bonus on the
+> forecasts and analysis done by it. Concepts are subject to change, if necessary
+> to make an AI Agent behave the way I envision.
+> I run it in Claude Desktop and Antigravity Agents.
+
 ---
 
 ## 🚀 Key Capabilities
@@ -42,13 +49,14 @@ MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on
 
 - Go 1.21+
 - Access to Atlassian Jira (Data Center or Cloud)
+- A MCP-capable AI Agent to chat with
 
 ### Authentication
 
 The server supports both Personal Access Tokens (PAT) and session-based (cookie) authentication.
 
 **Option A: Personal Access Token (PAT) - Preferred**
-Configure your Jira PAT in the `.env` file:
+Configure your Jira PAT in the `.env` file (example file included):
 
 ```env
 JIRA_TOKEN=your-personal-access-token
@@ -73,11 +81,14 @@ You should build the project into an executable before configuring it as an MCP 
 
 **On Unix/Linux (Make):**
 
+Untested, but should work.
+
 ```bash
 make build
 ```
 
-The resulting binary will be located in the `dist/` folder (e.g., `dist/mcs-mcp.exe`).
+The resulting binary will be located in the `dist/` folder (e.g., `dist/mcs-mcp.exe`)
+along with a exemplary `.env` file.
 
 ### Configuring as an MCP Tool
 
@@ -93,6 +104,8 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 	}
 }
 ```
+
+Make sure that the Server can write to this directory to create `cache` and `logs` folders - or reconfigure using `DATA_PATH`.
 
 ---
 

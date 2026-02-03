@@ -18,6 +18,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 				map[string]interface{}{"step": 3, "tool": "get_cycle_time_assessment", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
 				map[string]interface{}{"step": 4, "tool": "get_aging_analysis", "description": "Check if current WIP is clogging the system."},
 				map[string]interface{}{"step": 5, "tool": "run_simulation", "description": "Perform Monte-Carlo simulation using the historical baseline."},
+				map[string]interface{}{"step": 6, "tool": "get_forecast_accuracy", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
 			},
 		},
 		"bottlenecks": map[string]interface{}{
@@ -28,6 +29,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 				map[string]interface{}{"step": 2, "tool": "get_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
 				map[string]interface{}{"step": 3, "tool": "get_delivery_cadence", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
 				map[string]interface{}{"step": 4, "tool": "get_process_yield", "description": "Check for high abandonment rates between tiers."},
+				map[string]interface{}{"step": 5, "tool": "get_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
 			},
 		},
 		"capacity_planning": map[string]interface{}{
@@ -72,9 +74,8 @@ func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
 // Note: ApplyBackflowPolicy and RecalculateResidency have been moved to internal/stats/processor.go
 
 func (s *Server) getInferredRange(projectKey string, boardID int, startStatus, endStatus string, issues []jira.Issue) []string {
-	sourceID := getCombinedID(projectKey, boardID)
-	if order, ok := s.statusOrderings[sourceID]; ok {
-		return s.sliceRange(order, startStatus, endStatus)
+	if s.activeSourceID == getCombinedID(projectKey, boardID) && len(s.activeStatusOrder) > 0 {
+		return s.sliceRange(s.activeStatusOrder, startStatus, endStatus)
 	}
 
 	allStatuses := stats.DiscoverStatusOrder(issues)
@@ -133,20 +134,17 @@ func (s *Server) getCommitmentPointHints(issues []jira.Issue, weights map[string
 }
 
 func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []jira.Issue) (string, bool) {
-	sourceID := getCombinedID(projectKey, boardID)
-	mapping := s.workflowMappings[sourceID]
-	if mapping == nil {
+	if s.activeSourceID != getCombinedID(projectKey, boardID) || s.activeMapping == nil {
 		return "", false
 	}
 
-	order := s.statusOrderings[sourceID]
+	order := s.activeStatusOrder
 	if len(order) == 0 {
 		order = stats.DiscoverStatusOrder(issues)
 	}
 
 	for _, status := range order {
-		// status might be a name from DiscoverStatusOrder, but GetMetadataRobust handles that
-		if m, ok := stats.GetMetadataRobust(mapping, "", status); ok && m.Tier == "Downstream" {
+		if m, ok := stats.GetMetadataRobust(s.activeMapping, "", status); ok && m.Tier == "Downstream" {
 			return status, true
 		}
 	}
@@ -165,17 +163,18 @@ func (s *Server) getDeliveredResolutions(projectKey string, boardID int) []strin
 	return delivered
 }
 
-func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
-	// Reusing logic from mcp package
-	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, resolutions)
+func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string, issueTypes []string) []float64 {
+	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
 }
 
-func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string) []float64 {
-	sourceID := getCombinedID(projectKey, boardID)
-	mappings := s.workflowMappings[sourceID]
+func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string, issueTypes []string) []float64 {
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
+	}
+	typeMap := make(map[string]bool)
+	for _, t := range issueTypes {
+		typeMap[t] = true
 	}
 
 	rangeStatuses := s.getInferredRange(projectKey, boardID, startStatus, endStatus, issues)
@@ -185,12 +184,15 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 		if issue.ResolutionDate == nil {
 			continue
 		}
+		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
+			continue
+		}
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		} else if len(resolutions) == 0 {
-			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		}

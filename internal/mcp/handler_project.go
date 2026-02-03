@@ -13,11 +13,6 @@ import (
 // handleGetProjectDetails fetches metadata and performs a data probe for a project.
 func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error) {
 	// 1. Resolve Source Context (ensures consistent JQL for the project)
-	// For project details, we use 0 as a board ID to signal project-only anchoring if permitted.
-	// But resolveSourceContext now requires a real board.
-	// If we want strict context, maybe we should ask the user to use get_board_details instead.
-	// For now, I'll try to use a dummy 0 and see if resolveSourceContext handles it or if I should change it.
-	// Actually, I'll update resolveSourceContext to handle boardID=0 if needed, or just redirect users.
 	ctx, err := s.resolveSourceContext(projectKey, 0)
 	if err != nil {
 		// Fallback: If no context exists, create a default project-based JQL
@@ -28,16 +23,21 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 		}
 	}
 
-	// 2. Hydrate Protocol (Synchronous Eager Ingestion)
+	// 2. Anchor Context (Memory Pruning + Metadata Loading)
+	if err := s.anchorContext(ctx.ProjectKey, ctx.BoardID); err != nil {
+		return nil, err
+	}
+
+	// 3. Hydrate Protocol (Synchronous Eager Ingestion)
 	if err := s.events.Hydrate(projectKey, ctx.JQL); err != nil {
 		log.Error().Err(err).Str("project", projectKey).Msg("Hydration failed")
 	}
 
-	// 3. Data Probe
+	// 4. Data Probe
 	events := s.events.GetEventsInRange(projectKey, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events, projectKey)
+	domainIssues := s.reconstructIssues(events)
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(projectKey))
+	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses())
 
 	// 4. Fetch Project Metadata
 	project, err := s.jira.GetProject(projectKey)

@@ -173,6 +173,20 @@ func (s *EventStore) Clear(sourceID string) {
 	delete(s.latestTs, sourceID)
 }
 
+// PruneExcept removes all in-memory events EXCEPT for the specified source.
+func (s *EventStore) PruneExcept(keepSourceID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for sourceID := range s.logs {
+		if sourceID != keepSourceID {
+			delete(s.logs, sourceID)
+			delete(s.latestTs, sourceID)
+			log.Debug().Str("source", sourceID).Msg("Evicted log from memory during pruning")
+		}
+	}
+}
+
 // DeleteCache removes the physical cache file from disk.
 func DeleteCache(cacheDir, sourceID string) error {
 	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))

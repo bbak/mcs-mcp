@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 
 	"mcs-mcp/internal/config"
@@ -24,27 +25,27 @@ type JSONRPCRequest struct {
 
 type JSONRPCResponse struct {
 	Jsonrpc string      `json:"jsonrpc"`
-	ID      interface{} `json:"id,omitempty"`
+	ID      interface{} `json:"id"`
 	Result  interface{} `json:"result,omitempty"`
 	Error   interface{} `json:"error,omitempty"`
 }
 
 type Server struct {
-	jira               jira.Client
-	events             *eventlog.LogProvider
-	workflowMappings   map[string]map[string]stats.StatusMetadata // sourceID -> statusName -> metadata
-	resolutionMappings map[string]map[string]string               // sourceID -> resolutionName -> outcome
-	statusOrderings    map[string][]string                        // sourceID -> sorted status names
+	jira              jira.Client
+	events            *eventlog.LogProvider
+	cacheDir          string
+	activeSourceID    string
+	activeMapping     map[string]stats.StatusMetadata
+	activeResolutions map[string]string
+	activeStatusOrder []string
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	store := eventlog.NewEventStore()
 	return &Server{
-		jira:               jiraClient,
-		events:             eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
-		workflowMappings:   make(map[string]map[string]stats.StatusMetadata),
-		resolutionMappings: make(map[string]map[string]string),
-		statusOrderings:    make(map[string][]string),
+		jira:     jiraClient,
+		events:   eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
+		cacheDir: cfg.CacheDir,
 	}
 }
 
@@ -60,46 +61,80 @@ func (s *Server) Start() {
 			continue
 		}
 
-		log.Info().
-			Str("method", req.Method).
-			Interface("id", req.ID).
-			Msg("Received JSON-RPC request")
+		s.dispatch(req)
+	}
+}
 
-		switch req.Method {
-		case "initialize":
-			s.sendResponse(req.ID, map[string]interface{}{
-				"protocolVersion": "2024-11-05",
-				"capabilities":    map[string]interface{}{},
-				"serverInfo":      map[string]interface{}{"name": "mcs-mcp", "version": "0.1.0"},
+func (s *Server) dispatch(req JSONRPCRequest) {
+	defer func() {
+		if r := recover(); r != nil {
+			stack := string(debug.Stack())
+			log.Error().
+				Interface("panic", r).
+				Str("stack", stack).
+				Msg("Panic recovered in dispatch")
+			s.sendError(req.ID, map[string]interface{}{
+				"code":    -32603,
+				"message": fmt.Sprintf("Internal error: %v", r),
 			})
-		case "tools/list":
-			s.sendResponse(req.ID, s.listTools())
-		case "tools/call":
-			res, err := s.callTool(req.Params)
-			if err != nil {
-				s.sendError(req.ID, err)
-			} else {
-				s.sendResponse(req.ID, res)
-			}
 		}
+	}()
+
+	log.Info().
+		Str("method", req.Method).
+		Interface("id", req.ID).
+		Msg("Received JSON-RPC request")
+
+	// Handle notifications (no ID)
+	if req.ID == nil {
+		switch req.Method {
+		case "notifications/initialized":
+			log.Info().Msg("Client confirmed initialization")
+		default:
+			log.Debug().Str("method", req.Method).Msg("Received notification")
+		}
+		return
+	}
+
+	switch req.Method {
+	case "initialize":
+		s.sendResponse(req.ID, map[string]interface{}{
+			"protocolVersion": "2024-11-05",
+			"capabilities":    map[string]interface{}{},
+			"serverInfo":      map[string]interface{}{"name": "mcs-mcp", "version": "0.1.0"},
+		})
+	case "tools/list":
+		s.sendResponse(req.ID, s.listTools())
+	case "tools/call":
+		res, err := s.callTool(req.Params)
+		if err != nil {
+			s.sendError(req.ID, err)
+		} else {
+			s.sendResponse(req.ID, res)
+		}
+	default:
+		s.sendError(req.ID, map[string]interface{}{
+			"code":    -32601,
+			"message": fmt.Sprintf("Method not found: %s", req.Method),
+		})
 	}
 }
 
 func (s *Server) sendResponse(id interface{}, result interface{}) {
-	resp := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"result":  result,
+	resp := JSONRPCResponse{
+		Jsonrpc: "2.0",
+		ID:      id,
+		Result:  result,
 	}
 	out, _ := json.Marshal(resp)
 	fmt.Println(string(out))
 }
 
 func (s *Server) sendError(id interface{}, err interface{}) {
-	resp := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"error":   err,
+	resp := JSONRPCResponse{
+		Jsonrpc: "2.0",
+		ID:      id,
+		Error:   err,
 	}
 	out, _ := json.Marshal(resp)
 	fmt.Println(string(out))
@@ -141,7 +176,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"projects": projects,
 				"_guidance": []string{
-					"Project located. You MUST now call 'get_project_details' to anchor on the data distribution before planning analysis.",
+					"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'find_jira_boards' next.",
 				},
 			}
 		}
@@ -154,7 +189,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"boards": boards,
 				"_guidance": []string{
-					"Board located. You MUST now call 'get_board_details' to anchor on the data distribution and metadata before planning analysis.",
+					"Board located. You MUST now call 'get_board_details' to anchor on the data distribution and metadata before performing workflow discovery.",
 				},
 			}
 		}
@@ -265,7 +300,8 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "get_workflow_discovery":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetWorkflowDiscovery(projectKey, boardID)
+		force, _ := call.Arguments["force_refresh"].(bool)
+		data, err = s.handleGetWorkflowDiscovery(projectKey, boardID, force)
 	case "set_workflow_mapping":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
@@ -306,19 +342,28 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				res = append(res, asString(v))
 			}
 		}
-		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, res)
+		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, res, issueTypes)
 	case "get_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
 	case "get_item_journey":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
 		key := asString(call.Arguments["issue_key"])
-		data, err = s.handleGetItemJourney(key)
+		data, err = s.handleGetItemJourney(projectKey, boardID, key)
 	case "get_forecast_accuracy":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["simulation_mode"])
 		items := asInt(call.Arguments["items_to_forecast"])
 		horizon := asInt(call.Arguments["forecast_horizon_days"])
+
+		var types []string
+		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
+			for _, v := range it {
+				types = append(types, asString(v))
+			}
+		}
 
 		var res []string
 		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
@@ -330,7 +375,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleStart := asString(call.Arguments["sample_start_date"])
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
-		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, res, sampleDays, sampleStart, sampleEnd)
+		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, types, res, sampleDays, sampleStart, sampleEnd)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}
@@ -350,4 +395,92 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			},
 		},
 	}, nil
+}
+
+type WorkflowMetadata struct {
+	SourceID    string                          `json:"source_id"`
+	Mapping     map[string]stats.StatusMetadata `json:"mapping"`
+	Resolutions map[string]string               `json:"resolutions,omitempty"`
+	StatusOrder []string                        `json:"status_order,omitempty"`
+}
+
+func (s *Server) saveWorkflow(projectKey string, boardID int) error {
+	sourceID := getCombinedID(projectKey, boardID)
+	meta := WorkflowMetadata{
+		SourceID:    sourceID,
+		Mapping:     s.activeMapping,
+		Resolutions: s.activeResolutions,
+		StatusOrder: s.activeStatusOrder,
+	}
+
+	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(meta)
+}
+
+func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
+	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer file.Close()
+
+	var meta WorkflowMetadata
+	if err := json.NewDecoder(file).Decode(&meta); err != nil {
+		return false, err
+	}
+
+	s.activeMapping = meta.Mapping
+	s.activeResolutions = meta.Resolutions
+	s.activeStatusOrder = meta.StatusOrder
+
+	log.Info().Str("path", path).Msg("Loaded workflow metadata from disk")
+	return true, nil
+}
+
+func (s *Server) anchorContext(projectKey string, boardID int) error {
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// If already anchored, nothing to do
+	if s.activeSourceID == sourceID {
+		return nil
+	}
+
+	log.Info().Str("prev", s.activeSourceID).Str("next", sourceID).Msg("Switching active context")
+
+	// 1. Clear old active state
+	s.activeSourceID = ""
+	s.activeMapping = nil
+	s.activeResolutions = nil
+	s.activeStatusOrder = nil
+
+	// 2. Prune EventStore RAM
+	s.events.PruneExcept(sourceID)
+
+	// 3. Attempt to load metadata from disk
+	found, err := s.loadWorkflow(projectKey, boardID)
+	if err != nil {
+		log.Warn().Err(err).Str("source", sourceID).Msg("Failed to load workflow metadata from disk")
+		// Continue anyway; we'll re-discover it
+	}
+
+	if found {
+		log.Info().Str("source", sourceID).Msg("Context anchored with existing metadata")
+	} else {
+		log.Info().Str("source", sourceID).Msg("Context anchored (new, no metadata found)")
+	}
+
+	s.activeSourceID = sourceID
+	return nil
 }

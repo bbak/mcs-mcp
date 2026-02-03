@@ -18,17 +18,22 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 		return nil, err
 	}
 
-	// 2. Hydrate Protocol (Synchronous Eager Ingestion)
+	// 2. Anchor Context (Memory Pruning + Metadata Loading)
+	if err := s.anchorContext(ctx.ProjectKey, ctx.BoardID); err != nil {
+		return nil, err
+	}
+
+	// 3. Hydrate Protocol (Synchronous Eager Ingestion)
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 		// Proceed anyway to show board metadata
 	}
 
-	// 3. Data Probe (Analysis on existing hydrated data)
+	// 4. Data Probe (Analysis on existing hydrated data)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events, sourceID)
+	domainIssues := s.reconstructIssues(events)
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(sourceID))
+	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses())
 
 	// 4. Fetch Board Metadata and Config for the response (uses internal Jira cache)
 	board, _ := s.jira.GetBoard(boardID)

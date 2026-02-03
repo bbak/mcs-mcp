@@ -186,3 +186,7 @@ func (p *LogProvider) GetLatestTimestamp(sourceID string) time.Time {
 func (p *LogProvider) GetEventCount(sourceID string) int {
 	return p.store.Count(sourceID)
 }
+
+func (p *LogProvider) PruneExcept(keepSourceID string) {
+	p.store.PruneExcept(keepSourceID)
+}

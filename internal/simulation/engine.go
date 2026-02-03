@@ -168,9 +168,21 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 			break
 		}
 	}
+
 	if isInfinite {
 		log.Warn().Msg("Simulation resulted in infinite duration due to zero throughput")
-		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
+		res.Warnings = append(res.Warnings, "CRITICAL: No historical throughput found for the selected criteria. The duration forecast is theoretically infinite.")
+	} else if durations[int(float64(trials)*0.50)] >= 3650 { // > 10 years
+		res.Warnings = append(res.Warnings, "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions).")
+	}
+
+	// Resolution Density Warning
+	if dropped, ok := e.histogram.Meta["dropped_by_resolution"].(int); ok && dropped > 0 {
+		analyzed := e.histogram.Meta["issues_analyzed"].(int)
+		total := analyzed + dropped
+		if total > 0 && float64(analyzed)/float64(total) < 0.2 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("CAUTION: Low Resolution Density. %.1f%% of resolved items were excluded by your resolution filter. This may skew results if 'delivered' items are missing. Check your 'resolutions' parameter.", float64(analyzed)/float64(total)*100))
+		}
 	}
 
 	return res

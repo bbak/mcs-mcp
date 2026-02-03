@@ -8,31 +8,42 @@ import (
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+
+	"github.com/rs/zerolog/log"
 )
 
-func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forceRefresh bool) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
 
-	// Hydrate
+	// 1. Anchor Context (Memory Pruning + Mapping Load)
+	if err := s.anchorContext(ctx.ProjectKey, ctx.BoardID); err != nil {
+		return nil, err
+	}
+
+	// 2. Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events, sourceID)
-
-	// Apply age-constrained sampling (200 healthy items)
+	domainIssues := s.reconstructIssues(events)
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
 
-	return s.getWorkflowDiscovery(sourceID, sample), nil
+	// Check if we have an active mapping from cache and NO force refresh
+	if !forceRefresh && len(s.activeMapping) > 0 {
+		return s.presentWorkflowMetadata(sourceID, sample, domainIssues, "LOADED_FROM_CACHE"), nil
+	}
+
+	// Otherwise, run algorithm
+	return s.presentWorkflowMetadata(sourceID, sample, domainIssues, "NEWLY_PROPOSED"), nil
 }
 
-func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string) []jira.Issue {
-	finished := s.getFinishedStatuses(sourceID)
+func (s *Server) reconstructIssues(events []eventlog.IssueEvent) []jira.Issue {
+	finished := s.getFinishedStatuses()
 
 	// Group events by issue key
 	grouped := make(map[string][]eventlog.IssueEvent)
@@ -50,8 +61,16 @@ func (s *Server) reconstructIssues(events []eventlog.IssueEvent, sourceID string
 	return issues
 }
 
-func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) interface{} {
-	persistence := stats.CalculateStatusPersistence(issues)
+func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, allIssues []jira.Issue, discoverySource string) interface{} {
+	persistence := stats.CalculateStatusPersistence(sample)
+
+	var mapping map[string]stats.StatusMetadata
+	var recommendedCP string
+	if discoverySource == "LOADED_FROM_CACHE" {
+		mapping = s.activeMapping
+	} else {
+		mapping, recommendedCP = stats.ProposeSemantics(sample, persistence)
+	}
 
 	// Build a map of significant statuses for quick lookup
 	significant := make(map[string]bool)
@@ -59,69 +78,82 @@ func (s *Server) getWorkflowDiscovery(sourceID string, issues []jira.Issue) inte
 		significant[p.StatusName] = true
 	}
 
-	// No longer need to fetch status categories from Jira
-	proposal := stats.ProposeSemantics(issues, persistence)
-
-	finalProposal := make(map[string]stats.StatusMetadata)
-	for name, meta := range proposal {
+	finalMapping := make(map[string]stats.StatusMetadata)
+	for name, meta := range mapping {
 		if !significant[name] {
 			continue
 		}
-		finalProposal[name] = meta
+		finalMapping[name] = meta
 	}
 
-	// Filter and Sort Discovered Order
-	// We use the proposed mapping (finalProposal) to determine tiers for sorting
-	rawOrder := stats.DiscoverStatusOrder(issues)
+	rawOrder := stats.DiscoverStatusOrder(sample)
 	var discoveredOrder []string
-	for _, st := range rawOrder {
-		if significant[st] {
-			discoveredOrder = append(discoveredOrder, st)
+	if discoverySource == "LOADED_FROM_CACHE" && len(s.activeStatusOrder) > 0 {
+		discoveredOrder = s.activeStatusOrder
+	} else {
+		for _, st := range rawOrder {
+			if significant[st] {
+				discoveredOrder = append(discoveredOrder, st)
+			}
 		}
+
+		// Sort by Tier: Demand < Upstream < Downstream < Finished
+		tierWeights := map[string]int{
+			"Demand":     1,
+			"Upstream":   2,
+			"Downstream": 3,
+			"Finished":   4,
+		}
+
+		sort.SliceStable(discoveredOrder, func(i, j int) bool {
+			ti := finalMapping[discoveredOrder[i]].Tier
+			tj := finalMapping[discoveredOrder[j]].Tier
+			if tierWeights[ti] != tierWeights[tj] {
+				return tierWeights[ti] < tierWeights[tj]
+			}
+			return i < j
+		})
 	}
 
-	// Sort by Tier: Demand < Upstream < Downstream < Finished
-	tierWeights := map[string]int{
-		"Demand":     1,
-		"Upstream":   2,
-		"Downstream": 3,
-		"Finished":   4,
-	}
+	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses())
+	summary.RecommendedCommitmentPoint = recommendedCP
 
-	sort.SliceStable(discoveredOrder, func(i, j int) bool {
-		ti := finalProposal[discoveredOrder[i]].Tier
-		tj := finalProposal[discoveredOrder[j]].Tier
-		if tierWeights[ti] != tierWeights[tj] {
-			return tierWeights[ti] < tierWeights[tj]
-		}
-		// Secondary sort: keep existing relative order from DiscoverStatusOrder
-		return i < j
-	})
-
-	// Data Summary for context
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events, sourceID)
-	summary := stats.AnalyzeProbe(issues, len(domainIssues), s.getFinishedStatuses(sourceID))
-
-	return map[string]interface{}{
-		"source_id":         sourceID,
-		"proposed_mapping":  finalProposal,
-		"discovered_order":  discoveredOrder,
-		"persistence_stats": persistence,
+	res := map[string]interface{}{
+		"source_id": sourceID,
+		"workflow": map[string]interface{}{
+			"status_mapping":    finalMapping,
+			"status_order":      discoveredOrder,
+			"persistence_stats": persistence,
+		},
 		"data_summary":      summary,
+		"_discovery_source": discoverySource,
 		"_guidance": []string{
-			"AI MUST verify this semantic mapping with the user via 'set_workflow_mapping' before performing deeper analysis.",
-			"Tiers (Demand, Upstream, Downstream, Finished) determine the analytical scope. 'Upstream' covers refinement, 'Downstream' covers execution.",
-			"Roles (active, queue, ignore) determine if the clock is running or paused.",
-			"Discovery uses a SMALL recent sample (200 items) to build the map. Use 'get_status_persistence' for robust performance analysis.",
-			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
-			"WITHOUT a confirmed mapping, follow-up diagnostics (Aging, Stability, Simulation) will produce SUBPAR results.",
+			"AI MUST summarized the mapping of ALL statuses to TIERS (Demand, Upstream, Downstream, Finished) for the user in a clear table or list.",
+			"AI MUST confirm the 'Outcome Strategy' (Value vs. Abandonment):",
+			"  - PRIMARY: Jira Resolutions (if they exist).",
+			"  - SECONDARY: Status mapping (only if resolutions are missing).",
+			"AI MUST ask the user to confirm the 'Commitment Point' (the status where work officially starts).",
+			"PROCESS STABILITY: Understand that Stability measures Cycle-Time predictability, NOT throughput volume.",
 		},
 	}
+
+	if discoverySource == "LOADED_FROM_CACHE" {
+		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This mapping was LOADED FROM DISK. If your Jira workflow has changed, run discovery with 'force_refresh: true' to re-analyze.")
+	} else {
+		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This is a NEW PROPOSAL based on recent data patterns.")
+	}
+
+	return res
 }
 
 func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}) (interface{}, error) {
 	sourceID := getCombinedID(projectKey, boardID)
+
+	// Ensure we are anchored
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	m := make(map[string]stats.StatusMetadata)
 	for k, v := range mapping {
 		if vm, ok := v.(map[string]interface{}); ok {
@@ -132,21 +164,40 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 			}
 		}
 	}
-	s.workflowMappings[sourceID] = m
+	s.activeMapping = m
 
+	rm := make(map[string]string)
 	if len(resolutions) > 0 {
-		rm := make(map[string]string)
 		for k, v := range resolutions {
 			rm[k] = asString(v)
 		}
-		s.resolutionMappings[sourceID] = rm
+	}
+	s.activeResolutions = rm
+
+	// Save to disk
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Error().Err(err).Msg("Failed to save workflow metadata")
+		return nil, fmt.Errorf("metadata updated in memory but failed to save to disk: %w", err)
 	}
 
-	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow mapping for source %s", sourceID)}, nil
+	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow mapping for source %s", sourceID)}, nil
 }
 
 func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []string) (interface{}, error) {
 	sourceID := getCombinedID(projectKey, boardID)
-	s.statusOrderings[sourceID] = order
-	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored workflow order for source %s", sourceID)}, nil
+
+	// Ensure we are anchored
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
+	s.activeStatusOrder = order
+
+	// Save to disk
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Error().Err(err).Msg("Failed to save workflow metadata")
+		return nil, fmt.Errorf("metadata updated in memory but failed to save to disk: %w", err)
+	}
+
+	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow order for source %s", sourceID)}, nil
 }

@@ -223,6 +223,45 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	return &result, nil
 }
 
+func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
+	cacheKey := "issue:" + key
+	if val, ok := c.getFromCache(cacheKey); ok {
+		return val.(*IssueDTO), nil
+	}
+
+	c.throttle(true) // Treat as metadata/lightweight
+
+	issueURL := fmt.Sprintf("%s/rest/api/2/issue/%s?expand=changelog&fields=issuetype,status,resolution,resolutiondate,created,updated", c.cfg.BaseURL, key)
+	req, err := http.NewRequest("GET", issueURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.authenticateRequest(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("issue %s not found", key)
+		}
+		return nil, fmt.Errorf("Jira API returned status %d for issue %s", resp.StatusCode, key)
+	}
+
+	var result IssueDTO
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode issue response: %w", err)
+	}
+
+	c.addToCache(cacheKey, &result, 10*time.Minute)
+
+	return &result, nil
+}
+
 func (c *dcClient) GetProject(key string) (interface{}, error) {
 	cacheKey := "project:" + key
 	if val, ok := c.getFromCache(cacheKey); ok {

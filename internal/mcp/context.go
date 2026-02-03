@@ -21,7 +21,7 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 	sourceID := getCombinedID(projectKey, boardID)
 	statusWeights := s.getStatusWeights(issues)
 
-	mappings := s.workflowMappings[sourceID]
+	mappings := s.activeMapping
 	if mappings == nil {
 		mappings = make(map[string]stats.StatusMetadata)
 	}
@@ -38,7 +38,7 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 		}
 	}
 
-	finished := s.getFinishedStatuses(sourceID)
+	finished := s.getFinishedStatuses()
 
 	// Determine commitment point
 	commitment, found := s.getEarliestCommitment(projectKey, boardID, issues)
@@ -52,6 +52,6 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 		FinishedStatuses:         finished,
 		CommitmentPoint:          commitment,
 		CommitmentPointIsDefault: found,
-		StatusOrder:              s.statusOrderings[sourceID],
+		StatusOrder:              s.activeStatusOrder,
 	}
 }

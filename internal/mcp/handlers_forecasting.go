@@ -15,8 +15,11 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
-	Grandma := "" // Dummy to match structure if needed, but better remove it later
-	_ = Grandma
+
+	// Ensure we are anchored before analysis
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
 
 	// Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
@@ -24,7 +27,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no data found in the event log to base simulation on")
@@ -60,7 +63,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	if includeWIP {
 		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
 		wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-		cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions)
+		cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
 		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 		wipAges = calcWipAges
 		wipCount = len(wipAges)
@@ -96,7 +99,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -200,7 +203,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj := engine.RunMultiTypeDurationSimulation(simTargets, dist, 1000)
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, totalBacklog)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -248,12 +251,17 @@ func (s *Server) addCommitmentInsights(insights []string, analysisCtx *AnalysisC
 	return insights
 }
 
-func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, resolutions []string) (interface{}, error) {
+func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, resolutions []string, issueTypes []string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
+
+	// Ensure we are anchored before analysis
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
 
 	// Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
@@ -261,7 +269,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no historical data found in the event log to base assessment on")
@@ -279,7 +287,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		}
 	}
 	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
 
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
@@ -301,12 +309,17 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	return resObj, nil
 }
 
-func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
+func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
+
+	// Ensure we are anchored before analysis
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
 
 	// Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
@@ -335,7 +348,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	// Mapping
 	// We pass the CURRENT mapping. This assumes mapping hasn't changed drastically.
 	// Time-travel mapping is hard, so we stick to current mapping.
-	mapping := s.workflowMappings[sourceID]
+	mapping := s.activeMapping
 
 	wfa := simulation.NewWalkForwardEngine(events, mapping)
 
@@ -360,6 +373,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		StepSize:        14, // Every 2 weeks
 		ForecastHorizon: forecastHorizon,
 		ItemsToForecast: itemsToForecast,
+		IssueTypes:      issueTypes,
 		Resolutions:     resolutions,
 	}
 

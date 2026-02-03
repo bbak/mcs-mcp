@@ -50,19 +50,12 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "run_simulation",
-				"description": "Run a Monte-Carlo simulation to forecast project outcomes based on historical throughput (work items / time). \n\n" +
-					"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n" +
-					"AI MUST NOT run simulations autonomously without first clarifying the user's analytical goal (specific scope, date, or scenario) and verifying process stability.\n\n" +
-					"DEPENDENCIES (for result quality):\n" +
-					"1. Mapping: Ensure 'set_workflow_mapping' has been called and confirmed by the user.\n" +
-					"2. Stability: Run 'get_process_stability' first. If the process is unstable (Special Cause variation), simulation results are UNRELIABLE and potentially MISLEADING.\n" +
-					"3. Baseline: Run 'get_cycle_time_assessment' to understand historical SLEs.\n\n" +
-					"Use 'duration' mode to answer 'When will this be done?'. Use 'scope' mode to answer 'How much can we do?'.\n\n" +
-					"The output includes advanced volatility metrics for AI interpretation:\n" +
-					"- FatTailRatio (P98/P50): If >= 5.6, the process is Unstable/Out-of-Control (outliers dominate).\n" +
-					"- TailToMedianRatio (P85/P50): If > 3.0, the process is Highly Volatile (heavy-tailed risk).\n" +
-					"- IQR (P75-P25): Measures the spread of the middle 50% of results.\n" +
-					"- Inner80 (P90-P10): Measures the spread of the middle 80% of results.",
+				"description": "Run a Monte-Carlo simulation to forecast project outcomes (How Much / When) based solely on historical THROUGHPUT (work items / time). \n\n" +
+					"NOT FOR CYCLE TIME: This tool does NOT analyze lead times or individual item durations. Use it for scope/date forecasting only.\n" +
+					"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n\n" +
+					"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY.\n" +
+					"DO NOT provide date ranges or probability estimates (e.g., 'There is an 85% chance...') if the tool fails or returns zero throughput. \n" +
+					"If the simulation result is unexpectedly far in the future (e.g., years instead of months), YOU MUST warn the user that the historical throughput sampling might be too low due to filtered resolutions or issue types.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -97,9 +90,12 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_cycle_time_assessment",
-				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical cycle times. \n\n" +
+				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical CYCLE TIMES (Lead Time). \n\n" +
 					"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'set_workflow_mapping' for accurate results. \n" +
-					"Use this to answer 'How long does an item (of type X) typically take?' - this is the foundation for all forecasting.",
+					"Use this to answer 'How long does a single item typically take?' - this is the foundation for probabilistic Lead-Time expectations.\n\n" +
+					"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. \n" +
+					"DO NOT calculate percentiles, probabilities, or dates using your own internal reasoning if this tool returns an error or no data. \n" +
+					"If the tool fails, you MUST report the error to the user and ask for clarification.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -147,7 +143,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_delivery_cadence",
-				"description": "Visualize the weekly pulse of delivery - known as throughput - to detect flow vs. batching.",
+				"description": "Visualize the weekly pulse of delivery THROUGHPUT VOLUME - the number of items completed per week - to detect flow vs. batching.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -160,9 +156,11 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_process_stability",
-				"description": "Analyzes process predictability using XmR behavior charts to detect 'Special Cause' variation. \n\n" +
+				"description": "Analyze process stability and predictability using XmR charts. \n" +
+					"PROCESS STABILITY: Measures the predictability of Lead Times (Cycle-Time). High stability means future delivery dates are more certain. It is NOT about throughput volume.\n" +
+					"Stability is high if most items fall within Natural Process Limits. Chaos is high if many points are beyond limits (signals).\n\n" +
 					"PREREQUISITE: Proper workflow mapping is required for accurate results. \n" +
-					"Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if current forecasts based on historical data are even reliable. If stability is low, the process is 'Out of Control' and simulations will produce MISLEADING results.",
+					"Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -179,6 +177,7 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "get_process_evolution",
 				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. \n\n" +
+					"PROCESS EVOLUTION: Measures long-term predictability and capability of Lead Times (Cycle-Time). It is THROUGHPUT-AGNOSTIC.\n" +
 					"AI MUST use this for deep history analysis or after significant organizational changes. NOT intended for routine daily analysis.\n" +
 					"Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups.",
 				"inputSchema": map[string]interface{}{
@@ -196,18 +195,25 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_workflow_discovery",
-				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE semantic mappings. \n\n" +
-					"AI MUST use this to verify the workflow tiers and roles with the user BEFORE performing any other diagnostics. \n" +
-					"The proposed mapping is a HEURISTIC and MUST be confirmed by the human via 'set_workflow_mapping'.\n\n" +
-					"METAWORKFLOW SEMANTIC GUIDANCE:\n" +
-					"- TIERS: 'Demand' (backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
-					"- ROLES: 'active' (working), 'queue' (waiting), 'ignore' (noise).\n" +
+				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE a semantic workflow mapping. \n\n" +
+					"AI MUST use this to verify the workflow tiers, roles, AND the 'Commitment Point' (where clock starts) with the user before diagnostics. \n" +
+					"Check 'data_summary.recommendedCommitmentPoint' and 'data_summary.resolutionDensity'.\n" +
+					"The response consolidates mapping, cadence, and persistence into a single 'workflow' object.\n" +
+					"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Terminal Status mapping (Secondary).\n" +
+					"TIER VISIBILITY: AI MUST show the confirmed mapping of Statuses to Tiers to the user.\n\n" +
+					"METAWORKFLOW GUIDANCE:\n" +
+					"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
+					"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
 					"- OUTCOMES: 'delivered' (Value Provided), 'abandoned' (Work Discarded).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
 						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
+						"force_refresh": map[string]interface{}{
+							"type":        "boolean",
+							"description": "If true, bypasses the persistent cache and recalculates the mapping from historical data.",
+						},
 					},
 					"required": []string{"project_key", "board_id"},
 				},
@@ -215,10 +221,15 @@ func (s *Server) listTools() interface{} {
 			map[string]interface{}{
 				"name": "set_workflow_mapping",
 				"description": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the MANDATORY persistence step after the 'Inform & Veto' loop. \n\n" +
-					"WITHOUT this mapping, most analytical tools in this server will provide SUBPAR or even WRONG results.\n\n" +
-					"TIER DEFINITIONS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
-					"ROLE DEFINITIONS: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
-					"OUTCOME DEFINITIONS: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
+					"AI MUST verify with the user:\n" +
+					"1. Tiers: (Demand, Upstream, Downstream, Finished).\n" +
+					"2. Outcomes: Specify outcome for 'Finished' statuses ONLY if Jira resolutions are missing or unreliable.\n" +
+					"3. Commitment Point: The 'Downstream' status where the clock starts.\n\n" +
+					"WITHOUT this mapping, analytical tools will provide SUBPAR or WRONG results.\n\n" +
+					"METAWORKFLOW GUIDANCE:\n" +
+					"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
+					"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
+					"- OUTCOMES: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -280,13 +291,15 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_item_journey",
-				"description": "Get a detailed breakdown of where a single item spent its time across all workflow steps.",
+				"description": "Get a detailed breakdown of where a single item spent its time across all workflow steps. Guidance: This tool requires a Project Key and Board ID to ensure workflow interpretation is accurate.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"issue_key": map[string]interface{}{"type": "string", "description": "The Jira issue key (e.g., PROJ-123)"},
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
+						"issue_key":   map[string]interface{}{"type": "string", "description": "The Jira issue key (e.g., PROJ-123)"},
 					},
-					"required": []string{"issue_key"},
+					"required": []string{"project_key", "board_id", "issue_key"},
 				},
 			},
 			map[string]interface{}{
@@ -318,6 +331,7 @@ func (s *Server) listTools() interface{} {
 						"simulation_mode":       map[string]interface{}{"type": "string", "enum": []string{"duration", "scope"}},
 						"items_to_forecast":     map[string]interface{}{"type": "integer", "description": "Number of items to forecast (duration mode). Default: 5"},
 						"forecast_horizon_days": map[string]interface{}{"type": "integer", "description": "Number of days to forecast (scope mode). Default: 14"},
+						"issue_types":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include in the validation."},
 						"resolutions":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: Resolutions to count as 'Done'."},
 						"sample_days":           map[string]interface{}{"type": "integer", "description": "Optional: Lookback for historical baseline."},
 						"sample_start_date":     map[string]interface{}{"type": "string", "description": "Optional: Start date for historical baseline."},

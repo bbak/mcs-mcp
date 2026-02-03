@@ -14,12 +14,13 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1.  User asks: "How long will it take to finish 50 Story items in Project X?"
     2.  AI calls `find_jira_projects` and identifies "PROJX".
-    3.  AI automatically calls `get_project_details` which anchors on the data shape and confirms volume (e.g., "500 totalIngestedIssues found").
+    3.  AI automatically calls `get_board_details` which anchors on the data shape and confirms volume (e.g., "500 totalIngestedIssues found").
     4.  AI calls `get_workflow_discovery` to establish the semantic mapping.
     5.  AI identifies the goal and calls `get_diagnostic_roadmap` (Forecasting).
     6.  AI calls `run_simulation` with `mode: "duration"`.
     7.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
     8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
+    9.  **Integrity Check**: If individual item filters have collapsed the throughput, the MCP Server issues a **Throughput Collapse Barrier** warning, preventing a "naïve" forecast (e.g., August 2041) from being presented without a disclaimer.
 
 ---
 
@@ -77,6 +78,7 @@ This document describes the primary interaction scenarios between the User (Proj
     3.  MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
     4.  AI detects a systemic "Migration" signal.
     5.  AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
+    6.  **Rational Subgrouping**: The analysis automatically **excludes the current calendar month** from the Natural Process Limits calculation, ensuring that partial data from the active month doesn't skew the long-term capability baseline.
 
 ---
 
@@ -214,6 +216,7 @@ This document describes the primary interaction scenarios between the User (Proj
     3. MCP Server runs Monte-Carlo trials where background capacity is re-allocated based on the overrides and remaining work is sampled from the structured targets.
     4. AI presents a comparative analysis, highlighting how the delivery of the main backlog is impacted by the background "friction" or strategic capacity shifts.
     5. AI identifies potential risks or opportunities associated with each scenario, leveraging statistical guardrails to flag extreme volatility or fat-tail distributions.
+    6. **Resolution Density Safeguard**: If the strategic scenario relies on a `resolutions` filter that ignores >80% of historical throughput, the server warns of **Low Resolution Density**, identifying that the "delivered" baseline may be non-representative of actual system capacity.
 
 ---
 

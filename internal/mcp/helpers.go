@@ -129,8 +129,7 @@ func (s *Server) extractProjectKeys(issues []jira.Issue) []string {
 	return keys
 }
 
-func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions []string) []float64 {
-	mappings := s.workflowMappings[sourceID]
+func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float64 {
 	resMap := make(map[string]bool)
 	for _, r := range resolutions {
 		resMap[r] = true
@@ -141,12 +140,14 @@ func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions 
 		if issue.ResolutionDate == nil {
 			continue
 		}
-		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
-				continue
+		if len(resolutions) > 0 {
+			if !resMap[issue.Resolution] {
+				if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+					continue
+				}
 			}
-		} else if len(resolutions) == 0 {
-			if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+		} else {
+			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
 				continue
 			}
 		}
@@ -161,8 +162,8 @@ func (s *Server) getTotalAges(sourceID string, issues []jira.Issue, resolutions 
 }
 
 func (s *Server) getResolutionMap(sourceID string) map[string]string {
-	if rm, ok := s.resolutionMappings[sourceID]; ok && len(rm) > 0 {
-		return rm
+	if s.activeSourceID == sourceID && len(s.activeResolutions) > 0 {
+		return s.activeResolutions
 	}
 	// Fallback to defaults
 	return map[string]string{
@@ -206,25 +207,21 @@ func asInt(v interface{}) int {
 	}
 }
 
-func (s *Server) getFinishedStatuses(sourceID string) map[string]bool {
+func (s *Server) getFinishedStatuses() map[string]bool {
 	finished := make(map[string]bool)
-	if m, ok := s.workflowMappings[sourceID]; ok {
-		for status, meta := range m {
-			if meta.Tier == "Finished" {
-				finished[status] = true
-			}
+	for status, meta := range s.activeMapping {
+		if meta.Tier == "Finished" {
+			finished[status] = true
 		}
 	}
 	return finished
 }
 
-func (s *Server) getActiveStatuses(sourceID string) []string {
+func (s *Server) getActiveStatuses() []string {
 	var active []string
-	if m, ok := s.workflowMappings[sourceID]; ok {
-		for status, meta := range m {
-			if meta.Tier != "Finished" && meta.Tier != "Demand" {
-				active = append(active, status)
-			}
+	for status, meta := range s.activeMapping {
+		if meta.Tier != "Finished" && meta.Tier != "Demand" {
+			active = append(active, status)
 		}
 	}
 	return active

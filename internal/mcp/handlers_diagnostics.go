@@ -3,7 +3,6 @@ package mcp
 import (
 	"fmt"
 	"math" // Added for sorting operations
-	"strings"
 	"time"
 
 	"mcs-mcp/internal/eventlog"
@@ -25,7 +24,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no historical data found to analyze status persistence")
@@ -57,7 +56,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
 
 	cWeight := 2
@@ -70,7 +69,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 
 	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
 
 	aging := stats.CalculateInventoryAge(wipIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
@@ -111,7 +110,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int) (inter
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	daily := stats.GetDailyThroughput(issues, 26*7) // Default 26 weeks
 	weekly := aggregateToWeeks(daily)
@@ -137,7 +136,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
@@ -145,7 +144,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	windowWeeks := 26
 	issues = stats.FilterIssuesByResolutionWindow(issues, windowWeeks*7)
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
 
 	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
 	stability := stats.CalculateProcessStability(issues, cycleTimes, len(wipIssues))
@@ -172,7 +171,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
 	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
@@ -185,7 +184,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	}
 	issues = stats.FilterIssuesByResolutionWindow(issues, windowMonths*30)
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
 
 	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
@@ -207,15 +206,20 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	}
 	sourceID := getCombinedID(projectKey, boardID)
 
+	// Ensure we are anchored before analysis
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	// Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events, sourceID)
+	issues := s.reconstructIssues(events)
 
-	yield := stats.CalculateProcessYield(issues, s.workflowMappings[sourceID], s.getResolutionMap(sourceID))
+	yield := stats.CalculateProcessYield(issues, s.activeMapping, s.getResolutionMap(sourceID))
 
 	return map[string]interface{}{
 		"yield": yield,
@@ -226,43 +230,39 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	}, nil
 }
 
-func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
-	// 1. Try to find in existing memory logs first (across all boards)
-	sourceID, events := s.events.GetEventsForIssueInAllSources(issueKey)
+func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (interface{}, error) {
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
 
-	// 2. Fallback to dedicated hydration if not found
+	// Ensure we are anchored before analysis
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
+	// 1. Try to find in existing memory log for THIS sourceID
+	events := s.events.GetEventsForIssue(sourceID, issueKey)
+
+	// 2. Fallback to context-locked hydration if not found
 	if len(events) == 0 {
-		log.Info().Str("issue", issueKey).Msg("Issue not found in existing board caches, performing dedicated hydration")
-		if err := s.events.Hydrate(issueKey, fmt.Sprintf("key = %s", issueKey)); err != nil {
+		log.Info().Str("issue", issueKey).Str("source", sourceID).Msg("Issue not found in current source cache, performing context-locked hydration")
+		// Context-Locked JQL: Ensure the issue belongs to the board's filter
+		lockedJQL := fmt.Sprintf("(%s) AND key = %s", ctx.JQL, issueKey)
+		if err := s.events.Hydrate(sourceID, lockedJQL); err != nil {
 			return nil, err
 		}
-		events = s.events.GetEventsForIssue(issueKey, issueKey)
-		sourceID = issueKey
+		events = s.events.GetEventsForIssue(sourceID, issueKey)
 	} else {
-		log.Info().Str("issue", issueKey).Str("source", sourceID).Msg("Issue found in existing board cache")
+		log.Info().Str("issue", issueKey).Str("source", sourceID).Msg("Issue found in existing source cache")
 	}
 
 	if len(events) == 0 {
-		return nil, fmt.Errorf("issue not found: %s", issueKey)
+		return nil, fmt.Errorf("issue %s not found on the current Project (%s) and Board (%d). Other issues cannot be interpreted correctly because the specific workflow context is unknown", issueKey, projectKey, boardID)
 	}
 
-	// 3. Resolve mapping - prioritize the source the issue was found in
-	mapping := s.workflowMappings[sourceID]
-	if mapping == nil {
-		// Try to find ANY mapping for the project prefix if we are in an individual issue source
-		projectPrefix := ""
-		if idx := strings.Index(issueKey, "-"); idx != -1 {
-			projectPrefix = issueKey[:idx]
-		}
-		for id, m := range s.workflowMappings {
-			if strings.HasPrefix(id, projectPrefix) {
-				mapping = m
-				break
-			}
-		}
-	}
-
-	finished := s.getFinishedStatuses(sourceID)
+	finished := s.getFinishedStatuses()
 	issue := eventlog.ReconstructIssue(events, finished, time.Now())
 	residency := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finished, "", time.Now())
 
@@ -316,8 +316,8 @@ func (s *Server) handleGetItemJourney(issueKey string) (interface{}, error) {
 	tierBreakdown := make(map[string]map[string]interface{})
 	for status, sec := range issue.StatusResidency {
 		tier := "Unknown"
-		if mapping != nil {
-			if m, ok := mapping[status]; ok {
+		if s.activeMapping != nil {
+			if m, ok := s.activeMapping[status]; ok {
 				tier = m.Tier
 			}
 		}

@@ -238,6 +238,13 @@ To identify process instability and the presence of extreme outliers (Fat-Tails)
 | **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
 | **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
 
+#### 3. Throughput Collapse & Representative Sampling
+
+To prevent "naïve" simulations from producing nonsensical dates (e.g., forecasting 15 years for a 2-week backlog), the engine implements **Integrity Thresholds**:
+
+- **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, the system issues a `WARNING`. This identifies scenarios where the combined filter of `issue_types` and `resolutions` has reduced the historical sample size so much that individual outliers dominate the result.
+- **Resolution Density Check**: The system monitors the ratio of "Delivered" items vs. "Dropped" items (items resolved but excluded by the user's resolution filter). If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative of actual system capacity.
+
 ### 4.5. Multi-Type Forecasting (Shared Capacity)
 
 To handle realistic scenarios where background work (e.g., Bugs, Administrative Tasks) consumes the team's capacity during a project goal, the system utilizes **Demand Expansion (Slot-based Sampling)**.
@@ -257,6 +264,7 @@ To ensure that the historical baseline reflects the expected future context (e.g
 - **Explicit Fixed Windows**: Users can define `sample_start_date` and `sample_end_date` (e.g., "use entire month of November") to capture a specific behavior pattern as the forecast engine.
 - **Sensitivity Enforcement**: Statistical aggregations (Throughput, Monthly Subgroups) utilize precise filtering to ensure that system drifts or seasonal patterns are not masked by overlapping stale data.
 - **AI-Driven Baseline Selection**: AI agents are instructed to analyze process stability (`get_process_stability`) before selecting a sampling window to ensure the baseline itself is "in control."
+- **Rational Subgrouping (Current Month Filter)**: Long-term trend analysis (`get_process_evolution`) automatically excludes the current calendar month. This prevents "partial data skew" where an incomplete month's throughput or lead time artificially compresses the Natural Process Limits, creating false alarms.
 
 ---
 
@@ -438,7 +446,14 @@ To ensure high traceability without overwhelming the production logs, mcs-mcp fo
 To prevent "Instruction Leakage" in user conversations, mcs-mcp strictly separates internal guidance from user-relevant alerts:
 
 - **`_guidance`**: (Internal) Instructions for the AI Agent on how to reason about the returned data. This should NEVER be shown to the user.
-- **`warnings`**: (External) Data-driven alerts (e.g., "Zero throughput", "Fat-tails") that indicate risks in the forecast or analysis. These SHOULD be interpreted and potentially shared with the user.
+- **`warnings`**: (External) Data-driven alerts (e.g., "Zero throughput", "Fat-tails", "Throughput Collapse") that indicate risks in the forecast or analysis. These SHOULD be interpreted and potentially shared with the user.
+
+### 8.2 Anti-Hallucination Guardrails
+
+The server strictly enforces a **"No Improv"** policy for mathematical interpretation. Tool descriptions include explicit `STRICT GUARDRAIL` instructions:
+
+- **Zero Hallucination**: Agents MUST NOT perform probabilistic forecasting or statistical analysis autonomously if a tool fails or returns zero data.
+- **Resolution Hierarchy**: If a calculation fails, the agent is instructed to report the error and ask for clarification rather than attempting to "reason" through a probability based on internal knowledge.
 
 Example:
 

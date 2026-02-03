@@ -2,7 +2,9 @@ package stats
 
 import (
 	"math"
+	"mcs-mcp/internal/jira"
 	"testing"
+	"time"
 )
 
 func TestCalculateXmR(t *testing.T) {
@@ -133,5 +135,25 @@ func TestXmRBenchmark(t *testing.T) {
 	expectedUNPL := result.Average + (2.66 * result.AmR)
 	if math.Abs(result.UNPL-expectedUNPL) > 0.001 {
 		t.Errorf("UNPL Scaling error. Expected %v, got %v", expectedUNPL, result.UNPL)
+	}
+}
+func TestGroupIssuesByMonth_ExcludesCurrentMonth(t *testing.T) {
+	now := time.Now()
+	prevLabel := now.AddDate(0, -1, 0).Format("2006-01")
+
+	issues := []jira.Issue{
+		{ResolutionDate: &now}, // Current month
+		{ResolutionDate: func() *time.Time { t := now.AddDate(0, -1, 0); return &t }()}, // Previous month
+	}
+	cycleTimes := []float64{10.0, 20.0}
+
+	subgroups := GroupIssuesByMonth(issues, cycleTimes)
+
+	// Should only find the previous month
+	if len(subgroups) != 1 {
+		t.Fatalf("Expected 1 subgroup, got %d", len(subgroups))
+	}
+	if subgroups[0].Label != prevLabel {
+		t.Errorf("Expected subgroup label %s, got %s", prevLabel, subgroups[0].Label)
 	}
 }

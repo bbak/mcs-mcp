@@ -268,26 +268,49 @@ func TestProposeSemantics(t *testing.T) {
 		{StatusName: "In Dev", P50: 5.0},
 		{StatusName: "Done", P50: 0.0},
 	}
-	proposal := ProposeSemantics(issues, persistence)
+	// Add transitions to Backlog to make it the birth status
+	for i := 0; i < 20; i++ {
+		issues = append(issues, jira.Issue{
+			Key: "B", Status: "Backlog",
+			Transitions: []jira.StatusTransition{{FromStatus: "Backlog", ToStatus: "Refinement"}},
+		})
+	}
+	// Add transitions to Done to make it a terminal sink
+	for i := 0; i < 10; i++ {
+		issues = append(issues, jira.Issue{
+			Key: "S", Status: "Done",
+			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", ToStatus: "Done"}},
+		})
+	}
+	mapping, commitmentPoint := ProposeSemantics(issues, persistence)
 
 	// Verify "Backlog" is Demand (detected as first entry point)
-	if proposal["Backlog"].Tier != "Demand" {
-		t.Errorf("Expected Backlog to be 'Demand', got %s", proposal["Backlog"].Tier)
+	if mapping["Backlog"].Tier != "Demand" {
+		t.Errorf("Expected Backlog to be 'Demand', got %s", mapping["Backlog"].Tier)
 	}
 
 	// Verify "Ready for Dev" is a queue (detected by pattern)
-	if proposal["Ready for Dev"].Role != "queue" {
-		t.Errorf("Expected 'Ready for Dev' to have role 'queue', got %s", proposal["Ready for Dev"].Role)
+	if mapping["Ready for Dev"].Role != "queue" {
+		t.Errorf("Expected 'Ready for Dev' to have role 'queue', got %s", mapping["Ready for Dev"].Role)
 	}
 
 	// Verify "In Dev" is Downstream
-	if proposal["In Dev"].Tier != "Downstream" {
-		t.Errorf("Expected 'In Dev' to be 'Downstream', got %s", proposal["In Dev"].Tier)
+	if mapping["In Dev"].Tier != "Downstream" {
+		t.Errorf("Expected 'In Dev' to be 'Downstream', got %s", mapping["In Dev"].Tier)
 	}
 
 	// Verify User-specified role constraints: Demand must be 'queue'
-	if proposal["Backlog"].Role != "queue" {
-		t.Errorf("Expected 'Backlog' (Demand) to have role 'queue', got %s", proposal["Backlog"].Role)
+	if mapping["Backlog"].Role != "queue" {
+		t.Errorf("Expected 'Backlog' (Demand) to have role 'queue', got %s", mapping["Backlog"].Role)
+	}
+
+	if commitmentPoint != "In Dev" {
+		t.Errorf("Expected commitment point 'In Dev', got %s", commitmentPoint)
+	}
+
+	// Verify "Done" has heuristic outcome "delivered"
+	if mapping["Done"].Outcome != "delivered" {
+		t.Errorf("Expected Done to have outcome 'delivered', got %s", mapping["Done"].Outcome)
 	}
 }
 
@@ -361,7 +384,7 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{StatusName: "Done"},
 	}
 
-	proposal := ProposeSemantics(issues, persistence)
+	proposal, _ := ProposeSemantics(issues, persistence)
 	order := DiscoverStatusOrder(issues)
 
 	// Verify Tiers
@@ -466,7 +489,7 @@ func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
 		{StatusName: "Prod"},
 	}
 
-	proposal := ProposeSemantics(issues, persistence)
+	proposal, _ := ProposeSemantics(issues, persistence)
 
 	if proposal["UAT"].Tier == "Finished" {
 		t.Errorf("UAT should be Downstream (10%% density), not Finished")
@@ -520,5 +543,52 @@ func TestSelectDiscoverySample_Filtering(t *testing.T) {
 		if strings.HasPrefix(iss.Key, "A-") {
 			t.Errorf("Ancient issue %s should have been filtered out", iss.Key)
 		}
+	}
+}
+func TestAnalyzeProbe_ResolutionDensity(t *testing.T) {
+	now := time.Now()
+	issues := []jira.Issue{
+		{Key: "I-1", Resolution: "Fixed", ResolutionDate: &now},
+		{Key: "I-2", Resolution: "Fixed", ResolutionDate: &now},
+		{Key: "I-3"}, // Not resolved
+	}
+
+	summary := AnalyzeProbe(issues, 10, nil)
+
+	if summary.ResolutionDensity != 2.0/3.0 {
+		t.Errorf("Expected resolution density 0.66, got %f", summary.ResolutionDensity)
+	}
+}
+
+func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
+	now := time.Now()
+	// Provide issues where these statuses are terminal sinks
+	issues := []jira.Issue{
+		{Key: "I-1", Status: "Done", ResolutionDate: &now},
+		{Key: "I-2", Status: "Cancelled", ResolutionDate: &now},
+		{Key: "I-3", Status: "Rejected", ResolutionDate: &now},
+	}
+	// Add more transitions to satisfy "isTerminalSink" (into > 5 and into > out*4)
+	for i := 0; i < 10; i++ {
+		issues = append(issues, jira.Issue{
+			Key: "S", Status: "Done",
+			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", ToStatus: "Done"}},
+		})
+	}
+
+	persistence := []StatusPersistence{
+		{StatusName: "Done"},
+		{StatusName: "Cancelled"},
+		{StatusName: "Rejected"},
+	}
+	mapping, _ := ProposeSemantics(issues, persistence)
+
+	// Done -> Delivered (Default or Keyword)
+	if mapping["Done"].Outcome != "delivered" {
+		t.Errorf("Expected Done -> delivered, got %s", mapping["Done"].Outcome)
+	}
+	// Cancelled -> Abandoned (Keyword)
+	if mapping["Cancelled"].Outcome != "abandoned" {
+		t.Errorf("Expected Cancelled -> abandoned, got %s", mapping["Cancelled"].Outcome)
 	}
 }

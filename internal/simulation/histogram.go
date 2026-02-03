@@ -33,6 +33,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	typeCounts := make(map[string]int)
 	totalDelivered := 0
 
+	droppedByResolution := 0
 	for _, issue := range issues {
 		if issue.ResolutionDate == nil {
 			continue
@@ -40,6 +41,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 		// Count all delivered items for distribution, regardless of filters
 		// (but respecting resolutions if provided to exclude 'Abandoned')
 		if len(resolutions) > 0 && !resMap[issue.Resolution] {
+			droppedByResolution++
 			continue
 		}
 		typeCounts[issue.IssueType]++
@@ -81,13 +83,14 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	}
 
 	meta := map[string]interface{}{
-		"issues_total":       len(issues),
-		"issues_analyzed":    totalDelivered,
-		"days_in_sample":     days,
-		"throughput_overall": avgAcross,
-		"throughput_recent":  recentAvg,
-		"type_distribution":  typeDist,
-		"type_counts":        typeCounts,
+		"issues_total":          len(issues),
+		"issues_analyzed":       totalDelivered,
+		"dropped_by_resolution": droppedByResolution,
+		"days_in_sample":        days,
+		"throughput_overall":    avgAcross,
+		"throughput_recent":     recentAvg,
+		"type_distribution":     typeDist,
+		"type_counts":           typeCounts,
 	}
 
 	return &Histogram{

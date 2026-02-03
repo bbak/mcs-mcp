@@ -4,6 +4,7 @@ import (
 	"math"
 	"mcs-mcp/internal/jira"
 	"sort"
+	"time"
 )
 
 // XmRResult represents the output of a Process Behavior Chart analysis.
@@ -184,12 +185,21 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 	groups := make(map[string]*SubgroupStats)
 	var keys []string
 
+	currentMonth := time.Now().Format("2006-01")
+
 	for i, issue := range issues {
 		if i >= len(cycleTimes) || issue.ResolutionDate == nil {
 			continue
 		}
 
 		monthKey := issue.ResolutionDate.Format("2006-01")
+
+		// EXCLUSION: If the month is still "in progress" (current calendar month),
+		// we exclude it from the Strategic Audit to avoid noise from incomplete data.
+		if monthKey == currentMonth {
+			continue
+		}
+
 		if _, ok := groups[monthKey]; !ok {
 			groups[monthKey] = &SubgroupStats{Label: monthKey}
 			keys = append(keys, monthKey)
