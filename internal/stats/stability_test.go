@@ -121,8 +121,9 @@ func TestXmRBenchmark(t *testing.T) {
 	// UNPL ~ 22722
 	// LNPL ~ 21806
 
-	if math.Abs(result.Average-22499.1) > 1.0 { // Note: Source avg was 22264 for a slightly different window, we verify our own calc
-		// Our calc: Sum(22433...21942) / 10 = 224991 / 10 = 22499.1
+	// Check average calculation: Sum(22433...21942) / 10 = 224991 / 10 = 22499.1
+	if math.Abs(result.Average-22499.1) > 1.0 {
+		t.Errorf("Expected average 22499.1, got %v", result.Average)
 	}
 
 	// The key is the Scaling and Limits logic verification

@@ -77,7 +77,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		wipCount = len(wipAges)
 	}
 
-	engine := simulation.NewEngine(nil)
+	var engine *simulation.Engine
 
 	switch mode {
 	case "scope":
@@ -379,7 +379,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 	wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 
-	engine := simulation.NewEngine(nil)
+	var engine *simulation.Engine
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
 	if analyzeWIP {
 		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)

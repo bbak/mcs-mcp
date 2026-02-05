@@ -13,20 +13,22 @@ import (
 )
 
 func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forceRefresh bool) (interface{}, error) {
+	// 1. Resolve Source Context (ensures consistent JQL)
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
 
-	// 1. Anchor Context (Memory Pruning + Mapping Load)
-	if err := s.anchorContext(ctx.ProjectKey, ctx.BoardID); err != nil {
-		return nil, err
+	// Anchoring: Mapping Load
+	isCachedMapping, err := s.loadWorkflow(projectKey, boardID)
+	if err != nil {
+		log.Error().Err(err).Str("source", sourceID).Msg("Failed to load workflow mapping")
 	}
 
 	// 2. Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
-		return nil, err
+		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
 
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
@@ -34,12 +36,25 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
 
 	// Check if we have an active mapping from cache and NO force refresh
-	if !forceRefresh && len(s.activeMapping) > 0 {
-		return s.presentWorkflowMetadata(sourceID, sample, domainIssues, "LOADED_FROM_CACHE"), nil
+	discoverySource := "NEWLY_PROPOSED"
+	if !forceRefresh && isCachedMapping {
+		discoverySource = "LOADED_FROM_CACHE"
 	}
 
-	// Otherwise, run algorithm
-	return s.presentWorkflowMetadata(sourceID, sample, domainIssues, "NEWLY_PROPOSED"), nil
+	res := s.presentWorkflowMetadata(sourceID, sample, domainIssues, discoverySource)
+
+	// Add is_cached signal to _metadata
+	if m, ok := res.(map[string]interface{}); ok {
+		if meta, ok := m["_metadata"].(map[string]interface{}); ok {
+			meta["is_cached"] = isCachedMapping
+		} else {
+			m["_metadata"] = map[string]interface{}{
+				"is_cached": isCachedMapping,
+			}
+		}
+	}
+
+	return res, nil
 }
 
 func (s *Server) reconstructIssues(events []eventlog.IssueEvent) []jira.Issue {

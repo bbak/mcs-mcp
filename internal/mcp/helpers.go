@@ -115,21 +115,6 @@ func (s *Server) formatResult(data interface{}) string {
 	return string(out)
 }
 
-func (s *Server) extractProjectKeys(issues []jira.Issue) []string {
-	keyMap := make(map[string]bool)
-	for _, issue := range issues {
-		if issue.ProjectKey != "" {
-			keyMap[issue.ProjectKey] = true
-		}
-	}
-
-	keys := make([]string, 0, len(keyMap))
-	for k := range keyMap {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 func (s *Server) getTotalAges(issues []jira.Issue) []float64 {
 	var ages []float64
 	for _, issue := range issues {
@@ -190,7 +175,9 @@ func asInt(v interface{}) int {
 		return val
 	case string:
 		var res int
-		fmt.Sscanf(val, "%d", &res)
+		if _, err := fmt.Sscanf(val, "%d", &res); err != nil {
+			return 0
+		}
 		return res
 	default:
 		return 0

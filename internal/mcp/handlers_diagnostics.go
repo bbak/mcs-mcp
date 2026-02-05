@@ -120,8 +120,26 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	daily := stats.GetDailyThroughput(issues, windowWeeks*7, analysisCtx.WorkflowMappings, s.activeResolutions, !includeAbandoned)
 	weekly := aggregateToWeeks(daily)
 
+	// Build week metadata
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	windowDays := windowWeeks * 7
+	minDate := today.AddDate(0, 0, -windowDays+1)
+
+	weekMetadata := make([]map[string]string, 0)
+	for i := 0; i < len(weekly); i++ {
+		weekStart := minDate.AddDate(0, 0, i*7)
+		weekEnd := weekStart.AddDate(0, 0, 6)
+		weekMetadata = append(weekMetadata, map[string]string{
+			"week_index": fmt.Sprintf("%d", i+1),
+			"start_date": weekStart.Format("2006-01-02"),
+			"end_date":   weekEnd.Format("2006-01-02"),
+		})
+	}
+
 	return map[string]interface{}{
 		"weekly_throughput": weekly,
+		"@week_metadata":    weekMetadata,
 		"_guidance": []string{
 			"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
 		},

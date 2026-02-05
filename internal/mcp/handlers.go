@@ -117,22 +117,6 @@ func (s *Server) sliceRange(order []string, start, end string) []string {
 	return order[startIndex : endIndex+1]
 }
 
-func (s *Server) getCommitmentPointHints(issues []jira.Issue, weights map[string]int) []string {
-	hints := make(map[string]bool)
-	for _, issue := range issues {
-		for _, t := range issue.Transitions {
-			if weights[t.ToStatus] >= 2 && weights[t.FromStatus] < 2 {
-				hints[t.ToStatus] = true
-			}
-		}
-	}
-	res := make([]string, 0, len(hints))
-	for h := range hints {
-		res = append(res, h)
-	}
-	return res
-}
-
 func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []jira.Issue) (string, bool) {
 	if s.activeSourceID != getCombinedID(projectKey, boardID) || s.activeMapping == nil {
 		return "", false

@@ -349,7 +349,7 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 
 		// Find next best status
 		next := ""
-		maxFreq := -1
+		var maxFreq int
 
 		// Candidate discovery
 		type candidate struct {
