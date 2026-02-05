@@ -129,27 +129,16 @@ func (s *Server) extractProjectKeys(issues []jira.Issue) []string {
 	return keys
 }
 
-func (s *Server) getTotalAges(issues []jira.Issue, resolutions []string) []float64 {
-	resMap := make(map[string]bool)
-	for _, r := range resolutions {
-		resMap[r] = true
-	}
-
+func (s *Server) getTotalAges(issues []jira.Issue) []float64 {
 	var ages []float64
 	for _, issue := range issues {
 		if issue.ResolutionDate == nil {
 			continue
 		}
-		if len(resolutions) > 0 {
-			if !resMap[issue.Resolution] {
-				if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
-					continue
-				}
-			}
-		} else {
-			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
-				continue
-			}
+
+		// Only count "delivered" work
+		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+			continue
 		}
 
 		duration := issue.ResolutionDate.Sub(issue.Created).Hours() / 24.0

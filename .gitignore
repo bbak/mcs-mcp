@@ -18,6 +18,8 @@
 dist/
 bin/
 logs/
+cache/
+.local/
 
 # Environment variables
 .env

@@ -232,8 +232,20 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		newIssue := issue
 		newIssue.Transitions = FilterTransitions(issue.Transitions, issue.Transitions[lastBackflowIdx].Date)
 		newIssue.IsMoved = true // Treat as a reset
-		newIssue.ResolutionDate = nil
-		newIssue.Resolution = ""
+
+		// Only wipe resolution if the backflow actually re-opened the item
+		// (i.e., the resolution happened BEFORE the backflow or we are now in a non-terminal status)
+		isTerminal := false
+		if weights != nil {
+			if w, ok := GetWeightRobust(weights, newIssue.StatusID, newIssue.Status); ok && w >= commitmentWeight {
+				isTerminal = true // Status is still downstream/finished
+			}
+		}
+
+		if !isTerminal {
+			newIssue.ResolutionDate = nil
+			newIssue.Resolution = ""
+		}
 
 		// Recalculate residency starting from the backflow point
 		newIssue.StatusResidency = CalculateResidency(
@@ -317,7 +329,8 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 }
 
 // GetDailyThroughput returns count of items resolved each day in the requested window.
-func GetDailyThroughput(issues []jira.Issue, windowDays int) []int {
+// If deliveredOnly is true, it only counts items that reach a "delivered" outcome.
+func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string]StatusMetadata, resolutionMappings map[string]string, deliveredOnly bool) []int {
 	if len(issues) == 0 {
 		return nil
 	}
@@ -330,11 +343,42 @@ func GetDailyThroughput(issues []jira.Issue, windowDays int) []int {
 	daily := make([]int, windowDays)
 
 	for _, issue := range issues {
+		var resDate time.Time
+		isDelivered := true
+
 		if issue.ResolutionDate != nil {
-			d := int(issue.ResolutionDate.Sub(minDate).Hours() / 24)
-			if d >= 0 && d < windowDays {
-				daily[d]++
+			resDate = *issue.ResolutionDate
+			if deliveredOnly {
+				// Primary: Resolution Mapping
+				if outcome, ok := resolutionMappings[issue.Resolution]; ok {
+					if outcome != "delivered" {
+						isDelivered = false
+					}
+				} else {
+					// Fallback: If no resolution mapping, we check the status mapping
+					if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" {
+						if m.Outcome != "" && m.Outcome != "delivered" {
+							isDelivered = false
+						}
+					}
+					// If neither mapping specifies outcome, we trust the ResolutionDate presence (legacy/default)
+				}
 			}
+		} else if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" {
+			// Fallback Finished logic
+			resDate = issue.Updated
+			if deliveredOnly && m.Outcome != "" && m.Outcome != "delivered" {
+				isDelivered = false
+			}
+		}
+
+		if resDate.IsZero() || !isDelivered {
+			continue
+		}
+
+		d := int(resDate.Sub(minDate).Hours() / 24)
+		if d >= 0 && d < windowDays {
+			daily[d]++
 		}
 	}
 	return daily

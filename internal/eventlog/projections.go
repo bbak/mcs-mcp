@@ -128,6 +128,13 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		return jira.Issue{}
 	}
 
+	resAtStart := 0
+	for _, e := range events {
+		if e.EventType == Resolved {
+			resAtStart++
+		}
+	}
+
 	first := events[0]
 	issue := jira.Issue{
 		Key:             first.IssueKey,
@@ -138,42 +145,58 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 
 	var lastMoveDate int64
 
-	for _, e := range events {
-		issue.Updated = time.UnixMicro(e.Timestamp)
-		switch e.EventType {
-		case Created:
-			issue.Created = time.UnixMicro(e.Timestamp)
-			issue.Status = e.ToStatus
-			issue.StatusID = e.ToStatusID
-		case Transitioned:
-			issue.Transitions = append(issue.Transitions, jira.StatusTransition{
-				FromStatus:   e.FromStatus,
-				FromStatusID: e.FromStatusID,
-				ToStatus:     e.ToStatus,
-				ToStatusID:   e.ToStatusID,
-				Date:         time.UnixMicro(e.Timestamp),
-			})
-			issue.Status = e.ToStatus
-			issue.StatusID = e.ToStatusID
-		case Resolved:
-			ts := time.UnixMicro(e.Timestamp)
-			issue.ResolutionDate = &ts
-			issue.Resolution = e.Resolution
-		case Unresolved:
-			issue.ResolutionDate = nil
-			issue.Resolution = ""
-		case Moved:
-			issue.IsMoved = true
-			lastMoveDate = e.Timestamp
+	// Group by timestamp to handle "transactions" (concurrent events)
+	for i := 0; i < len(events); {
+		j := i
+		ts := events[i].Timestamp
+		for j < len(events) && events[j].Timestamp == ts {
+			j++
 		}
 
-		// Reactive check: If transitioning to a non-terminal status, implicitly clear resolution (Case 2 & 3)
-		if e.EventType == Transitioned || e.EventType == Created {
-			if len(finishedStatuses) > 0 && !finishedStatuses[issue.Status] {
+		// Apply all events in this transaction
+		hadResolved := false
+		for k := i; k < j; k++ {
+			e := events[k]
+			issue.Updated = time.UnixMicro(e.Timestamp)
+
+			switch e.EventType {
+			case Created:
+				issue.Created = time.UnixMicro(e.Timestamp)
+				issue.Status = e.ToStatus
+				issue.StatusID = e.ToStatusID
+			case Transitioned:
+				issue.Transitions = append(issue.Transitions, jira.StatusTransition{
+					FromStatus:   e.FromStatus,
+					FromStatusID: e.FromStatusID,
+					ToStatus:     e.ToStatus,
+					ToStatusID:   e.ToStatusID,
+					Date:         time.UnixMicro(e.Timestamp),
+				})
+				issue.Status = e.ToStatus
+				issue.StatusID = e.ToStatusID
+			case Resolved:
+				resTS := time.UnixMicro(e.Timestamp)
+				issue.ResolutionDate = &resTS
+				issue.Resolution = e.Resolution
+				hadResolved = true
+			case Unresolved:
 				issue.ResolutionDate = nil
 				issue.Resolution = ""
+			case Moved:
+				issue.IsMoved = true
+				lastMoveDate = e.Timestamp
 			}
 		}
+
+		// Evaluated final state after the transaction
+		// Reactive check: If we are in a non-terminal status, implicitly clear resolution (Case 2 & 3)
+		// UNLESS we just got a Resolved event in this same transaction (trusting the change-set).
+		if len(finishedStatuses) > 0 && !finishedStatuses[issue.Status] && !hadResolved {
+			issue.ResolutionDate = nil
+			issue.Resolution = ""
+		}
+
+		i = j
 	}
 
 	// We pass time.Time{} as referenceDate to behave as "Now" for backward compatibility

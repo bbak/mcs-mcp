@@ -31,13 +31,14 @@ type JSONRPCResponse struct {
 }
 
 type Server struct {
-	jira              jira.Client
-	events            *eventlog.LogProvider
-	cacheDir          string
-	activeSourceID    string
-	activeMapping     map[string]stats.StatusMetadata
-	activeResolutions map[string]string
-	activeStatusOrder []string
+	jira                  jira.Client
+	events                *eventlog.LogProvider
+	cacheDir              string
+	activeSourceID        string
+	activeMapping         map[string]stats.StatusMetadata
+	activeResolutions     map[string]string
+	activeStatusOrder     []string
+	activeCommitmentPoint string
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
@@ -206,6 +207,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["mode"])
 		startStatus := asString(call.Arguments["start_status"])
+		endStatus := asString(call.Arguments["end_status"])
 
 		includeExisting := false
 		if b, ok := call.Arguments["include_existing_backlog"].(bool); ok {
@@ -229,15 +231,6 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			includeWIP = w
 		}
 
-		var res []string
-		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
-			for _, v := range r {
-				res = append(res, asString(v))
-			}
-		}
-		if len(res) == 0 {
-			res = s.getDeliveredResolutions(projectKey, boardID)
-		}
 		sampleDays := asInt(call.Arguments["sample_days"])
 		sampleStart := asString(call.Arguments["sample_start_date"])
 		sampleEnd := asString(call.Arguments["sample_end_date"])
@@ -250,19 +243,19 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 
-		var mix map[string]float64
+		var mixOverrides map[string]float64
 		if m, ok := call.Arguments["mix_overrides"].(map[string]interface{}); ok {
-			mix = make(map[string]float64)
+			mixOverrides = make(map[string]float64)
 			for k, v := range m {
 				if f, ok := v.(float64); ok {
-					mix[k] = f
+					mixOverrides[k] = f
 				} else if i, ok := v.(int); ok {
-					mix[k] = float64(i)
+					mixOverrides[k] = float64(i)
 				}
 			}
 		}
 
-		data, err = s.handleRunSimulation(projectKey, boardID, mode, includeExisting, additional, targetDays, targetDate, startStatus, asString(call.Arguments["end_status"]), issueTypes, includeWIP, res, sampleDays, sampleStart, sampleEnd, targets, mix)
+		data, err = s.handleRunSimulation(projectKey, boardID, mode, includeExisting, additional, targetDays, targetDate, startStatus, endStatus, issueTypes, includeWIP, sampleDays, sampleStart, sampleEnd, targets, mixOverrides)
 	case "get_status_persistence":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
@@ -276,7 +269,12 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "get_delivery_cadence":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetDeliveryCadence(projectKey, boardID)
+		windowWeeks := asInt(call.Arguments["window_weeks"])
+		includeAbandoned := false
+		if val, ok := call.Arguments["include_abandoned"].(bool); ok {
+			includeAbandoned = val
+		}
+		data, err = s.handleGetDeliveryCadence(projectKey, boardID, windowWeeks, includeAbandoned)
 	case "get_process_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
@@ -307,7 +305,8 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		boardID := asInt(call.Arguments["board_id"])
 		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
 		resolutions, _ := call.Arguments["resolutions"].(map[string]interface{})
-		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions)
+		commitmentPoint := asString(call.Arguments["commitment_point"])
+		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions, commitmentPoint)
 	case "set_workflow_order":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
@@ -336,13 +335,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			analyzeWIP = w
 		}
 
-		var res []string
-		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
-			for _, v := range r {
-				res = append(res, asString(v))
-			}
-		}
-		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, res, issueTypes)
+		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, issueTypes)
 	case "get_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
@@ -358,24 +351,18 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		items := asInt(call.Arguments["items_to_forecast"])
 		horizon := asInt(call.Arguments["forecast_horizon_days"])
 
-		var types []string
+		var issueTypes []string
 		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
 			for _, v := range it {
-				types = append(types, asString(v))
+				issueTypes = append(issueTypes, asString(v))
 			}
 		}
 
-		var res []string
-		if r, ok := call.Arguments["resolutions"].([]interface{}); ok {
-			for _, v := range r {
-				res = append(res, asString(v))
-			}
-		}
 		sampleDays := asInt(call.Arguments["sample_days"])
 		sampleStart := asString(call.Arguments["sample_start_date"])
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
-		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, types, res, sampleDays, sampleStart, sampleEnd)
+		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, issueTypes, sampleDays, sampleStart, sampleEnd)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}
@@ -398,19 +385,21 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 }
 
 type WorkflowMetadata struct {
-	SourceID    string                          `json:"source_id"`
-	Mapping     map[string]stats.StatusMetadata `json:"mapping"`
-	Resolutions map[string]string               `json:"resolutions,omitempty"`
-	StatusOrder []string                        `json:"status_order,omitempty"`
+	SourceID        string                          `json:"source_id"`
+	Mapping         map[string]stats.StatusMetadata `json:"mapping"`
+	Resolutions     map[string]string               `json:"resolutions,omitempty"`
+	StatusOrder     []string                        `json:"status_order,omitempty"`
+	CommitmentPoint string                          `json:"commitment_point,omitempty"`
 }
 
 func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 	sourceID := getCombinedID(projectKey, boardID)
 	meta := WorkflowMetadata{
-		SourceID:    sourceID,
-		Mapping:     s.activeMapping,
-		Resolutions: s.activeResolutions,
-		StatusOrder: s.activeStatusOrder,
+		SourceID:        sourceID,
+		Mapping:         s.activeMapping,
+		Resolutions:     s.activeResolutions,
+		StatusOrder:     s.activeStatusOrder,
+		CommitmentPoint: s.activeCommitmentPoint,
 	}
 
 	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
@@ -444,6 +433,7 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	s.activeMapping = meta.Mapping
 	s.activeResolutions = meta.Resolutions
 	s.activeStatusOrder = meta.StatusOrder
+	s.activeCommitmentPoint = meta.CommitmentPoint
 
 	log.Info().Str("path", path).Msg("Loaded workflow metadata from disk")
 	return true, nil
@@ -464,6 +454,7 @@ func (s *Server) anchorContext(projectKey string, boardID int) error {
 	s.activeMapping = nil
 	s.activeResolutions = nil
 	s.activeStatusOrder = nil
+	s.activeCommitmentPoint = ""
 
 	// 2. Prune EventStore RAM
 	s.events.PruneExcept(sourceID)

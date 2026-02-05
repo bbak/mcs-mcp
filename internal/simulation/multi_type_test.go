@@ -23,7 +23,7 @@ func TestMultiTypeSimulation(t *testing.T) {
 	targets := map[string]int{"Story": 5}
 	dist := map[string]float64{"Story": 0.5, "Bug": 0.5}
 
-	res := engine.RunMultiTypeDurationSimulation(targets, dist, 1000)
+	res := engine.RunMultiTypeDurationSimulation(targets, dist, 1000, true)
 
 	if res.Percentiles.CoinToss < 8 || res.Percentiles.CoinToss > 13 {
 		t.Errorf("Expected median duration around 10 days, got %.1f", res.Percentiles.CoinToss)
@@ -47,7 +47,7 @@ func TestMultiTypeSimulation_Skewed(t *testing.T) {
 	targets := map[string]int{"Story": 10}
 	dist := map[string]float64{"Story": 0.1, "Bug": 0.9}
 
-	res := engine.RunMultiTypeDurationSimulation(targets, dist, 1000)
+	res := engine.RunMultiTypeDurationSimulation(targets, dist, 1000, true)
 
 	if res.Percentiles.CoinToss < 70 || res.Percentiles.CoinToss > 130 {
 		t.Errorf("Expected median duration around 100 days, got %.1f", res.Percentiles.CoinToss)

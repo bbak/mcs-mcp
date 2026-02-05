@@ -18,7 +18,7 @@ type WalkForwardConfig struct {
 	ForecastHorizon int      // Days to forecast into the future (only for Scope mode, e.g. 14 days)
 	ItemsToForecast int      // Number of items (only for Duration mode)
 	IssueTypes      []string // Optional: Filter by issue types
-	Resolutions     []string // Resolutions to count as "Done"
+	Resolutions     map[string]string
 }
 
 // ValidationCheckpoint represents a single point in the past where we ran a simulation.
@@ -42,14 +42,16 @@ type WalkForwardResult struct {
 
 // WalkForwardEngine orchestrates the time-travel validation.
 type WalkForwardEngine struct {
-	events   []eventlog.IssueEvent
-	mappings map[string]stats.StatusMetadata
+	events      []eventlog.IssueEvent
+	mappings    map[string]stats.StatusMetadata
+	resolutions map[string]string
 }
 
-func NewWalkForwardEngine(events []eventlog.IssueEvent, mappings map[string]stats.StatusMetadata) *WalkForwardEngine {
+func NewWalkForwardEngine(events []eventlog.IssueEvent, mappings map[string]stats.StatusMetadata, resolutions map[string]string) *WalkForwardEngine {
 	return &WalkForwardEngine{
-		events:   events,
-		mappings: mappings,
+		events:      events,
+		mappings:    mappings,
+		resolutions: resolutions,
 	}
 }
 
@@ -129,7 +131,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
 		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
-		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, cfg.Resolutions)
+		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
 		engine := NewEngine(h)
 
 		// 4. Run Simulation & Verify
@@ -268,10 +270,21 @@ func (w *WalkForwardEngine) countFinishedInWindow(allIssues []jira.Issue, start,
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil {
 			if !i.ResolutionDate.Before(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
-				// Also check if it was "Active" or valid outcome?
-				// For Scope, we usually count "Throughput".
-				// We assume all resolutions are valid throughput for now.
-				count++
+				// Semantic Outcome check: only count "delivered" items for scope validation
+				isDelivered := true
+				if outcome, ok := w.resolutions[i.Resolution]; ok {
+					if outcome != "delivered" {
+						isDelivered = false
+					}
+				} else if m, ok := w.mappings[i.Status]; ok && m.Tier == "Finished" {
+					if m.Outcome != "" && m.Outcome != "delivered" {
+						isDelivered = false
+					}
+				}
+
+				if isDelivered {
+					count++
+				}
 			}
 		}
 	}
@@ -283,7 +296,20 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 	resolvedAfter := make([]time.Time, 0)
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil && i.ResolutionDate.After(start) {
-			resolvedAfter = append(resolvedAfter, *i.ResolutionDate)
+			// Semantic Outcome check: only count "delivered" items for duration validation
+			isDelivered := true
+			if outcome, ok := w.resolutions[i.Resolution]; ok {
+				if outcome != "delivered" {
+					isDelivered = false
+				}
+			} else if m, ok := w.mappings[i.Status]; ok && m.Tier == "Finished" {
+				if m.Outcome != "" && m.Outcome != "delivered" {
+					isDelivered = false
+				}
+			}
+			if isDelivered {
+				resolvedAfter = append(resolvedAfter, *i.ResolutionDate)
+			}
 		}
 	}
 

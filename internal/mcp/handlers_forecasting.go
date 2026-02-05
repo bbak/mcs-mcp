@@ -5,11 +5,12 @@ import (
 	"math"
 	"time"
 
+	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (interface{}, error) {
+func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -47,23 +48,30 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
 
-	var wipAges []float64
-	wipCount := 0
 	existingBacklogCount := 0
+	wipCount := 0
+	var wipAges []float64
 
+	actualTargets := make(map[string]int)
 	if includeExistingBacklog {
 		// Count backlog items (those in 'Demand' tier or not committed)
 		for _, issue := range issues {
 			if m, ok := analysisCtx.WorkflowMappings[issue.Status]; ok && m.Tier == "Demand" {
 				existingBacklogCount++
+				actualTargets[issue.IssueType]++
 			}
 		}
 	}
 
+	var wipIssues []jira.Issue
 	if includeWIP {
-		wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
+		wipIssues = s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
 		wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
-		cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
+		for _, issue := range wipIssues {
+			actualTargets[issue.IssueType]++
+		}
+
+		cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
 		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 		wipAges = calcWipAges
 		wipCount = len(wipAges)
@@ -91,27 +99,65 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		startTime := time.Now().AddDate(0, -6, 0)
-		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, resolutions)
+		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 		engine = simulation.NewEngine(h)
-		resObj := engine.RunScopeSimulation(finalDays, 10000)
+
+		// Calculate historical distribution
+		dist := make(map[string]float64)
+		if d, ok := h.Meta["type_distribution"].(map[string]float64); ok {
+			for t, p := range d {
+				dist[t] = p
+			}
+		}
+
+		// Expansion Logic Decision (3 Points)
+		expansionEnabled := false
+		expansionReason := ""
+
+		if len(targets) > 0 {
+			expansionEnabled = true
+			expansionReason = "you provided a specific set of target counts"
+		} else if len(issueTypes) > 0 {
+			expansionEnabled = true
+			expansionReason = "you requested a forecast for a specific subset of work item types"
+		} else if additionalItems > 0 {
+			expansionEnabled = true
+			expansionReason = "you added new items to the backlog; we modeled the associated background work"
+		}
+
+		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, expansionEnabled)
+
+		// Explain Expansion
+		totalBG := 0
+		for _, c := range resObj.BackgroundItemsPredicted {
+			totalBG += c
+		}
+		if expansionEnabled && totalBG > 0 {
+			msg := fmt.Sprintf("Because %s, we added %d background items to match the historical work item distribution.", expansionReason, totalBG)
+			resObj.Insights = append(resObj.Insights, msg)
+		}
 
 		resObj.Insights = append(resObj.Insights, "Scope Interpretation: Forecast shows total items that will reach 'Done' status, including items currently in progress.")
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
 				ExistingBacklog: existingBacklogCount,
 				AdditionalItems: additionalItems,
-				Total:           0,
+				Total:           wipCount + existingBacklogCount + additionalItems,
 			}
 		}
 		return resObj, nil
 
 	case "duration":
 		totalBacklog := additionalItems + existingBacklogCount
+		if includeWIP {
+			totalBacklog += wipCount
+		}
+
 		if totalBacklog <= 0 {
 			return nil, fmt.Errorf("no items to forecast (additional_items and existing backlog both 0)")
 		}
@@ -137,14 +183,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			histStart = histEnd.AddDate(0, 0, -sampleDays)
 		}
 
-		h := simulation.NewHistogram(issues, histStart, histEnd, issueTypes, resolutions)
+		h := simulation.NewHistogram(issues, histStart, histEnd, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 		engine = simulation.NewEngine(h)
-
-		// Prepare targets and distribution
-		simTargets := make(map[string]int)
-		for k, v := range targets {
-			simTargets[k] = v
-		}
 
 		dist := make(map[string]float64)
 		if d, ok := h.Meta["type_distribution"].(map[string]float64); ok {
@@ -152,6 +192,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 				dist[t] = p
 			}
 		}
+
+		// Prepare targets and distribution
+		simTargets := make(map[string]int)
 
 		// Apply Mix Overrides & Re-normalize
 		if len(mixOverrides) > 0 {
@@ -188,11 +231,23 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			dist = newDist
 		}
 
-		// Populate simTargets from total backlog if targets not explicitly provided
+		// Populate simTargets
 		if len(simTargets) == 0 {
-			for t, p := range dist {
-				simTargets[t] = int(math.Round(float64(totalBacklog) * p))
+			// Start with actual counts from Jira (High-Fidelity)
+			for t, c := range actualTargets {
+				simTargets[t] = c
 			}
+
+			// Add additional items following historical distribution
+			if additionalItems > 0 {
+				for t, p := range dist {
+					count := int(math.Round(float64(additionalItems) * p))
+					if count > 0 {
+						simTargets[t] += count
+					}
+				}
+			}
+
 			// Safe fallback if still empty
 			if len(simTargets) == 0 {
 				simTargets["Unknown"] = totalBacklog
@@ -200,10 +255,36 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			}
 		}
 
-		resObj := engine.RunMultiTypeDurationSimulation(simTargets, dist, 1000)
+		// Determine if "Demand Expansion" is appropriate (3 Points).
+		expansionEnabled := false
+		expansionReason := ""
+
+		if len(targets) > 0 {
+			expansionEnabled = true
+			expansionReason = "you provided a specific set of target counts"
+		} else if len(issueTypes) > 0 {
+			expansionEnabled = true
+			expansionReason = "you requested a forecast for a specific subset of work item types"
+		} else if additionalItems > 0 {
+			expansionEnabled = true
+			expansionReason = "you added new items to the backlog; we modeled the associated background work"
+		}
+
+		resObj := engine.RunMultiTypeDurationSimulation(simTargets, dist, 1000, expansionEnabled)
+
+		// Transparent Expansion Messaging
+		totalBG := 0
+		for _, c := range resObj.BackgroundItemsPredicted {
+			totalBG += c
+		}
+
+		if expansionEnabled && totalBG > 0 {
+			msg := fmt.Sprintf("Because %s, we added %d background items to the forecast to match your historical work item distribution.", expansionReason, totalBG)
+			resObj.Insights = append(resObj.Insights, msg)
+		}
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, totalBacklog)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -213,9 +294,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			}
 		}
 
-		// Add "Approach B" insights
-		if len(resObj.BackgroundItemsPredicted) > 0 {
-			msg := "Demand Expansion Model: Based on historical distribution, in addition to your targets, the team is forecasted to finish: "
+		// Add detailed background items predictions to insights if expansion was active
+		if expansionEnabled && len(resObj.BackgroundItemsPredicted) > 0 {
+			msg := "Background work details: "
 			first := true
 			for t, c := range resObj.BackgroundItemsPredicted {
 				if c > 0 {
@@ -234,7 +315,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	default:
 		if targetDays > 0 || targetDate != "" {
-			return s.handleRunSimulation(projectKey, boardID, "scope", false, 0, targetDays, targetDate, "", "", nil, false, resolutions, sampleDays, sampleStartDate, sampleEndDate, targets, mixOverrides)
+			return s.handleRunSimulation(projectKey, boardID, "scope", false, 0, targetDays, targetDate, "", "", nil, false, sampleDays, sampleStartDate, sampleEndDate, targets, mixOverrides)
 		}
 		return nil, fmt.Errorf("mode required: 'duration' (backlog forecast) or 'scope' (volume forecast)")
 	}
@@ -251,7 +332,7 @@ func (s *Server) addCommitmentInsights(insights []string, analysisCtx *AnalysisC
 	return insights
 }
 
-func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, resolutions []string, issueTypes []string) (interface{}, error) {
+func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, issueTypes []string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -287,7 +368,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		}
 	}
 	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
 
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
@@ -309,7 +390,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	return resObj, nil
 }
 
-func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, resolutions []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
+func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -350,7 +431,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	// Time-travel mapping is hard, so we stick to current mapping.
 	mapping := s.activeMapping
 
-	wfa := simulation.NewWalkForwardEngine(events, mapping)
+	wfa := simulation.NewWalkForwardEngine(events, mapping, s.activeResolutions)
 
 	// Default Parameters if not provided
 	if forecastHorizon <= 0 {
@@ -358,10 +439,6 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 	if itemsToForecast <= 0 {
 		itemsToForecast = 5 // Default batch size
-	}
-
-	if len(resolutions) == 0 {
-		resolutions = s.getDeliveredResolutions(projectKey, boardID)
 	}
 
 	lookback := int(histEnd.Sub(histStart).Hours() / 24)
@@ -374,7 +451,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		ForecastHorizon: forecastHorizon,
 		ItemsToForecast: itemsToForecast,
 		IssueTypes:      issueTypes,
-		Resolutions:     resolutions,
+		Resolutions:     s.activeResolutions,
 	}
 
 	res, err := wfa.Execute(cfg)

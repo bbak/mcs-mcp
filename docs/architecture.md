@@ -154,6 +154,7 @@ To ensure conceptual integrity and transparency, the server adheres to a strict 
 - **Residency Resolution**: For statistical analysis and residency tracking (e.g., time spent in a status), the server uses **Seconds** (`int64`). This simplifies calculations while maintaining sufficient precision for project-level forecasting.
 - **Serialization**: Integer microseconds are used for event timestamps to ensure a deterministic "Physical Identity" for events and simplify deduplication.
 - **Conversion**: Conversion to "Days" occurs at the analytical or reporting boundary: `Days = float64(Seconds) / 86400.0`.
+- **Resolution Date Synchronization**: If a `resolution` is set or cleared in a change-set, the associated `resolutionDate` (with potentially lower clock precision) is synchronized with the change-set timestamp to maintain process integrity.
 
 #### 2. Aging Definitions
 
@@ -245,16 +246,43 @@ To prevent "naïve" simulations from producing nonsensical dates (e.g., forecast
 - **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, the system issues a `WARNING`. This identifies scenarios where the combined filter of `issue_types` and `resolutions` has reduced the historical sample size so much that individual outliers dominate the result.
 - **Resolution Density Check**: The system monitors the ratio of "Delivered" items vs. "Dropped" items (items resolved but excluded by the user's resolution filter). If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative of actual system capacity.
 
-### 4.5. Multi-Type Forecasting (Shared Capacity)
+### 4.5. Hybrid Simulation Model (Capability + Reality)
 
-To handle realistic scenarios where background work (e.g., Bugs, Administrative Tasks) consumes the team's capacity during a project goal, the system utilizes **Demand Expansion (Slot-based Sampling)**.
+Unlike standard Monte-Carlo tools that rely solely on historical throughput sampling, MCS-MCP utilizes a **Hybrid Simulation Model**. This model integrates three distinct analytical layers to produce high-fidelity forecasts:
 
-- **The Slot Model**: Instead of slicing the historical throughput to just one item type, the system models the **Total System Capacity**.
-- **Historical Mix Distribution**: In each simulation trial, every "delivery slot" is assigned a work item type based on the observed historical probability (e.g., 60% Stories, 30% Bugs).
-- **Capacity Overrides (What-if)**: Users can apply `mix_overrides` to the historical distribution (e.g., "What if we spend 20% more time on Bugs?"). The engine re-normalizes remaining capacity proportionally among the non-overridden types.
-- **Structured Targets**: Backlogs can be defined as explicit type maps (`targets`), preventing the "Unknown" bucket from skewing high-fidelity type forecasts.
-- **Expansion Logic**: If a sampled type (e.g., Bug) is NOT in the target backlog provided by the user, it is treated as **Background Work**. This consumes a capacity slot but does not progress the user's specific target.
-- **Strategic Insight**: This model naturally produces longer, more realistic forecasts that account for the friction of background noise without requiring the user to explicitly define or estimate it.
+#### 1. Statistical Capability (The Histogram)
+
+The engine builds a probabilistic distribution of system capacity by analyzing **Delivered-Only** outcomes within a sliding historical window.
+
+- **Outcome-Aware**: Throughput ignores "Abandoned" work (junk/noise) to ensure the simulation baseline reflects actual value-providing velocity.
+- **Slot-Based Sampling**: The engine models total system capacity. In each trial, delivery slots are assigned work item types based on the observed historical mix (e.g., 60% Stories, 30% Bugs).
+
+#### 2. Current Reality (WIP Stability Analysis)
+
+The simulation doesn't treat Work-In-Progress (WIP) as "unstarted" items. It explicitly analyzes the **Stability of in-flight work**:
+
+- **WIP Age vs. Capability**: The system compares the current age of every WIP item against the historical Natural Process Limits (UNPL).
+- **Early Outlier Detection**: Items that have aged past the P85 or P95 historical benchmarks are flagged as "Stale" or "Extreme Outliers" within the simulation insights.
+- **WIP Momentum**: The engine leverages WIP Age to detect if a system is "clogged" before it affects the throughput charts.
+
+#### 3. Demand Expansion (Hidden Friction)
+
+To handle realistic scenarios where background work (e.g., Bugs, Administrative Tasks) consumes team capacity, the system utilizes **Slot-based Demand Expansion**:
+
+- **Background Item Modeling**: If a sampled slot yields a type NOT requested in the forecast targets, it is treated as **Background Work**. It consumes a slot but does not progress the project goal.
+- **Strategic Insight**: This model naturally produces longer, more realistic forecasts that account for the friction of background noise without requiring manual estimation.
+
+#### 4. Diagnostic Indicators
+
+The simulation result object includes high-fidelity system health signals:
+
+- **Clogged System Index**: The ratio of current WIP to historical weekly throughput. If WIP significantly exceeds historical capacity, the system warns of imminent lead-time inflation.
+- **Stale WIP Warning**: Counts items currently in progress that are older than the historical 85th percentile (Likely) completion time.
+- **Throughput Decay**: Detects systemic performance shifts by comparing the long-term historical baseline to the recent 30-day "pulse".
+
+#### 5. Capacity Overrides (What-if Analysis)
+
+Users can apply `mix_overrides` to shift the historical distribution (e.g., "What if we spend 20% more time on Bugs?"). The engine re-normalizes capacity proportionally, allowing for rapid scenario planning.
 
 ### 2.6 Dynamic Sampling Windows
 
@@ -311,9 +339,9 @@ graph TD
 2.  **Two-Stage Hydration**:
     - **Stage 1: Recent Activity & WIP**: Fetches items sorted by `updated DESC` to ensure all active WIP and recent delivery history (up to 1000 items or 1 year) are captured immediately.
     - **Stage 2: Baseline Depth**: If the first stage did not yield enough resolved items for a statistically significant baseline (default 200 items), the system performs an explicit fetch for historical resolutions (`resolution is not EMPTY`).
-3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by `Timestamp` (Unix Microseconds).
+3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by **Timestamp** (Unix Microseconds) only. Alphabetical tie-breaking by `EventType` is forbidden to preserve the semantic integrity of Jira change-sets (histories).
 4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Unresolved`, `Moved`). It captures **Status IDs** for every transition and utilizes a **2-second grace period** to deduplicate redundant resolution signals between snapshots and history.
-5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses. Projections are **Status-Reactive**, ensuring that terminal metadata (like Resolution) is implicitly cleared if a status transition moves the item back to an active workflow tier.
+5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses. Projections are **Transaction-Aware**: events sharing the same microsecond timestamp are processed as a single atomic state transition. Terminal metadata (like Resolution) is only cleared if the **final resulting status** of a transaction is non-terminal, preventing accidental "Resolution Wiping" during concurrent events.
 
 ### 5.1. The Event Log as Source of Truth
 
@@ -352,6 +380,17 @@ To ensure that forecasts and workflow discovery reflect the **active process** r
     - **Adaptive Fallback**: If the priority window is sparse (< 100 items), the system expands up to 3 years. If sufficient (> 100), it expands to 2 years.
     - **Implicit Filter**: Issues older than 3 years are strictly excluded from discovery, preventing "ancient" noise from polluting current process diagnostics.
 - **Simulation Baseline**: Forecasting tools default to a 180-day historical window for throughput and cycle time distributions, ensuring the "Capability" of the team reflects their recent performance.
+- **Commitment Point Persistence**: The system explicitly stores the user-confirmed **Commitment Point** status. This ensures that the boundary between "Demand/Upstream" and "Downstream" (where the clock officially starts) remains consistent across sessions.
+
+### 5.5. Workflow Persistence & Semantic Overrides
+
+To ensure analytical consistency without requiring the user to re-configure the system every session, MCS-MCP implements a **Persistence Layer** for workflow metadata:
+
+- **JSON Mapping Cache**: User-confirmed semantic mappings (Tiers, Roles, Outcomes), status ordering, and the **Commitment Point** are persisted to disk as project-specific JSON files (e.g., `PROJ-123-workflow.json`).
+- **Implicit vs. Explicit**:
+    - **Implicit**: Upon first ingestion, the system utilizes **Heuristic Discovery** to propose a workflow.
+    - **Explicit**: Once the user calls `set_workflow_mapping` or `set_workflow_order`, the system transitions to an **Explicit Model**. The persisted metadata overrides all algorithmic heuristics.
+- **Context Anchoring**: Every analytical tool follows a strict **Anchoring Protocol**. It first attempts to load persisted metadata from disk before falling back to heuristics, ensuring that "Commitment" is measured identically by both the AI and the historical baseline.
 
 ### 5.2. Search-Driven Inventory (Discovery Memory)
 
@@ -464,3 +503,25 @@ Example:
   "data": { ... }
 }
 ```
+
+---
+
+## 9. Development Workflow
+
+To facilitate rapid iteration and solve common development challenges (e.g., file locks on Windows), mcs-mcp supports a specialized development workflow.
+
+### 9.1. The `.local/` Strategy (Locked Binary Workaround)
+
+On Windows, an executable cannot be overwritten while it is running. To allow continuous builds without restarting the host IDE (e.g., Antigravity):
+
+1.  **Renaming**: Rename the running `.local/mcs-mcp.exe` to `mcs-mcp.exe.old` (Windows allows this).
+2.  **Replacement**: Copy the new build from `dist/` into `.local/mcs-mcp.exe`.
+3.  **Reload**: Trigger a server reload in the host client (Antigravity).
+
+### 9.2. AI Agent Visibility Protocol
+
+AI agents collaborating on mcs-mcp utilize the following protocol for debugging:
+
+- **Explicit Research**: Agents are permitted to use `list_dir` and `view_file` on the `.local/` directory (including `.local/logs` and `.local/cache`) to observe server behavior.
+- **Credential Privacy**: Agents strictly avoid reading `.env` or other files containing secrets unless explicitly requested to troubleshoot configuration issues.
+- **Git Hygiene**: The `.local/` directory is globally ignored in `.gitignore`, ensuring development artifacts never enter the source repository.

@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"mcs-mcp/internal/eventlog"
+	"mcs-mcp/internal/stats"
 	"testing"
 	"time"
 )
@@ -32,14 +33,16 @@ func TestWalkForwardEngine_Execute_Scope(t *testing.T) {
 		})
 	}
 
-	engine := NewWalkForwardEngine(events, nil)
+	mappings := map[string]stats.StatusMetadata{
+		"Done": {Tier: "Finished", Outcome: "delivered"},
+	}
+	engine := NewWalkForwardEngine(events, mappings, nil)
 
 	cfg := WalkForwardConfig{
 		SimulationMode:  "scope",
 		LookbackWindow:  30,
 		StepSize:        10,
 		ForecastHorizon: 10,
-		Resolutions:     []string{"Fixed"},
 	}
 
 	res, err := engine.Execute(cfg)
@@ -85,14 +88,16 @@ func TestWalkForwardEngine_Driftlimit(t *testing.T) {
 		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Resolved, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs})
 	}
 
-	engine := NewWalkForwardEngine(events, nil)
+	mappings := map[string]stats.StatusMetadata{
+		"Done": {Tier: "Finished", Outcome: "delivered"},
+	}
+	engine := NewWalkForwardEngine(events, mappings, nil)
 
 	cfg := WalkForwardConfig{
 		SimulationMode:  "scope",
 		LookbackWindow:  500,
 		StepSize:        30,
 		ForecastHorizon: 30,
-		Resolutions:     []string{"Fixed"},
 	}
 
 	res, err := engine.Execute(cfg)

@@ -30,6 +30,8 @@ description: General user preferences and coding guidelines for the agent to fol
     - **Algorithmic Integrity**: Ensuring metrics (Cycle Time, Throughput) are defensible and calculated with high fidelity.
     - **Feature Freeze**: Avoid adding new analytical features unless they directly support the reliability of existing ones.
 
+- **Development Workflow & Runtime**: I can apply code changes to the project files, but I cannot build, swap, or restart the MCP-Server executable myself. After making code changes that affect the server's behavior, I MUST ask the user to perform a build (e.g., via `build.ps1`) and swap the executable to ensure the changes are reflected in the running environment.
+
 - Use Conventional Commits for git commit messages with the following prefixes:
     - `feat`: A new feature
     - `fix`: A bug fix

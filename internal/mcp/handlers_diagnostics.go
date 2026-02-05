@@ -68,8 +68,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
 	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 
-	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", nil)
 
 	aging := stats.CalculateInventoryAge(wipIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
@@ -97,7 +96,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	}, nil
 }
 
-func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, includeAbandoned bool) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -112,7 +111,13 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int) (inter
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
 	issues := s.reconstructIssues(events)
 
-	daily := stats.GetDailyThroughput(issues, 26*7) // Default 26 weeks
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
+
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+
+	daily := stats.GetDailyThroughput(issues, windowWeeks*7, analysisCtx.WorkflowMappings, s.activeResolutions, !includeAbandoned)
 	weekly := aggregateToWeeks(daily)
 
 	return map[string]interface{}{
@@ -139,12 +144,11 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	issues := s.reconstructIssues(events)
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
-	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
 	// Stability usually looks at a 26-week window by default
 	windowWeeks := 26
 	issues = stats.FilterIssuesByResolutionWindow(issues, windowWeeks*7)
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", nil)
 
 	wipIssues := s.filterWIPIssues(issues, analysisCtx.CommitmentPoint, analysisCtx.FinishedStatuses)
 	stability := stats.CalculateProcessStability(issues, cycleTimes, len(wipIssues))
@@ -174,9 +178,6 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	issues := s.reconstructIssues(events)
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
-	deliveredResolutions := s.getDeliveredResolutions(projectKey, boardID)
-
-	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, 2)
 
 	// Enforce window
 	if windowMonths <= 0 {
@@ -184,7 +185,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	}
 	issues = stats.FilterIssuesByResolutionWindow(issues, windowMonths*30)
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", deliveredResolutions, nil)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", nil)
 
 	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
 	evolution := stats.CalculateThreeWayXmR(subgroups)

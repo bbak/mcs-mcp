@@ -97,24 +97,49 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 		dist["Unknown"] = 1.0
 	}
 
-	return e.RunMultiTypeDurationSimulation(targets, dist, trials)
+	return e.RunMultiTypeDurationSimulation(targets, dist, trials, true)
 }
 
 // RunMultiTypeDurationSimulation predicts how long it takes to finish specific targets while others consume capacity.
-func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribution map[string]float64, trials int) Result {
+func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribution map[string]float64, trials int, expansionEnabled bool) Result {
 	if e.histogram == nil || len(e.histogram.Counts) == 0 {
 		return Result{}
 	}
 
+	// If expansion is disabled, we re-normalize the distribution to only include types in targets.
+	// This models a "Closed System" where 100% of capacity goes to the targets.
+	finalDist := make(map[string]float64)
+	if !expansionEnabled {
+		targetTotalProb := 0.0
+		for t := range targets {
+			targetTotalProb += distribution[t]
+		}
+		if targetTotalProb > 0 {
+			for t := range targets {
+				finalDist[t] = distribution[t] / targetTotalProb
+			}
+		} else {
+			// Fallback: equal distribution if targets aren't in history
+			prob := 1.0 / float64(len(targets))
+			for t := range targets {
+				finalDist[t] = prob
+			}
+		}
+	} else {
+		for t, p := range distribution {
+			finalDist[t] = p
+		}
+	}
+
 	durations := make([]int, trials)
 	backgroundCounts := make(map[string][]int)
-	for t := range distribution {
+	for t := range finalDist {
 		backgroundCounts[t] = make([]int, trials)
 	}
 
-	log.Info().Int("trials", trials).Interface("targets", targets).Msg("Starting multi-type duration simulation")
+	log.Info().Int("trials", trials).Interface("targets", targets).Bool("expansion", expansionEnabled).Msg("Starting multi-type duration simulation")
 	for i := 0; i < trials; i++ {
-		duration, bg := e.simulateDurationTrialWithTypeMix(targets, distribution)
+		duration, bg := e.simulateDurationTrialWithTypeMix(targets, finalDist)
 		durations[i] = duration
 		for t, c := range bg {
 			backgroundCounts[t][i] = c
@@ -171,7 +196,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 
 	if isInfinite {
 		log.Warn().Msg("Simulation resulted in infinite duration due to zero throughput")
-		res.Warnings = append(res.Warnings, "CRITICAL: No historical throughput found for the selected criteria. The duration forecast is theoretically infinite.")
+		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
 	} else if durations[int(float64(trials)*0.50)] >= 3650 { // > 10 years
 		res.Warnings = append(res.Warnings, "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions).")
 	}
@@ -287,6 +312,110 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 			"almost_certain": "P98 (Limit / Extreme Outliers)",
 		},
 	}
+	e.assessPredictability(&res)
+	return res
+}
+
+// RunMultiTypeScopeSimulation predicts how many items of specific types can be finished within a given number of days.
+func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterTypes []string, distribution map[string]float64, expansionEnabled bool) Result {
+	if e.histogram == nil || len(e.histogram.Counts) == 0 {
+		return Result{}
+	}
+
+	filterMap := make(map[string]bool)
+	for _, t := range filterTypes {
+		filterMap[t] = true
+	}
+
+	scopes := make([]int, trials)
+	backgroundCounts := make(map[string][]int)
+	for t := range distribution {
+		backgroundCounts[t] = make([]int, trials)
+	}
+
+	log.Info().Int("days", targetDays).Int("trials", trials).Interface("filter", filterTypes).Bool("expansion", expansionEnabled).Msg("Starting multi-type scope simulation")
+	for i := 0; i < trials; i++ {
+		scope := 0
+		bgItems := make(map[string]int)
+
+		for d := 0; d < targetDays; d++ {
+			idx := e.rng.Intn(len(e.histogram.Counts))
+			slots := e.histogram.Counts[idx]
+
+			for s := 0; s < slots; s++ {
+				// Sample type
+				r := e.rng.Float64()
+				var sampledType string
+				acc := 0.0
+				for t, p := range distribution {
+					acc += p
+					if r <= acc {
+						sampledType = t
+						break
+					}
+				}
+
+				if sampledType == "" {
+					// Fallback
+					for t := range distribution {
+						sampledType = t
+						break
+					}
+				}
+
+				// If expansion is disabled, we effectively treat all capacity as target filtered.
+				// This is handled by re-normalizing distribution in the handler or here.
+				if !expansionEnabled || filterMap[sampledType] || len(filterTypes) == 0 {
+					scope++
+				} else {
+					bgItems[sampledType]++
+				}
+			}
+		}
+
+		scopes[i] = scope
+		for t, c := range bgItems {
+			backgroundCounts[t][i] += c
+		}
+	}
+
+	sort.Ints(scopes)
+
+	// Calculate median background items
+	medianBG := make(map[string]int)
+	for t, counts := range backgroundCounts {
+		sort.Ints(counts)
+		medianBG[t] = counts[trials/2]
+	}
+
+	res := Result{
+		Percentiles: Percentiles{
+			Aggressive:    float64(scopes[int(float64(trials)*0.90)]),
+			Unlikely:      float64(scopes[int(float64(trials)*0.70)]),
+			CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
+			Probable:      float64(scopes[int(float64(trials)*0.30)]),
+			Likely:        float64(scopes[int(float64(trials)*0.15)]),
+			Conservative:  float64(scopes[int(float64(trials)*0.10)]),
+			Safe:          float64(scopes[int(float64(trials)*0.05)]),
+			AlmostCertain: float64(scopes[int(float64(trials)*0.02)]),
+		},
+		Spread: SpreadMetrics{
+			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
+			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
+		},
+		PercentileLabels: map[string]string{
+			"aggressive":     "P10 (10% probability to deliver at least this much)",
+			"unlikely":       "P30 (30% probability to deliver at least this much)",
+			"coin_toss":      "P50 (Coin Toss / Median)",
+			"probable":       "P70 (70% probability to deliver at least this much)",
+			"likely":         "P85 (85% probability to deliver at least this much)",
+			"conservative":   "P90 (90% probability to deliver at least this much)",
+			"safe":           "P95 (95% probability to deliver at least this much)",
+			"almost_certain": "P98 (98% probability to deliver at least this much)",
+		},
+		BackgroundItemsPredicted: medianBG,
+	}
+
 	e.assessPredictability(&res)
 	return res
 }

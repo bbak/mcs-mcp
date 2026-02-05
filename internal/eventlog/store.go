@@ -55,12 +55,10 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 		return
 	}
 
-	// 3. Sort by Timestamp and then EventType for deterministic ordering
-	sort.Slice(log, func(i, j int) bool {
-		if log[i].Timestamp != log[j].Timestamp {
-			return log[i].Timestamp < log[j].Timestamp
-		}
-		return log[i].EventType < log[j].EventType
+	// 3. Sort by Timestamp only.
+	// For equal timestamps, we preserve the original order from the Jira response.
+	sort.SliceStable(log, func(i, j int) bool {
+		return log[i].Timestamp < log[j].Timestamp
 	})
 
 	s.logs[sourceID] = log

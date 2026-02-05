@@ -41,7 +41,14 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 	finished := s.getFinishedStatuses()
 
 	// Determine commitment point
-	commitment, found := s.getEarliestCommitment(projectKey, boardID, issues)
+	var commitment string
+	var found bool
+	if s.activeCommitmentPoint != "" {
+		commitment = s.activeCommitmentPoint
+		found = true // explicit
+	} else {
+		commitment, found = s.getEarliestCommitment(projectKey, boardID, issues)
+	}
 
 	return &AnalysisContext{
 		ProjectKey:               projectKey,

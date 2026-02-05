@@ -151,27 +151,11 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 	return "", false
 }
 
-func (s *Server) getDeliveredResolutions(projectKey string, boardID int) []string {
-	sourceID := getCombinedID(projectKey, boardID)
-	rm := s.getResolutionMap(sourceID)
-	delivered := make([]string, 0)
-	for name, outcome := range rm {
-		if outcome == "delivered" {
-			delivered = append(delivered, name)
-		}
-	}
-	return delivered
+func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) []float64 {
+	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
 }
 
-func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string, issueTypes []string) []float64 {
-	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, resolutions, issueTypes)
-}
-
-func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, resolutions []string, issueTypes []string) []float64 {
-	resMap := make(map[string]bool)
-	for _, r := range resolutions {
-		resMap[r] = true
-	}
+func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) []float64 {
 	typeMap := make(map[string]bool)
 	for _, t := range issueTypes {
 		typeMap[t] = true
@@ -187,14 +171,10 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
 			continue
 		}
-		if len(resolutions) > 0 && !resMap[issue.Resolution] {
-			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
-				continue
-			}
-		} else if len(resolutions) == 0 {
-			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
-				continue
-			}
+
+		// Only count "delivered" work
+		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+			continue
 		}
 
 		duration := stats.SumRangeDuration(issue, rangeStatuses)

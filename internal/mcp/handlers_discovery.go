@@ -146,7 +146,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 	return res
 }
 
-func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}) (interface{}, error) {
+func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}, commitmentPoint string) (interface{}, error) {
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// Ensure we are anchored
@@ -173,6 +173,7 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 		}
 	}
 	s.activeResolutions = rm
+	s.activeCommitmentPoint = commitmentPoint
 
 	// Save to disk
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {
