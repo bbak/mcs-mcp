@@ -38,7 +38,10 @@ graph TD
 
 To ensure the AI Agent selects the most reliable path for complex goals, the server provides a `get_diagnostic_roadmap` tool. This tool acts as an "Analytical Orchestrator," recommending a specific order of diagnostic steps:
 
-- **Goal-Oriented**: Provides tailored workflows for `forecasting`, `bottlenecks`, `capacity_planning`, and `system_health`.
+- **Analytical Orchestrator**: Provides tailored workflows for `forecasting`, `bottlenecks`, `capacity_planning`, and `system_health`.
+- **System Visibility & Transparency**:
+    - **Approval Signals**: `get_workflow_discovery` provides an `is_cached` flag, enabling agents to distinguish between newly proposed heuristics and user-approved, persisted mappings.
+    - **Date-Aware Cadence**: `get_delivery_cadence` maps relative week numbers to actual ISO date ranges via `@week_metadata`, providing clear temporal context for throughput trends.
 - **Prerequisite Enforcement**: Explicitly guides the AI to perform foundational steps (like stability checks or workflow verification) before running high-level simulations.
 
 ### Mandatory Workflow Verification (Inform & Veto)
