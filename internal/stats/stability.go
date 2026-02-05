@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"math"
 	"mcs-mcp/internal/jira"
 	"sort"
@@ -176,8 +177,8 @@ func CalculateThreeWayXmR(subgroups []SubgroupStats) ThreeWayResult {
 	return result
 }
 
-// GroupIssuesByMonth is a helper to organize issues into monthly buckets for subgroup analysis.
-func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupStats {
+// GroupIssuesByWeek is a helper to organize issues into weekly buckets for subgroup analysis.
+func GroupIssuesByWeek(issues []jira.Issue, cycleTimes []float64) []SubgroupStats {
 	if len(issues) == 0 || len(cycleTimes) == 0 {
 		return nil
 	}
@@ -185,27 +186,30 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 	groups := make(map[string]*SubgroupStats)
 	var keys []string
 
-	currentMonth := time.Now().Format("2006-01")
+	now := time.Now()
+	nowYear, nowWeek := now.ISOWeek()
+	currentWeekKey := fmt.Sprintf("%d-W%02d", nowYear, nowWeek)
 
 	for i, issue := range issues {
 		if i >= len(cycleTimes) || issue.ResolutionDate == nil {
 			continue
 		}
 
-		monthKey := issue.ResolutionDate.Format("2006-01")
+		year, week := issue.ResolutionDate.ISOWeek()
+		weekKey := fmt.Sprintf("%d-W%02d", year, week)
 
-		// EXCLUSION: If the month is still "in progress" (current calendar month),
-		// we exclude it from the Strategic Audit to avoid noise from incomplete data.
-		if monthKey == currentMonth {
+		// EXCLUSION: If the week is still "in progress" (current calendar week),
+		// we exclude it from the Tactical Audit to avoid noise from incomplete data.
+		if weekKey == currentWeekKey {
 			continue
 		}
 
-		if _, ok := groups[monthKey]; !ok {
-			groups[monthKey] = &SubgroupStats{Label: monthKey}
-			keys = append(keys, monthKey)
+		if _, ok := groups[weekKey]; !ok {
+			groups[weekKey] = &SubgroupStats{Label: weekKey}
+			keys = append(keys, weekKey)
 		}
 
-		groups[monthKey].Values = append(groups[monthKey].Values, cycleTimes[i])
+		groups[weekKey].Values = append(groups[weekKey].Values, cycleTimes[i])
 	}
 
 	// Sort keys chronologically
@@ -224,6 +228,7 @@ func GroupIssuesByMonth(issues []jira.Issue, cycleTimes []float64) []SubgroupSta
 
 	return result
 }
+
 
 func detectSignals(values []float64, avg, unpl, lnpl float64) []Signal {
 	var signals []Signal

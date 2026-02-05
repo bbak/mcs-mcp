@@ -193,15 +193,24 @@ func FilterTransitions(transitions []jira.StatusTransition, since time.Time) []j
 	return filtered
 }
 
-// FilterIssuesByResolutionWindow returns items resolved within the last N days.
-func FilterIssuesByResolutionWindow(issues []jira.Issue, days int) []jira.Issue {
-	if days <= 0 {
+// FilterIssuesByResolutionWindow returns items resolved within the last N days,
+// but never earlier than the specified cutoff date (to avoid initial ingestion noise).
+func FilterIssuesByResolutionWindow(issues []jira.Issue, days int, cutoff time.Time) []jira.Issue {
+	if days <= 0 && cutoff.IsZero() {
 		return issues
 	}
-	cutoff := time.Now().AddDate(0, 0, -days)
+
+	now := time.Now()
+	windowStart := now.AddDate(0, 0, -days)
+
+	// If a cutoff is provided, we take the LATEST of windowStart and cutoff
+	if !cutoff.IsZero() && cutoff.After(windowStart) {
+		windowStart = cutoff
+	}
+
 	var filtered []jira.Issue
 	for _, iss := range issues {
-		if iss.ResolutionDate != nil && !iss.ResolutionDate.Before(cutoff) {
+		if iss.ResolutionDate != nil && !iss.ResolutionDate.Before(windowStart) {
 			filtered = append(filtered, iss)
 		}
 	}
@@ -346,8 +355,8 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 }
 
 // GetDailyThroughput returns count of items resolved each day in the requested window.
-// If deliveredOnly is true, it only counts items that reach a "delivered" outcome.
-func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string]StatusMetadata, resolutionMappings map[string]string, deliveredOnly bool) []int {
+// It never counts items resolved earlier than the specified cutoff date.
+func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string]StatusMetadata, resolutionMappings map[string]string, deliveredOnly bool, cutoff time.Time) []int {
 	if len(issues) == 0 {
 		return nil
 	}
@@ -356,6 +365,12 @@ func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string
 	// Normalize to start of today
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	minDate := today.AddDate(0, 0, -windowDays+1)
+
+	// If a cutoff is provided, we respect the LATEST of minDate and cutoff
+	effectiveMinDate := minDate
+	if !cutoff.IsZero() && cutoff.After(effectiveMinDate) {
+		effectiveMinDate = cutoff
+	}
 
 	daily := make([]int, windowDays)
 

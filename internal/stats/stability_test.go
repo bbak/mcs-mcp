@@ -138,23 +138,28 @@ func TestXmRBenchmark(t *testing.T) {
 		t.Errorf("UNPL Scaling error. Expected %v, got %v", expectedUNPL, result.UNPL)
 	}
 }
-func TestGroupIssuesByMonth_ExcludesCurrentMonth(t *testing.T) {
+func TestGroupIssuesByWeek_ExcludesCurrentWeek(t *testing.T) {
 	now := time.Now()
-	prevLabel := now.AddDate(0, -1, 0).Format("2006-01")
+	y, w := now.ISOWeek()
+	currentWeekKey := fmt.Sprintf("%d-W%02d", y, w)
+
+	prev := now.AddDate(0, 0, -7)
+	y2, w2 := prev.ISOWeek()
+	prevWeekKey := fmt.Sprintf("%d-W%02d", y2, w2)
 
 	issues := []jira.Issue{
-		{ResolutionDate: &now}, // Current month
-		{ResolutionDate: func() *time.Time { t := now.AddDate(0, -1, 0); return &t }()}, // Previous month
+		{ResolutionDate: &now},  // Current week
+		{ResolutionDate: &prev}, // Previous week
 	}
 	cycleTimes := []float64{10.0, 20.0}
 
-	subgroups := GroupIssuesByMonth(issues, cycleTimes)
+	subgroups := GroupIssuesByWeek(issues, cycleTimes)
 
-	// Should only find the previous month
+	// Should only find the previous week
 	if len(subgroups) != 1 {
 		t.Fatalf("Expected 1 subgroup, got %d", len(subgroups))
 	}
-	if subgroups[0].Label != prevLabel {
-		t.Errorf("Expected subgroup label %s, got %s", prevLabel, subgroups[0].Label)
+	if subgroups[0].Label != prevWeekKey {
+		t.Errorf("Expected subgroup label %s, got %s", prevWeekKey, subgroups[0].Label)
 	}
 }

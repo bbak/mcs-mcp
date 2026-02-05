@@ -35,6 +35,19 @@ Reconstruction logic that wipes `resolutionDate` upon seeing a `Transitioned` ev
 - **Wait for Terminal Decision**: If a `Transitioned` event occurs at the same timestamp as a `Resolved` event, the decision to clear the resolution must wait until the FINAL state of that timestamp "transaction" is known.
 - **Terminal-to-Terminal**: Moves between two statuses marked as "Finished" MUST NOT clear the resolution.
 
+### 5. Move History Healing
+
+Logic to "heal" the history from workflow status' originating from other workflows or Projects.
+
+As soon as we encounter a change of either "Key" or "Project" or "Workflow" we:
+
+1.  remember the Timestamp (ts) of the "Created" event of this work item.
+2.  move forward in time until we see the next change-set that contains a "Status" change.
+3.  We take the "from" Value of this one to create as "created" event with said "from" value as "to" value and the remebered "Created" Timestamp as "ts" for the event. Of course we create the respective "Change" event for the current Status-Change as usual.
+4.  This way, we remove the history from a previous workflow and the work item will appear as having not been moved since it was created.
+
+Obviously, we need to cleanup the "in memory" representation of the work item in the same way.
+
 ---
 
 ## Analytical Guardrails

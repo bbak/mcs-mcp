@@ -152,6 +152,9 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 		if issue.ResolutionDate == nil {
 			continue
 		}
+		if s.activeDiscoveryCutoff != nil && issue.ResolutionDate.Before(*s.activeDiscoveryCutoff) {
+			continue
+		}
 		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
 			continue
 		}

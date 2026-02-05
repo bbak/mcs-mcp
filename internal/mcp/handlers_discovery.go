@@ -133,6 +133,9 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses(sample, nil))
 	summary.RecommendedCommitmentPoint = recommendedCP
 
+	// Persist cutoff in server state for subsequent analytics
+	s.activeDiscoveryCutoff = summary.DiscoveryCutoff
+
 	res := map[string]interface{}{
 		"source_id": sourceID,
 		"workflow": map[string]interface{}{

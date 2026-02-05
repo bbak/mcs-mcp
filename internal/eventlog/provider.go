@@ -3,6 +3,8 @@ package eventlog
 import (
 	"fmt"
 	"mcs-mcp/internal/jira"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -28,8 +30,8 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 	const (
 		MinTotalItems    = 1000
 		MinResolvedItems = 200
-		HardLimit        = 5000
-		BatchSize        = 200
+		BatchSize        = 300
+		HardLimit        = 8 * BatchSize // 2400 items
 	)
 
 	// 1. Try to Load from Cache
@@ -41,12 +43,17 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 
 	latest := p.store.GetLatestTimestamp(sourceID)
 
-	// 2. Validate Cache Recency (2-week rule)
-	if !latest.IsZero() && time.Since(latest) > (14*24*time.Hour) {
-		log.Info().Str("source", sourceID).Time("latest", latest).Msg("Cache is older than 2 weeks, evicting and performing full re-ingestion")
+	// 2. Validate Cache Recency (2-month rule)
+	if !latest.IsZero() && time.Since(latest) > (60*24*time.Hour) {
+		log.Info().Str("source", sourceID).Time("latest", latest).Msg("Cache is older than 2 months, evicting and performing full re-ingestion")
 		p.store.Clear(sourceID)
 		if p.cacheDir != "" {
 			_ = DeleteCache(p.cacheDir, sourceID)
+			// Trigger workflow cache wipe via side effect?
+			// Better if we have a way to signal this.
+			// For now, we'll delete the respective workflow file if it exists.
+			workflowPath := filepath.Join(p.cacheDir, fmt.Sprintf("%s-workflow.json", sourceID))
+			_ = os.Remove(workflowPath)
 		}
 		latest = time.Time{} // Treat as fresh
 	}
@@ -69,8 +76,8 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		tsStr := latest.Format("2006-01-02 15:04")
 		hydrateJQL = fmt.Sprintf("(%s) AND updated >= \"%s\" ORDER BY updated ASC", jql, tsStr)
 	} else {
-		// Initial Hydration: Fetch enough for a robust baseline
-		hydrateJQL = fmt.Sprintf("(%s) ORDER BY updated DESC", jql)
+		// Initial Hydration: Fetch enough for a robust baseline, but bounded by time and volume
+		hydrateJQL = fmt.Sprintf("(%s) AND updated >= startOfDay(\"-24M\") ORDER BY updated DESC", jql)
 	}
 
 	for {

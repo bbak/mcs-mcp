@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// MetadataSummary provides a high-level overview of a Jira data source's scope and volume.
 type MetadataSummary struct {
 	TotalIngestedIssues        int            `json:"totalIngestedIssues"`
 	DiscoverySampleSize        int            `json:"discoverySampleSize"`
@@ -18,6 +17,8 @@ type MetadataSummary struct {
 	FirstResolution            *time.Time     `json:"firstResolution,omitempty"`
 	LastResolution             *time.Time     `json:"lastResolution,omitempty"`
 	RecommendedCommitmentPoint string         `json:"recommendedCommitmentPoint,omitempty"`
+	WarmupPeriodDays           int            `json:"warmupPeriodDays"`
+	DiscoveryCutoff            *time.Time     `json:"discoveryCutoff,omitempty"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
@@ -97,6 +98,40 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 
 	summary.FirstResolution = first
 	summary.LastResolution = last
+
+	// --- DYNAMIC DISCOVERY CUTOFF (Warmup Period) ---
+	// Heuristic: Wait for 5 'resolved' items to ensure workflow is statistically steady.
+	// We default to a 30-day warmup if ingestion is very recent or project is slow.
+
+	var earliestCreated *time.Time
+	resolvedByDate := make([]time.Time, 0)
+
+	for _, issue := range issues {
+		if earliestCreated == nil || issue.Created.Before(*earliestCreated) {
+			t := issue.Created
+			earliestCreated = &t
+		}
+		if issue.ResolutionDate != nil {
+			resolvedByDate = append(resolvedByDate, *issue.ResolutionDate)
+		}
+	}
+
+	if earliestCreated != nil {
+		sort.Slice(resolvedByDate, func(i, j int) bool {
+			return resolvedByDate[i].Before(resolvedByDate[j])
+		})
+
+		warmup := 30 // Minimum 30 days
+		if len(resolvedByDate) >= 5 {
+			daysSinceStart := int(resolvedByDate[4].Sub(*earliestCreated).Hours() / 24)
+			if daysSinceStart > warmup {
+				warmup = daysSinceStart
+			}
+		}
+		summary.WarmupPeriodDays = warmup
+		cutoff := earliestCreated.AddDate(0, 0, warmup)
+		summary.DiscoveryCutoff = &cutoff
+	}
 
 	return summary
 }

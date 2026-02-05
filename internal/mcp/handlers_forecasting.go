@@ -99,6 +99,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		startTime := time.Now().AddDate(0, -6, 0)
+		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(startTime) {
+			startTime = *s.activeDiscoveryCutoff
+		}
 		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 		engine = simulation.NewEngine(h)
 
@@ -181,6 +184,10 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			}
 		} else if sampleDays > 0 {
 			histStart = histEnd.AddDate(0, 0, -sampleDays)
+		}
+
+		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
+			histStart = *s.activeDiscoveryCutoff
 		}
 
 		h := simulation.NewHistogram(issues, histStart, histEnd, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
@@ -422,6 +429,21 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		}
 	} else if sampleDays > 0 {
 		histStart = histEnd.AddDate(0, 0, -sampleDays)
+	}
+
+	// If a specific sample window wasn't given, we use the 6-month default
+	// but we MUST respect the discovery cutoff.
+	if sampleStartDate == "" && sampleDays == 0 {
+		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
+			histStart = *s.activeDiscoveryCutoff
+		}
+	} else {
+		// If they explicitly requested a start date that's before the cutoff,
+		// we should probably warn or adjust it?
+		// For consistency, we always respect the cutoff.
+		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
+			histStart = *s.activeDiscoveryCutoff
+		}
 	}
 
 	events := s.events.GetEventsInRange(sourceID, histStart, histEnd)

@@ -117,7 +117,11 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		windowWeeks = 26
 	}
 
-	daily := stats.GetDailyThroughput(issues, windowWeeks*7, analysisCtx.WorkflowMappings, s.activeResolutions, !includeAbandoned)
+	var cutoff time.Time
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	daily := stats.GetDailyThroughput(issues, windowWeeks*7, analysisCtx.WorkflowMappings, s.activeResolutions, !includeAbandoned, cutoff)
 	weekly := aggregateToWeeks(daily)
 
 	// Build week metadata
@@ -164,7 +168,11 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
 	// Stability usually looks at a 26-week window by default
 	windowWeeks := 26
-	issues = stats.FilterIssuesByResolutionWindow(issues, windowWeeks*7)
+	var cutoff time.Time
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	issues = stats.FilterIssuesByResolutionWindow(issues, windowWeeks*7, cutoff)
 
 	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", nil)
 
@@ -201,11 +209,15 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	if windowMonths <= 0 {
 		windowMonths = 12 // Default
 	}
-	issues = stats.FilterIssuesByResolutionWindow(issues, windowMonths*30)
+	var cutoff time.Time
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	issues = stats.FilterIssuesByResolutionWindow(issues, windowMonths*30, cutoff)
 
 	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, analysisCtx.CommitmentPoint, "", nil)
 
-	subgroups := stats.GroupIssuesByMonth(issues, cycleTimes)
+	subgroups := stats.GroupIssuesByWeek(issues, cycleTimes)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
 	return map[string]interface{}{

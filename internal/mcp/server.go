@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"time"
 
 	"mcs-mcp/internal/config"
 	"mcs-mcp/internal/eventlog"
@@ -39,6 +40,7 @@ type Server struct {
 	activeResolutions     map[string]string
 	activeStatusOrder     []string
 	activeCommitmentPoint string
+	activeDiscoveryCutoff *time.Time
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
@@ -390,6 +392,7 @@ type WorkflowMetadata struct {
 	Resolutions     map[string]string               `json:"resolutions,omitempty"`
 	StatusOrder     []string                        `json:"status_order,omitempty"`
 	CommitmentPoint string                          `json:"commitment_point,omitempty"`
+	DiscoveryCutoff *time.Time                      `json:"discovery_cutoff,omitempty"`
 }
 
 func (s *Server) saveWorkflow(projectKey string, boardID int) error {
@@ -400,6 +403,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		Resolutions:     s.activeResolutions,
 		StatusOrder:     s.activeStatusOrder,
 		CommitmentPoint: s.activeCommitmentPoint,
+		DiscoveryCutoff: s.activeDiscoveryCutoff,
 	}
 
 	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
@@ -430,10 +434,9 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 		return false, err
 	}
 
-	s.activeMapping = meta.Mapping
-	s.activeResolutions = meta.Resolutions
 	s.activeStatusOrder = meta.StatusOrder
 	s.activeCommitmentPoint = meta.CommitmentPoint
+	s.activeDiscoveryCutoff = meta.DiscoveryCutoff
 
 	log.Info().Str("path", path).Msg("Loaded workflow metadata from disk")
 	return true, nil

@@ -364,14 +364,15 @@ To ensure performance and reliability across sessions, the server implements a f
 - **Atomic Persistence**: Saving to disk utilizes a "write-to-tmp and rename" pattern to ensure that the cache file is never left in a corrupted state if the process is interrupted.
 - **Content Integrity**: The system automatically handles deduplication and chronological sorting during the `Load` operation, ensuring the in-memory `EventStore` remains consistent even if the cache contains overlapping data.
 
-### 5.3. Incremental Synchronization
+### 5.3. Incremental Synchronization & Bounded Ingestion
 
-To minimize latency, the system utilizes an **Incremental Fetch** strategy:
+To minimize latency and prevent memory bloat, the system utilizes a **Bounded Incremental Fetch** strategy:
 
+- **Bounded Horizon (24 Months)**: Initial hydration is strictly limited to the last 24 months of data. This ensures relevance and performance while still providing a deep historical baseline.
+- **Hard Page Limit**: Ingestion is capped at **8 pages** (2400 items) for the initial fetch. This protects against "infinite scrollers" in massive legacy projects.
 - **Latest Timestamp Detection**: Upon hydration, the server identifies the timestamp of the most recent event in the local cache.
-- **Cache Validity (2-Week Rule)**: If the cache is non-empty but the latest event is older than 14 days, the server discards the cache and performs a full initial ingestion to ensure baseline integrity.
-- **JQL Delta Sync**: For valid caches (< 14 days), the server appends `AND updated >= "YYYY-MM-DD HH:MM"` and fetches ALL paged results in chronological order (`ORDER BY updated ASC`). Once synced, the server operations are independent of further Jira issue queries.
-- **Initial Hydration**: If no valid cache exists, the server performs a deep fetch (Stage 1: Recent activity and WIP, Stage 2: Historical baseline depth) to establish the long-term cache.
+- **Cache Validity (2-Month Rule)**: If the cache is non-empty but the latest event is older than **2 months**, the server discards the cache and performs a full re-ingestion. This prevents "stale state" issues where deleted or moved items might persist indefinitely.
+- **JQL Delta Sync**: For valid caches (< 2 months), the server appends `AND updated >= "YYYY-MM-DD HH:MM"` and fetches ALL paged results in chronological order.
 
 ### 5.4. Recency Bias & Age-Constrained Sampling
 

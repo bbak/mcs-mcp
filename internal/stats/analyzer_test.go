@@ -592,3 +592,48 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		t.Errorf("Expected Cancelled -> abandoned, got %s", mapping["Cancelled"].Outcome)
 	}
 }
+func TestAnalyzeProbe_WarmupPeriod(t *testing.T) {
+	now := time.Now()
+	earliest := now.AddDate(0, 0, -100)
+
+	issues := []jira.Issue{
+		{Key: "I-1", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 10); return &tt }()},
+		{Key: "I-2", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 20); return &tt }()},
+		{Key: "I-3", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 30); return &tt }()},
+		{Key: "I-4", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 40); return &tt }()},
+		{Key: "I-5", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 50); return &tt }()},
+	}
+
+	summary := AnalyzeProbe(issues, 5, nil)
+
+	// Since 5th item is at 50 days, warmup should be 50.
+	if summary.WarmupPeriodDays != 50 {
+		t.Errorf("Expected WarmupPeriodDays 50, got %d", summary.WarmupPeriodDays)
+	}
+
+	expectedCutoff := earliest.AddDate(0, 0, 50)
+	if summary.DiscoveryCutoff == nil || !summary.DiscoveryCutoff.Equal(expectedCutoff) {
+		t.Errorf("Expected DiscoveryCutoff %v, got %v", expectedCutoff, summary.DiscoveryCutoff)
+	}
+}
+
+func TestFilterIssuesByResolutionWindow_WithCutoff(t *testing.T) {
+	now := time.Now()
+	cutoff := now.AddDate(0, 0, -10)
+	windowDays := 20 // Window starts at -20, but cutoff is at -10
+
+	issues := []jira.Issue{
+		{Key: "I-1", ResolutionDate: func() *time.Time { tt := now.AddDate(0, 0, -5); return &tt }()},  // Keep
+		{Key: "I-2", ResolutionDate: func() *time.Time { tt := now.AddDate(0, 0, -15); return &tt }()}, // Drop (before cutoff)
+		{Key: "I-3", ResolutionDate: func() *time.Time { tt := now.AddDate(0, 0, -25); return &tt }()}, // Drop (before window)
+	}
+
+	filtered := FilterIssuesByResolutionWindow(issues, windowDays, cutoff)
+
+	if len(filtered) != 1 {
+		t.Errorf("Expected 1 filtered issue, got %d", len(filtered))
+	}
+	if filtered[0].Key != "I-1" {
+		t.Errorf("Expected I-1, got %s", filtered[0].Key)
+	}
+}
