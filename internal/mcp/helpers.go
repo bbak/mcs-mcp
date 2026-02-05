@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 
@@ -196,11 +197,36 @@ func asInt(v interface{}) int {
 	}
 }
 
-func (s *Server) getFinishedStatuses() map[string]bool {
+func (s *Server) getFinishedStatuses(issues []jira.Issue, events []eventlog.IssueEvent) map[string]bool {
 	finished := make(map[string]bool)
+	nameToID := make(map[string]string)
+
+	// Extract from issues if available
+	for _, issue := range issues {
+		if issue.Status != "" && issue.StatusID != "" {
+			nameToID[issue.Status] = issue.StatusID
+		}
+	}
+
+	// Extract from events (history)
+	for _, e := range events {
+		if e.ToStatus != "" && e.ToStatusID != "" {
+			nameToID[e.ToStatus] = e.ToStatusID
+		}
+		if e.FromStatus != "" && e.FromStatusID != "" {
+			nameToID[e.FromStatus] = e.FromStatusID
+		}
+	}
+
 	for status, meta := range s.activeMapping {
 		if meta.Tier == "Finished" {
 			finished[status] = true
+			lowerName := strings.ToLower(status)
+			for name, id := range nameToID {
+				if strings.ToLower(name) == lowerName {
+					finished[id] = true
+				}
+			}
 		}
 	}
 	return finished

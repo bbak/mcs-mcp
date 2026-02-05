@@ -4,6 +4,7 @@ import (
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -43,22 +44,22 @@ func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings ma
 			states[e.IssueKey] = s
 		}
 
-		switch e.EventType {
-		case Created:
-			s.currentStatus = e.ToStatus
-		case Transitioned:
+		// Signal-Aware update
+		if e.ToStatus != "" {
 			s.currentStatus = e.ToStatus
 			if s.commitmentDate == 0 && e.ToStatus == commitmentPoint {
 				s.commitmentDate = e.Timestamp
 			}
-		case Resolved, Closed:
+		}
+
+		if e.Resolution != "" {
 			s.isFinished = true
-		case Unresolved:
+		} else if e.IsUnresolved {
 			s.isFinished = false
 		}
 
-		// Reactive check: If this was a transition, update finished state based on target status (Case 2 & 3)
-		if e.EventType == Transitioned || e.EventType == Created {
+		// Reactive check: Update finished state based on target status if present
+		if e.ToStatus != "" {
 			if m, ok := mappings[s.currentStatus]; ok {
 				if m.Tier == "Finished" || m.Role == "terminal" {
 					s.isFinished = true
@@ -94,17 +95,39 @@ type ThroughputBucket struct {
 func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.StatusMetadata) []ThroughputBucket {
 	counts := make(map[string]int)
 
+	// Track the state of each issue to detect the moment it becomes 'delivered'
+	type issueState struct {
+		isDelivered bool
+	}
+	states := make(map[string]*issueState)
+
 	for _, e := range events {
-		isDelivery := e.EventType == Resolved
-		if !isDelivery && e.EventType == Transitioned {
+		s, ok := states[e.IssueKey]
+		if !ok {
+			s = &issueState{}
+			states[e.IssueKey] = s
+		}
+
+		wasDelivered := s.isDelivered
+		nowDelivered := false
+
+		// Signal-Aware detection
+		if e.Resolution != "" {
+			nowDelivered = true
+		} else if e.ToStatus != "" {
 			if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
-				isDelivery = true
+				nowDelivered = true
 			}
 		}
 
-		if isDelivery {
+		// Count only the first transition into a delivered state per issue
+		if nowDelivered && !wasDelivered {
 			dateStr := time.UnixMicro(e.Timestamp).Format("2006-01-02")
 			counts[dateStr]++
+			s.isDelivered = true
+		} else if !nowDelivered && e.IsUnresolved {
+			// If explicitly unresolved, allow it to be counted again later
+			s.isDelivered = false
 		}
 	}
 
@@ -128,13 +151,6 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		return jira.Issue{}
 	}
 
-	resAtStart := 0
-	for _, e := range events {
-		if e.EventType == Resolved {
-			resAtStart++
-		}
-	}
-
 	first := events[0]
 	issue := jira.Issue{
 		Key:             first.IssueKey,
@@ -145,26 +161,15 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 
 	var lastMoveDate int64
 
-	// Group by timestamp to handle "transactions" (concurrent events)
-	for i := 0; i < len(events); {
-		j := i
-		ts := events[i].Timestamp
-		for j < len(events) && events[j].Timestamp == ts {
-			j++
-		}
+	// simplified loop: events are now packed atomic change-sets
+	for _, e := range events {
+		issue.Updated = time.UnixMicro(e.Timestamp)
 
-		// Apply all events in this transaction
-		hadResolved := false
-		for k := i; k < j; k++ {
-			e := events[k]
-			issue.Updated = time.UnixMicro(e.Timestamp)
-
-			switch e.EventType {
-			case Created:
+		// Signal-Aware application
+		if e.EventType == Created || e.ToStatus != "" {
+			if e.EventType == Created {
 				issue.Created = time.UnixMicro(e.Timestamp)
-				issue.Status = e.ToStatus
-				issue.StatusID = e.ToStatusID
-			case Transitioned:
+			} else {
 				issue.Transitions = append(issue.Transitions, jira.StatusTransition{
 					FromStatus:   e.FromStatus,
 					FromStatusID: e.FromStatusID,
@@ -172,36 +177,48 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 					ToStatusID:   e.ToStatusID,
 					Date:         time.UnixMicro(e.Timestamp),
 				})
-				issue.Status = e.ToStatus
-				issue.StatusID = e.ToStatusID
-			case Resolved:
-				resTS := time.UnixMicro(e.Timestamp)
-				issue.ResolutionDate = &resTS
-				issue.Resolution = e.Resolution
-				hadResolved = true
-			case Unresolved:
-				issue.ResolutionDate = nil
-				issue.Resolution = ""
-			case Moved:
-				issue.IsMoved = true
-				lastMoveDate = e.Timestamp
 			}
+			issue.Status = e.ToStatus
+			issue.StatusID = e.ToStatusID
 		}
 
-		// Evaluated final state after the transaction
-		// Reactive check: If we are in a non-terminal status, implicitly clear resolution (Case 2 & 3)
-		// UNLESS we just got a Resolved event in this same transaction (trusting the change-set).
-		if len(finishedStatuses) > 0 && !finishedStatuses[issue.Status] && !hadResolved {
+		if e.Resolution != "" {
+			resTS := time.UnixMicro(e.Timestamp)
+			issue.ResolutionDate = &resTS
+			issue.Resolution = e.Resolution
+		} else if e.IsUnresolved {
 			issue.ResolutionDate = nil
 			issue.Resolution = ""
 		}
 
-		i = j
+		if e.IsMoved {
+			issue.IsMoved = true
+			lastMoveDate = e.Timestamp
+		}
+
+		// Final evaluation after applying all signals in this event
+		// Guard: If we are in a status known for sure NOT to be finished, implicitly clear resolution
+		// UNLESS this same event just provided a Resolution.
+		if len(finishedStatuses) > 0 && e.Resolution == "" {
+			isFin := finishedStatuses[issue.Status] || (issue.StatusID != "" && finishedStatuses[issue.StatusID])
+			if !isFin {
+				// Case-insensitive fallback for Name
+				lowerStatus := strings.ToLower(issue.Status)
+				for name, ok := range finishedStatuses {
+					if ok && strings.ToLower(name) == lowerStatus {
+						isFin = true
+						break
+					}
+				}
+			}
+
+			if !isFin {
+				issue.ResolutionDate = nil
+				issue.Resolution = ""
+			}
+		}
 	}
 
-	// We pass time.Time{} as referenceDate to behave as "Now" for backward compatibility
-	// effectively relying on CalculateResidencyFromEvents default behavior or we can pass Now explicitly.
-	// Actually, ReconstructIssue doesn't have a reference date argument, so it inevitably uses "Now" for open items.
 	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastSinceMove(lastMoveDate), referenceDate)
 
 	return issue
@@ -219,14 +236,14 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 	var initialStatus string
 
 	for _, e := range events {
-		if (e.EventType == Transitioned || e.EventType == Created) && (lastMove == 0 || e.Timestamp >= lastMove) {
+		if (e.EventType == Created || e.ToStatus != "") && (lastMove == 0 || e.Timestamp >= lastMove) {
 			if initialStatus == "" && e.EventType == Created {
 				initialStatus = e.ToStatus
-			} else if initialStatus == "" && e.EventType == Transitioned {
+			} else if initialStatus == "" && e.ToStatus != "" {
 				initialStatus = e.FromStatus
 			}
 
-			if e.EventType == Transitioned {
+			if e.ToStatus != "" && e.EventType != Created {
 				transitions = append(transitions, jira.StatusTransition{
 					FromStatus:   e.FromStatus,
 					FromStatusID: e.FromStatusID,

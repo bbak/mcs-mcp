@@ -31,7 +31,7 @@ type StatusMetadata struct {
 func SumRangeDuration(issue jira.Issue, rangeStatuses []string) float64 {
 	var total float64
 	for _, status := range rangeStatuses {
-		if s, ok := issue.StatusResidency[status]; ok {
+		if s, ok := GetResidencyCaseInsensitive(issue.StatusResidency, status); ok {
 			total += float64(s) / 86400.0
 		}
 	}
@@ -51,6 +51,17 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 		return summary
 	}
 
+	// Canonical casing map: lower -> original
+	canonical := make(map[string]string)
+	getCanonical := func(s string) string {
+		lower := strings.ToLower(s)
+		if existing, ok := canonical[lower]; ok {
+			return existing
+		}
+		canonical[lower] = s
+		return s
+	}
+
 	var first, last *time.Time
 	reachableSet := make(map[string]bool)
 
@@ -61,9 +72,9 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 		}
 
 		// Track reachability (all statuses ever visited in this sample)
-		reachableSet[issue.Status] = true
+		reachableSet[getCanonical(issue.Status)] = true
 		for _, t := range issue.Transitions {
-			reachableSet[t.ToStatus] = true
+			reachableSet[getCanonical(t.ToStatus)] = true
 		}
 
 		if issue.ResolutionDate != nil {
@@ -259,29 +270,43 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	resolvedAt := make(map[string]int)
 	reachability := make(map[string]int)
 
+	// Canonical casing map: lower -> original
+	canonical := make(map[string]string)
+	getCanonical := func(s string) string {
+		lower := strings.ToLower(s)
+		if existing, ok := canonical[lower]; ok {
+			return existing
+		}
+		canonical[lower] = s
+		return s
+	}
+
 	for _, issue := range issues {
-		allStatuses[issue.Status] = true
+		status := getCanonical(issue.Status)
+		allStatuses[status] = true
 		visited := make(map[string]bool)
-		visited[issue.Status] = true
+		visited[status] = true
 
 		if issue.ResolutionDate != nil {
-			resolvedAt[issue.Status]++
+			resolvedAt[status]++
 		}
 
 		for i, t := range issue.Transitions {
-			allStatuses[t.FromStatus] = true
-			allStatuses[t.ToStatus] = true
-			visited[t.FromStatus] = true
-			visited[t.ToStatus] = true
+			from := getCanonical(t.FromStatus)
+			to := getCanonical(t.ToStatus)
+			allStatuses[from] = true
+			allStatuses[to] = true
+			visited[from] = true
+			visited[to] = true
 
-			if matrix[t.FromStatus] == nil {
-				matrix[t.FromStatus] = make(map[string]int)
+			if matrix[from] == nil {
+				matrix[from] = make(map[string]int)
 			}
-			matrix[t.FromStatus][t.ToStatus]++
-			exitsTotal[t.FromStatus]++
+			matrix[from][to]++
+			exitsTotal[from]++
 
 			if i == 0 && !issue.IsMoved {
-				entryCounts[t.FromStatus]++
+				entryCounts[from]++
 			}
 		}
 		for s := range visited {

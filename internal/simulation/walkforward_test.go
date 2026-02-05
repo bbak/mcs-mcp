@@ -22,14 +22,11 @@ func TestWalkForwardEngine_Execute_Scope(t *testing.T) {
 			IssueKey: key, EventType: eventlog.Created, ToStatus: "Open", ToStatusID: "1", Timestamp: ts.UnixMicro(),
 		})
 		events = append(events, eventlog.IssueEvent{
-			IssueKey: key, EventType: eventlog.Transitioned, FromStatus: "Open", FromStatusID: "1", ToStatus: "Dev", ToStatusID: "2", Timestamp: ts.UnixMicro(),
+			IssueKey: key, EventType: eventlog.Change, FromStatus: "Open", FromStatusID: "1", ToStatus: "Dev", ToStatusID: "2", Timestamp: ts.UnixMicro(),
 		})
 		doneTs := t0.AddDate(0, 0, i+1)
 		events = append(events, eventlog.IssueEvent{
-			IssueKey: key, EventType: eventlog.Transitioned, FromStatus: "Dev", FromStatusID: "2", ToStatus: "Done", ToStatusID: "3", Timestamp: doneTs.UnixMicro(),
-		})
-		events = append(events, eventlog.IssueEvent{
-			IssueKey: key, EventType: eventlog.Resolved, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs.UnixMicro(),
+			IssueKey: key, EventType: eventlog.Change, FromStatus: "Dev", FromStatusID: "2", ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs.UnixMicro(),
 		})
 	}
 
@@ -77,7 +74,7 @@ func TestWalkForwardEngine_Driftlimit(t *testing.T) {
 		ts := t0.AddDate(0, 0, i).UnixMicro()
 		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Created, ToStatus: "Open", ToStatusID: "1", Timestamp: ts})
 		doneTs := t0.AddDate(0, 0, i+1).UnixMicro()
-		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Resolved, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs})
+		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Change, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs})
 	}
 
 	for i := 350; i < 700; i += 10 {
@@ -85,7 +82,7 @@ func TestWalkForwardEngine_Driftlimit(t *testing.T) {
 		ts := t0.AddDate(0, 0, i).UnixMicro()
 		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Created, ToStatus: "Open", ToStatusID: "1", Timestamp: ts})
 		doneTs := t0.AddDate(0, 0, i+5).UnixMicro()
-		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Resolved, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs})
+		events = append(events, eventlog.IssueEvent{IssueKey: key, EventType: eventlog.Change, ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs})
 	}
 
 	mappings := map[string]stats.StatusMetadata{

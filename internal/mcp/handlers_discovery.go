@@ -43,7 +43,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 }
 
 func (s *Server) reconstructIssues(events []eventlog.IssueEvent) []jira.Issue {
-	finished := s.getFinishedStatuses()
+	finished := s.getFinishedStatuses(nil, events)
 
 	// Group events by issue key
 	grouped := make(map[string][]eventlog.IssueEvent)
@@ -115,7 +115,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 		})
 	}
 
-	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses())
+	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses(sample, nil))
 	summary.RecommendedCommitmentPoint = recommendedCP
 
 	res := map[string]interface{}{

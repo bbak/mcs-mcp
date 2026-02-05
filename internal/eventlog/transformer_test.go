@@ -57,14 +57,15 @@ func TestTransformIssue_DuplicateResolved(t *testing.T) {
 
 	resolvedCount := 0
 	for _, e := range events {
-		if e.EventType == Resolved {
+		if e.Resolution != "" {
 			resolvedCount++
 		}
 	}
 
-	// This is the glitch: it currently produces 2 Resolved events
+	// With packing, it should NOW produce exactly 1 event for the history entry,
+	// and the snapshot fallback should be de-duplicated.
 	if resolvedCount != 1 {
-		t.Errorf("Expected exactly 1 Resolved event, got %d", resolvedCount)
+		t.Errorf("Expected exactly 1 event with resolution, got %d", resolvedCount)
 	}
 }
 
@@ -110,13 +111,13 @@ func TestTransformIssue_ResolutionGracePeriod(t *testing.T) {
 	events := TransformIssue(dto)
 	resolvedCount := 0
 	for _, e := range events {
-		if e.EventType == Resolved {
+		if e.Resolution != "" {
 			resolvedCount++
 		}
 	}
 
 	if resolvedCount != 1 {
-		t.Errorf("Expected exactly 1 Resolved event with 1s offset, got %d", resolvedCount)
+		t.Errorf("Expected exactly 1 resolution signal with 1s offset, got %d", resolvedCount)
 	}
 }
 
@@ -159,14 +160,14 @@ func TestTransformIssue_MisconfiguredWorkflow(t *testing.T) {
 	events := TransformIssue(dto)
 	resolvedCount := 0
 	for _, e := range events {
-		if e.EventType == Resolved {
+		if e.Resolution != "" {
 			resolvedCount++
 		}
 	}
 
-	// Should NOT infer Resolved from status alone (Conceptual Integrity)
+	// Should NOT infer Resolution from status alone
 	if resolvedCount != 0 {
-		t.Errorf("Expected 0 Resolved events for status-only transition to Done, got %d", resolvedCount)
+		t.Errorf("Expected 0 resolution signals for status-only transition to Done, got %d", resolvedCount)
 	}
 }
 
@@ -208,12 +209,12 @@ func TestTransformIssue_ExplicitUnresolved(t *testing.T) {
 	events := TransformIssue(dto)
 	unresolvedCount := 0
 	for _, e := range events {
-		if e.EventType == Unresolved {
+		if e.IsUnresolved {
 			unresolvedCount++
 		}
 	}
 
 	if unresolvedCount != 1 {
-		t.Errorf("Expected exactly 1 Unresolved event for explicit resolution clear, got %d", unresolvedCount)
+		t.Errorf("Expected exactly 1 Unresolved signal for explicit resolution clear, got %d", unresolvedCount)
 	}
 }

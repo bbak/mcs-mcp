@@ -26,7 +26,7 @@ func TestEventStore_Persistence(t *testing.T) {
 		},
 		{
 			IssueKey:  "PROJ-1",
-			EventType: Transitioned,
+			EventType: Change,
 			ToStatus:  "Doing",
 			Timestamp: now,
 		},

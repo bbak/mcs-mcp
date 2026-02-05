@@ -59,52 +59,39 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 			ts := tsObj.UnixMicro()
 
-			// Tracking signals within this history entry (transaction)
-			moveSignal := false
+			event := IssueEvent{
+				IssueKey:  issueKey,
+				IssueType: issueType,
+				EventType: Change,
+				Timestamp: ts,
+			}
 
+			hasSignal := false
 			for _, item := range history.Items {
 				switch item.Field {
 				case "status":
-					events = append(events, IssueEvent{
-						IssueKey:     issueKey,
-						IssueType:    issueType,
-						EventType:    Transitioned,
-						Timestamp:    ts,
-						FromStatus:   item.FromString,
-						FromStatusID: item.From,
-						ToStatus:     item.ToString,
-						ToStatusID:   item.To,
-					})
+					event.FromStatus = item.FromString
+					event.FromStatusID = item.From
+					event.ToStatus = item.ToString
+					event.ToStatusID = item.To
+					hasSignal = true
 				case "resolution":
 					if item.ToString != "" {
-						events = append(events, IssueEvent{
-							IssueKey:   issueKey,
-							IssueType:  issueType,
-							EventType:  Resolved,
-							Timestamp:  ts,
-							Resolution: item.ToString,
-						})
+						event.Resolution = item.ToString
+						event.IsUnresolved = false
 					} else {
-						// Case 1: Resolution explicitly cleared in Jira
-						events = append(events, IssueEvent{
-							IssueKey:  issueKey,
-							IssueType: issueType,
-							EventType: Unresolved,
-							Timestamp: ts,
-						})
+						event.IsUnresolved = true
+						event.Resolution = ""
 					}
+					hasSignal = true
 				case "Key", "project":
-					moveSignal = true
+					event.IsMoved = true
+					hasSignal = true
 				}
 			}
 
-			if moveSignal {
-				events = append(events, IssueEvent{
-					IssueKey:  issueKey,
-					IssueType: issueType,
-					EventType: Moved,
-					Timestamp: ts,
-				})
+			if hasSignal {
+				events = append(events, event)
 			}
 		}
 	}
@@ -117,13 +104,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			resName := dto.Fields.Resolution.Name
 
 			// De-duplication check:
-			// If we already have a Resolved event for this resolution within a 2s grace period, skip fallback.
-			// Jira's API snapshots and history can have slight precision offsets.
+			// If we already have a Change event for this resolution within a 2s grace period, skip fallback.
 			duplicate := false
 			const gracePeriod = 2000000 // 2 seconds in microseconds
 
 			for _, e := range events {
-				if e.EventType == Resolved && e.Resolution == resName {
+				if e.Resolution == resName {
 					diff := ts - e.Timestamp
 					if diff < 0 {
 						diff = -diff
@@ -139,7 +125,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				events = append(events, IssueEvent{
 					IssueKey:   issueKey,
 					IssueType:  issueType,
-					EventType:  Resolved,
+					EventType:  Change,
 					Timestamp:  ts,
 					Resolution: resName,
 				})

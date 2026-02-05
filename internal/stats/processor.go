@@ -3,6 +3,7 @@ package stats
 import (
 	"mcs-mcp/internal/jira"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -264,7 +265,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 
 // CalculateResidency provides a unified way to compute status durations in seconds.
 // If referenceDate is non-zero, it is used as the "Now" for open items (Time-Travel).
-func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool, initialStatus string, referenceDate time.Time) map[string]int64 {
+func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, initialStatus string, referenceDate time.Time) map[string]int64 {
 	residency := make(map[string]int64)
 
 	now := time.Now()
@@ -272,11 +273,27 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 		now = referenceDate
 	}
 
+	isFinished := func(status string) bool {
+		if finished == nil {
+			return false
+		}
+		if val, ok := finished[status]; ok {
+			return val
+		}
+		lower := strings.ToLower(status)
+		for k, v := range finished {
+			if strings.ToLower(k) == lower {
+				return v
+			}
+		}
+		return false
+	}
+
 	if len(transitions) == 0 {
 		var finalDate time.Time
 		if resolved != nil {
 			finalDate = *resolved
-		} else if finishedStatuses != nil && finishedStatuses[currentStatus] {
+		} else if isFinished(currentStatus) {
 			finalDate = created
 		} else {
 			finalDate = now
@@ -312,7 +329,7 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 	var finalDate time.Time
 	if resolved != nil {
 		finalDate = *resolved
-	} else if finishedStatuses != nil && finishedStatuses[currentStatus] {
+	} else if isFinished(currentStatus) {
 		finalDate = transitions[len(transitions)-1].Date
 	} else {
 		finalDate = now
@@ -356,7 +373,7 @@ func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string
 					}
 				} else {
 					// Fallback: If no resolution mapping, we check the status mapping
-					if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" {
+					if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
 						if m.Outcome != "" && m.Outcome != "delivered" {
 							isDelivered = false
 						}
@@ -364,7 +381,7 @@ func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string
 					// If neither mapping specifies outcome, we trust the ResolutionDate presence (legacy/default)
 				}
 			}
-		} else if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" {
+		} else if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
 			// Fallback Finished logic
 			resDate = issue.Updated
 			if deliveredOnly && m.Outcome != "" && m.Outcome != "delivered" {

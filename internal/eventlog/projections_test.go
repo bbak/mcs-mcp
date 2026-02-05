@@ -23,24 +23,23 @@ func TestBuildWIPProjection_TimeTravel(t *testing.T) {
 			Timestamp: t0.UnixMicro(),
 		},
 		{
-			IssueKey:   "PROJ-1",
-			EventType:  Transitioned,
-			FromStatus: "Open",
-			ToStatus:   "Dev",
-			Timestamp:  t1.UnixMicro(),
-		},
-		{
-			IssueKey:   "PROJ-1",
-			EventType:  Transitioned,
-			FromStatus: "Dev",
-			ToStatus:   "QA",
-			Timestamp:  t2.UnixMicro(),
+			IssueKey:  "PROJ-1",
+			EventType: Change,
+			ToStatus:  "Dev",
+			Timestamp: t1.UnixMicro(),
 		},
 		{
 			IssueKey:  "PROJ-1",
-			EventType: Resolved,
-			ToStatus:  "Done",
-			Timestamp: t3.UnixMicro(),
+			EventType: Change,
+			ToStatus:  "QA",
+			Timestamp: t2.UnixMicro(),
+		},
+		{
+			IssueKey:   "PROJ-1",
+			EventType:  Change,
+			ToStatus:   "Done",
+			Resolution: "Done",
+			Timestamp:  t3.UnixMicro(),
 		},
 	}
 

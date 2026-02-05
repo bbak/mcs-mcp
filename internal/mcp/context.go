@@ -38,7 +38,7 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 		}
 	}
 
-	finished := s.getFinishedStatuses()
+	finished := s.getFinishedStatuses(issues, nil)
 
 	// Determine commitment point
 	var commitment string

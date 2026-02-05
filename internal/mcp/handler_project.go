@@ -37,7 +37,7 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 	events := s.events.GetEventsInRange(projectKey, time.Time{}, time.Now())
 	domainIssues := s.reconstructIssues(events)
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses())
+	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(domainIssues, nil))
 
 	// 4. Fetch Project Metadata
 	project, err := s.jira.GetProject(projectKey)

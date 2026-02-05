@@ -263,7 +263,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		return nil, fmt.Errorf("issue %s not found on the current Project (%s) and Board (%d). Other issues cannot be interpreted correctly because the specific workflow context is unknown", issueKey, projectKey, boardID)
 	}
 
-	finished := s.getFinishedStatuses()
+	finished := s.getFinishedStatuses(nil, events)
 	issue := eventlog.ReconstructIssue(events, finished, time.Now())
 	residency := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finished, "", time.Now())
 

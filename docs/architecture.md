@@ -14,8 +14,8 @@ MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with so
     - **Terminal Sinks**: Statuses showing high entry but low exit ratios identify logical completion points even when resolutions are missing.
     - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions.
     - **Unified Regex Stemming**: Discovery logic used capturing groups to both categorize roles (Queue/Active) and extract a normalized "stem" for pair identification, ensuring that "Ready for Test" and "Testing" are semantically linked via their shared core.
-- **Deterministic Identity**: Events are identified by their physical properties (Key, Timestamp, Type, and **StatusID**) rather than just system-generated names.
-- **Robust ID-Based Mapping**: The system prioritizes Jira `StatusID` for all workflow mapping and analytical lookups, falling back to case-insensitive name matching only when IDs are unavailable. This ensures consistency even if statuses are renamed or mappings are provided via external agent interactions.
+- **Robust ID-Based Mapping**: The system prioritizes Jira `StatusID` for all workflow mapping and analytical lookups, falling back to case-insensitive name matching only when IDs are unavailable. This ensures consistency even if statuses are renamed (ping-ponging between names and IDs) or mappings are provided via external agent interactions with inconsistent casing.
+- **Workflow Normalization**: Discovery and exploratory tools (`AnalyzeProbe`, `DiscoverStatusOrder`) perform early normalization of status names to a "canonical" casing (the first one encountered). This prevent data fragmentation where "Done" and "DONE" would otherwise be treated as distinct workflow steps.
 
 ### Operational Flow (The Interaction Model)
 
@@ -339,9 +339,9 @@ graph TD
 2.  **Two-Stage Hydration**:
     - **Stage 1: Recent Activity & WIP**: Fetches items sorted by `updated DESC` to ensure all active WIP and recent delivery history (up to 1000 items or 1 year) are captured immediately.
     - **Stage 2: Baseline Depth**: If the first stage did not yield enough resolved items for a statistically significant baseline (default 200 items), the system performs an explicit fetch for historical resolutions (`resolution is not EMPTY`).
-3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by **Timestamp** (Unix Microseconds) only. Alphabetical tie-breaking by `EventType` is forbidden to preserve the semantic integrity of Jira change-sets (histories).
-4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Transitioned`, `Resolved`, `Unresolved`, `Moved`). It captures **Status IDs** for every transition and utilizes a **2-second grace period** to deduplicate redundant resolution signals between snapshots and history.
-5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream through specific lenses. Projections are **Transaction-Aware**: events sharing the same microsecond timestamp are processed as a single atomic state transition. Terminal metadata (like Resolution) is only cleared if the **final resulting status** of a transaction is non-terminal, preventing accidental "Resolution Wiping" during concurrent events.
+3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by **Timestamp** (Unix Microseconds). Identity for deduplication includes all relevant signals (Status, Resolution, Move, Unresolve) to ensure atomic change-sets are preserved.
+4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Change`). It packs multiple field updates (status, resolution) from a single Jira history entry into a single `Change` event. It utilizes a **2-second grace period** to deduplicate resolution signals between snapshots and history.
+5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream. Projections are **Signal-Aware**: they look for specific fields (e.g., `Resolution != ""`, `ToStatus != ""`) within events rather than relying on a singular `EventType`. This eliminates the need for manual event re-grouping and prevents transient inconsistent states (e.g., "Resolution Wiping").
 
 ### 5.1. The Event Log as Source of Truth
 
@@ -431,8 +431,8 @@ The codebase follows a high-cohesion design, with logic strictly separated by fu
 - `store.go`: Thread-safe, cross-source repository for chronological `IssueEvents`.
 - `event.go`: Schema definitions for atomic event types and partitioning logic.
 - `provider.go`: `LogProvider` implementation for orchestrating staged ingestion.
-- `transformer.go`: Critical logic for converting Jira snapshots into atomic events.
-- `projections.go`: Logic for reconstructing domain models (`WIP`, `Throughput`, `Issue`) from the log.
+- `transformer.go`: Critical logic for converting Jira snapshots and histories into atomic `Change` events.
+- `projections.go`: Logic for reconstructing domain models (`WIP`, `Throughput`, `Issue`) using Signal-Aware replay logic.
 
 ### `internal/stats` (The Analytical Engine)
 

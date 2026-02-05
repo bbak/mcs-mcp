@@ -33,7 +33,7 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
 	domainIssues := s.reconstructIssues(events)
 	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses())
+	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(domainIssues, nil))
 
 	// 4. Fetch Board Metadata and Config for the response (uses internal Jira cache)
 	board, _ := s.jira.GetBoard(boardID)

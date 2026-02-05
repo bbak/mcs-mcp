@@ -8,8 +8,9 @@ This document captures the technical characteristics and constraints of the Jira
 
 Jira processes updates in atomic "Histories". A single history entry (change-set) often contains multiple field changes sharing the **exact same timestamp** (microsecond precision).
 
-- **Concurrent Field Updates**: It is guaranteed that a transition to a terminal status and the setting of a `resolution` field occur at the same microsecond if they are part of the same action.
-- **Ordering Constraint**: Within a single `History` entry, the order of `Items` is significant. Analytical tools MUST NOT rely on alphabetical sorting of `EventType` for tie-breaking, as this destroys the semantic sequence of the change-set.
+- **Concurrent Field Updates**: It is guaranteed that a transition to a terminal status and the setting of a `resolution` field occur at the same microsecond if they are part of the same action. Within a change-set, the changes are assumed to be consistent.
+- **Ordering Constraint**: Order within a change-set is insignificant. Order across change-sets obvisously is significant, as they necessarily have happened in different points in time. Analytical tools be aware that they MUST NOT rely any sorting within
+  a change-set, as this is not guaranteed. As stated by the previous point, they can assume consistency within a change-set.
 
 ### 2. Resolution Lifecycle
 
