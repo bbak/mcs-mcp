@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"math"
 	"mcs-mcp/internal/jira"
 	"testing"
@@ -140,8 +141,6 @@ func TestXmRBenchmark(t *testing.T) {
 }
 func TestGroupIssuesByWeek_ExcludesCurrentWeek(t *testing.T) {
 	now := time.Now()
-	y, w := now.ISOWeek()
-	currentWeekKey := fmt.Sprintf("%d-W%02d", y, w)
 
 	prev := now.AddDate(0, 0, -7)
 	y2, w2 := prev.ISOWeek()

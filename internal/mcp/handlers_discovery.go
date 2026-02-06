@@ -131,7 +131,11 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 	}
 
 	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses(sample, nil))
-	summary.RecommendedCommitmentPoint = recommendedCP
+	if discoverySource == "LOADED_FROM_CACHE" && s.activeCommitmentPoint != "" {
+		summary.RecommendedCommitmentPoint = s.activeCommitmentPoint
+	} else {
+		summary.RecommendedCommitmentPoint = recommendedCP
+	}
 
 	// Persist cutoff in server state for subsequent analytics
 	s.activeDiscoveryCutoff = summary.DiscoveryCutoff
@@ -146,7 +150,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 		"data_summary":      summary,
 		"_discovery_source": discoverySource,
 		"_guidance": []string{
-			"AI MUST summarized the mapping of ALL statuses to TIERS (Demand, Upstream, Downstream, Finished) for the user in a clear table or list.",
+			"AI MUST summarize the mapping of ALL statuses to TIERS (Demand, Upstream, Downstream, Finished) for the user in a clear table or list.",
 			"AI MUST confirm the 'Outcome Strategy' (Value vs. Abandonment):",
 			"  - PRIMARY: Jira Resolutions (if they exist).",
 			"  - SECONDARY: Status mapping (only if resolutions are missing).",
@@ -156,9 +160,10 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 	}
 
 	if discoverySource == "LOADED_FROM_CACHE" {
-		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This mapping was LOADED FROM DISK. If your Jira workflow has changed, run discovery with 'force_refresh: true' to re-analyze.")
+		res["_guidance"] = append(res["_guidance"].([]string), "PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK and has been previously confirmed by the user. Treat this as the source of truth for your analysis.")
+		res["_guidance"] = append(res["_guidance"].([]string), "AI SHOULD simply present this mapping to reconfirm it with the user, rather than proposing it as a new discovery.")
 	} else {
-		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This is a NEW PROPOSAL based on recent data patterns.")
+		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This is a NEW PROPOSAL based on recent data patterns. AI MUST verify this with the user before proceeding to diagnostics.")
 	}
 
 	return res

@@ -437,6 +437,8 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	s.activeStatusOrder = meta.StatusOrder
 	s.activeCommitmentPoint = meta.CommitmentPoint
 	s.activeDiscoveryCutoff = meta.DiscoveryCutoff
+	s.activeMapping = meta.Mapping
+	s.activeResolutions = meta.Resolutions
 
 	log.Info().Str("path", path).Msg("Loaded workflow metadata from disk")
 	return true, nil
