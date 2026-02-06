@@ -2,6 +2,7 @@ package eventlog
 
 import (
 	"mcs-mcp/internal/jira"
+	"sort"
 )
 
 // TransformIssue converts a Jira Issue DTO and its changelog into a slice of IssueEvents.
@@ -51,13 +52,70 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	}
 
 	// 3. Changelog Transitions
+	var lastMoveTS int64
+	var entryStatus string
+	var entryStatusID string
+
 	if dto.Changelog != nil {
+		// Pass 0: Ensure histories are chronological (ascending)
+		// Jira API often returns them descending, which breaks forward-scans.
+		sort.Slice(dto.Changelog.Histories, func(i, j int) bool {
+			t1, _ := jira.ParseTime(dto.Changelog.Histories[i].Created)
+			t2, _ := jira.ParseTime(dto.Changelog.Histories[j].Created)
+			return t1.Before(t2)
+		})
+
+		// Pass 1: Detective Work - Find the Entry Context (Arrival Status)
+		for _, h := range dto.Changelog.Histories {
+			tsObj, err := jira.ParseTime(h.Created)
+			if err != nil {
+				continue
+			}
+			ts := tsObj.UnixMicro()
+
+			isMove := false
+			var statusItem *jira.ItemDTO
+
+			for i := range h.Items {
+				item := &h.Items[i]
+				if item.Field == "Key" || item.Field == "project" {
+					isMove = true
+				}
+				if item.Field == "status" {
+					statusItem = item
+				}
+			}
+
+			if isMove {
+				lastMoveTS = ts
+				// Reset entry status - we found a new move, so we look for the new arrival
+				entryStatus = ""
+				entryStatusID = ""
+				if statusItem != nil {
+					// If the move itself changed the status, that's our first arrival candidate
+					entryStatus = statusItem.ToString
+					entryStatusID = statusItem.To
+				}
+			} else if lastMoveTS != 0 && entryStatus == "" && statusItem != nil {
+				// This is the first status change AFTER a move that didn't have one in the same entry.
+				// Per user directive: take the fromStatus as the context entry point.
+				entryStatus = statusItem.FromString
+				entryStatusID = statusItem.From
+			}
+		}
+
+		// Pass 2: Emission - Transform and Heal
 		for _, history := range dto.Changelog.Histories {
 			tsObj, err := jira.ParseTime(history.Created)
 			if err != nil {
 				continue
 			}
 			ts := tsObj.UnixMicro()
+
+			// HEALING: Discard history before the last move
+			if lastMoveTS != 0 && ts < lastMoveTS {
+				continue
+			}
 
 			event := IssueEvent{
 				IssueKey:  issueKey,
@@ -84,15 +142,44 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 						event.Resolution = ""
 					}
 					hasSignal = true
-				case "Key", "project":
-					event.IsMoved = true
-					hasSignal = true
 				}
 			}
 
 			if hasSignal {
 				events = append(events, event)
 			}
+		}
+	}
+
+	// 4. Final Healing - Apply Synthetic Birth if moved
+	if lastMoveTS != 0 {
+		originalBirth := events[0].Timestamp // This is the 'Created' event added in step 2
+		if entryStatus == "" && len(events) > 1 {
+			// Fallback: If we still don't have entryStatus, take the first known status transition
+			for _, e := range events {
+				if e.EventType == Change && e.ToStatus != "" {
+					entryStatus = e.FromStatus
+					entryStatusID = e.FromStatusID
+					break
+				}
+			}
+		}
+		// If still empty (never moved status in new project), current status is entryStatus
+		if entryStatus == "" {
+			entryStatus = initialStatus
+			entryStatusID = initialStatusID
+		}
+
+		// Discard the old 'Created' and any 'Change' events we might have emitted exactly at lastMoveTS
+		// if they are not relevant. Actually, we just replace the first event (Created).
+		events[0] = IssueEvent{
+			IssueKey:   issueKey,
+			IssueType:  issueType,
+			EventType:  Created,
+			Timestamp:  originalBirth,
+			ToStatus:   entryStatus,
+			ToStatusID: entryStatusID,
+			IsHealed:   true,
 		}
 	}
 

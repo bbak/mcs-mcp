@@ -88,7 +88,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		// Ideally use "Cycle Time" (Commit to Done), but Total Age is often a good proxy for massive drift
 	}
 
-	subgroups := stats.GroupIssuesByMonth(finishedIssues, cycleTimes)
+	subgroups := stats.GroupIssuesByWeek(finishedIssues, cycleTimes)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
 	driftDate := time.Time{}
@@ -98,12 +98,13 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 			if s.Type == "shift" {
 				// Rough approximation of when the shift started (subgroup index)
 				if s.Index < len(subgroups) {
-					// We take the Start of that month as the "Drift Date"
-					// We stop backtesting if we hit this date
-					layout := "2006-01"
-					if t, err := time.Parse(layout, subgroups[s.Index].Label); err == nil {
-						driftDate = t
-						result.DriftWarning = fmt.Sprintf("Systemic Process Drift detected around %s. Backtesting capped at this date.", t.Format("2006-01-02"))
+					// ISO Week label: "2024-W12"
+					label := subgroups[s.Index].Label
+					var year, week int
+					if _, err := fmt.Sscanf(label, "%d-W%d", &year, &week); err == nil {
+						// Convert ISO week to rough date (approximate start of week)
+						driftDate = isoWeekToDate(year, week)
+						result.DriftWarning = fmt.Sprintf("Systemic Process Drift detected around %s. Backtesting capped at this date.", driftDate.Format("2006-01-02"))
 					}
 				}
 				break
@@ -323,4 +324,18 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 
 	nthDate := resolvedAfter[n-1]
 	return nthDate.Sub(start).Hours() / 24.0
+}
+
+func isoWeekToDate(year, week int) time.Time {
+	// Move to the first Monday of the year (ISO weeks start on Monday)
+	// We use the property that the first ISO week of the year contains Jan 4th.
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	isoYear, isoWeek := jan4.ISOWeek()
+	for isoYear != year || isoWeek != 1 {
+		jan4 = jan4.AddDate(0, 0, -1)
+		isoYear, isoWeek = jan4.ISOWeek()
+	}
+
+	// Move forward to the requested week
+	return jan4.AddDate(0, 0, (week-1)*7)
 }

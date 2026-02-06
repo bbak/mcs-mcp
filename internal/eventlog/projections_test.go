@@ -77,3 +77,55 @@ func TestBuildWIPProjection_TimeTravel(t *testing.T) {
 		t.Errorf("Expected 0 WIP items before commitment, got %d", len(wip3))
 	}
 }
+
+func TestReconstructIssue_MoveHealing(t *testing.T) {
+	// Scenario: Item created in OLD_PROJ (LegacyStatus), moved to NEW_PROJ (Open)
+	now := time.Now()
+	t0 := now.AddDate(0, 0, -10) // Original Birth
+	t2 := now.AddDate(0, 0, -2)  // Transition to 'In Progress'
+
+	// These events simulate what TRANSFORMER produces after healing
+	events := []IssueEvent{
+		{
+			IssueKey:  "NEW-1",
+			EventType: Created,
+			ToStatus:  "Open", // Healed entry status
+			Timestamp: t0.UnixMicro(),
+			IsHealed:  true,
+		},
+		{
+			IssueKey:   "NEW-1",
+			EventType:  Change,
+			FromStatus: "Open",
+			ToStatus:   "In Progress",
+			Timestamp:  t2.UnixMicro(),
+		},
+	}
+
+	finished := map[string]bool{"Done": true}
+	issue := ReconstructIssue(events, finished, now)
+
+	// Verification 1: Age should be 10 days (from T0), status residency should be split correctly
+	// T0 to T2 (8 days) in 'Open'
+	// T2 to now (2 days) in 'In Progress'
+
+	openRes := issue.StatusResidency["Open"]
+	ipRes := issue.StatusResidency["In Progress"]
+
+	// Expected seconds (approx allowed)
+	expectedOpen := int64(t2.Sub(t0).Seconds())
+	expectedIP := int64(now.Sub(t2).Seconds())
+
+	// Tolerance of 1s
+	if openRes < expectedOpen-1 || openRes > expectedOpen+1 {
+		t.Errorf("Expected ~%d seconds in Open, got %d", expectedOpen, openRes)
+	}
+	if ipRes < expectedIP-1 || ipRes > expectedIP+1 {
+		t.Errorf("Expected ~%d seconds in In Progress, got %d", expectedIP, ipRes)
+	}
+
+	// Verification 2: LegacyStatus (from before move) must NOT exist
+	if _, exists := issue.StatusResidency["LegacyStatus"]; exists {
+		t.Errorf("LegacyStatus should have been healed away")
+	}
+}

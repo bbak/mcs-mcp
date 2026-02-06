@@ -255,15 +255,13 @@ func (s *EventStore) FindIssueInAllSources(issueKey string) (string, []IssueEven
 	return "", nil
 }
 
-// identity computes a unique string identifier for an event to aid deduplication.
 func (e IssueEvent) identity() string {
-	return fmt.Sprintf("%s|%d|%s|%s|%s|%v|%v",
+	return fmt.Sprintf("%s|%d|%s|%s|%s|%v",
 		e.IssueKey,
 		e.Timestamp,
 		e.EventType,
 		e.ToStatus,
 		e.Resolution,
 		e.IsUnresolved,
-		e.IsMoved,
 	)
 }

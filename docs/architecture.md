@@ -194,14 +194,18 @@ The system employs a multi-layered strategy for items returning to active work f
     - **History Consolidation**: Time spent prior to the backflow is consolidated into the Demand tier, preserving **Total Age**.
     - **Fresh Start**: **WIP Age** reflects only the most recent commitment crossing.
 
-#### 6. Project Move Boundary
+#### 6. Project Move Boundary (Move History Healing)
 
-To ensure conceptual integrity in cross-project environments (e.g., items moving from "Strategy" projects to "Delivery" projects), the system implements a process boundary for project moves:
+To ensure conceptual integrity in cross-project environments (e.g., items moving from "Strategy" projects to "Delivery" projects), the system implements a **Move History Healing** mechanism in the transformation layer.
 
-- **Move Detection**: If an item's history shows a change in the `Key` or `project` fields, the system treats the latest move date as a **Process Boundary**.
-- **Contextual Reset**: All `StatusResidency` and `Transitions` that occurred _under a different project key_ are discarded during analysis. This ensures that Workflow Discovery and process diagnostics accurately reflect only the current project's flow.
-- **Tier Discovery Integrity**: Moved items are **discarded during 'Demand' tier discovery**. This prevents mid-process entry points (transferring an item into "Developing" in the new project) from being mis-detected as a system-wide source of demand.
-- **Lead Time Preservation**: Critically, the original `Created` date is preserved. High-level metrics like **Total Age** remain valid, reflecting the item's entire lifecycle from original idea to delivery, while low-level process metrics (WIP Age, Status Persistence) are cleaned of "ghost" statuses from older projects.
+- **Move Detection**: If an item's history shows a change in the `Key` or `project` fields, the system identifies the latest move date as a **Process Boundary**.
+- **Contextual Reset (History Healing)**:
+    - All `StatusResidency` and `Transitions` that occurred _under a different project key_ are discarded to ensure diagnostic accuracy for the current flow.
+    - **Synthetic Birth**: Instead of dropping the item, the system emits a synthetic `Created` event at the **original Jira birth timestamp** but assigns it to the first valid arrival status in the new project.
+    - **Arrival Detection**: The system uses a "Go Forward" scan to identify the arrival status (either in the move entry itself or the very next transition).
+- **Lead Time Preservation**: By using the original birth timestamp, high-level metrics like **Total Age** remain valid, reflecting the item's entire lifecycle across projects, while process-specific metrics (WIP Age, Status Persistence) are cleaned of noise from foreign workflows.
+- **Observability**: Healed events are marked with an `IsHealed` flag, and the `IsMoved` state is proxied through this flag on the synthetic birth event for clean, noise-free logs.
+- **Tier Discovery Integrity**: Moved items are discarded during 'Demand' tier discovery to prevent mid-process entries from being mis-detected as system-wide sources of demand.
 
 #### 7. Terminal Pinning Policy (Stop the Clock)
 

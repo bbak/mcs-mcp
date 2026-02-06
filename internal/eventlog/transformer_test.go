@@ -218,3 +218,73 @@ func TestTransformIssue_ExplicitUnresolved(t *testing.T) {
 		t.Errorf("Expected exactly 1 Unresolved signal for explicit resolution clear, got %d", unresolvedCount)
 	}
 }
+
+func TestTransformIssue_MoveArrival(t *testing.T) {
+	// Scenario: Item moved (Key/Project change) and then had a status change.
+	// We explicitly provide histories OUT OF ORDER (descending) to verify Pass 0 sorting.
+	dto := jira.IssueDTO{
+		Key: "NEW-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Doing", ID: "4"},
+			Created: "2017-03-02T10:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Event 2: Status change (Next Status Event)
+					Created: "2017-03-02T12:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "In Progress",
+							ToString:   "Doing",
+						},
+					},
+				},
+				{
+					// Event 1: Move (Context Entry)
+					Created: "2017-03-02T11:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "project",
+							FromString: "OLD",
+							ToString:   "NEW",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// We expect:
+	// 1. Created Event (Healed) @ T=10:00:00, ToStatus="In Progress" (derived from T=12:00:00 fromStatus)
+	// 2. Change Event (Move) @ T=11:00:00
+	// 3. Change Event (Status) @ T=12:00:00
+
+	if len(events) < 3 {
+		t.Fatalf("Expected at least 3 events, got %d", len(events))
+	}
+
+	created := events[0]
+	if created.EventType != Created {
+		t.Errorf("First event should be Created, got %s", created.EventType)
+	}
+	if !created.IsHealed {
+		t.Errorf("Created event should be marked as IsHealed")
+	}
+	if created.ToStatus != "In Progress" {
+		t.Errorf("Expected Healed arrival status 'In Progress', got '%s'", created.ToStatus)
+	}
+}

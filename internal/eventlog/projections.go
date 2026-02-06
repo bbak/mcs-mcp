@@ -159,8 +159,6 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 	}
 	issue.ProjectKey = stats.ExtractProjectKey(first.IssueKey)
 
-	var lastMoveDate int64
-
 	// simplified loop: events are now packed atomic change-sets
 	for _, e := range events {
 		issue.Updated = time.UnixMicro(e.Timestamp)
@@ -191,9 +189,8 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			issue.Resolution = ""
 		}
 
-		if e.IsMoved {
+		if e.EventType == Created && e.IsHealed {
 			issue.IsMoved = true
-			lastMoveDate = e.Timestamp
 		}
 
 		// Final evaluation after applying all signals in this event
@@ -219,24 +216,20 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		}
 	}
 
-	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, lastSinceMove(lastMoveDate), referenceDate)
+	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, referenceDate)
 
 	return issue
 }
 
-func lastSinceMove(lastMove int64) int64 {
-	return lastMove
-}
-
 // CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
-func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, lastMove int64, referenceDate time.Time) map[string]int64 {
+func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) map[string]int64 {
 	var transitions []jira.StatusTransition
 
 	// Track the very first "From" status if possible for the birth duration
 	var initialStatus string
 
 	for _, e := range events {
-		if (e.EventType == Created || e.ToStatus != "") && (lastMove == 0 || e.Timestamp >= lastMove) {
+		if e.EventType == Created || e.ToStatus != "" {
 			if initialStatus == "" && e.EventType == Created {
 				initialStatus = e.ToStatus
 			} else if initialStatus == "" && e.ToStatus != "" {

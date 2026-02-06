@@ -35,8 +35,8 @@ type IssueEvent struct {
 	Resolution   string `json:"resolution,omitempty"`
 	IsUnresolved bool   `json:"isUnresolved,omitempty"`
 
-	// Movement signal (optional)
-	IsMoved bool `json:"isMoved,omitempty"`
+	// IsHealed indicates if the event was synthetically created/modified during history healing.
+	IsHealed bool `json:"isHealed,omitempty"`
 
 	// Metadata stores extensible Jira fields that might be relevant for projections.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`

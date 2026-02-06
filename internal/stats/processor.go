@@ -66,16 +66,49 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 	var transitions []jira.StatusTransition
 
 	var lastMoveDate *time.Time
+	var entryStatus string
 
+	// Pass 1: Find context
 	for _, h := range changelog.Histories {
 		hDate, dateErr := jira.ParseTime(h.Created)
 		if dateErr != nil {
 			continue
 		}
 
+		isMove := false
+		var statusChange *jira.ItemDTO
 		for _, itm := range h.Items {
-			switch itm.Field {
-			case "status":
+			if itm.Field == "Key" || itm.Field == "project" {
+				isMove = true
+			}
+			if itm.Field == "status" {
+				statusChange = &itm
+			}
+		}
+
+		if isMove {
+			lastMoveDate = &hDate
+			if statusChange != nil {
+				entryStatus = statusChange.ToString
+			}
+		} else if lastMoveDate != nil && entryStatus == "" && statusChange != nil {
+			entryStatus = statusChange.FromString
+		}
+	}
+
+	// Pass 2: Process
+	for _, h := range changelog.Histories {
+		hDate, dateErr := jira.ParseTime(h.Created)
+		if dateErr != nil {
+			continue
+		}
+
+		if lastMoveDate != nil && hDate.Before(*lastMoveDate) {
+			continue
+		}
+
+		for _, itm := range h.Items {
+			if itm.Field == "status" {
 				allTrans = append(allTrans, fullTransition{
 					From: itm.FromString,
 					To:   itm.ToString,
@@ -87,11 +120,6 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 					ToStatus:   itm.ToString,
 					Date:       hDate,
 				})
-
-			case "Key", "project":
-				if lastMoveDate == nil || hDate.After(*lastMoveDate) {
-					lastMoveDate = &hDate
-				}
 			}
 		}
 	}
@@ -100,34 +128,19 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		return transitions[a].Date.Before(transitions[b].Date)
 	})
 
-	if lastMoveDate != nil {
-		newAllTrans := []fullTransition{}
-		for _, t := range allTrans {
-			if !t.Date.Before(*lastMoveDate) {
-				newAllTrans = append(newAllTrans, t)
-			}
-		}
-		allTrans = newAllTrans
-
-		newTransitions := []jira.StatusTransition{}
-		for _, t := range transitions {
-			if !t.Date.Before(*lastMoveDate) {
-				newTransitions = append(newTransitions, t)
-			}
-		}
-		transitions = newTransitions
-	}
-
 	residency := make(map[string]int64)
 	if len(allTrans) > 0 {
-		initialStatus := allTrans[0].From
+		initialStatus := entryStatus
 		if initialStatus == "" {
-			initialStatus = allTrans[0].To
+			initialStatus = allTrans[0].From
+			if initialStatus == "" {
+				initialStatus = allTrans[0].To
+			}
 		}
+
 		anchorDate := created
-		if lastMoveDate != nil {
-			anchorDate = *lastMoveDate
-		}
+		// If moved, the 'Synthetic Birth' happens at 'created' but uses 'initialStatus'
+		// which is the first project-valid status.
 		firstDuration := int64(allTrans[0].Date.Sub(anchorDate).Seconds())
 		if firstDuration <= 0 {
 			firstDuration = 1
@@ -164,15 +177,11 @@ func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved 
 		}
 		residency[currentStatus] = duration
 	} else {
-		anchorDate := created
-		if lastMoveDate != nil {
-			anchorDate = *lastMoveDate
-		}
 		finalDate := time.Now()
 		if finishedStatuses[currentStatus] {
-			finalDate = anchorDate
+			finalDate = created
 		}
-		duration := int64(finalDate.Sub(anchorDate).Seconds())
+		duration := int64(finalDate.Sub(created).Seconds())
 		if duration <= 0 {
 			duration = 1
 		}
