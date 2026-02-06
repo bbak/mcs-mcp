@@ -137,8 +137,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 		summary.RecommendedCommitmentPoint = recommendedCP
 	}
 
-	// Persist cutoff in server state for subsequent analytics
-	s.activeDiscoveryCutoff = summary.DiscoveryCutoff
+	// Summary no longer provides a heuristic cutoff; it's calculated on confirmation.
 
 	res := map[string]interface{}{
 		"source_id": sourceID,
@@ -197,6 +196,17 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 	}
 	s.activeResolutions = rm
 	s.activeCommitmentPoint = commitmentPoint
+
+	// Calculate and persist DiscoveryCutoff based on confirmed mapping
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	domainIssues := s.reconstructIssues(events)
+	finishedMap := make(map[string]bool)
+	for name, meta := range s.activeMapping {
+		if meta.Tier == "Finished" {
+			finishedMap[name] = true
+		}
+	}
+	s.activeDiscoveryCutoff = stats.CalculateDiscoveryCutoff(domainIssues, finishedMap)
 
 	// Save to disk
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {

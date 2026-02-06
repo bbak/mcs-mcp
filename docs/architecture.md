@@ -398,6 +398,22 @@ To ensure analytical consistency without requiring the user to re-configure the 
 - **Implicit vs. Explicit**:
     - **Implicit**: Upon first ingestion, the system utilizes **Heuristic Discovery** to propose a workflow.
     - **Explicit**: Once the user calls `set_workflow_mapping` or `set_workflow_order`, the system transitions to an **Explicit Model**. The persisted metadata overrides all algorithmic heuristics.
+
+### 5.6. Steady State Cutoff (Warmup Period)
+
+To ensure high-fidelity analytics, the system implements a **Steady State Cutoff** that identifies when a project has moved past its "Cold Start" phase. This prevents initial ingestion noise (e.g., zero WIP, long dormant periods) from polluting metrics like Lead Time and Throughput.
+
+#### The Delivery Anchor Heuristic
+
+The cutoff is calculated and persisted only after the user confirms the workflow mapping (`set_workflow_mapping`):
+
+1. **Detection**: The system scans the full historical dataset for all items mapped to the **Finished** tier.
+2. **Anchor**: It identifies the timestamp of the **5th delivery** (chronologically) among value-providing items.
+3. **The Cutoff**: This timestamp becomes the absolute `DiscoveryCutoff`.
+4. **Enforcement**: All analytical tools (Simulations, XmR, Stability, Cadence) respect this cutoff as a hard "lower floor". Any analytical window that starts before the cutoff is automatically clamped to the cutoff date.
+
+This approach ensures that we only start the "process clock" once the system has demonstrated a baseline delivery capacity, protecting forecasts from the high-variance noise of the project's inception or archival artifacts.
+
 - **Context Anchoring**: Every analytical tool follows a strict **Anchoring Protocol**. It first attempts to load persisted metadata from disk before falling back to heuristics, ensuring that "Commitment" is measured identically by both the AI and the historical baseline.
 
 ### 5.2. Search-Driven Inventory (Discovery Memory)

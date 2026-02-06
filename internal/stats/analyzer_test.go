@@ -592,28 +592,36 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		t.Errorf("Expected Cancelled -> abandoned, got %s", mapping["Cancelled"].Outcome)
 	}
 }
-func TestAnalyzeProbe_WarmupPeriod(t *testing.T) {
+func TestCalculateDiscoveryCutoff(t *testing.T) {
 	now := time.Now()
 	earliest := now.AddDate(0, 0, -100)
 
+	// Goal: 5 deliveries. Output should be the 5th one.
 	issues := []jira.Issue{
-		{Key: "I-1", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 10); return &tt }()},
-		{Key: "I-2", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 20); return &tt }()},
-		{Key: "I-3", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 30); return &tt }()},
-		{Key: "I-4", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 40); return &tt }()},
-		{Key: "I-5", Created: earliest, ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 50); return &tt }()},
+		{Key: "I-1", Status: "Done", ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 10); return &tt }()},
+		{Key: "I-2", Status: "Done", ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 20); return &tt }()},
+		{Key: "I-3", Status: "Done", ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 30); return &tt }()},
+		{Key: "I-4", Status: "Done", ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 40); return &tt }()},
+		{Key: "I-5", Status: "Done", ResolutionDate: func() *time.Time { tt := earliest.AddDate(0, 0, 50); return &tt }()},
+		{Key: "I-0", Status: "Backlog"}, // No resolution
 	}
 
-	summary := AnalyzeProbe(issues, 5, nil)
+	isFinished := map[string]bool{"Done": true}
+	cutoff := CalculateDiscoveryCutoff(issues, isFinished)
 
-	// Since 5th item is at 50 days, warmup should be 50.
-	if summary.WarmupPeriodDays != 50 {
-		t.Errorf("Expected WarmupPeriodDays 50, got %d", summary.WarmupPeriodDays)
+	if cutoff == nil {
+		t.Fatal("Expected non-nil cutoff")
 	}
 
-	expectedCutoff := earliest.AddDate(0, 0, 50)
-	if summary.DiscoveryCutoff == nil || !summary.DiscoveryCutoff.Equal(expectedCutoff) {
-		t.Errorf("Expected DiscoveryCutoff %v, got %v", expectedCutoff, summary.DiscoveryCutoff)
+	expected := earliest.AddDate(0, 0, 50)
+	if !cutoff.Equal(expected) {
+		t.Errorf("Expected cutoff %v, got %v", expected, *cutoff)
+	}
+
+	// Test with fewer than 5 deliveries
+	smallIssues := issues[:3]
+	if nilCutoff := CalculateDiscoveryCutoff(smallIssues, isFinished); nilCutoff != nil {
+		t.Errorf("Expected nil cutoff for sparse deliveries, got %v", *nilCutoff)
 	}
 }
 

@@ -17,8 +17,6 @@ type MetadataSummary struct {
 	FirstResolution            *time.Time     `json:"firstResolution,omitempty"`
 	LastResolution             *time.Time     `json:"lastResolution,omitempty"`
 	RecommendedCommitmentPoint string         `json:"recommendedCommitmentPoint,omitempty"`
-	WarmupPeriodDays           int            `json:"warmupPeriodDays"`
-	DiscoveryCutoff            *time.Time     `json:"discoveryCutoff,omitempty"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
@@ -99,41 +97,32 @@ func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[stri
 	summary.FirstResolution = first
 	summary.LastResolution = last
 
-	// --- DYNAMIC DISCOVERY CUTOFF (Warmup Period) ---
-	// Heuristic: Wait for 5 'resolved' items to ensure workflow is statistically steady.
-	// We default to a 30-day warmup if ingestion is very recent or project is slow.
+	return summary
+}
 
-	var earliestCreated *time.Time
-	resolvedByDate := make([]time.Time, 0)
+// CalculateDiscoveryCutoff identifies the steady-state cutoff by finding the 5th delivery date.
+func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *time.Time {
+	var deliveryDates []time.Time
 
 	for _, issue := range issues {
-		if earliestCreated == nil || issue.Created.Before(*earliestCreated) {
-			t := issue.Created
-			earliestCreated = &t
-		}
-		if issue.ResolutionDate != nil {
-			resolvedByDate = append(resolvedByDate, *issue.ResolutionDate)
+		if issue.ResolutionDate != nil && isFinished[issue.Status] {
+			deliveryDates = append(deliveryDates, *issue.ResolutionDate)
 		}
 	}
 
-	if earliestCreated != nil {
-		sort.Slice(resolvedByDate, func(i, j int) bool {
-			return resolvedByDate[i].Before(resolvedByDate[j])
-		})
-
-		warmup := 30 // Minimum 30 days
-		if len(resolvedByDate) >= 5 {
-			daysSinceStart := int(resolvedByDate[4].Sub(*earliestCreated).Hours() / 24)
-			if daysSinceStart > warmup {
-				warmup = daysSinceStart
-			}
-		}
-		summary.WarmupPeriodDays = warmup
-		cutoff := earliestCreated.AddDate(0, 0, warmup)
-		summary.DiscoveryCutoff = &cutoff
+	if len(deliveryDates) < 5 {
+		return nil
 	}
 
-	return summary
+	// Sort deliveries chronologically
+	sort.Slice(deliveryDates, func(i, j int) bool {
+		return deliveryDates[i].Before(deliveryDates[j])
+	})
+
+	// The cutoff is the timestamp of the 5th delivery.
+	// This ensures we only start analyzing once the system has demonstrated delivery capacity.
+	cutoff := deliveryDates[4]
+	return &cutoff
 }
 
 // ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
