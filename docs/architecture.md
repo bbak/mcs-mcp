@@ -63,7 +63,7 @@ Once an item reaches the **Finished** tier, it is classified into semantic outco
 
 - **Resolution Mapping (Primary)**: The system prioritizes the explicit Jira `resolution` field.
 - **Status Mapping (Fallback)**: If resolution data is missing, it falls back to the status-level outcome mapping.
-- **Gold Standard Benchmark**: This precedence is verified against industry benchmarks (**Nave**) and must be maintained for statistical integrity.
+- **Gold Standard Benchmark**: This precedence is verified against industry benchmarks and must be maintained for statistical integrity.
 
 ### 3.3 Yield Analysis
 
@@ -78,13 +78,13 @@ The server calculates the "Yield Rate" by attributing abandonment to specific ti
 
 MCS-MCP uses a **Hybrid Simulation Model** that integrates historical capability with current reality.
 
-### 3.1 Three Layers of Accuracy
+### 4.1 Three Layers of Accuracy
 
 1.  **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 180 days).
 2.  **Current Reality (WIP Analysis)**: Explicitly analyzes the stability and age of in-flight work.
 3.  **Demand Expansion**: Automatically models the "Invisible Friction" of background work (Bugs, Admin) based on historical type distribution.
 
-### 3.2 Standardized Percentile Interpretation
+### 4.2 Standardized Percentile Interpretation
 
 To ensure consistency across simulations, aging, and persistence, the following standardized mapping is used:
 
@@ -138,7 +138,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 
 ## 7. Internal Mechanics (The Event-Sourced Engine)
 
-### 6.1 Staged Ingestion & Persistent Cache
+### 7.1 Staged Ingestion & Persistent Cache
 
 - **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Unresolved`).
 - **Two-Stage Hydration**:
@@ -150,31 +150,31 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
     - **8-Page Cap**: Ingestion is capped at 2400 items to prevent memory exhaustion in legacy projects.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-### 6.2 Discovery Sampling Rules
+### 7.2 Discovery Sampling Rules
 
 To ensures discovery reflect the **active process**, the system applies recency bias:
 
 - **Priority Window**: Items created within the last **365 days** are prioritized.
 - **Adaptive Fallback**: Expands to 2 or 3 years only if the priority window has < 100 items. Items older than 3 years are strictly excluded from discovery.
 
-### 6.3 Move History Healing
+### 7.3 Move History Healing
 
 When items move between projects, the system implements **History Healing**:
 
 - **Process Boundary**: Deters noise from the old project workflow.
 - **Synthetic Birth**: Re-anchors the item at its original creation date but in the context of the new project's arrival status, preserving **Lead Time** while cleaning process metrics.
 
-### 6.4 Technical Precision
+### 7.4 Technical Precision
 
 - **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
-- **Nave-Aligned Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
+- **Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
 - **Zero-Day Safeguard**: Current aging metrics are rounded up to the nearest 0.1 to avoid misleading "0.0 days" results.
 
 ---
 
 ## 8. System Safety & Development
 
-- **Safety Brake**: Heavy analytical queries are throttled to protect Jira load.
+- **Safety Brake**: JQL queries are throttled to protect Jira load.
 - **Burst Mode**: Metadata discovery bypasses throttles for high-performance agent interaction.
 - **Observability**: Structured JSON logging via **zerolog**. Internal guidance (`_guidance`) is strictly separated from data-driven `warnings`.
 - **Anti-Hallucination**: Agents are strictly forbidden from "guessing" forecasts if tools return insufficient data.
