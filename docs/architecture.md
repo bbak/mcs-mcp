@@ -1,23 +1,12 @@
-# Project Charter: MCS-MCP (Monte-Carlo Simulation Model Context Protocol)
+# MCS-MCP Architecture & Operational Manual
 
-## 1. Project Overview
+This document provides a comprehensive overview of the MCS-MCP (Monte-Carlo Simulation Model Context Protocol) server. It is designed to serve as both a high-level conceptual map and a technical reference for AI agents.
 
-MCS-MCP is a Model Context Protocol (MCP) server that provides AI agents with sophisticated forecasting and diagnostic capabilities for software delivery projects. It specializes in Monte-Carlo Simulations (MCS) using historical Jira data to provide probabilistic delivery dates, bottleneck identification, and flow stability analysis.
+---
 
-## 2. Core Architectural Principles
+## 1. Operational Flow (The Interaction Model)
 
-### Observation-Driven Analytics (Data Archeology)
-
-- **Metadata Independence**: The system rejects reliance on Jira-specific metadata like `statusCategory`, which is often misconfigured or inconsistent.
-- **Fact-Based Discovery**: Workflow semantics are inferred from objective facts in the transition log:
-    - **Birth Status**: The earliest entry point identifies the system's source of demand.
-    - **Terminal Sinks**: Statuses showing high entry but low exit ratios identify logical completion points even when resolutions are missing.
-    - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions.
-    - **Unified Regex Stemming**: Discovery logic used capturing groups to both categorize roles (Queue/Active) and extract a normalized "stem" for pair identification, ensuring that "Ready for Test" and "Testing" are semantically linked via their shared core.
-- **Robust ID-Based Mapping**: The system prioritizes Jira `StatusID` for all workflow mapping and analytical lookups, falling back to case-insensitive name matching only when IDs are unavailable. This ensures consistency even if statuses are renamed (ping-ponging between names and IDs) or mappings are provided via external agent interactions with inconsistent casing.
-- **Workflow Normalization**: Discovery and exploratory tools (`AnalyzeProbe`, `DiscoverStatusOrder`) perform early normalization of status names to a "canonical" casing (the first one encountered). This prevent data fragmentation where "Done" and "DONE" would otherwise be treated as distinct workflow steps.
-
-### Operational Flow (The Interaction Model)
+To achieve reliable forecasts, the interaction with MCS-MCP follows a specific analytical sequence.
 
 ```mermaid
 graph TD
@@ -27,525 +16,176 @@ graph TD
     D --> E["<b>5. Forecast & Diagnostics</b><br/>run_simulation / get_aging_analysis"]
 ```
 
-1.  **Identification Phase**: Use `find_jira_projects` and `find_jira_boards` to locate the target. Guidance automatically triggers the next step.
-2.  **Context Anchoring Phase**: Use `get_board_details` (or `get_project_details`). This tool performs an **Eager Fetch** of history and produces a **Data Shape Anchor**. It clarifies the difference between `totalIngestedIssues` (the cached history size) and the `discoverySampleSize` (the recent healthy subset used for heuristics).
-3.  **Semantic Mapping Phase**: Use `get_workflow_discovery` to establish tiers and roles via **Data Archeology**. It utilizes the `identifiedStatusesFromSample` list for status identification.
-4.  **Planning Phase**: Use `get_diagnostic_roadmap` to align with the user's goal (e.g., "forecasting", "bottlenecks"). This provides the recommended sequence of analytical tools based on the now-confirmed context.
-5.  **Analytics Phase**: Perform high-fidelity diagnostics (Aging, Stability, Simulation) using the established mapping and baseline. **Mandatory Dual-Anchor Steering**: All analytical tools require both `project_key` and `board_id` to ensure analysis is performed against a confirmed project/board context.
-    - Diagnostic tools respect the semantic tiers and roles to avoid misinterpreting the backlog or discovery phases as bottlenecks.
-
-### Analytical Roadmap (AI Guidance)
-
-To ensure the AI Agent selects the most reliable path for complex goals, the server provides a `get_diagnostic_roadmap` tool. This tool acts as an "Analytical Orchestrator," recommending a specific order of diagnostic steps:
-
-- **Analytical Orchestrator**: Provides tailored workflows for `forecasting`, `bottlenecks`, `capacity_planning`, and `system_health`.
-- **System Visibility & Transparency**:
-    - **Approval Signals**: `get_workflow_discovery` provides an `is_cached` flag, enabling agents to distinguish between newly proposed heuristics and user-approved, persisted mappings.
-    - **Date-Aware Cadence**: `get_delivery_cadence` maps relative week numbers to actual ISO date ranges via `@week_metadata`, providing clear temporal context for throughput trends.
-- **Prerequisite Enforcement**: Explicitly guides the AI to perform foundational steps (like stability checks or workflow verification) before running high-level simulations.
-
-### Mandatory Workflow Verification (Inform & Veto)
-
-To ensure conceptual integrity, the AI **must never assume** the semantic tiers or roles of a project. Before providing process diagnostics, the following loop is required:
-
-1.  **AI Proposes**: Use `get_workflow_discovery` to present an inferred mapping. The server utilizes **Pure Observation** (archeology):
-    - **Demand Tier**: Status identified as the primary entry point (`birthStatus`).
-    - **Finished Tier**: Statuses with a high **Resolution Density** (Fact-based, > 20%) or identified as a **Terminal Sink** (Asymmetry-based).
-    - **Confidence-Weighted Backbone**: The path tracer avoids premature "shortcuts" to terminal states by requiring transitions to meet a **Market Share** threshold (15%) and prioritizing active workflow chains.
-    - **Backflow Weighting**: Backflow detection (reverting to a 'lower' status) is based on the **Observed Backbone Path Index**, not system categories.
-    - **Functional Roles**: Automatic "queue" role for statuses matching patterns like "Ready for X" or "Awaiting" when an active counterpart exists.
-    - **API Strategy**: The server intentionally avoids the Jira Board Configuration API (`/rest/agile/1.0/board/{id}/configuration`) for several reasons:
-        - **Deprecation Risk**: The endpoint is not present in Jira REST API versions 2.0 and 3.0, indicating it may be removed or replaced.
-        - **Structural Mismatch**: Board columns often group multiple statuses or use names that diverge from the underlying workflow, which would require complex resolution logic (like the `/status` endpoint) to maintain cohesion.
-        - **Cognitive Load**: Mapping board-specific visualization metadata to universal process tiers might introduce unnecessary complexity and potentially confuse AI agents during analysis.
+1.  **Identification**: Use `find_jira_projects/boards` to locate the target.
+2.  **Context Anchoring**: `get_board_details` performs an **Eager Fetch** of history and stabilizes the project context via the **Data Shape Anchor**.
+3.  **Semantic Mapping**: `get_workflow_discovery` uses **Data Archeology** to propose logical process tiers (Demand, Upstream, Downstream, Finished). **AI agents must verify this mapping before proceeding.**
+4.  **Planning**: `get_diagnostic_roadmap` recommends a sequence of tools based on the user's goal (e.g., forecasting, bottleneck analysis).
+5.  **Analytics**: High-fidelity diagnostics (Aging, Stability, Simulation) are performed against confirmed tiers.
 
 ---
 
-### Status-Granular Flow Model
+## 2. Core analytical Principles: "Fact-Based Archeology"
 
-The server employs high-fidelity residency tracking. Instead of calculating a single duration window, it parses the full Jira changelog to determine the **exact days** spent in every workflow step. This enables:
+MCS-MCP rejects reliance on often-misconfigured Jira metadata (like `statusCategory`). Instead, it infers process reality from objective transition logs.
 
-- **Range-based Metrics**: Subdividing cycle time (e.g., "Ready to Test" vs "UAT and Deploy").
-- **Accurate Persistence**: Summing multiple sessions in the same status for "ping-pong" tickets.
-- **Workflow Decoupling**: Commitment and Resolution points can be shifted dynamically without re-ingesting data.
+### 2.1 The 4-Tier Meta-Workflow Model
 
----
+Every status is mapped to a logical process layer to ensure specialized clock behavior:
 
-### Workflow Semantic Tiers & Roles
+| Tier           | Meaning                          | Clock Behavior                                        |
+| :------------- | :------------------------------- | :---------------------------------------------------- |
+| **Demand**     | Unrefined entry point (Backlog). | Clock pending.                                        |
+| **Upstream**   | Analysis/Refinement.             | Active clock (Discovery).                             |
+| **Downstream** | Actual Implementation (WIP).     | Active clock (Execution).                             |
+| **Finished**   | Terminal exit point.             | **Clock Stops**. Duration becomes fixed "Cycle Time". |
 
-To prevent the AI from misinterpreting administrative or storage stages as process bottlenecks, statuses are mapped to **Meta-Workflow Tiers** and specific **Roles**.
+### 2.2 Discovery Heuristics
 
-### Throttling & Burst Mode Policy
-
-To maintain a high-performance experience during the multi-step discovery process while protecting Jira Data Center from excessive load:
-
-- **Safety Brake**: Heavy analytical queries (Search with History, JQL Hydration) are subject to `JIRA_REQUEST_DELAY_SECONDS` (default: 10s).
-- **Burst Mode**: "Cheap" metadata requests (Get Board, Get Config, Get Project Statuses) bypass the artificial throttle when executed sequentially.
-- **Delta Sync Bypass**: Incremental hydration (syncing changes since a valid cache timestamp) remains sequential but processes all paged results without artificial caps, ensuring a complete log.
-- **Paging Optimization**: Hydration utilizes a `BatchSize` of 200 items per request and an optimized 2-second "paging floor" to balance ingestion speed with API safety.
-- **Result**: Automated discovery chains (Find -> Details -> Mapping) feel immediate, while analytical workloads remain governed.
-
-#### 1. Meta-Workflow Tiers
-
-Every status belongs to one of four logical process layers:
-
-| Tier           | Meaning                                                      | Commitment Insight                                                                          | Clock Behavior                                                                 |
-| :------------- | :----------------------------------------------------------- | :------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------- |
-| **Demand**     | Initial entry point to the system (e.g., "Backlog", "Open"). | Items here are uncommitted and unrefined. Identifies the primary "Source of Demand".        | Clock is pending; residency is stored but doesn't contribute to WIP.           |
-| **Upstream**   | Analysis and refinement (e.g., "Refining").                  | Clock is running on "Discovery"; items in "To Do" category but NOT the primary entry point. | Active clock.                                                                  |
-| **Downstream** | Actual implementation (e.g., "In Dev", "UAT").               | The primary process flow; where implementation capacity is consumed.                        | Active clock.                                                                  |
-| **Finished**   | Items that have exited the process.                          | Terminal stage; used for throughput.                                                        | **Clock Stops**: Pin residency at entry point. Age becomes fixed "Cycle Time". |
-
-#### 2. Functional Roles
-
-Within these tiers, statuses can be further tagged:
-
-| Role         | Meaning                           | Impact on Analytics                                          |
-| :----------- | :-------------------------------- | :----------------------------------------------------------- |
-| **Active**   | Primary working stage.            | High residence here indicates a process bottleneck.          |
-| **Queue**    | Passive waiting stage (Hand-off). | Persistence is flagged as "Flow Debt" or "Waiting Waste".    |
-| **Terminal** | Finished/Resolution stage.        | Explicitly stops the aging clock and pins duration.          |
-| **Ignore**   | Administrative stage.             | Resident time is excluded from core cycle time calculations. |
-
-#### 3. Abandonment & Outcome
-
-The server distinguishes **how** and **where** work exits the process through **Workflow Outcome Calibration**. Because Jira workflows are often inconsistent, the server employs a dual-signal methodology:
-
-- **The "Finished" Signal**: Detection of the terminal state.
-    - **Primary (Probabilistic Fact)**: A status is terminal if a significant portion (> 20%) of its visitors are resolved there.
-    - **Secondary (Asymmetry)**: Detection of a **Terminal Sink** (Status where entries significantly exceed exits).
-    - **Tertiary (Mapping)**: Reaching a status explicitly mapped to the **Finished** tier.
-- **Outcome Classification**: Once finished, items are classified into semantic outcomes:
-    - **Outcome: Delivered**: Item reached "Finished" with a resolution or status outcome mapped as value-providing (e.g., "Fixed", "Done"). This is the only population used for **Throughput** and **Simulation**.
-    - **Outcome: Abandoned**: Item reached "Finished" with a resolution or status outcome mapped as waste (e.g., "Won't Do", "Discarded").
-- **Yield Analysis**: The server calculates the "Yield Rate" by attributing abandonment to specific workflow tiers:
-    - **Explicit Attribution**: Uses outcome suffixes (e.g., `abandoned_upstream`, `abandoned_downstream`) defined in the calibration layer.
-    - **Heuristic Attribution**: Falls back to backtracking the last status before entering terminal state if the outcome is generically marked as `abandoned`.
+- **Birth Status**: The earliest entry point identifies the system's primary source of demand.
+- **Terminal Sinks**: Statuses with high entry-vs-exit ratios identify logical completion points even if Jira resolutions are missing.
+- **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions (Market-Share confidence > 15%).
+- **Unified Regex Stemming**: Automatically links paired statuses (e.g., "Ready for QA" and "In QA") via semantic cores.
 
 ---
 
-### Standardized Percentile Mapping
+## 3. Workflow Outcome Alignment (Throughput Integrity)
 
-To ensure consistency and help non-statistical users interpret results, the server uses a standardized mapping of percentiles to "Human-Language" names across all tools (Simulations, Inventory Aging, Persistence).
+The server distinguishes **how** and **where** work exits the process to ensure throughput accurately reflects value-providing capacity.
 
-| Naming           | Statistical Percentile | Meaning                                                 |
-| :--------------- | :--------------------- | :------------------------------------------------------ |
-| **Aggressive**   | P10                    | Best-case outlier; "A miracle occurred."                |
-| **Unlikely**     | P30                    | Very optimistic; depends on everything going perfectly. |
-| **Coin Toss**    | P50                    | Median; 50/50 chance of being right or wrong.           |
-| **Probable**     | P70                    | Reasonable level of confidence; standard for planning.  |
-| **Likely**       | P85                    | High confidence; recommended for commitment.            |
-| **Conservative** | P90                    | Very cautious; accounts for significant friction.       |
-| **Safe-bet**     | P95                    | Extremely likely; includes heavy tail protection.       |
-| **Limit**        | P98                    | The practical upper bound of historical data.           |
+### 3.1 Outcome Classification
 
-## 3. Technology Stack
+Once an item reaches the **Finished** tier, it is classified into semantic outcomes:
 
-- **Language**: Go (Golang)
-- **Primary Algorithm**: Monte-Carlo Simulation (MCS)
-- **Data Source**: Jira Software (Data Center or Cloud)
-- **Communication**: Model Context Protocol (Standard)
-- **Transport Layer**: Stdio with `json.NewDecoder` for asynchronous, newline-independent message processing, ensuring zero-latency response times in complex host environments (e.g., Claude Desktop).
+- **Outcome: Delivered**: Items with a resolution or status outcome mapped as value-providing (e.g., "Fixed", "Done"). **Only these are used for Throughput and Simulation.**
+- **Outcome: Abandoned**: Items mapped as waste (e.g., "Won't Do", "Discarded"). These are excluded from delivery metrics but vital for **Yield Analysis**.
 
-## 4. Aging Math & Precision
+### 3.2 Detection Methodology
 
-To ensure conceptual integrity and transparency, the server adheres to a strict definition of "Age" and employs high-precision integer math for residency tracking.
+- **Resolution Mapping (Primary)**: The system prioritizes the explicit Jira `resolution` field.
+- **Status Mapping (Fallback)**: If resolution data is missing, it falls back to the status-level outcome mapping.
+- **Gold Standard Benchmark**: This precedence is verified against industry benchmarks (**Nave**) and must be maintained for statistical integrity.
 
-#### 1. Precision & Storage
+### 3.3 Yield Analysis
 
-- **Internal Resolution**: The server parses Jira's changelog and calculates events in **Microseconds** (`int64`) for precise sequencing in the event log.
-- **Residency Resolution**: For statistical analysis and residency tracking (e.g., time spent in a status), the server uses **Seconds** (`int64`). This simplifies calculations while maintaining sufficient precision for project-level forecasting.
-- **Serialization**: Integer microseconds are used for event timestamps to ensure a deterministic "Physical Identity" for events and simplify deduplication.
-- **Conversion**: Conversion to "Days" occurs at the analytical or reporting boundary: `Days = float64(Seconds) / 86400.0`.
-- **Resolution Date Synchronization**: If a `resolution` is set or cleared in a change-set, the associated `resolutionDate` (with potentially lower clock precision) is synchronized with the change-set timestamp to maintain process integrity.
+The server calculates the "Yield Rate" by attributing abandonment to specific tiers:
 
-#### 2. Aging Definitions
-
-The server distinguishes between two types of duration:
-
-| Term           | Strict Definition                                                            | Usage                                                                           |
-| :------------- | :--------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
-| **Status Age** | The time passed since the item entered its **current** workflow step.        | Bottleneck identification (Active/In-flight). Fixed at 0.0 for terminal items.  |
-| **WIP Age**    | The time passed since the item crossed the **Commitment Point** (started).   | Forecast reliability & stability analysis. Only applies to Upstream/Downstream. |
-| **Cycle Time** | The **pinned duration** of an item from commitment to the **Finished** tier. | Historical baseline & capability analysis. Represents "Finished Age".           |
-| **Total Age**  | The time passed since the item was created in Jira.                          | Inventory hygiene. Pins at entry to "Finished" tier.                            |
-
-#### 3. Rounding & The "Zero-Day" Safeguard
-
-To avoid confusing users with "0.0 days" (for items visited on the same day) and to ensure a clean UI without sacrificing simulation precision, the following logic is applied:
-
-- **Reporting Precision**: All day-based metrics in tool outputs are rounded to **1 decimal place**.
-- **The "Round-Up" Rule**: For current aging metrics (`StatusAge`, `WIPAge`), the server applies a ceiling-based rounding:
-  $$Age_{Reported} = \frac{\lceil Age_{Float} \times 10 \rceil}{10}$$
-- **Result**: Any item that has actually transitioned into a status will show at least **0.1 days**, never 0.0, while still allowing for fractional accuracy (e.g., 1.2 days).
-
-#### 4. Existence of WIP Age
-
-- An item strictly **does not have** a WIP Age before it crosses the commitment point.
-- The server reports WIP Age as `null/nil` for items in the **Demand** tier or items that haven't transitioned into an **Active/Started** status yet.
-
-#### 5. Backflow and Un-Resolution Policy
-
-The system employs a multi-layered strategy for items returning to active work from a terminal state (Backflow) or having their resolution explicitly removed (Un-Resolution):
-
-- **Capture (Case 1: Explicit Clear)**: If the Jira `resolution` field is explicitly cleared in history, the transformer emits an `Unresolved` event. This provides a high-fidelity "Birth Date" for the new active period.
-- **Reactive Projection (Case 2 & 3: Inconsistent Data)**: Projections are designed to be status-reactive. If a transition moves an item from a terminal status back to an active one, the projection automatically unsets the internal `ResolutionDate` and `Resolution` fields, regardless of whether they were cleared in Jira's snapshot data.
-- **Reset on Backflow**: If an item returns to the **Demand** tier, it is treated as a "Reset":
-    - **History Consolidation**: Time spent prior to the backflow is consolidated into the Demand tier, preserving **Total Age**.
-    - **Fresh Start**: **WIP Age** reflects only the most recent commitment crossing.
-
-#### 6. Project Move Boundary (Move History Healing)
-
-To ensure conceptual integrity in cross-project environments (e.g., items moving from "Strategy" projects to "Delivery" projects), the system implements a **Move History Healing** mechanism in the transformation layer.
-
-- **Move Detection**: If an item's history shows a change in the `Key` or `project` fields, the system identifies the latest move date as a **Process Boundary**.
-- **Contextual Reset (History Healing)**:
-    - All `StatusResidency` and `Transitions` that occurred _under a different project key_ are discarded to ensure diagnostic accuracy for the current flow.
-    - **Synthetic Birth**: Instead of dropping the item, the system emits a synthetic `Created` event at the **original Jira birth timestamp** but assigns it to the first valid arrival status in the new project.
-    - **Arrival Detection**: The system uses a "Go Forward" scan to identify the arrival status (either in the move entry itself or the very next transition).
-- **Lead Time Preservation**: By using the original birth timestamp, high-level metrics like **Total Age** remain valid, reflecting the item's entire lifecycle across projects, while process-specific metrics (WIP Age, Status Persistence) are cleaned of noise from foreign workflows.
-- **Observability**: Healed events are marked with an `IsHealed` flag, and the `IsMoved` state is proxied through this flag on the synthetic birth event for clean, noise-free logs.
-- **Tier Discovery Integrity**: Moved items are discarded during 'Demand' tier discovery to prevent mid-process entries from being mis-detected as system-wide sources of demand.
-
-#### 7. Terminal Pinning Policy (Stop the Clock)
-
-To prevent archive data from skewing delivery metrics, the system implements a "Stop the Clock" policy for terminal statuses:
-
-- **Pinned Residency**: When an item enters a status mapped to the **Finished** tier or a **Terminal** role, the residency calculation for that status (and the total process age) is pinned to the point of entry (or the resolution date if available).
-- **Cycle Time vs Aging**: Items in terminal statuses cease to "age". Their calculated duration is treated as a fixed **Cycle Time**.
-- **WIP Exclusion**: Diagnostic tools like `get_aging_analysis` can explicitly filter out "Finished/Terminal" items to ensure the focus remains on the active inventory (WIP).
-- **Data Integrity**: This policy ensures that items delivered 6 months ago don't show an "Age" of 180 days in aging reports; they show the exact number of days they took to complete.
-
-#### 7. History Fallback Policy
-
-In cases where Jira data is incomplete (e.g., resolved items with missing or archived changelogs), the system applies a "Best Effort" residency model via the **Transformer**:
-
-- **Birth Status Alignment**: The system automatically identifies the functional land-status (e.g., 'Open') for the creation event by analyzing the earliest available transition.
-- **Residency Assumption**: If an item is resolved but has no transition history, the system assumes it spent its total duration in its birth status.
-- **Analytical Inclusion**: This ensures these items are still included in throughput and total aging metrics, preserving the statistical volume of the dataset despite local data gaps.
+- **Explicit Attribution**: Uses outcome suffixes (e.g., `abandoned_upstream`).
+- **Heuristic Attribution**: Backtracks to the last active status if the outcome is generically `abandoned`.
 
 ---
 
-### Volatility & Predictability Metrics
+## 4. High-Fidelity Simulation Engine
 
-The server provides advanced statistical dispersion metrics to quantify the "stability" and "risk" of a process.
+MCS-MCP uses a **Hybrid Simulation Model** that integrates historical capability with current reality.
 
-#### 1. Dispersion Metrics (The Spread)
+### 3.1 Three Layers of Accuracy
 
-| Metric        | Calculation | Meaning                                                                                                                       |
-| :------------ | :---------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| **IQR**       | P75 - P25   | **Interquartile Range**: The density of the middle 50% of the data. Smaller IQR = higher predictability.                      |
-| **Inner 80%** | P90 - P10   | **Robust Spread**: Shows the range where 80% of items fall. More robust than standard deviation for non-normal distributions. |
+1.  **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 180 days).
+2.  **Current Reality (WIP Analysis)**: Explicitly analyzes the stability and age of in-flight work.
+3.  **Demand Expansion**: Automatically models the "Invisible Friction" of background work (Bugs, Admin) based on historical type distribution.
 
-#### 2. Volatility Metrics (The Risk)
+### 3.2 Standardized Percentile Interpretation
 
-To identify process instability and the presence of extreme outliers (Fat-Tails), the server implements two key heuristics:
+To ensure consistency across simulations, aging, and persistence, the following standardized mapping is used:
 
-| Metric                   | Calculation | Stable Threshold | Indication of Failure                                                                                                                                      |
-| :----------------------- | :---------- | :--------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tail-to-Median Ratio** | P85 / P50   | **<= 3.0**       | **Highly Volatile**: If > 3.0, items in the high-confidence range (P85) take more than 3x the median time, indicating a heavy-tailed risk.                 |
-| **Fat-Tail Ratio**       | P98 / P50   | **< 5.6**        | **Unstable / Out-of-Control**: Kanban University heuristic. If >= 5.6, extreme outliers are in control of the process, making forecasts highly unreliable. |
+| Naming           | Percentile | Meaning                                                 |
+| :--------------- | :--------- | :------------------------------------------------------ |
+| **Aggressive**   | P10        | Best-case outlier; "A miracle occurred."                |
+| **Unlikely**     | P30        | Very optimistic; depends on everything going perfectly. |
+| **Coin Toss**    | P50        | Median; 50/50 chance of being right or wrong.           |
+| **Probable**     | P70        | Reasonable level of confidence; standard for planning.  |
+| **Likely**       | P85        | High confidence; recommended for commitment.            |
+| **Conservative** | P90        | Very cautious; accounts for significant friction.       |
+| **Safe-bet**     | P95        | Extremely likely; includes heavy tail protection.       |
+| **Limit**        | P98        | The practical upper bound of historical data.           |
 
-#### 3. Throughput Collapse & Representative Sampling
+### 4.3 Simulation Safeguards
 
-To prevent "naïve" simulations from producing nonsensical dates (e.g., forecasting 15 years for a 2-week backlog), the engine implements **Integrity Thresholds**:
+To prevent nonsensical forecasts, the engine implements several integrity thresholds:
 
-- **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, the system issues a `WARNING`. This identifies scenarios where the combined filter of `issue_types` and `resolutions` has reduced the historical sample size so much that individual outliers dominate the result.
-- **Resolution Density Check**: The system monitors the ratio of "Delivered" items vs. "Dropped" items (items resolved but excluded by the user's resolution filter). If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative of actual system capacity.
-
-### 4.5. Hybrid Simulation Model (Capability + Reality)
-
-Unlike standard Monte-Carlo tools that rely solely on historical throughput sampling, MCS-MCP utilizes a **Hybrid Simulation Model**. This model integrates three distinct analytical layers to produce high-fidelity forecasts:
-
-#### 1. Statistical Capability (The Histogram)
-
-The engine builds a probabilistic distribution of system capacity by analyzing **Delivered-Only** outcomes within a sliding historical window.
-
-- **Outcome-Aware**: Throughput ignores "Abandoned" work (junk/noise) to ensure the simulation baseline reflects actual value-providing velocity.
-- **Slot-Based Sampling**: The engine models total system capacity. In each trial, delivery slots are assigned work item types based on the observed historical mix (e.g., 60% Stories, 30% Bugs).
-
-#### 2. Current Reality (WIP Stability Analysis)
-
-The simulation doesn't treat Work-In-Progress (WIP) as "unstarted" items. It explicitly analyzes the **Stability of in-flight work**:
-
-- **WIP Age vs. Capability**: The system compares the current age of every WIP item against the historical Natural Process Limits (UNPL).
-- **Early Outlier Detection**: Items that have aged past the P85 or P95 historical benchmarks are flagged as "Stale" or "Extreme Outliers" within the simulation insights.
-- **WIP Momentum**: The engine leverages WIP Age to detect if a system is "clogged" before it affects the throughput charts.
-
-#### 3. Demand Expansion (Hidden Friction)
-
-To handle realistic scenarios where background work (e.g., Bugs, Administrative Tasks) consumes team capacity, the system utilizes **Slot-based Demand Expansion**:
-
-- **Background Item Modeling**: If a sampled slot yields a type NOT requested in the forecast targets, it is treated as **Background Work**. It consumes a slot but does not progress the project goal.
-- **Strategic Insight**: This model naturally produces longer, more realistic forecasts that account for the friction of background noise without requiring manual estimation.
-
-#### 4. Diagnostic Indicators
-
-The simulation result object includes high-fidelity system health signals:
-
-- **Clogged System Index**: The ratio of current WIP to historical weekly throughput. If WIP significantly exceeds historical capacity, the system warns of imminent lead-time inflation.
-- **Stale WIP Warning**: Counts items currently in progress that are older than the historical 85th percentile (Likely) completion time.
-- **Throughput Decay**: Detects systemic performance shifts by comparing the long-term historical baseline to the recent 30-day "pulse".
-
-#### 5. Capacity Overrides (What-if Analysis)
-
-Users can apply `mix_overrides` to shift the historical distribution (e.g., "What if we spend 20% more time on Bugs?"). The engine re-normalizes capacity proportionally, allowing for rapid scenario planning.
-
-### 2.6 Dynamic Sampling Windows
-
-To ensure that the historical baseline reflects the expected future context (e.g., avoiding low-throughput holiday periods or focusing on a specific project phase), the system allows **baseline shifting**:
-
-- **Sliding Windows**: Users can specify `sample_days` (e.g., "last 30 days") to focus only on recent performance. Analytical tools strictly enforce these windows at the resolution date level to ensure chronological sensitivity.
-- **Explicit Fixed Windows**: Users can define `sample_start_date` and `sample_end_date` (e.g., "use entire month of November") to capture a specific behavior pattern as the forecast engine.
-- **Sensitivity Enforcement**: Statistical aggregations (Throughput, Monthly Subgroups) utilize precise filtering to ensure that system drifts or seasonal patterns are not masked by overlapping stale data.
-- **AI-Driven Baseline Selection**: AI agents are instructed to analyze process stability (`get_process_stability`) before selecting a sampling window to ensure the baseline itself is "in control."
-- **Rational Subgrouping (Current Month Filter)**: Long-term trend analysis (`get_process_evolution`) automatically excludes the current calendar month. This prevents "partial data skew" where an incomplete month's throughput or lead time artificially compresses the Natural Process Limits, creating false alarms.
+- **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, a `WARNING` is issued. This usually indicates that filters (`issue_types` or `resolutions`) have reduced the sample size so much that outliers dominate.
+- **Resolution Density Check**: Monitors the ratio of "Delivered" items vs. "Dropped" items. If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative.
 
 ---
 
-### 4.5. Process Stability & Evolution (XmR)
+## 5. Volatility & Predictability Metrics
 
-While Monte-Carlo simulations provide forecasts, Process Behavior Charts (XmR) assess the **validity** of those forecasts by identifying "Special Cause" variation.
+The server provides statistical dispersion metrics to quantify process stability and risk.
 
-#### The XmR Engine (Individual Chart)
+### 5.1 Dispersion Metrics (The Spread)
 
-The system employs Wheeler's XmR math (Individuals and Moving Range) to distinguish between:
+- **IQR (Interquartile Range)**: P75 - P25. Measures the density of the middle 50%. Smaller = higher predictability.
+- **Inner 80%**: P90 - P10. Shows the range where 80% of items fall, providing a robust view of the "middle" without extreme outlier noise.
 
-- **Common Cause Variation (Noise)**: Inherent jitter within the Natural Process Limits (Avg +/- 2.66 \* AmR).
-- **Special Cause Variation (Signal)**: Outliers (Rule 1) or Process Shifts (Rule 2: 8 consecutive points on one side).
+### 5.2 Volatility Heuristics (The Risk)
 
-#### Three-Way Process Behavior Charts
-
-For longitudinal analysis (the "Strategic Audit"), the system uses Three-Way Charts:
-
-1.  **Baseline Chart**: Monitors individual jitter.
-2.  **Average Chart (The Third Way)**: Uses the moving range of _subgroup averages_ (e.g., Monthly averages) to detect long-term process drift or migration.
-
-#### Integrated Time Analysis
-
-A unique feature of the system is the integration of Done vs. WIP populations. Current **WIP Age** is monitored against the historical **UNPL** of resolved items, providing a proactive signal of instability _before_ the work is completed.
-
-## 5. Event-Sourced Architecture & Staged Ingestion
-
-To enable high-fidelity metrics and progressive data loading, the system utilizes an **Event-Sourced Architecture**. Instead of treating Jira issues as static snapshots, the server maintains a chronological log of atomic events for every work item.
-
-#### The Event-Sourced Pipeline
-
-```mermaid
-graph TD
-    A[JQL/SourceContext] --> B[LogProvider.Hydrate]
-    B --> C{Two-Stage Hydration}
-    C -->|Stage 1: Activity| D[EventStore]
-    C -->|Stage 2: Baseline| D
-    D --> E[Projections]
-    E --> F[Domain Issues]
-    F --> G[Analysis Tools]
-```
-
-1.  **LogProvider**: Orchestrates the data flow. It ensures that the required level of data detail is available in the local log via an **Eager Fetch** policy triggered upon board/filter selection.
-2.  **Two-Stage Hydration**:
-    - **Stage 1: Recent Activity & WIP**: Fetches items sorted by `updated DESC` to ensure all active WIP and recent delivery history (up to 1000 items or 1 year) are captured immediately.
-    - **Stage 2: Baseline Depth**: If the first stage did not yield enough resolved items for a statistically significant baseline (default 200 items), the system performs an explicit fetch for historical resolutions (`resolution is not EMPTY`).
-3.  **EventStore**: A thread-safe, chronological repository of `IssueEvents`. It handles deduplication and strictly orders events by **Timestamp** (Unix Microseconds). Identity for deduplication includes all relevant signals (Status, Resolution, Move, Unresolve) to ensure atomic change-sets are preserved.
-4.  **Transformer**: Converts Jira's snapshot DTOs and changelogs into atomic events (`Created`, `Change`). It packs multiple field updates (status, resolution) from a single Jira history entry into a single `Change` event. It utilizes a **2-second grace period** to deduplicate resolution signals between snapshots and history.
-5.  **Projections**: Reconstructs domain logic (like `jira.Issue` or `ThroughputBuckets`) by "replaying" the event stream. Projections are **Signal-Aware**: they look for specific fields (e.g., `Resolution != ""`, `ToStatus != ""`) within events rather than relying on a singular `EventType`. This eliminates the need for manual event re-grouping and prevents transient inconsistent states (e.g., "Resolution Wiping").
-
-### 5.1. The Event Log as Source of Truth
-
-The event log, partitioned by board ID, is the definitive source of truth for the server. This design provides:
-
-- **Immutability**: Historical events are objective facts (e.g., "Item X moved to Dev at 10:00").
-- **Persistence (Long-term Cache)**: The log is persisted to disk using **JSON Lines (JSONL)**, enabling fast reloads between sessions and reducing reliance on Jira APIs.
-- **Cross-Source Optimization**: Individual research tools (like `get_item_journey`) utilize a project-wide cache lookup strategy, searching through all previously hydrated board logs in memory before resorting to a Jira fetch.
-- **Analytical Flexibility**: Metrics like "Cycle Time" or "Commitment Point" are just interpretations of the log and can be adjusted (via `set_workflow_mapping`) without re-fetching data.
-- **Progressive Consistency**: The system becomes more "knowledgeable" as stages are completed, but always operates on a consistent, deduplicated log.
-
-### 5.2. File-Backed JSONL Cache
-
-To ensure performance and reliability across sessions, the server implements a file-backed cache:
-
-- **Format: JSONL**: Data is stored as newline-delimited JSON objects. This format supports streaming (memory efficiency) and is resilient to partial write failures.
-- **Atomic Persistence**: Saving to disk utilizes a "write-to-tmp and rename" pattern to ensure that the cache file is never left in a corrupted state if the process is interrupted.
-- **Content Integrity**: The system automatically handles deduplication and chronological sorting during the `Load` operation, ensuring the in-memory `EventStore` remains consistent even if the cache contains overlapping data.
-
-### 5.3. Incremental Synchronization & Bounded Ingestion
-
-To minimize latency and prevent memory bloat, the system utilizes a **Bounded Incremental Fetch** strategy:
-
-- **Bounded Horizon (24 Months)**: Initial hydration is strictly limited to the last 24 months of data. This ensures relevance and performance while still providing a deep historical baseline.
-- **Hard Page Limit**: Ingestion is capped at **8 pages** (2400 items) for the initial fetch. This protects against "infinite scrollers" in massive legacy projects.
-- **Latest Timestamp Detection**: Upon hydration, the server identifies the timestamp of the most recent event in the local cache.
-- **Cache Validity (2-Month Rule)**: If the cache is non-empty but the latest event is older than **2 months**, the server discards the cache and performs a full re-ingestion. This prevents "stale state" issues where deleted or moved items might persist indefinitely.
-- **JQL Delta Sync**: For valid caches (< 2 months), the server appends `AND updated >= "YYYY-MM-DD HH:MM"` and fetches ALL paged results in chronological order.
-
-### 5.4. Recency Bias & Age-Constrained Sampling
-
-To ensure that forecasts and workflow discovery reflect the **active process** rather than historical artifacts or legacy configurations, the system applies a mandatory age-constrained sampling policy:
-
-- **Workflow Discovery Sampling**: The `get_workflow_discovery` tool builds its analytical backbone from a controlled subset of the event log. It produces a `discoverySampleSize` (default 200 items) to represent the current "active" process:
-    - **Target Sample**: 200 issues.
-    - **Priority Window (1 year)**: Only issues created within the last 365 days are selected.
-    - **Adaptive Fallback**: If the priority window is sparse (< 100 items), the system expands up to 3 years. If sufficient (> 100), it expands to 2 years.
-    - **Implicit Filter**: Issues older than 3 years are strictly excluded from discovery, preventing "ancient" noise from polluting current process diagnostics.
-- **Simulation Baseline**: Forecasting tools default to a 180-day historical window for throughput and cycle time distributions, ensuring the "Capability" of the team reflects their recent performance.
-- **Commitment Point Persistence**: The system explicitly stores the user-confirmed **Commitment Point** status. This ensures that the boundary between "Demand/Upstream" and "Downstream" (where the clock officially starts) remains consistent across sessions.
-
-### 5.5. Workflow Persistence & Semantic Overrides
-
-To ensure analytical consistency without requiring the user to re-configure the system every session, MCS-MCP implements a **Persistence Layer** for workflow metadata:
-
-- **JSON Mapping Cache**: User-confirmed semantic mappings (Tiers, Roles, Outcomes), status ordering, and the **Commitment Point** are persisted to disk as project-specific JSON files (e.g., `PROJ-123-workflow.json`).
-- **Implicit vs. Explicit**:
-    - **Implicit**: Upon first ingestion, the system utilizes **Heuristic Discovery** to propose a workflow.
-    - **Explicit**: Once the user calls `set_workflow_mapping` or `set_workflow_order`, the system transitions to an **Explicit Model**. The persisted metadata overrides all algorithmic heuristics.
-
-### 5.6. Steady State Cutoff (Warmup Period)
-
-To ensure high-fidelity analytics, the system implements a **Steady State Cutoff** that identifies when a project has moved past its "Cold Start" phase. This prevents initial ingestion noise (e.g., zero WIP, long dormant periods) from polluting metrics like Lead Time and Throughput.
-
-#### The Delivery Anchor Heuristic
-
-The cutoff is calculated and persisted only after the user confirms the workflow mapping (`set_workflow_mapping`):
-
-1. **Detection**: The system scans the full historical dataset for all items mapped to the **Finished** tier.
-2. **Anchor**: It identifies the timestamp of the **5th delivery** (chronologically) among value-providing items.
-3. **The Cutoff**: This timestamp becomes the absolute `DiscoveryCutoff`.
-4. **Enforcement**: All analytical tools (Simulations, XmR, Stability, Cadence) respect this cutoff as a hard "lower floor". Any analytical window that starts before the cutoff is automatically clamped to the cutoff date.
-
-This approach ensures that we only start the "process clock" once the system has demonstrated a baseline delivery capacity, protecting forecasts from the high-variance noise of the project's inception or archival artifacts.
-
-- **Context Anchoring**: Every analytical tool follows a strict **Anchoring Protocol**. It first attempts to load persisted metadata from disk before falling back to heuristics, ensuring that "Commitment" is measured identically by both the AI and the historical baseline.
-
-### 5.2. Search-Driven Inventory (Discovery Memory)
-
-To ensure high-performance discovery and maintain consistency during project setup, the server implements a **Sliding Window Inventory**:
-
-- **Backend-Assisted Search**:
-    - **Project Discovery**: Utilizes the Jira `/projects/picker` endpoint for server-side fuzzy matching.
-    - **Board Discovery**: Utilizes the Agile `/board?name={filter}` parameter for optimized filtering.
-- **Local Consistency (Memory)**:
-    - The server maintains a thread-safe local repository of the last **1000 discovered items** (Projects and Boards).
-    - Results from active tool calls (Search, GetProject, GetBoard) are "upserted" into this inventory using a **Most-Recently-Used (MRU)** policy.
-- **Search Delivery**:
-    - Search tools (e.g., `find_jira_projects`) perform a hybrid delivery: fetching the top 30 most-relevant matches from Jira while simultaneously searching the entire 1000-item local inventory.
-    - This ensures that items once discovered remain "top of mind" for the AI agent even as they shift outside Jira's immediate search results.
-
-### 5.3. Chronological Processing (Residency Math)
-
-By moving residency calculation out of the Jira client and into a dedicated `processor.go`, the system achieves:
-
-- **Testability**: Analytics logic can be tested with mock DTOs without hitting a Jira server.
-- **Flexibility**: Changes to backflow policies or aging precision can be re-applied to cached DTOs instantly.
-- **Heterogeneous Support**: `Issue.ProjectKey` ensures accurate per-item logic even when a board spans multiple Jira projects.
+| Metric                       | Stable Threshold | Indication of Failure                                                                                                    |
+| :--------------------------- | :--------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| **Tail-to-Median (P85/P50)** | **<= 3.0**       | **Highly Volatile**: If > 3.0, high-confidence items take >3x the median, indicating heavy-tailed risk.                  |
+| **Fat-Tail Ratio (P98/P50)** | **< 5.6**        | **Unstable**: Kanban University heuristic. If >= 5.6, extreme outliers control the process, making forecasts unreliable. |
 
 ---
 
-## 6. Codebase Structure & Modularization
+## 6. Stability & Evolution (XmR)
 
-The codebase follows a high-cohesion design, with logic strictly separated by functional responsibility.
+Process Behavior Charts (XmR) assess whether the system is "in control."
 
-### `internal/jira` (The Transport Layer)
-
-- `client.go`: Interface definitions and domain models (`Issue`, `SourceContext`).
-- `dc_client.go`: Implementation of the Jira Data Center / Server REST API.
-- `dto.go`: Public Data Transfer Objects for JSON unmarshalling.
-
-### `internal/eventlog` (The Persistence & Projection Layer)
-
-- `store.go`: Thread-safe, cross-source repository for chronological `IssueEvents`.
-- `event.go`: Schema definitions for atomic event types and partitioning logic.
-- `provider.go`: `LogProvider` implementation for orchestrating staged ingestion.
-- `transformer.go`: Critical logic for converting Jira snapshots and histories into atomic `Change` events.
-- `projections.go`: Logic for reconstructing domain models (`WIP`, `Throughput`, `Issue`) using Signal-Aware replay logic.
-
-### `internal/stats` (The Analytical Engine)
-
-- `processor.go`: Internal residency math and historical baseline utilities.
-- `stability.go`: XmR charts, Three-Way Control Charts, and Stability Index heuristics.
-- `analyzer.go`: Foundational data types (`MetadataSummary`, `StatusMetadata`) and probe metrics.
-- `persistence.go`: Status residency distributions (P50, P85, etc.).
-- `aging.go`: Implementations for WIP Aging (`InventoryAge`) and Status Aging.
-- `yield.go`: Calculations for process yield and abandonment waste.
-- `cadence.go`: Logic for aggregating delivery throughput over time.
-
-### `internal/mcp` (The Glue Layer)
-
-- `server.go`: The core MCP server, managing `LogProvider` and `EventStore`.
-- `tools.go`: AI-discoverable definitions and descriptions for all tools.
-- `handlers.go`: Internal shared logic, roadmap tools, and backflow policies.
-- `handlers_forecasting.go`: Tools for simulations and cycle time assessments (Stage 3).
-- `handlers_diagnostics.go`: Tools for aging, stability, progress yield, and items journeys (Stage 2).
-- `handlers_discovery.go`: Tools for metadata probing and workflow detection (Stage 1).
-- `context.go`: Unified analysis context and default commitment point resolution.
-- `helpers.go`: General utility methods and type conversion.
+- **XmR Individual Chart**: Detects outliers (points above Natural Process Limits) and shifts (8 consecutive points on one side).
+- **Three-Way Tactical Audit**: Uses subgroup averages (weekly/monthly) to detect long-term strategic process drift.
+- **WIP Age Monitoring**: Compares current WIP against historical limits to provide early warnings of a "Clogged" system.
 
 ---
 
-## 7. Conceptual Integrity Constraints
+## 7. Internal Mechanics (The Event-Sourced Engine)
 
-- **Cohesion**: Each tool must focus on a single aspect of flow (Ingestion, Simulation, Diagnostic).
-- **Coherence**: Logical flow from data ingestion to statistical analysis to forecasting.
-- **Consistency**: Adherence to Go community standards and naming conventions.
+### 6.1 Staged Ingestion & Persistent Cache
 
-## 8. Observability & Logging Policy
+- **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Unresolved`).
+- **Two-Stage Hydration**:
+    - **Stage 1 (Recent Updates)**: Fetches the last 1000 items sorted by `updated DESC`.
+    - **Stage 2 (Baseline Depth)**: Explicitly fetches resolved items to ensure a minimum baseline (default 200 items).
+- **Cache Integrity**:
+    - **2-Month Rule**: If the latest cached event is > 2 months old, the system performs a full re-ingestion to clear potential "ghost" items (moved/deleted).
+    - **24-Month Horizon**: Initial hydration is bounded to 24 months.
+    - **8-Page Cap**: Ingestion is capped at 2400 items to prevent memory exhaustion in legacy projects.
+- **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-To ensure high traceability without overwhelming the production logs, mcs-mcp follows a tiered logging strategy using **zerolog**:
+### 6.2 Discovery Sampling Rules
 
-| Level     | Usage                                              | Contents                                                                 |
-| :-------- | :------------------------------------------------- | :----------------------------------------------------------------------- |
-| **Error** | Critical failures that block a tool request.       | Stack traces, Jira API errors, Panic recoveries.                         |
-| **Warn**  | Statistical anomalies or non-blocking data issues. | Fat-tails, zero-throughput warnings, simulation safety brake activation. |
-| **Info**  | High-level operational flow (The "What").          | Tool entry/exit, server startup, major analytical milestones.            |
-| **Debug** | Detailed data and calculated values (The "Value"). | AI arguments, generated JQL, exact simulation percentiles, cache traces. |
-| **Trace** | Extreme granularity for internal troubleshooting.  | Logic-level noise (e.g., individual sliding window cache extensions).    |
+To ensures discovery reflect the **active process**, the system applies recency bias:
 
-### Conceptual Integrity in Logging
+- **Priority Window**: Items created within the last **365 days** are prioritized.
+- **Adaptive Fallback**: Expands to 2 or 3 years only if the priority window has < 100 items. Items older than 3 years are strictly excluded from discovery.
 
-- **No Multi-line logs**: All logs must be structured JSON to ensure compatibility with log aggregators and terminal consoles.
-- **Value Traceability**: Any value sent back to the AI or fetched from Jira should be visible at the `Debug` level to enable post-mortem verification of AI reasoning.
+### 6.3 Move History Healing
 
-### 8.1 Response Metadata Semantics
+When items move between projects, the system implements **History Healing**:
 
-To prevent "Instruction Leakage" in user conversations, mcs-mcp strictly separates internal guidance from user-relevant alerts:
+- **Process Boundary**: Deters noise from the old project workflow.
+- **Synthetic Birth**: Re-anchors the item at its original creation date but in the context of the new project's arrival status, preserving **Lead Time** while cleaning process metrics.
 
-- **`_guidance`**: (Internal) Instructions for the AI Agent on how to reason about the returned data. This should NEVER be shown to the user.
-- **`warnings`**: (External) Data-driven alerts (e.g., "Zero throughput", "Fat-tails", "Throughput Collapse") that indicate risks in the forecast or analysis. These SHOULD be interpreted and potentially shared with the user.
+### 6.4 Technical Precision
 
-### 8.2 Anti-Hallucination Guardrails
-
-The server strictly enforces a **"No Improv"** policy for mathematical interpretation. Tool descriptions include explicit `STRICT GUARDRAIL` instructions:
-
-- **Zero Hallucination**: Agents MUST NOT perform probabilistic forecasting or statistical analysis autonomously if a tool fails or returns zero data.
-- **Resolution Hierarchy**: If a calculation fails, the agent is instructed to report the error and ask for clarification rather than attempting to "reason" through a probability based on internal knowledge.
-
-Example:
-
-```json
-{
-  "_guidance": "High persistence in Demand tier is normal backlog behavior. Do not flag as a bottleneck.",
-  "warnings": ["Extreme outlier detected in 'refining' - check issue PROJ-123."],
-  "data": { ... }
-}
-```
+- **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
+- **Nave-Aligned Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
+- **Zero-Day Safeguard**: Current aging metrics are rounded up to the nearest 0.1 to avoid misleading "0.0 days" results.
 
 ---
 
-## 9. Development Workflow
+## 8. System Safety & Development
 
-To facilitate rapid iteration and solve common development challenges (e.g., file locks on Windows), mcs-mcp supports a specialized development workflow.
+- **Safety Brake**: Heavy analytical queries are throttled to protect Jira load.
+- **Burst Mode**: Metadata discovery bypasses throttles for high-performance agent interaction.
+- **Observability**: Structured JSON logging via **zerolog**. Internal guidance (`_guidance`) is strictly separated from data-driven `warnings`.
+- **Anti-Hallucination**: Agents are strictly forbidden from "guessing" forecasts if tools return insufficient data.
 
-### 9.1. The `.local/` Strategy (Locked Binary Workaround)
+---
 
-On Windows, an executable cannot be overwritten while it is running. To allow continuous builds without restarting the host IDE (e.g., Antigravity):
+## 9. Codebase Overview
 
-1.  **Renaming**: Rename the running `.local/mcs-mcp.exe` to `mcs-mcp.exe.old` (Windows allows this).
-2.  **Replacement**: Copy the new build from `dist/` into `.local/mcs-mcp.exe`.
-3.  **Reload**: Trigger a server reload in the host client (Antigravity).
+- `internal/jira`: API transport and domain models.
+- `internal/eventlog`: Persistence and "Signal-Aware" projections.
+- `internal/stats`: Core math (Control charts, Aging, Yield, Simulations).
+- `internal/mcp`: Tool definitions and task orchestration.
 
-### 9.2. AI Agent Visibility Protocol
-
-AI agents collaborating on mcs-mcp utilize the following protocol for debugging:
-
-- **Explicit Research**: Agents are permitted to use `list_dir` and `view_file` on the `.local/` directory (including `.local/logs` and `.local/cache`) to observe server behavior.
-- **Credential Privacy**: Agents strictly avoid reading `.env` or other files containing secrets unless explicitly requested to troubleshoot configuration issues.
-- **Git Hygiene**: The `.local/` directory is globally ignored in `.gitignore`, ensuring development artifacts never enter the source repository.
+---

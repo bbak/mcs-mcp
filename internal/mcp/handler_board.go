@@ -3,6 +3,7 @@ package mcp
 import (
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/stats"
 
 	"github.com/rs/zerolog/log"
@@ -29,21 +30,22 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 		// Proceed anyway to show board metadata
 	}
 
-	// 4. Data Probe (Analysis on existing hydrated data)
+	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events)
-	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(domainIssues, nil))
+	first, last, total := eventlog.DiscoverDatasetBoundaries(events)
+	sample := eventlog.ProjectNeutralSample(events, 200)
 
-	// 4. Fetch Board Metadata and Config for the response (uses internal Jira cache)
+	summary := stats.AnalyzeProbe(sample, total, nil)
+	summary.Whole.FirstEventAt = first
+	summary.Whole.LastEventAt = last
+
+	// 4. Fetch Board Metadata for the response (uses internal Jira cache)
 	board, _ := s.jira.GetBoard(boardID)
-	config, _ := s.jira.GetBoardConfig(boardID)
 
 	// 5. Return wrapped response
 	return map[string]interface{}{
-		"board":         board,
-		"configuration": config,
-		"data_summary":  summary,
+		"board":        board,
+		"data_summary": summary,
 		"_guidance": []string{
 			"Data Ingestion Complete: History is loaded and analyzed.",
 			"Review the 'data_summary' to understand volume and issue types.",

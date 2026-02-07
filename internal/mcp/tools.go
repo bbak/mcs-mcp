@@ -27,7 +27,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_project_details",
-				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'get_board_details' if you plan to run diagnostics or forecasts.",
+				"description": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'get_board_details' if you plan to run diagnostics or forecasts.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -38,7 +38,7 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name":        "get_board_details",
-				"description": "Get a Data Shape Anchor (totalIngestedIssues, discoverySampleSize, issue types) for an Agile board. MUST be called before workflow discovery.",
+				"description": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for an Agile board. MUST be called before workflow discovery.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -193,10 +193,9 @@ func (s *Server) listTools() interface{} {
 			},
 			map[string]interface{}{
 				"name": "get_workflow_discovery",
-				"description": "Probe project status categories, residence times, and resolution frequencies to PROPOSE a semantic workflow mapping. \n\n" +
+				"description": "Probe project status categories, residence times, and resolution frequencies into a semantic workflow mapping. \n\n" +
 					"AI MUST use this to verify the workflow tiers, roles, AND the 'Commitment Point' (where clock starts) with the user before diagnostics. \n" +
-					"Check 'data_summary.recommendedCommitmentPoint' and 'data_summary.resolutionDensity'.\n" +
-					"The response consolidates mapping, cadence, and persistence into a single 'workflow' object.\n" +
+					"The response provides a split view: 'Whole' (deterministic volumes) and 'Sample' (probabilistic characterization).\n" +
 					"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Terminal Status mapping (Secondary).\n" +
 					"TIER VISIBILITY: AI MUST show the confirmed mapping of Statuses to Tiers to the user.\n\n" +
 					"METAWORKFLOW GUIDANCE:\n" +

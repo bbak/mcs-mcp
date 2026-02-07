@@ -42,9 +42,10 @@ type WalkForwardResult struct {
 
 // WalkForwardEngine orchestrates the time-travel validation.
 type WalkForwardEngine struct {
-	events      []eventlog.IssueEvent
-	mappings    map[string]stats.StatusMetadata
-	resolutions map[string]string
+	events         []eventlog.IssueEvent
+	mappings       map[string]stats.StatusMetadata
+	resolutions    map[string]string
+	analyzedIssues []jira.Issue
 }
 
 func NewWalkForwardEngine(events []eventlog.IssueEvent, mappings map[string]stats.StatusMetadata, resolutions map[string]string) *WalkForwardEngine {
@@ -53,6 +54,10 @@ func NewWalkForwardEngine(events []eventlog.IssueEvent, mappings map[string]stat
 		mappings:    mappings,
 		resolutions: resolutions,
 	}
+}
+
+func (w *WalkForwardEngine) GetAnalyzedIssues() []jira.Issue {
+	return w.analyzedIssues
 }
 
 // Execute performs the walk-forward analysis.
@@ -66,6 +71,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 	// We must reconstruction issues from "Now" to get the full history for stability check.
 	// Efficient reconstruction:
 	allIssues := w.reconstructAllIssuesAt(time.Now())
+	w.analyzedIssues = allIssues
 
 	finishedIssues := make([]jira.Issue, 0)
 	for _, i := range allIssues {
@@ -88,7 +94,8 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		// Ideally use "Cycle Time" (Commit to Done), but Total Age is often a good proxy for massive drift
 	}
 
-	subgroups := stats.GroupIssuesByWeek(finishedIssues, cycleTimes)
+	window := stats.NewAnalysisWindow(time.Now().AddDate(-1, 0, 0), time.Now(), "week", time.Time{})
+	subgroups := stats.GroupIssuesByBucket(finishedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
 	driftDate := time.Time{}

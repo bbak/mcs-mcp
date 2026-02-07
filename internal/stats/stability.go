@@ -1,11 +1,8 @@
 package stats
 
 import (
-	"fmt"
 	"math"
 	"mcs-mcp/internal/jira"
-	"sort"
-	"time"
 )
 
 // XmRResult represents the output of a Process Behavior Chart analysis.
@@ -22,12 +19,18 @@ type XmRResult struct {
 // Signal represents a detected special cause variation.
 type Signal struct {
 	Index       int    `json:"index"`
+	Key         string `json:"key"`
 	Type        string `json:"type"` // "outlier", "shift"
 	Description string `json:"description"`
 }
 
 // CalculateXmR performs the math for an Individuals and Moving Range chart.
 func CalculateXmR(values []float64) XmRResult {
+	return CalculateXmRWithKeys(values, nil)
+}
+
+// CalculateXmRWithKeys performs the math for an Individuals and Moving Range chart and binds keys to signals.
+func CalculateXmRWithKeys(values []float64, keys []string) XmRResult {
 	if len(values) == 0 {
 		return XmRResult{}
 	}
@@ -60,27 +63,38 @@ func CalculateXmR(values []float64) XmRResult {
 	result.LNPL = math.Max(0, result.Average-(2.66*result.AmR))
 
 	// 4. Detect Signals
-	result.Signals = detectSignals(values, result.Average, result.UNPL, result.LNPL)
+	result.Signals = detectSignals(values, result.Average, result.UNPL, result.LNPL, keys)
 
 	return result
 }
 
 // CalculateProcessStability evaluates the system's predictability using cycle times and WIP.
-func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int) interface{} {
-	xmr := CalculateXmR(cycleTimes)
+func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int, activeDays float64) interface{} {
+	// Prepare keys for signal traceability
+	keys := make([]string, len(issues))
+	for i, iss := range issues {
+		keys[i] = iss.Key
+	}
+
+	xmr := CalculateXmRWithKeys(cycleTimes, keys)
 
 	stabilityIndex := 0.0
-	if len(cycleTimes) > 0 {
-		avgCT := xmr.Average
-		if avgCT > 0 {
-			stabilityIndex = float64(wipCount) / (float64(len(cycleTimes)) / math.Max(1.0, cycleTimes[len(cycleTimes)-1]))
+	expectedLeadTime := 0.0
+	if len(cycleTimes) > 0 && activeDays > 0 {
+		throughput := float64(len(cycleTimes)) / activeDays // Items per day
+		if throughput > 0 {
+			expectedLeadTime = float64(wipCount) / throughput
+			if xmr.Average > 0 {
+				stabilityIndex = expectedLeadTime / xmr.Average
+			}
 		}
 	}
 
 	return map[string]interface{}{
-		"xmr":             xmr,
-		"stability_index": stabilityIndex,
-		"status":          xmr.Signals,
+		"xmr":                xmr,
+		"stability_index":    math.Round(stabilityIndex*100) / 100, // Ratio
+		"expected_lead_time": math.Round(expectedLeadTime*10) / 10, // Days
+		"status":             xmr.Signals,
 	}
 }
 
@@ -177,8 +191,8 @@ func CalculateThreeWayXmR(subgroups []SubgroupStats) ThreeWayResult {
 	return result
 }
 
-// GroupIssuesByWeek is a helper to organize issues into weekly buckets for subgroup analysis.
-func GroupIssuesByWeek(issues []jira.Issue, cycleTimes []float64) []SubgroupStats {
+// GroupIssuesByBucket organizes issues into temporal buckets for subgroup analysis (XmR/Tactical Audit).
+func GroupIssuesByBucket(issues []jira.Issue, cycleTimes []float64, window AnalysisWindow) []SubgroupStats {
 	if len(issues) == 0 || len(cycleTimes) == 0 {
 		return nil
 	}
@@ -186,63 +200,65 @@ func GroupIssuesByWeek(issues []jira.Issue, cycleTimes []float64) []SubgroupStat
 	groups := make(map[string]*SubgroupStats)
 	var keys []string
 
-	now := time.Now()
-	nowYear, nowWeek := now.ISOWeek()
-	currentWeekKey := fmt.Sprintf("%d-W%02d", nowYear, nowWeek)
-
 	for i, issue := range issues {
 		if i >= len(cycleTimes) || issue.ResolutionDate == nil {
 			continue
 		}
 
-		year, week := issue.ResolutionDate.ISOWeek()
-		weekKey := fmt.Sprintf("%d-W%02d", year, week)
-
-		// EXCLUSION: If the week is still "in progress" (current calendar week),
-		// we exclude it from the Tactical Audit to avoid noise from incomplete data.
-		if weekKey == currentWeekKey {
+		// EXCLUSION: If the bucket is partial (includes 'Now'), we exclude it
+		// to avoid noise from incomplete data (The "Tuesday Problem").
+		if window.IsPartial(*issue.ResolutionDate) {
 			continue
 		}
 
-		if _, ok := groups[weekKey]; !ok {
-			groups[weekKey] = &SubgroupStats{Label: weekKey}
-			keys = append(keys, weekKey)
+		bucketKey := window.GenerateLabel(*issue.ResolutionDate)
+
+		if _, ok := groups[bucketKey]; !ok {
+			groups[bucketKey] = &SubgroupStats{Label: bucketKey}
+			keys = append(keys, bucketKey)
 		}
 
-		groups[weekKey].Values = append(groups[weekKey].Values, cycleTimes[i])
+		groups[bucketKey].Values = append(groups[bucketKey].Values, cycleTimes[i])
 	}
 
-	// Sort keys chronologically
-	sort.Strings(keys)
-
+	// Sort keys? Labels like "2024-W01" and "Jan 2024" sort reasonably well,
+	// but for robustness we should use the chronological subdivision.
 	var result []SubgroupStats
-	for _, k := range keys {
-		g := groups[k]
-		sum := 0.0
-		for _, v := range g.Values {
-			sum += v
+	for _, bucketStart := range window.Subdivide() {
+		label := window.GenerateLabel(bucketStart)
+		if g, ok := groups[label]; ok {
+			sum := 0.0
+			for _, v := range g.Values {
+				sum += v
+			}
+			g.Average = sum / float64(len(g.Values))
+			result = append(result, *g)
 		}
-		g.Average = sum / float64(len(g.Values))
-		result = append(result, *g)
 	}
 
 	return result
 }
 
-
-func detectSignals(values []float64, avg, unpl, lnpl float64) []Signal {
+func detectSignals(values []float64, avg, unpl, lnpl float64, keys []string) []Signal {
 	var signals []Signal
 
 	for i, v := range values {
+		key := ""
+		if i < len(keys) {
+			key = keys[i]
+		}
+
 		if v > unpl {
 			signals = append(signals, Signal{
 				Index:       i,
+				Key:         key,
 				Type:        "outlier",
 				Description: "Point above Upper Natural Process Limit (UNPL)",
 			})
 		} else if v < lnpl {
 			signals = append(signals, Signal{
 				Index:       i,
+				Key:         key,
 				Type:        "outlier",
 				Description: "Point below Lower Natural Process Limit (LNPL)",
 			})
@@ -268,8 +284,13 @@ func detectSignals(values []float64, avg, unpl, lnpl float64) []Signal {
 			}
 
 			if count == 8 {
+				key := ""
+				if i < len(keys) {
+					key = keys[i]
+				}
 				signals = append(signals, Signal{
 					Index:       i,
+					Key:         key,
 					Type:        "shift",
 					Description: "8 consecutive points on one side of the average identified (Process Shift)",
 				})

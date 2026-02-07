@@ -34,33 +34,17 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	droppedByWindow := 0
 	for _, issue := range issues {
 		var resDate time.Time
-		isDelivered := true
+		if !stats.IsDelivered(issue, resolutionMappings, mappings) {
+			continue
+		}
 
 		if issue.ResolutionDate != nil {
 			resDate = *issue.ResolutionDate
-			// Primary: Resolution Mapping
-			if outcome, ok := resolutionMappings[issue.Resolution]; ok {
-				if outcome != "delivered" {
-					isDelivered = false
-				}
-			} else {
-				// Fallback: If no resolution mapping, we check the status mapping
-				if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" {
-					if m.Outcome != "" && m.Outcome != "delivered" {
-						isDelivered = false
-					}
-				}
-				// If neither mapping specifies outcome, we trust the ResolutionDate presence (legacy/default)
-			}
-		} else if m, ok := mappings[issue.Status]; ok && m.Tier == "Finished" && m.Outcome == "delivered" {
-			// FALLBACK: Use transition date to terminal status as effective resolution date
-			resDate = issue.Updated
 		} else {
-			// Not resolved yet
-			isDelivered = false
+			resDate = issue.Updated
 		}
 
-		if resDate.IsZero() || !isDelivered {
+		if resDate.IsZero() {
 			continue
 		}
 

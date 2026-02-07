@@ -31,9 +31,20 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
 
+	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events)
-	sample := stats.SelectDiscoverySample(domainIssues, 200)
+	first, last, total := eventlog.DiscoverDatasetBoundaries(events)
+
+	// 4. Project for Semantic Anchors (Accuracy preserved by using Delivered items)
+	var cutoff time.Time
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
+	scopeEvents := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	delivered, _, _, _ := eventlog.ProjectScope(scopeEvents, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+
+	sample := stats.SelectDiscoverySample(delivered, 200)
 
 	// Check if we have an active mapping from cache and NO force refresh
 	discoverySource := "NEWLY_PROPOSED"
@@ -41,7 +52,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 		discoverySource = "LOADED_FROM_CACHE"
 	}
 
-	res := s.presentWorkflowMetadata(sourceID, sample, domainIssues, discoverySource)
+	res := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource)
 
 	// Add is_cached signal to _metadata
 	if m, ok := res.(map[string]interface{}); ok {
@@ -57,26 +68,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	return res, nil
 }
 
-func (s *Server) reconstructIssues(events []eventlog.IssueEvent) []jira.Issue {
-	finished := s.getFinishedStatuses(nil, events)
-
-	// Group events by issue key
-	grouped := make(map[string][]eventlog.IssueEvent)
-	for _, e := range events {
-		grouped[e.IssueKey] = append(grouped[e.IssueKey], e)
-	}
-
-	var issues []jira.Issue
-	for _, issueEvents := range grouped {
-		issue := eventlog.ReconstructIssue(issueEvents, finished, time.Now())
-		if !issue.IsSubtask {
-			issues = append(issues, issue)
-		}
-	}
-	return issues
-}
-
-func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, allIssues []jira.Issue, discoverySource string) interface{} {
+func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string) interface{} {
 	persistence := stats.CalculateStatusPersistence(sample)
 
 	var mapping map[string]stats.StatusMetadata
@@ -130,7 +122,9 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, a
 		})
 	}
 
-	summary := stats.AnalyzeProbe(sample, len(allIssues), s.getFinishedStatuses(sample, nil))
+	summary := stats.AnalyzeProbe(sample, totalCount, s.getFinishedStatuses(sample, nil))
+	summary.Whole.FirstEventAt = first
+	summary.Whole.LastEventAt = last
 	if discoverySource == "LOADED_FROM_CACHE" && s.activeCommitmentPoint != "" {
 		summary.RecommendedCommitmentPoint = s.activeCommitmentPoint
 	} else {
@@ -198,8 +192,10 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 	s.activeCommitmentPoint = commitmentPoint
 
 	// Calculate and persist DiscoveryCutoff based on confirmed mapping
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events)
+	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", time.Time{})
+	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	domainIssues, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+
 	finishedMap := make(map[string]bool)
 	for name, meta := range s.activeMapping {
 		if meta.Tier == "Finished" {

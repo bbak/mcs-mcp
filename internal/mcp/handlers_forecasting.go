@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
@@ -27,14 +28,39 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		return nil, err
 	}
 
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events)
-
-	if len(issues) == 0 {
-		return nil, fmt.Errorf("no data found in the event log to base simulation on")
+	// Determine Sampling Window
+	histEnd := time.Now()
+	if sampleEndDate != "" {
+		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
+			histEnd = t
+		} else {
+			return nil, fmt.Errorf("invalid sample_end_date format: %w", err)
+		}
+	}
+	histStart := histEnd.AddDate(0, -6, 0) // Default 6 months
+	if sampleStartDate != "" {
+		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
+			histStart = t
+		} else {
+			return nil, fmt.Errorf("invalid sample_start_date format: %w", err)
+		}
+	} else if sampleDays > 0 {
+		histStart = histEnd.AddDate(0, 0, -sampleDays)
 	}
 
-	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+
+	// 2. Project on Demand
+	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
+	// We fetch ALL events up to the end of the window to ensure we reconstruct current state (WIP/Backlog)
+	// correctly, even for items that had no activity within the sampling window.
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, window.End)
+	finished, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, issueTypes)
+
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finished, append(downstream, append(upstream, demand...)...)...))
 	if startStatus == "" {
 		startStatus = analysisCtx.CommitmentPoint
 	}
@@ -46,7 +72,6 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			cWeight = w
 		}
 	}
-	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
 
 	existingBacklogCount := 0
 	wipCount := 0
@@ -54,24 +79,26 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	actualTargets := make(map[string]int)
 	if includeExistingBacklog {
-		// Count backlog items (those in 'Demand' tier or not committed)
-		for _, issue := range issues {
-			if m, ok := analysisCtx.WorkflowMappings[issue.Status]; ok && m.Tier == "Demand" {
-				existingBacklogCount++
-				actualTargets[issue.IssueType]++
-			}
+		// Backlog items are those that exist but have NOT crossed commitment
+		// In 4-tier model, this includes Upstream and Demand
+		backlog := append(upstream, demand...)
+		for _, issue := range backlog {
+			existingBacklogCount++
+			actualTargets[issue.IssueType]++
 		}
 	}
 
 	var wipIssues []jira.Issue
 	if includeWIP {
-		wipIssues = s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
+		// An issue from ProjectScope is WIP if it's in the downstream slice (already checked for commitment)
+		wipIssues = downstream
+
 		wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
 		for _, issue := range wipIssues {
 			actualTargets[issue.IssueType]++
 		}
 
-		cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+		cycleTimes := s.getCycleTimes(projectKey, boardID, finished, startStatus, endStatus, issueTypes)
 		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 		wipAges = calcWipAges
 		wipCount = len(wipAges)
@@ -98,21 +125,6 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			return nil, fmt.Errorf("target_days must be > 0 (or target_date must be in the future) for scope simulation")
 		}
 
-		startTime := time.Now().AddDate(0, -6, 0)
-		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(startTime) {
-			startTime = *s.activeDiscoveryCutoff
-		}
-		h := simulation.NewHistogram(issues, startTime, time.Now(), issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
-		engine = simulation.NewEngine(h)
-
-		// Calculate historical distribution
-		dist := make(map[string]float64)
-		if d, ok := h.Meta["type_distribution"].(map[string]float64); ok {
-			for t, p := range d {
-				dist[t] = p
-			}
-		}
-
 		// Expansion Logic Decision (3 Points)
 		expansionEnabled := false
 		expansionReason := ""
@@ -126,6 +138,17 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		} else if additionalItems > 0 {
 			expansionEnabled = true
 			expansionReason = "you added new items to the backlog; we modeled the associated background work"
+		}
+
+		h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+		engine = simulation.NewEngine(h)
+
+		// Calculate historical distribution
+		dist := make(map[string]float64)
+		if d, ok := h.Meta["type_distribution"].(map[string]float64); ok {
+			for t, p := range d {
+				dist[t] = p
+			}
 		}
 
 		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, expansionEnabled)
@@ -144,7 +167,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+			deliveredFiltered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -152,6 +176,10 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 				AdditionalItems: additionalItems,
 				Total:           wipCount + existingBacklogCount + additionalItems,
 			}
+		}
+
+		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
+			resObj.Warnings = append(resObj.Warnings, qReq)
 		}
 		return resObj, nil
 
@@ -165,32 +193,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			return nil, fmt.Errorf("no items to forecast (additional_items and existing backlog both 0)")
 		}
 
-		// Determine Sampling Window
-		histEnd := time.Now()
-		if sampleEndDate != "" {
-			if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
-				histEnd = t
-			} else {
-				return nil, fmt.Errorf("invalid sample_end_date format: %w", err)
-			}
-		}
-
-		histStart := histEnd.AddDate(0, -6, 0) // Default 6 months
-		if sampleStartDate != "" {
-			if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
-				histStart = t
-			} else {
-				return nil, fmt.Errorf("invalid sample_start_date format: %w", err)
-			}
-		} else if sampleDays > 0 {
-			histStart = histEnd.AddDate(0, 0, -sampleDays)
-		}
-
-		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
-			histStart = *s.activeDiscoveryCutoff
-		}
-
-		h := simulation.NewHistogram(issues, histStart, histEnd, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+		h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 		engine = simulation.NewEngine(h)
 
 		dist := make(map[string]float64)
@@ -239,27 +242,25 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		// Populate simTargets
-		if len(simTargets) == 0 {
-			// Start with actual counts from Jira (High-Fidelity)
-			for t, c := range actualTargets {
-				simTargets[t] = c
-			}
+		// Start with actual counts from Jira (High-Fidelity)
+		for t, c := range actualTargets {
+			simTargets[t] = c
+		}
 
-			// Add additional items following historical distribution
-			if additionalItems > 0 {
-				for t, p := range dist {
-					count := int(math.Round(float64(additionalItems) * p))
-					if count > 0 {
-						simTargets[t] += count
-					}
+		// Add additional items following historical distribution
+		if additionalItems > 0 {
+			for t, p := range dist {
+				count := int(math.Round(float64(additionalItems) * p))
+				if count > 0 {
+					simTargets[t] += count
 				}
 			}
+		}
 
-			// Safe fallback if still empty
-			if len(simTargets) == 0 {
-				simTargets["Unknown"] = totalBacklog
-				dist["Unknown"] = 1.0
-			}
+		// Safe fallback if still empty
+		if len(simTargets) == 0 {
+			simTargets["Unknown"] = totalBacklog
+			dist["Unknown"] = 1.0
 		}
 
 		// Determine if "Demand Expansion" is appropriate (3 Points).
@@ -291,7 +292,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		if includeWIP {
-			cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+			deliveredFiltered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
+			cycleTimes := s.getCycleTimes(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
 			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, totalBacklog)
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
@@ -318,6 +320,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
+		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
+			resObj.Warnings = append(resObj.Warnings, qReq)
+		}
 		return resObj, nil
 
 	default:
@@ -351,19 +356,26 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		return nil, err
 	}
 
-	// Hydrate
+	// 1. Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
 
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	issues := s.reconstructIssues(events)
+	// 2. Project on Demand
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
+	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	finished, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, issueTypes)
+	delivered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
 
-	if len(issues) == 0 {
-		return nil, fmt.Errorf("no historical data found in the event log to base assessment on")
+	if len(delivered) == 0 {
+		return nil, fmt.Errorf("no historical delivery data found (items may be abandoned or unmapped)")
 	}
 
-	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, issues)
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finished, append(downstream, append(upstream, demand...)...)...))
 	if startStatus == "" {
 		startStatus = analysisCtx.CommitmentPoint
 	}
@@ -374,25 +386,29 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 			cWeight = w
 		}
 	}
-	issues = stats.ApplyBackflowPolicy(issues, analysisCtx.StatusWeights, cWeight)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+
+	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
 	}
 
 	var wipAges []float64
-	wipIssues := s.filterWIPIssues(issues, startStatus, analysisCtx.FinishedStatuses)
-	wipIssues = stats.ApplyBackflowPolicy(wipIssues, analysisCtx.StatusWeights, cWeight)
+	wipIssues := stats.ApplyBackflowPolicy(downstream, analysisCtx.StatusWeights, cWeight)
 	wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 
-	var engine *simulation.Engine
+	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+	engine := simulation.NewEngine(h)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
 	if analyzeWIP {
 		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
 	}
 
 	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
+
+	if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
+		resObj.Warnings = append(resObj.Warnings, qReq)
+	}
 
 	return resObj, nil
 }
@@ -409,7 +425,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
-	// Hydrate
+	// 1. Hydrate
 	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
 		return nil, err
 	}
@@ -431,22 +447,14 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		histStart = histEnd.AddDate(0, 0, -sampleDays)
 	}
 
-	// If a specific sample window wasn't given, we use the 6-month default
-	// but we MUST respect the discovery cutoff.
-	if sampleStartDate == "" && sampleDays == 0 {
-		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
-			histStart = *s.activeDiscoveryCutoff
-		}
-	} else {
-		// If they explicitly requested a start date that's before the cutoff,
-		// we should probably warn or adjust it?
-		// For consistency, we always respect the cutoff.
-		if s.activeDiscoveryCutoff != nil && s.activeDiscoveryCutoff.After(histStart) {
-			histStart = *s.activeDiscoveryCutoff
-		}
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
 	}
 
-	events := s.events.GetEventsInRange(sourceID, histStart, histEnd)
+	// Apply AnalysisWindow for temporal consistency and boundary snapping
+	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
+	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
 
 	// Mapping
 	// We pass the CURRENT mapping. This assumes mapping hasn't changed drastically.
@@ -482,7 +490,8 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 
 	return map[string]interface{}{
-		"accuracy": res,
+		"accuracy":      res,
+		"_data_quality": s.getQualityWarnings(wfa.GetAnalyzedIssues()),
 		"_guidance": []string{
 			"If accuracy is < 70%, users should be cautious with forecasts.",
 			"Drift Detection stops the backtest to prevent comparing apples to oranges.",

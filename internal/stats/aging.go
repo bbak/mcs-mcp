@@ -27,7 +27,8 @@ type InventoryAge struct {
 	Tier                     string   `json:"tier"`                                // Terminal Tier context
 	IsCompleted              bool     `json:"is_completed"`                        // True if in 'Finished' tier
 	TotalAgeSinceCreation    float64  `json:"total_age_since_creation_days"`       // Caps at entry to Finished tier
-	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age OR Final Cycle Time
+	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age (since last commitment)
+	CumulativeWIPDays        float64  `json:"cumulative_wip_days"`                 // Total time spent in Downstream statuses
 	AgeInCurrentStatus       float64  `json:"age_in_current_status_days"`
 	CumulativeUpstreamDays   float64  `json:"cumulative_upstream_days"`
 	CumulativeDownstreamDays float64  `json:"cumulative_downstream_days"`
@@ -177,68 +178,32 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		if agingType == "total" {
 			ageRaw = totalAgeRaw
 		} else {
-			// WIP Age logic
+			// WIP Age is cumulative downstream residency (Nave-aligned)
+			ageRaw = downstreamDays
+
+			// Identify if it has started (ever reached commitment)
+			isStarted := false
 			commitmentWeight := 2
 			if startStatus != "" {
-				// startStatus is assumed to be a name or ID provided by the tool call.
-				// We need robust weight lookup.
 				if w, ok := GetWeightRobust(statusWeights, "", startStatus); ok {
 					commitmentWeight = w
 				}
 			}
 
-			var earliestAfterBackflow *time.Time
-			isStarted := false
-
-			// Is current status started?
+			// It is started if its current weight >= commitment OR if it has ANY downstream residency
 			weight, hasWeight := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
-			if (hasWeight && weight >= commitmentWeight) || (startStatus == "" && hasWeight && weight >= 2) {
+			if (hasWeight && weight >= commitmentWeight) || ageRaw > 0 {
 				isStarted = true
 			}
 
-			// Chronological scan to find the earliest commitment after the last backflow
-			for _, t := range issue.Transitions {
-				weight, hasWeight := GetWeightRobust(statusWeights, t.ToStatusID, t.ToStatus)
-				if hasWeight && weight < commitmentWeight {
-					// Backflow! Discard previous WIP history
-					earliestAfterBackflow = nil
-					isStarted = false
-				} else if (startStatus != "" && (EqualFold(t.ToStatus, startStatus) || t.ToStatusID == startStatus)) || (hasWeight && weight >= commitmentWeight) {
-					if earliestAfterBackflow == nil {
-						st := t.Date
-						earliestAfterBackflow = &st
-					}
-					isStarted = true
-				}
-			}
-
 			if isStarted {
-				var start time.Time
-				if earliestAfterBackflow != nil {
-					start = *earliestAfterBackflow
-				} else {
-					start = issue.Created
-				}
-
-				if isFinished && issue.ResolutionDate != nil {
-					ageRaw = issue.ResolutionDate.Sub(start).Hours() / 24.0
-				} else if isFinished && len(issue.Transitions) > 0 {
-					ageRaw = issue.Transitions[len(issue.Transitions)-1].Date.Sub(start).Hours() / 24.0
-				} else {
-					ageRaw = time.Since(start).Hours() / 24.0
-				}
-
 				rounded := math.Ceil(ageRaw*10) / 10
 				ageSinceCommitment = &rounded
 			}
+		}
 
-			if ageSinceCommitment == nil {
-				continue
-			}
-			currentWeight, hasCurrentWeight := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
-			if hasCurrentWeight && currentWeight < commitmentWeight && !isFinished {
-				continue
-			}
+		if ageSinceCommitment == nil && agingType != "total" {
+			continue
 		}
 
 		analysis := InventoryAge{
@@ -251,6 +216,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			AgeInCurrentStatus:       stepDays,
 			TotalAgeSinceCreation:    math.Round(totalAgeRaw*10) / 10,
 			AgeSinceCommitment:       ageSinceCommitment,
+			CumulativeWIPDays:        math.Round(downstreamDays*10) / 10,
 			CumulativeUpstreamDays:   math.Round(upstreamDays*10) / 10,
 			CumulativeDownstreamDays: math.Round(downstreamDays*10) / 10,
 		}

@@ -555,8 +555,8 @@ func TestAnalyzeProbe_ResolutionDensity(t *testing.T) {
 
 	summary := AnalyzeProbe(issues, 10, nil)
 
-	if summary.ResolutionDensity != 2.0/3.0 {
-		t.Errorf("Expected resolution density 0.66, got %f", summary.ResolutionDensity)
+	if summary.Sample.ResolutionDensity != 0.67 {
+		t.Errorf("Expected resolution density 0.67, got %f", summary.Sample.ResolutionDensity)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 
@@ -33,11 +34,14 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 		log.Error().Err(err).Str("project", projectKey).Msg("Hydration failed")
 	}
 
-	// 4. Data Probe
+	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetEventsInRange(projectKey, time.Time{}, time.Now())
-	domainIssues := s.reconstructIssues(events)
-	sample := stats.SelectDiscoverySample(domainIssues, 200)
-	summary := stats.AnalyzeProbe(sample, len(domainIssues), s.getFinishedStatuses(domainIssues, nil))
+	first, last, total := eventlog.DiscoverDatasetBoundaries(events)
+	sample := eventlog.ProjectNeutralSample(events, 200)
+
+	summary := stats.AnalyzeProbe(sample, total, nil)
+	summary.Whole.FirstEventAt = first
+	summary.Whole.LastEventAt = last
 
 	// 4. Fetch Project Metadata
 	project, err := s.jira.GetProject(projectKey)

@@ -38,6 +38,10 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 		}
 	}
 
+	if t, err := jira.ParseTime(item.Fields.Updated); err == nil {
+		issue.Updated = t
+	}
+
 	if item.Changelog != nil {
 		issue.Transitions, issue.StatusResidency, issue.IsMoved = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
 	}
@@ -363,61 +367,76 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 	return residency
 }
 
-// GetDailyThroughput returns count of items resolved each day in the requested window.
-// It never counts items resolved earlier than the specified cutoff date.
-func GetDailyThroughput(issues []jira.Issue, windowDays int, mappings map[string]StatusMetadata, resolutionMappings map[string]string, deliveredOnly bool, cutoff time.Time) []int {
+// IsDelivered determines if an issue reached a successful final state following the precedence:
+// 1. Resolution Mapping (Primary)
+// 2. Status Mapping (Fallback)
+//
+// GOLD STANDARD: This logic is verified against Nave (Flow Portfolio) benchmarks.
+// DO NOT MODIFY WITHOUT EXPLICIT RE-VERIFICATION.
+func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) bool {
+	// If no resolution date and not in a terminal status, it's definitely not delivered
+	isTerminal := false
+	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+		isTerminal = true
+	}
+
+	if issue.ResolutionDate == nil && !isTerminal {
+		return false
+	}
+
+	// 1. Resolution Mapping Precedence
+	if resolutions != nil {
+		if outcome, ok := resolutions[issue.Resolution]; ok {
+			if outcome != "" {
+				return outcome == "delivered"
+			}
+		}
+	}
+
+	// 2. Status Mapping Fallback
+	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+		if m.Outcome != "" {
+			return m.Outcome == "delivered"
+		}
+	}
+
+	// 3. Absolute Fallback: if it has a resolution date, we assume delivered
+	// unless specifically mapped as abandoned above.
+	return issue.ResolutionDate != nil
+}
+
+// FilterDelivered returns only items that passed the IsDelivered check.
+func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) []jira.Issue {
+	filtered := make([]jira.Issue, 0)
+	for _, iss := range issues {
+		if IsDelivered(iss, resolutions, mappings) {
+			filtered = append(filtered, iss)
+		}
+	}
+	return filtered
+}
+
+func GetDailyThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMappings map[string]string, statusMappings map[string]StatusMetadata) []int {
 	if len(issues) == 0 {
 		return nil
 	}
 
-	now := time.Now()
-	// Normalize to start of today
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	minDate := today.AddDate(0, 0, -windowDays+1)
-
-	// If a cutoff is provided, we respect the LATEST of minDate and cutoff
-	effectiveMinDate := minDate
-	if !cutoff.IsZero() && cutoff.After(effectiveMinDate) {
-		effectiveMinDate = cutoff
-	}
-
+	windowDays := window.DayCount()
 	daily := make([]int, windowDays)
 
 	for _, issue := range issues {
-		var resDate time.Time
-		isDelivered := true
-
-		if issue.ResolutionDate != nil {
-			resDate = *issue.ResolutionDate
-			if deliveredOnly {
-				// Primary: Resolution Mapping
-				if outcome, ok := resolutionMappings[issue.Resolution]; ok {
-					if outcome != "delivered" {
-						isDelivered = false
-					}
-				} else {
-					// Fallback: If no resolution mapping, we check the status mapping
-					if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
-						if m.Outcome != "" && m.Outcome != "delivered" {
-							isDelivered = false
-						}
-					}
-					// If neither mapping specifies outcome, we trust the ResolutionDate presence (legacy/default)
-				}
-			}
-		} else if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
-			// Fallback Finished logic
-			resDate = issue.Updated
-			if deliveredOnly && m.Outcome != "" && m.Outcome != "delivered" {
-				isDelivered = false
-			}
-		}
-
-		if resDate.IsZero() || !isDelivered {
+		if !IsDelivered(issue, resolutionMappings, statusMappings) {
 			continue
 		}
 
-		d := int(resDate.Sub(minDate).Hours() / 24)
+		resDate := *issue.ResolutionDate
+		// If resolution date is missing but IsDelivered is true (terminal status fallback), use Updated
+		if issue.ResolutionDate == nil {
+			resDate = issue.Updated
+		}
+
+		// Normalize to start of day for indexing
+		d := int(resDate.Sub(window.Start).Hours() / 24)
 		if d >= 0 && d < windowDays {
 			daily[d]++
 		}

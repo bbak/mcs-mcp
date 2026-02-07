@@ -8,6 +8,179 @@ import (
 	"time"
 )
 
+// ProjectScope identifies and reconstructs issues relevant to a specific analysis window.
+// It returns four sets aligned with meta-workflow tiers:
+// 1. Finished: Items that reached their final 'Finished' state WITHIN the window.
+// 2. Downstream: Items in active execution tiers at the window's END point.
+// 3. Upstream: Items in refinement or analysis tiers at the window's END point.
+// 4. Demand: Items existing in the initial entry tier at the window's END point.
+func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPoint string, mappings map[string]stats.StatusMetadata, resolutions map[string]string, issueTypes []string) ([]jira.Issue, []jira.Issue, []jira.Issue, []jira.Issue) {
+	typeMap := make(map[string]bool)
+	for _, t := range issueTypes {
+		typeMap[t] = true
+	}
+
+	grouped := make(map[string][]IssueEvent)
+	for _, e := range events {
+		if !window.End.IsZero() && e.Timestamp > window.End.UnixMicro() {
+			continue
+		}
+		if len(issueTypes) > 0 && !typeMap[e.IssueType] {
+			continue
+		}
+		grouped[e.IssueKey] = append(grouped[e.IssueKey], e)
+	}
+
+	finishedMap := make(map[string]bool)
+	for name, m := range mappings {
+		if m.Tier == "Finished" {
+			finishedMap[name] = true
+		}
+	}
+
+	var finished []jira.Issue
+	var downstream []jira.Issue
+	var upstream []jira.Issue
+	var demand []jira.Issue
+
+	for _, issueEvents := range grouped {
+		issue := ReconstructIssue(issueEvents, finishedMap, window.End)
+		if issue.IsSubtask {
+			continue
+		}
+
+		// 1. Was it resolved WITHIN the window?
+		isResolved := false
+		var resDate time.Time
+
+		if issue.ResolutionDate != nil {
+			isResolved = true
+			resDate = *issue.ResolutionDate
+		} else if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+			isResolved = true
+			resDate = issue.Updated
+		}
+
+		if isResolved {
+			if !resDate.Before(window.Start) && !resDate.After(window.End) {
+				finished = append(finished, issue)
+			}
+			continue
+		}
+
+		// 2. Classify by Tier at the end of the window
+		if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+			switch m.Tier {
+			case "Downstream":
+				downstream = append(downstream, issue)
+			case "Upstream":
+				upstream = append(upstream, issue)
+			case "Demand":
+				demand = append(demand, issue)
+			default:
+				// Fallback or items without tiers
+				demand = append(demand, issue)
+			}
+		} else {
+			// Fallback: Default to Demand if mapping is missing
+			demand = append(demand, issue)
+		}
+	}
+
+	// Chronological Sort: All analytical consumers expect deterministic time-ordered data.
+	sortByDate := func(issues []jira.Issue) {
+		sort.Slice(issues, func(i, j int) bool {
+			dateI := issues[i].Updated
+			if issues[i].ResolutionDate != nil {
+				dateI = *issues[i].ResolutionDate
+			}
+			dateJ := issues[j].Updated
+			if issues[j].ResolutionDate != nil {
+				dateJ = *issues[j].ResolutionDate
+			}
+			return dateI.Before(dateJ)
+		})
+	}
+
+	sortByDate(finished)
+	sortByDate(downstream)
+	sortByDate(upstream)
+	sortByDate(demand)
+
+	return finished, downstream, upstream, demand
+}
+
+// DiscoverDatasetBoundaries performs a lightweight scan of the event log to find
+// temporal boundaries and the total number of unique items.
+func DiscoverDatasetBoundaries(events []IssueEvent) (first, last time.Time, total int) {
+	uniqueKeys := make(map[string]bool)
+	var minTS, maxTS int64
+
+	for _, e := range events {
+		uniqueKeys[e.IssueKey] = true
+		if minTS == 0 || e.Timestamp < minTS {
+			minTS = e.Timestamp
+		}
+		if e.Timestamp > maxTS {
+			maxTS = e.Timestamp
+		}
+	}
+
+	if minTS != 0 {
+		first = time.UnixMicro(minTS)
+	}
+	if maxTS != 0 {
+		last = time.UnixMicro(maxTS)
+	}
+	return first, last, len(uniqueKeys)
+}
+
+// ProjectNeutralSample selects a recent sample of work items from the event log
+// and reconstructs them without applying tier-based filtering.
+func ProjectNeutralSample(events []IssueEvent, targetSize int) []jira.Issue {
+	// 1. Group events by key
+	grouped := make(map[string][]IssueEvent)
+	latestTS := make(map[string]int64)
+	for _, e := range events {
+		grouped[e.IssueKey] = append(grouped[e.IssueKey], e)
+		if e.Timestamp > latestTS[e.IssueKey] {
+			latestTS[e.IssueKey] = e.Timestamp
+		}
+	}
+
+	// 2. Sort keys by latest activity descending
+	type keyTS struct {
+		key string
+		ts  int64
+	}
+	var sortedKeys []keyTS
+	for k, ts := range latestTS {
+		sortedKeys = append(sortedKeys, keyTS{k, ts})
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		return sortedKeys[i].ts > sortedKeys[j].ts
+	})
+
+	// 3. Take top targetSize and reconstruct
+	limit := targetSize
+	if len(sortedKeys) < limit {
+		limit = len(sortedKeys)
+	}
+
+	var sample []jira.Issue
+	for i := 0; i < limit; i++ {
+		key := sortedKeys[i].key
+		issueEvents := grouped[key]
+		// Reconstruct without mappings or tier filters
+		issue := ReconstructIssue(issueEvents, nil, time.Time{})
+		if !issue.IsSubtask {
+			sample = append(sample, issue)
+		}
+	}
+
+	return sample
+}
+
 // WIPItem represents an active work item derived from the event log.
 type WIPItem struct {
 	IssueKey           string
@@ -153,9 +326,11 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 
 	first := events[0]
 	issue := jira.Issue{
-		Key:             first.IssueKey,
-		IssueType:       first.IssueType,
-		StatusResidency: make(map[string]int64),
+		Key:               first.IssueKey,
+		IssueType:         first.IssueType,
+		StatusResidency:   make(map[string]int64),
+		Created:           time.UnixMicro(first.Timestamp), // Defensive default in case birth event is missing
+		HasSyntheticBirth: true,                            // Assume synthetic until proven otherwise
 	}
 	issue.ProjectKey = stats.ExtractProjectKey(first.IssueKey)
 
@@ -167,6 +342,7 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		if e.EventType == Created || e.ToStatus != "" {
 			if e.EventType == Created {
 				issue.Created = time.UnixMicro(e.Timestamp)
+				issue.HasSyntheticBirth = false // We have a real birth event!
 			} else {
 				issue.Transitions = append(issue.Transitions, jira.StatusTransition{
 					FromStatus:   e.FromStatus,

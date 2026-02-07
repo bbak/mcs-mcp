@@ -172,3 +172,16 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 
 	return cycleTimes
 }
+func (s *Server) getQualityWarnings(issues []jira.Issue) string {
+	syntheticCount := 0
+	for _, issue := range issues {
+		if issue.HasSyntheticBirth {
+			syntheticCount++
+		}
+	}
+
+	if syntheticCount > 0 {
+		return fmt.Sprintf("DATA INTEGRITY WARNING: %d item(s) are missing their creation events. Cycle Times and Stability metrics for these items are based on the earliest recorded event, which likely understates their true age.", syntheticCount)
+	}
+	return ""
+}

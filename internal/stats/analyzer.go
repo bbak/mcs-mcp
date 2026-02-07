@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"math"
 	"mcs-mcp/internal/jira"
 	"regexp"
 	"sort"
@@ -9,14 +10,23 @@ import (
 )
 
 type MetadataSummary struct {
-	TotalIngestedIssues        int            `json:"totalIngestedIssues"`
-	DiscoverySampleSize        int            `json:"discoverySampleSize"`
-	IssueTypes                 map[string]int `json:"issueTypes"`
-	ResolutionNames            map[string]int `json:"resolutionNames"`
-	ResolutionDensity          float64        `json:"resolutionDensity"` // % of issues with a resolution
-	FirstResolution            *time.Time     `json:"firstResolution,omitempty"`
-	LastResolution             *time.Time     `json:"lastResolution,omitempty"`
-	RecommendedCommitmentPoint string         `json:"recommendedCommitmentPoint,omitempty"`
+	Whole                      WholeDatasetStats  `json:"whole"`
+	Sample                     SampleDatasetStats `json:"sample"`
+	RecommendedCommitmentPoint string             `json:"recommendedCommitmentPoint,omitempty"`
+}
+
+type WholeDatasetStats struct {
+	TotalItems   int       `json:"total_items"`
+	FirstEventAt time.Time `json:"first_event_at"`
+	LastEventAt  time.Time `json:"last_event_at"`
+}
+
+type SampleDatasetStats struct {
+	SampleSize        int                `json:"sample_size"`
+	PercentageOfWhole float64            `json:"percentage_of_whole"`
+	WorkItemWeights   map[string]float64 `json:"work_item_distribution"`
+	ResolutionNames   []string           `json:"resolutions"`
+	ResolutionDensity float64            `json:"resolution_density"`
 }
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
@@ -37,65 +47,49 @@ func SumRangeDuration(issue jira.Issue, rangeStatuses []string) float64 {
 	return total
 }
 
-// AnalyzeProbe performs a preliminary analysis on a sample of issues to anchor the AI on the data shape.
-func AnalyzeProbe(issues []jira.Issue, totalCount int, finishedStatuses map[string]bool) MetadataSummary {
+// AnalyzeProbe performs a characterization analysis on a sample of issues.
+func AnalyzeProbe(sample []jira.Issue, totalCount int, finishedStatuses map[string]bool) MetadataSummary {
 	summary := MetadataSummary{
-		TotalIngestedIssues: totalCount,
-		DiscoverySampleSize: len(issues),
-		IssueTypes:          make(map[string]int),
-		ResolutionNames:     make(map[string]int),
+		Whole: WholeDatasetStats{
+			TotalItems: totalCount,
+		},
+		Sample: SampleDatasetStats{
+			SampleSize:      len(sample),
+			WorkItemWeights: make(map[string]float64),
+		},
 	}
 
-	if len(issues) == 0 {
+	if totalCount > 0 {
+		summary.Sample.PercentageOfWhole = math.Round((float64(len(sample))/float64(totalCount))*1000) / 10
+	}
+
+	if len(sample) == 0 {
 		return summary
 	}
 
-	// Canonical casing map: lower -> original
-	canonical := make(map[string]string)
-	getCanonical := func(s string) string {
-		lower := strings.ToLower(s)
-		if existing, ok := canonical[lower]; ok {
-			return existing
-		}
-		canonical[lower] = s
-		return s
-	}
+	typeCounts := make(map[string]int)
+	resNames := make(map[string]bool)
+	resolvedCount := 0
 
-	var first, last *time.Time
-	reachableSet := make(map[string]bool)
-
-	for _, issue := range issues {
-		summary.IssueTypes[issue.IssueType]++
+	for _, issue := range sample {
+		typeCounts[issue.IssueType]++
 		if issue.Resolution != "" {
-			summary.ResolutionNames[issue.Resolution]++
-		}
-
-		// Track reachability (all statuses ever visited in this sample)
-		reachableSet[getCanonical(issue.Status)] = true
-		for _, t := range issue.Transitions {
-			reachableSet[getCanonical(t.ToStatus)] = true
-		}
-
-		if issue.ResolutionDate != nil {
-			if first == nil || issue.ResolutionDate.Before(*first) {
-				first = issue.ResolutionDate
-			}
-			if last == nil || issue.ResolutionDate.After(*last) {
-				last = issue.ResolutionDate
-			}
+			resNames[issue.Resolution] = true
+			resolvedCount++
 		}
 	}
 
-	if summary.DiscoverySampleSize > 0 {
-		resolvedCount := 0
-		for _, count := range summary.ResolutionNames {
-			resolvedCount += count
-		}
-		summary.ResolutionDensity = float64(resolvedCount) / float64(summary.DiscoverySampleSize)
+	// Calculate distributions
+	for t, count := range typeCounts {
+		summary.Sample.WorkItemWeights[t] = math.Round((float64(count)/float64(len(sample)))*100) / 100
 	}
 
-	summary.FirstResolution = first
-	summary.LastResolution = last
+	for name := range resNames {
+		summary.Sample.ResolutionNames = append(summary.Sample.ResolutionNames, name)
+	}
+	sort.Strings(summary.Sample.ResolutionNames)
+
+	summary.Sample.ResolutionDensity = math.Round((float64(resolvedCount)/float64(len(sample)))*100) / 100
 
 	return summary
 }

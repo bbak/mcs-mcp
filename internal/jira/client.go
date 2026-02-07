@@ -6,21 +6,22 @@ import (
 
 // Issue represents a subset of Jira issue data needed for forecasting.
 type Issue struct {
-	Key             string
-	ProjectKey      string
-	IssueType       string
-	Summary         string
-	Created         time.Time
-	Updated         time.Time
-	ResolutionDate  *time.Time
-	Resolution      string
-	Status          string
-	StatusID        string
-	StatusCategory  string
-	StatusResidency map[string]int64 // Seconds spent in each status
-	Transitions     []StatusTransition
-	IsSubtask       bool
-	IsMoved         bool
+	Key               string
+	ProjectKey        string
+	IssueType         string
+	Summary           string
+	Created           time.Time
+	Updated           time.Time
+	ResolutionDate    *time.Time
+	Resolution        string
+	Status            string
+	StatusID          string
+	StatusCategory    string
+	StatusResidency   map[string]int64 // Seconds spent in each status
+	Transitions       []StatusTransition
+	IsSubtask         bool
+	IsMoved           bool
+	HasSyntheticBirth bool // True if birth date was inferred from earliest event
 }
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.

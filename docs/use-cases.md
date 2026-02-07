@@ -20,7 +20,7 @@ This document describes the primary interaction scenarios between the User (Proj
     6.  AI calls `run_simulation` with `mode: "duration"`.
     7.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
     8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
-    9.  **Integrity Check**: If individual item filters have collapsed the throughput, the MCP Server issues a **Throughput Collapse Barrier** warning, preventing a "naïve" forecast (e.g., August 2041) from being presented without a disclaimer.
+    9.  **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Steady State Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse Barrier** warning.
 
 ---
 
@@ -78,7 +78,7 @@ This document describes the primary interaction scenarios between the User (Proj
     3.  MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
     4.  AI detects a systemic "Migration" signal.
     5.  AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
-    6.  **Rational Subgrouping**: The analysis automatically **excludes the current calendar month** from the Natural Process Limits calculation, ensuring that partial data from the active month doesn't skew the long-term capability baseline.
+    6.  **Rational Subgrouping**: The analysis defaults to **Weekly Subgrouping** for maximum sensitivity and automatically **excludes the current calendar week** from the Natural Process Limits calculation, ensuring that partial data doesn't skew the long-term capability baseline.
 
 ---
 

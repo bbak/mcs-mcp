@@ -139,7 +139,7 @@ func TestXmRBenchmark(t *testing.T) {
 		t.Errorf("UNPL Scaling error. Expected %v, got %v", expectedUNPL, result.UNPL)
 	}
 }
-func TestGroupIssuesByWeek_ExcludesCurrentWeek(t *testing.T) {
+func TestGroupIssuesByBucket_ExcludesCurrentBucket(t *testing.T) {
 	now := time.Now()
 
 	prev := now.AddDate(0, 0, -7)
@@ -152,7 +152,8 @@ func TestGroupIssuesByWeek_ExcludesCurrentWeek(t *testing.T) {
 	}
 	cycleTimes := []float64{10.0, 20.0}
 
-	subgroups := GroupIssuesByWeek(issues, cycleTimes)
+	window := NewAnalysisWindow(now.AddDate(0, 0, -14), now, "week", time.Time{})
+	subgroups := GroupIssuesByBucket(issues, cycleTimes, window)
 
 	// Should only find the previous week
 	if len(subgroups) != 1 {
@@ -160,5 +161,29 @@ func TestGroupIssuesByWeek_ExcludesCurrentWeek(t *testing.T) {
 	}
 	if subgroups[0].Label != prevWeekKey {
 		t.Errorf("Expected subgroup label %s, got %s", prevWeekKey, subgroups[0].Label)
+	}
+}
+func TestCalculateProcessStability(t *testing.T) {
+	cycleTimes := []float64{10, 10, 10, 10, 10} // Perfectly stable
+	wipCount := 5
+	windowDays := 10.0
+
+	// Throughput = 5 / 10 = 0.5 items/day
+	// Expected Lead Time = 5 / 0.5 = 10
+	// Stability Index = 10 / 10 (avg) = 1.0
+	res := CalculateProcessStability(nil, cycleTimes, wipCount, windowDays).(map[string]interface{})
+
+	index := res["stability_index"].(float64)
+	if math.Abs(index-1.0) > 0.001 {
+		t.Errorf("Expected stability index 1.0, got %v", index)
+	}
+
+	// Double WIP
+	// Expected Lead Time = 10 / 0.5 = 20
+	// Stability Index = 20 / 10 (avg) = 2.0
+	res2 := CalculateProcessStability(nil, cycleTimes, 10, windowDays).(map[string]interface{})
+	index2 := res2["stability_index"].(float64)
+	if math.Abs(index2-2.0) > 0.001 {
+		t.Errorf("Expected stability index 2.0, got %v", index2)
 	}
 }

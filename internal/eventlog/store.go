@@ -195,7 +195,8 @@ func DeleteCache(cacheDir, sourceID string) error {
 	return nil
 }
 
-// GetEventsInRange returns a copy of events within the specified time window.
+// GetEventsInRange returns all events for any issue that has activity within the specified window.
+// It ensures that birth events (Created) are included for accurate reconstruction.
 func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -208,10 +209,21 @@ func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []I
 	startTs := start.UnixMicro()
 	endTs := end.UnixMicro()
 
-	var result []IssueEvent
+	// 1. Identify keys that have ANY activity in the window
+	relevantKeys := make(map[string]bool)
 	for _, e := range logData {
 		if e.Timestamp >= startTs && (end.IsZero() || e.Timestamp <= endTs) {
-			result = append(result, e)
+			relevantKeys[e.IssueKey] = true
+		}
+	}
+
+	// 2. Collect all events for relevant keys up to 'end'
+	var result []IssueEvent
+	for _, e := range logData {
+		if relevantKeys[e.IssueKey] {
+			if end.IsZero() || e.Timestamp <= endTs {
+				result = append(result, e)
+			}
 		}
 	}
 	return result
