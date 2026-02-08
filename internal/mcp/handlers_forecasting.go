@@ -467,8 +467,28 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	if forecastHorizon <= 0 {
 		forecastHorizon = 14
 	}
+
+	adaptiveMsg := ""
 	if itemsToForecast <= 0 {
-		itemsToForecast = 5 // Default batch size
+		// Calculate adaptive batch size: 2x median weekly throughput of last 10 weeks
+		// Project scope to get finished items for throughput calculation
+		finished, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, issueTypes)
+		delivered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
+
+		cadence := stats.CalculateDeliveryCadence(delivered, 10)
+		counts := make([]int, 10)
+		// CalculateDeliveryCadence only returns weeks with work.
+		// We fill 10 weeks, where missing weeks are implicitly 0.
+		for i := 0; i < len(cadence) && i < 10; i++ {
+			counts[9-i] = cadence[len(cadence)-1-i].ItemsDelivered
+		}
+
+		median := stats.CalculateMedianDiscrete(counts)
+		itemsToForecast = int(math.Round(median * 2))
+		if itemsToForecast < 2 {
+			itemsToForecast = 2 // Safety floor
+		}
+		adaptiveMsg = fmt.Sprintf("Adaptive Batching: Using %d items for validation (2x median weekly throughput of %.1f).", itemsToForecast, median)
 	}
 
 	lookback := int(histEnd.Sub(histStart).Hours() / 24)
@@ -477,7 +497,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		SourceID:        sourceID,
 		SimulationMode:  mode,
 		LookbackWindow:  lookback,
-		StepSize:        14, // Every 2 weeks
+		StepSize:        7, // Every week (overlapping)
 		ForecastHorizon: forecastHorizon,
 		ItemsToForecast: itemsToForecast,
 		IssueTypes:      issueTypes,
@@ -489,13 +509,18 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
+	guidance := []string{
+		"If accuracy is < 70%, users should be cautious with forecasts.",
+		"Drift Detection stops the backtest to prevent comparing apples to oranges.",
+		"This tool is computationally expensive; cache the result if possible.",
+	}
+	if adaptiveMsg != "" {
+		guidance = append([]string{adaptiveMsg}, guidance...)
+	}
+
 	return map[string]interface{}{
 		"accuracy":      res,
 		"_data_quality": s.getQualityWarnings(wfa.GetAnalyzedIssues()),
-		"_guidance": []string{
-			"If accuracy is < 70%, users should be cautious with forecasts.",
-			"Drift Detection stops the backtest to prevent comparing apples to oranges.",
-			"This tool is computationally expensive; cache the result if possible.",
-		},
+		"_guidance":     guidance,
 	}, nil
 }

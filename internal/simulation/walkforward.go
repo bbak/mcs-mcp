@@ -14,7 +14,7 @@ type WalkForwardConfig struct {
 	SourceID        string
 	SimulationMode  string   // "duration" or "scope"
 	LookbackWindow  int      // Days to look back for the validation (e.g., 90 days)
-	StepSize        int      // Days between checkouts (e.g., 14 days)
+	StepSize        int      // Days between checkouts (e.g., 7 days)
 	ForecastHorizon int      // Days to forecast into the future (only for Scope mode, e.g. 14 days)
 	ItemsToForecast int      // Number of items (only for Duration mode)
 	IssueTypes      []string // Optional: Filter by issue types
