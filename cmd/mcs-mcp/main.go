@@ -1,5 +1,7 @@
 package main
 
+//go:generate goversioninfo -platform-specific
+
 import (
 	"fmt"
 	"mcs-mcp/cmd/mcs-mcp/commands"

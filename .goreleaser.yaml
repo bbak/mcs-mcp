@@ -1,0 +1,60 @@
+# .goreleaser.yaml
+version: 2
+
+project_name: mcs-mcp
+
+before:
+    hooks:
+        - go mod tidy
+        - go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+        - go generate ./...
+
+builds:
+    - id: "mcs-mcp"
+      main: ./cmd/mcs-mcp
+      binary: mcs-mcp
+      env:
+          - CGO_ENABLED=0
+      goos:
+          - windows
+          - linux
+          - darwin
+      goarch:
+          - amd64
+          - arm64
+      ldflags:
+          - -s -w
+          - -X mcs-mcp/cmd/mcs-mcp/commands.Version={{ .Version }}
+          - -X mcs-mcp/cmd/mcs-mcp/commands.Commit={{ .ShortCommit }}
+          - -X mcs-mcp/cmd/mcs-mcp/commands.BuildDate={{ .Date }}
+
+archives:
+    - name_template: >-
+          {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}
+      format_overrides:
+          - goos: windows
+            formats: zip
+      files:
+          - src: conf/.env-example
+            dst: .env-example
+
+checksum:
+    name_template: "checksums.txt"
+
+snapshot:
+    version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+    sort: asc
+    filters:
+        exclude:
+            - "^docs:"
+            - "^test:"
+            - "^chore:"
+            - "^build:"
+
+release:
+    github:
+        owner: bbak
+        name: mcs-mcp
+    name_template: "{{ .ProjectName }} v{{ .Version }}"
