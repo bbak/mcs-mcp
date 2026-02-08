@@ -4,7 +4,7 @@
 
 > [!WARNING]
 > Currently, this must be considered _alpha_. While it works quite well,
-> the Math just partially verified. Don't bet your bonus on the
+> the Math is just partially verified. Don't bet your bonus on the
 > forecasts and analysis done by it. Concepts are subject to change, if necessary
 > to make an AI Agent behave the way I envision.
 > I run it in Claude Desktop and Antigravity Agents.
@@ -51,9 +51,9 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids single-point averages, which often mask risk, and instead provides **Percentile-based outcomes** (e.g., P85 "Likely" confidence).
 
 1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, calculating exact residency time (in seconds) for every item across every status.
-2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand -> Upstream -> Downstream -> Finished) to ensure the simulation "clock" reflects actual value consumption.
+2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand → Upstream → Downstream → Finished) to ensure the simulation "clock" reflects actual value consumption.
 3. **Simulation & Validation**: The engine simulates potential futures and optionally validates them via walk-forward backtesting to ensure historical reliability.
-4. **Diagnostic Guidance**: An AI-orchestrated **Roadmap** tool guides agents through the correct sequence of diagnostic steps.
+4. **Diagnostic Guidance**: An AI-orchestrated **Roadmap** tool guides agents through a sequence of diagnostic steps.
 
 ---
 
@@ -71,9 +71,19 @@ MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on
 
 ### Prerequisites
 
-- Go 1.25+
 - Access to Atlassian Jira (Data Center or Cloud)
 - A MCP-capable AI Agent to chat with
+- Recent Version of Go if you want to build yourself
+
+### Mini-How-To
+
+- Build or download a release
+- Configure the server via `.env`
+- Configure a AI Agent to use it as an MCP tool
+- Chat:
+    - Ask the Agent to look a Project and then a Board
+    - Ask the Agent to discover the workflow
+    - Ask the Agent for what the MCP-Server can do or the analytical roadmap
 
 ### Authentication
 
@@ -91,22 +101,15 @@ If PAT is not available, provide session cookies extracted from an active browse
 
 - `JIRA_SESSION_ID`: Your Jira session ID.
 - `JIRA_XSRF_TOKEN`: Your XSRF token.
-- (Optional) `JIRA_REMEMBERME_COOKIE`, `JIRA_GCILB`, `JIRA_GCLB`.
+- `JIRA_REMEMBERME_COOKIE`: Your Jira RememberMe cookie. (Optional, but recommended for long-running sessions)
+- (optional) `JIRA_GCILB`, `JIRA_GCLB`: Actually these are Google-Cloud Load Balancer Cookies.
 
-### Building and Running the Server
-
-You should build the project into an executable before configuring it as an MCP tool.
+### Building from Sources
 
 **On Windows (PowerShell):**
 
 ```powershell
 .\build.ps1 build
-```
-
-**Developer Verification:**
-
-```powershell
-.\build.ps1 verify
 ```
 
 **On Unix/Linux (Make):**
