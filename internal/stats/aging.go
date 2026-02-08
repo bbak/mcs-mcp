@@ -11,7 +11,6 @@ import (
 type StatusAgeAnalysis struct {
 	Key          string  `json:"key"`
 	Type         string  `json:"type"`
-	Summary      string  `json:"summary"`
 	Status       string  `json:"status"`
 	DaysInStatus float64 `json:"daysInStatus"`
 	Percentile   int     `json:"percentile"` // e.g., 85 if it's at the P85 level
@@ -22,7 +21,6 @@ type StatusAgeAnalysis struct {
 type InventoryAge struct {
 	Key                      string   `json:"key"`
 	Type                     string   `json:"type"`
-	Summary                  string   `json:"summary"`
 	Status                   string   `json:"status"`
 	Tier                     string   `json:"tier"`                                // Terminal Tier context
 	IsCompleted              bool     `json:"is_completed"`                        // True if in 'Finished' tier
@@ -70,7 +68,6 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 		analysis := StatusAgeAnalysis{
 			Key:          issue.Key,
 			Type:         issue.IssueType,
-			Summary:      issue.Summary,
 			Status:       issue.Status,
 			DaysInStatus: daysDisplay,
 		}
@@ -209,7 +206,6 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		analysis := InventoryAge{
 			Key:                      issue.Key,
 			Type:                     issue.IssueType,
-			Summary:                  issue.Summary,
 			Status:                   issue.Status,
 			Tier:                     currentTier,
 			IsCompleted:              isFinished,

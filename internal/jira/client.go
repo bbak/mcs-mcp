@@ -9,7 +9,6 @@ type Issue struct {
 	Key               string
 	ProjectKey        string
 	IssueType         string
-	Summary           string
 	Created           time.Time
 	Updated           time.Time
 	ResolutionDate    *time.Time

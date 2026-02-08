@@ -172,20 +172,22 @@ When items move between projects, the system implements **History Healing**:
 
 ---
 
-## 8. System Safety & Development
+## 10. Data Security & GRC Principles
 
-- **Safety Brake**: JQL queries are throttled to protect Jira load.
-- **Burst Mode**: Metadata discovery bypasses throttles for high-performance agent interaction.
-- **Observability**: Structured JSON logging via **zerolog**. Internal guidance (`_guidance`) is strictly separated from data-driven `warnings`.
-- **Anti-Hallucination**: Agents are strictly forbidden from "guessing" forecasts if tools return insufficient data.
+MCS-MCP is designed with **Security-by-Design** and **Data Minimization** at its core.
 
----
+### 10.1 Principle: Need-to-Know
 
-## 9. Codebase Overview
+The system strictly adheres to the "Need-to-Know" principle by ingests and persisting only the analytical metadata required for flow analysis.
 
-- `internal/jira`: API transport and domain models.
-- `internal/eventlog`: Persistence and "Signal-Aware" projections.
-- `internal/stats`: Core math (Control charts, Aging, Yield, Simulations).
-- `internal/mcp`: Tool definitions and task orchestration.
+- **Analytical Metadata (Fetched & Persisted)**: Issue Keys, **Issue Types**, Status Transitions, Timestamps, and Resolution names.
+- **Sensitive Content (DROPPED)**: While Jira may return full objects, the ingestion and transformation layer strictly **drops** fields such as **Summary (Title), Description, Acceptance Criteria, and Assignees** at the first processing step.
+- **Impact**: This ensures that sensitive information is never exposed to the analytical models, never persisted to the cache, and never made available to the AI Agent.
 
----
+### 10.2 Principle: Transparency (Auditability)
+
+The system maintains absolute transparency in how data is stored and used.
+
+- **Human-Readable Storage**: Long-term caches (Event Logs, Workflow Metadata) are stored in plain-text JSON/JSONL formats.
+- **Auditability**: Security officers can at any time inspect the `cache` directory to verify that no sensitive data has been leaked during the ingestion process.
+- **Fact-Based Archeology**: By deriving the workflow from transition logs rather than configuration metadata, the system ensures that the analytical view remains objective and untainted by human-entered (and potentially sensitive) configuration details.

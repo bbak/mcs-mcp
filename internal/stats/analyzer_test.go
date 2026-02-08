@@ -165,7 +165,6 @@ func TestCalculateStatusAging(t *testing.T) {
 		{
 			Key:         "WIP-1",
 			IssueType:   "Story",
-			Summary:     "Busy item",
 			Status:      "Development",
 			Transitions: []jira.StatusTransition{{ToStatus: "Development", Date: now.Add(-1 * time.Hour)}}, // Entered 1h ago
 		},

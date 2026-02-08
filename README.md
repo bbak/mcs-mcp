@@ -24,6 +24,28 @@
 
 ---
 
+## 🛡️ Data Security & GRC Principles
+
+Work-Management Systems like Atlassian Jira often contain sensitive project and personal data. MCS-MCP is built with a **Security-by-Design** approach, operating on two fundamental governing principles:
+
+### 1. The "Need-to-Know" Principle (Data Minimization)
+
+To protect intellectual property and privacy, the server strictly minimizes the data it ingests and persists.
+
+- **What we ingest & persist**: Analytical metadata only—**Issue Keys, Issue Types, Status Transitions, Timestamps**, and **Resolution names**. This is the minimum set required for high-fidelity flow analysis.
+- **What we DROP**: While the Jira API might return comprehensive issue objects, the system is designed to **immediately drop** sensitive content such as **Titles, Descriptions, Acceptance Criteria, or Assignees**.
+
+This ensures that even if the server's cache were compromised, it contains no human-readable content that could leak project secrets or PII. Furthermore, because this data is never processed by the analytical engine or stored in memory, **it is impossible for sensitive content to leak to the AI Agent** during interaction.
+
+### 2. The Transparency Principle (Auditability)
+
+We believe in "No Black Boxes." The server operates primarily from its local caches after the initial ingestion.
+
+- **Human-Readable Caches**: All persisted data (Event Logs, Workflow Mappings) is stored in standard, human-readable formats (JSON and JSON-Lines) in the data directory.
+- **Verifiable Logic**: You can scan or monitor these files at any time to verify that no sensitive data has leaked into the server's long-term memory.
+
+---
+
 ## 🛠️ How it Works
 
 MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids single-point averages, which often mask risk, and instead provides **Percentile-based outcomes** (e.g., P85 "Likely" confidence).

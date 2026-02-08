@@ -404,7 +404,6 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 
 	return map[string]interface{}{
 		"key":            issue.Key,
-		"summary":        issue.Summary,
 		"residency":      residencyDays,
 		"path":           steps,
 		"tier_breakdown": tierBreakdown,
