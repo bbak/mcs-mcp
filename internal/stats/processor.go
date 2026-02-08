@@ -443,3 +443,30 @@ func GetDailyThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMa
 	}
 	return daily
 }
+
+// CalculateMedianDiscrete returns the median of an integer slice.
+// If valid inputs are provided, it returns the 50th percentile.
+func CalculateMedianDiscrete(values []int) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sort.Ints(values)
+	mid := len(values) / 2
+	if len(values)%2 == 0 {
+		return float64(values[mid-1]+values[mid]) / 2.0
+	}
+	return float64(values[mid])
+}
+
+// CalculateMedianContinuous returns the median of a float64 slice.
+func CalculateMedianContinuous(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sort.Float64s(values)
+	mid := len(values) / 2
+	if len(values)%2 == 0 {
+		return (values[mid-1] + values[mid]) / 2.0
+	}
+	return values[mid]
+}
