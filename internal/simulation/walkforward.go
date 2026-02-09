@@ -98,6 +98,15 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 	subgroups := stats.GroupIssuesByBucket(finishedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
+	// 1.1 Calculate Discovery Cutoff for the whole dataset
+	finishedMap := make(map[string]bool)
+	for name, m := range w.mappings {
+		if m.Tier == "Finished" {
+			finishedMap[name] = true
+		}
+	}
+	globalCutoff := stats.CalculateDiscoveryCutoff(allIssues, finishedMap)
+
 	driftDate := time.Time{}
 	if evolution.Status == "migrating" {
 		// Find the first shift signal
@@ -139,6 +148,12 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
 		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
+		if globalCutoff != nil && historyStart.Before(*globalCutoff) {
+			historyStart = *globalCutoff
+			// If history range is now too short (e.g. project just started),
+			// the simulation will naturally have lower confidence/high spread.
+		}
+
 		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
 		engine := NewEngine(h)
 

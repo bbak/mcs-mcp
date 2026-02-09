@@ -41,6 +41,13 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		}
 	}
 
+	// 1.5. Intercept MCSTEST: Never query Jira for this source.
+	// We rely purely on what was just loaded from cache.
+	if sourceID == "MCSTEST_0" || filepath.Base(sourceID) == "MCSTEST" {
+		log.Info().Str("source", sourceID).Msg("Hydrate: MCSTEST detected, skipping Jira sync")
+		return nil
+	}
+
 	latest := p.store.GetLatestTimestamp(sourceID)
 
 	// 2. Validate Cache Recency (2-month rule)

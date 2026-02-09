@@ -18,6 +18,15 @@ func getCombinedID(projectKey string, boardID int) string {
 }
 
 func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.SourceContext, error) {
+	if projectKey == "MCSTEST" {
+		return &jira.SourceContext{
+			ProjectKey: "MCSTEST",
+			BoardID:    boardID,
+			JQL:        "project = \"MCSTEST\"",
+			FetchedAt:  time.Now(),
+		}, nil
+	}
+
 	if boardID == 0 {
 		return &jira.SourceContext{
 			ProjectKey: projectKey,

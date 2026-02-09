@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"mcs-mcp/internal/config"
@@ -174,7 +175,31 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 
 	switch call.Name {
 	case "find_jira_projects":
-		projects, findErr := s.jira.FindProjects(asString(call.Arguments["query"]))
+		query := asString(call.Arguments["query"])
+		var projects []interface{}
+		var findErr error
+
+		// Intercept MCSTEST (case-insensitive) or broad searches
+		isMockQuery := strings.Contains(strings.ToUpper(query), "MCSTEST") || query == ""
+		if isMockQuery {
+			projects = append(projects, map[string]interface{}{
+				"key":  "MCSTEST",
+				"name": "Mock Test Project (Synthetic)",
+			})
+		}
+
+		// Only call Jira if the query isn't JUST "MCSTEST"
+		if strings.ToUpper(query) != "MCSTEST" {
+			jiraProjects, jErr := s.jira.FindProjects(query)
+			if jErr == nil {
+				for _, p := range jiraProjects {
+					projects = append(projects, p)
+				}
+			} else if !isMockQuery {
+				findErr = jErr
+			}
+		}
+
 		if findErr == nil {
 			data = map[string]interface{}{
 				"projects": projects,
@@ -187,7 +212,28 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "find_jira_boards":
 		pKey := asString(call.Arguments["project_key"])
 		nFilter := asString(call.Arguments["name_filter"])
-		boards, findErr := s.jira.FindBoards(pKey, nFilter)
+		var boards []interface{}
+		var findErr error
+
+		isMockKey := strings.ToUpper(pKey) == "MCSTEST" || pKey == ""
+		if isMockKey {
+			boards = append(boards, map[string]interface{}{
+				"id":   0,
+				"name": "Mock Test Board 0 (Synthetic)",
+				"type": "kanban",
+			})
+		}
+
+		if strings.ToUpper(pKey) != "MCSTEST" {
+			jiraBoards, jErr := s.jira.FindBoards(pKey, nFilter)
+			if jErr == nil {
+				for _, b := range jiraBoards {
+					boards = append(boards, b)
+				}
+			} else if !isMockKey {
+				findErr = jErr
+			}
+		}
 		if findErr == nil {
 			data = map[string]interface{}{
 				"boards": boards,

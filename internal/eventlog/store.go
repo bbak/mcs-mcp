@@ -71,6 +71,8 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 
 // Load reads events from a JSONL cache file for the given source.
 func (s *EventStore) Load(cacheDir string, sourceID string) error {
+	s.Clear(sourceID) // Prevent accumulation if Load is called multiple times
+
 	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
 	file, err := os.Open(path)
 	if err != nil {

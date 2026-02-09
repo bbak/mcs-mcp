@@ -52,6 +52,7 @@ MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids sing
 
 1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, calculating exact residency time (in seconds) for every item across every status.
 2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand → Upstream → Downstream → Finished) to ensure the simulation "clock" reflects actual value consumption.
+
 3. **Simulation & Validation**: The engine simulates potential futures and optionally validates them via walk-forward backtesting to ensure historical reliability.
 4. **Diagnostic Guidance**: An AI-orchestrated **Roadmap** tool guides agents through a sequence of diagnostic steps.
 
@@ -149,6 +150,7 @@ MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detai
 - **[Project Charter](docs/charter.md)**: Conceptual foundations and architectural principles.
 - **[Interaction Use Cases](docs/use-cases.md)**: Detailed scenarios for PMs and AI Agents (When, Scope, Bottlenecks, Backtesting, etc.).
 - **[Architecture Deep-Dive](docs/architecture.md)**: Aging math, backflow policies, and the status-granular flow model.
+- **[Testing & Verification](docs/testing.md)**: Instructions for the `MCSTEST` sandbox and mock data generator.
 
 ---
 
