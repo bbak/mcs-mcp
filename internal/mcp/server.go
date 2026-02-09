@@ -452,7 +452,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		DiscoveryCutoff: s.activeDiscoveryCutoff,
 	}
 
-	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
+	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -465,7 +465,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 }
 
 func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
-	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s-%d-workflow.json", projectKey, boardID))
+	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
 	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
