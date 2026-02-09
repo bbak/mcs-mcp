@@ -71,14 +71,25 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	recentAvg := 0.0
 	totalCount := 0
 	recentCount := 0
-	if days > 0 {
-		for i, c := range buckets {
-			totalCount += c
-			if i >= days-30 {
-				recentCount += c
-			}
+
+	firstDeliveryIdx := -1
+	for i, c := range buckets {
+		if c > 0 && firstDeliveryIdx == -1 {
+			firstDeliveryIdx = i
 		}
-		avgAcross = float64(totalCount) / float64(days)
+		totalCount += c
+		if i >= days-30 {
+			recentCount += c
+		}
+	}
+
+	if days > 0 {
+		denominator := days
+		if firstDeliveryIdx != -1 {
+			denominator = days - firstDeliveryIdx
+		}
+		avgAcross = float64(totalCount) / float64(denominator)
+
 		recentDays := 30
 		if days < 30 {
 			recentDays = days

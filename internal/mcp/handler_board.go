@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"mcs-mcp/internal/eventlog"
@@ -40,7 +42,16 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 	summary.Whole.LastEventAt = last
 
 	// 4. Fetch Board Metadata for the response (uses internal Jira cache)
-	board, _ := s.jira.GetBoard(boardID)
+	var board interface{}
+	if strings.ToUpper(projectKey) == "MCSTEST" {
+		board = map[string]interface{}{
+			"id":   boardID,
+			"name": fmt.Sprintf("Mock Test Board %d (Synthetic)", boardID),
+			"type": "kanban",
+		}
+	} else {
+		board, _ = s.jira.GetBoard(boardID)
+	}
 
 	// 5. Return wrapped response
 	return map[string]interface{}{

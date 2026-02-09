@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"mcs-mcp/internal/eventlog"
@@ -44,9 +45,17 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 	summary.Whole.LastEventAt = last
 
 	// 4. Fetch Project Metadata
-	project, err := s.jira.GetProject(projectKey)
-	if err != nil {
-		return nil, err
+	var project interface{}
+	if strings.ToUpper(projectKey) == "MCSTEST" {
+		project = map[string]interface{}{
+			"key":  "MCSTEST",
+			"name": "Mock Test Project (Synthetic)",
+		}
+	} else {
+		project, err = s.jira.GetProject(projectKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 5. Return wrapped response
