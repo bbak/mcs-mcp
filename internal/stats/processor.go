@@ -405,6 +405,12 @@ func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[s
 	return issue.ResolutionDate != nil
 }
 
+// ThroughputResult holds delivery counts partitioned by time buckets.
+type ThroughputResult struct {
+	Pooled []int            `json:"pooled"`
+	ByType map[string][]int `json:"by_type"`
+}
+
 // FilterDelivered returns only items that passed the IsDelivered check.
 func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) []jira.Issue {
 	filtered := make([]jira.Issue, 0)
@@ -417,31 +423,64 @@ func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mapping
 }
 
 func GetDailyThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMappings map[string]string, statusMappings map[string]StatusMetadata) []int {
-	if len(issues) == 0 {
-		return nil
+	// Wrapper for backward compatibility, explicitly forcing "day" bucket
+	dayWindow := window
+	dayWindow.Bucket = "day"
+	res := GetStratifiedThroughput(issues, dayWindow, resolutionMappings, statusMappings)
+	return res.Pooled
+}
+
+// GetStratifiedThroughput calculates delivery counts per bucket (defined by window), pooled and stratified by type.
+func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMappings map[string]string, statusMappings map[string]StatusMetadata) ThroughputResult {
+	buckets := window.Subdivide()
+	n := len(buckets)
+	if n == 0 {
+		return ThroughputResult{}
 	}
 
-	windowDays := window.DayCount()
-	daily := make([]int, windowDays)
+	res := ThroughputResult{
+		Pooled: make([]int, n),
+		ByType: make(map[string][]int),
+	}
 
 	for _, issue := range issues {
 		if !IsDelivered(issue, resolutionMappings, statusMappings) {
 			continue
 		}
 
-		resDate := *issue.ResolutionDate
-		// If resolution date is missing but IsDelivered is true (terminal status fallback), use Updated
-		if issue.ResolutionDate == nil {
-			resDate = issue.Updated
+		resDate := issue.Updated
+		if issue.ResolutionDate != nil {
+			resDate = *issue.ResolutionDate
 		}
 
-		// Normalize to start of day for indexing
-		d := int(resDate.Sub(window.Start).Hours() / 24)
-		if d >= 0 && d < windowDays {
-			daily[d]++
+		// Normalize resDate to start of bucket for comparison
+		startOfBucket := SnapToStart(resDate, window.Bucket)
+
+		// Find bucket index
+		idx := -1
+		for i, b := range buckets {
+			if b.Equal(startOfBucket) {
+				idx = i
+				break
+			}
+		}
+
+		if idx >= 0 {
+			res.Pooled[idx]++
+
+			t := issue.IssueType
+			if t == "" {
+				t = "Unknown"
+			}
+
+			if _, ok := res.ByType[t]; !ok {
+				res.ByType[t] = make([]int, n)
+			}
+			res.ByType[t][idx]++
 		}
 	}
-	return daily
+
+	return res
 }
 
 // CalculateMedianDiscrete returns the median of an integer slice.
