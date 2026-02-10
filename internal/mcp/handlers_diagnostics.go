@@ -113,7 +113,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	}, nil
 }
 
-func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, includeAbandoned bool) (interface{}, error) {
+func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, includeAbandoned bool) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -128,14 +128,17 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	if windowWeeks <= 0 {
 		windowWeeks = 26
 	}
+	if bucket == "" {
+		bucket = "week"
+	}
 
 	// 2. Project on Demand
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	// Delivery Cadence uses a window of N weeks, snapped to week boundaries
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), "week", cutoff)
+	// Delivery Cadence uses a window of N weeks, grouping by bucket
+	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
 	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
 	finished, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
 
@@ -145,19 +148,16 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	} else {
 		delivered = stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
 	}
-	daily := stats.GetDailyThroughput(delivered, window, s.activeResolutions, s.activeMapping)
-	weekly := aggregateToWeeks(daily)
 
-	// Build week metadata using the window's subdivision
-	weekMetadata := make([]map[string]string, 0)
+	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions, s.activeMapping)
+
+	// Build bucket metadata using the window's subdivision
+	bucketMetadata := make([]map[string]string, 0)
 	buckets := window.Subdivide()
 	for i, bucketStart := range buckets {
-		if i >= len(weekly) {
-			break
-		}
-		bucketEnd := stats.SnapToEnd(bucketStart, "week")
-		weekMetadata = append(weekMetadata, map[string]string{
-			"week_index": fmt.Sprintf("%d", i+1),
+		bucketEnd := stats.SnapToEnd(bucketStart, window.Bucket)
+		bucketMetadata = append(bucketMetadata, map[string]string{
+			"index":      fmt.Sprintf("%d", i+1),
 			"start_date": bucketStart.Format("2006-01-02"),
 			"end_date":   bucketEnd.Format("2006-01-02"),
 			"label":      window.GenerateLabel(bucketStart),
@@ -166,12 +166,13 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	}
 
 	return map[string]interface{}{
-		"weekly_throughput": weekly,
-		"@week_metadata":    weekMetadata,
-		"_data_quality":     s.getQualityWarnings(delivered),
+		"total_throughput":      throughput.Pooled,
+		"stratified_throughput": throughput.ByType,
+		"@metadata":             bucketMetadata,
+		"_data_quality":         s.getQualityWarnings(delivered),
 		"_guidance": []string{
 			"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
-			fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s.", windowWeeks, window.Start.Format("2006-01-02")),
+			fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format("2006-01-02"), bucket),
 		},
 	}, nil
 }
@@ -431,23 +432,4 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 			"The 'path' shows chronological flow, while 'residency' shows cumulative totals.",
 		},
 	}, nil
-}
-
-func aggregateToWeeks(daily []int) []float64 {
-	if len(daily) == 0 {
-		return nil
-	}
-	weeks := make([]float64, 0)
-	sum := 0
-	for i, count := range daily {
-		sum += count
-		if (i+1)%7 == 0 {
-			weeks = append(weeks, float64(sum))
-			sum = 0
-		}
-	}
-	if sum > 0 {
-		weeks = append(weeks, float64(sum))
-	}
-	return weeks
 }

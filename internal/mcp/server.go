@@ -308,21 +308,22 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetStatusPersistence(projectKey, boardID)
+	case "get_delivery_cadence":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		windowWeeks := asInt(call.Arguments["window_weeks"])
+		includeAbandoned, _ := call.Arguments["include_abandoned"].(bool)
+		bucket := asString(call.Arguments["bucket"])
+		if bucket == "" {
+			bucket = "week"
+		}
+		data, err = s.handleGetDeliveryCadence(projectKey, boardID, windowWeeks, bucket, includeAbandoned)
 	case "get_aging_analysis":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		agingType := asString(call.Arguments["aging_type"])
 		tierFilter := asString(call.Arguments["tier_filter"])
 		data, err = s.handleGetAgingAnalysis(projectKey, boardID, agingType, tierFilter)
-	case "get_delivery_cadence":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["window_weeks"])
-		includeAbandoned := false
-		if val, ok := call.Arguments["include_abandoned"].(bool); ok {
-			includeAbandoned = val
-		}
-		data, err = s.handleGetDeliveryCadence(projectKey, boardID, windowWeeks, includeAbandoned)
 	case "get_process_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
