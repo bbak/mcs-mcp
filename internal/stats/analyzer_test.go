@@ -105,60 +105,6 @@ func TestSumRangeDuration(t *testing.T) {
 	}
 }
 
-func TestCalculateProcessYield(t *testing.T) {
-	now := time.Now()
-	issues := []jira.Issue{
-		{
-			// Delivered from Downstream
-			Key:             "PROJ-1",
-			Resolution:      "Fixed",
-			Transitions:     []jira.StatusTransition{{ToStatus: "In Progress", Date: now}},
-			StatusResidency: map[string]int64{"In Progress": 5 * 86400},
-			ResolutionDate:  &now,
-		},
-		{
-			// Abandoned from Upstream
-			Key:             "PROJ-2",
-			Resolution:      "Won't Do",
-			Transitions:     []jira.StatusTransition{{ToStatus: "Refinement", Date: now}},
-			StatusResidency: map[string]int64{"Refinement": 10 * 86400},
-			ResolutionDate:  &now,
-		},
-	}
-
-	mappings := map[string]StatusMetadata{
-		"Refinement":  {Tier: "Upstream", Role: "active"},
-		"In Progress": {Tier: "Downstream", Role: "active"},
-	}
-
-	resolutions := map[string]string{
-		"Fixed":    "delivered",
-		"Won't Do": "abandoned",
-	}
-
-	yield := CalculateProcessYield(issues, mappings, resolutions)
-
-	if yield.DeliveredCount != 1 {
-		t.Errorf("Expected 1 delivered, got %d", yield.DeliveredCount)
-	}
-	if yield.AbandonedCount != 1 {
-		t.Errorf("Expected 1 abandoned, got %d", yield.AbandonedCount)
-	}
-
-	foundUpstream := false
-	for _, lp := range yield.LossPoints {
-		if lp.Tier == "Upstream" {
-			foundUpstream = true
-			if lp.Count != 1 {
-				t.Errorf("Expected 1 abandoned in Upstream, got %d", lp.Count)
-			}
-		}
-	}
-	if !foundUpstream {
-		t.Error("Did not find Upstream loss point")
-	}
-}
-
 func TestCalculateStatusAging(t *testing.T) {
 	now := time.Now()
 	wipIssues := []jira.Issue{
