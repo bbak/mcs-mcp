@@ -124,6 +124,8 @@ The system provides `get_forecast_accuracy` to validate the reliability of Monte
 - **Adaptive Validation Batching**: If not provided, the number of items to forecast is automatically set to **2x the median weekly throughput** of the last 10 weeks. This ensures the forecast horizon is always relevant to the team's actual velocity.
 - **Overlapping Weekly Steps**: The analysis iterates backwards through history using a **7-day step size** (overlapping windows). This increases diagnostic sensitivity and allows for earlier detection of systemic process shifts.
 - **Drift Protection**: Backtesting automatically terminates if a significant process shift is detected via the Three-Way Control Chart, preventing misleading accuracy results.
+- **Midnight Alignment**: Analysis dates are truncated to midnight to eliminate "partial-day bias," ensuring that daily-bucketed simulations align with real-world outcomes.
+- **Reconstruction Hardening**: The backtesting engine uses terminal status mappings during historical reconstruction to ensure finished items in the past are accurately projected.
 
 ---
 

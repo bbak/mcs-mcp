@@ -61,14 +61,14 @@ type Result struct {
 	StaleWIPCount     int                    `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
-	Composition              Composition       `json:"composition"`
-	WIPAgeDistribution       map[string]int    `json:"wip_age_distribution,omitempty"`
-	ThroughputTrend          ThroughputTrend   `json:"throughput_trend"`
-	Insights                 []string          `json:"insights,omitempty"`
-	PercentileLabels         map[string]string `json:"percentile_labels,omitempty"`
-	BackgroundItemsPredicted map[string]int    `json:"background_items_predicted,omitempty"`
-	ModelingInsight          string            `json:"modeling_insight,omitempty"`
-	VolatilityAttribution    map[string]string `json:"volatility_attribution,omitempty"`
+	Composition              Composition               `json:"composition"`
+	WIPAgeDistribution       map[string]map[string]int `json:"wip_age_distribution,omitempty"`
+	ThroughputTrend          ThroughputTrend           `json:"throughput_trend"`
+	Insights                 []string                  `json:"insights,omitempty"`
+	PercentileLabels         map[string]string         `json:"percentile_labels,omitempty"`
+	BackgroundItemsPredicted map[string]int            `json:"background_items_predicted,omitempty"`
+	ModelingInsight          string                    `json:"modeling_insight,omitempty"`
+	VolatilityAttribution    map[string]string         `json:"volatility_attribution,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -709,66 +709,86 @@ func (e *Engine) assessPredictability(res *Result) {
 }
 
 // AnalyzeWIPStability performs deep analysis of current WIP vs historical performance.
-func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes []float64, backlogSize int) {
+func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, cycleTimes map[string][]float64) {
 	if len(cycleTimes) == 0 {
 		return
 	}
 
-	sort.Float64s(cycleTimes)
-	n := len(cycleTimes)
-	p50 := cycleTimes[int(float64(n)*0.50)]
-	p85 := cycleTimes[int(float64(n)*0.85)]
-	p95 := cycleTimes[int(float64(n)*0.95)]
-
-	// 1. WIP Aging Analytics
-	res.WIPAgeDistribution = map[string]int{
-		"Inconspicuous (within P50)": 0,
-		"Aging (P50-P85)":            0,
-		"Warning (P85-P95)":          0,
-		"Extreme (>P95)":             0,
+	// 1. Calculate Pooled Fallback
+	allCycleTimes := make([]float64, 0)
+	for _, cts := range cycleTimes {
+		allCycleTimes = append(allCycleTimes, cts...)
 	}
+	sort.Float64s(allCycleTimes)
+	pn := len(allCycleTimes)
+	pP50 := allCycleTimes[int(float64(pn)*0.50)]
+	pP85 := allCycleTimes[int(float64(pn)*0.85)]
+	pP95 := allCycleTimes[int(float64(pn)*0.95)]
 
-	staleCount := 0
-	for _, age := range wipAges {
-		if age < p50 {
-			res.WIPAgeDistribution["Inconspicuous (within P50)"]++
-		} else if age < p85 {
-			res.WIPAgeDistribution["Aging (P50-P85)"]++
-		} else if age < p95 {
-			res.WIPAgeDistribution["Warning (P85-P95)"]++
-		} else {
-			res.WIPAgeDistribution["Extreme (>P95)"]++
+	res.WIPAgeDistribution = make(map[string]map[string]int)
+	totalStaleCount := 0
+	totalWIPCount := 0
+
+	// 2. Stratified Analysis
+	for t, ages := range wipAges {
+		res.WIPAgeDistribution[t] = map[string]int{
+			"Inconspicuous (within P50)": 0,
+			"Aging (P50-P85)":            0,
+			"Warning (P85-P95)":          0,
+			"Extreme (>P95)":             0,
 		}
 
-		if age > p85 {
-			staleCount++
+		// Determine benchmarks for this type
+		tP50, tP85, tP95 := pP50, pP85, pP95
+		if cts, ok := cycleTimes[t]; ok && len(cts) >= 5 {
+			sort.Float64s(cts)
+			tn := len(cts)
+			tP50 = cts[int(float64(tn)*0.50)]
+			tP85 = cts[int(float64(tn)*0.85)]
+			tP95 = cts[int(float64(tn)*0.95)]
+		}
+
+		for _, age := range ages {
+			totalWIPCount++
+			if age < tP50 {
+				res.WIPAgeDistribution[t]["Inconspicuous (within P50)"]++
+			} else if age < tP85 {
+				res.WIPAgeDistribution[t]["Aging (P50-P85)"]++
+			} else if age < tP95 {
+				res.WIPAgeDistribution[t]["Warning (P85-P95)"]++
+			} else {
+				res.WIPAgeDistribution[t]["Extreme (>P95)"]++
+			}
+
+			if age > tP85 {
+				totalStaleCount++
+			}
 		}
 	}
-	res.StaleWIPCount = staleCount
 
-	if len(wipAges) > 0 {
-		staleRate := float64(staleCount) / float64(len(wipAges))
+	res.StaleWIPCount = totalStaleCount
+
+	if totalWIPCount > 0 {
+		staleRate := float64(totalStaleCount) / float64(totalWIPCount)
 		if staleRate > 0.3 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("%.0f%% of your current WIP is 'stale' (older than project P85 of %.1f days). Forecast may be optimistic.", staleRate*100, p85))
+			res.Warnings = append(res.Warnings, fmt.Sprintf("%.0f%% of your current WIP is 'stale' relative to type-specific benchmarks. Forecast may be optimistic.", staleRate*100))
 		}
-		if res.WIPAgeDistribution["Extreme (>P95)"] > 0 {
-			maxAge := 0.0
-			for _, a := range wipAges {
-				if a > maxAge {
-					maxAge = a
+
+		// Find extreme outliers
+		extremeCount := 0
+		maxAge := 0.0
+		for t, dist := range res.WIPAgeDistribution {
+			extremeCount += dist["Extreme (>P95)"]
+			for _, age := range wipAges[t] {
+				if age > maxAge {
+					maxAge = age
 				}
 			}
-			maxAgeDisplay := math.Ceil(maxAge*10) / 10
-			res.Insights = append(res.Insights, fmt.Sprintf("Actionable Insight: You have %d extreme outliers (>P95). Removing or resolving the oldest item (%.1f days) could immediately clarify your throughput capacity.", res.WIPAgeDistribution["Extreme (>P95)"], maxAgeDisplay))
 		}
 
-		// Mode-specific Scope insight
-		if res.Composition.Total == 0 && res.Composition.WIP > 0 {
-			// Total == 0 is our internal sentinel for "Scope Mode" in this context
-			youngWIP := res.WIPAgeDistribution["Inconspicuous (within P50)"]
-			if youngWIP > 0 {
-				res.Insights = append(res.Insights, fmt.Sprintf("Strategic Insight: To hit your delivery targets, prioritize the %d items that are already in progress and within your median cycle time.", youngWIP))
-			}
+		if extremeCount > 0 {
+			maxAgeDisplay := math.Ceil(maxAge*10) / 10
+			res.Insights = append(res.Insights, fmt.Sprintf("Actionable Insight: You have %d extreme outliers (>P95 for their type). Resolving the oldest item (%.1f days) could immediately clarify capacity.", extremeCount, maxAgeDisplay))
 		}
 	}
 
@@ -776,21 +796,21 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 	if e.histogram != nil && e.histogram.Meta != nil {
 		th, ok1 := e.histogram.Meta["throughput_overall"].(float64)
 		sumCT := 0.0
-		for _, ct := range cycleTimes {
+		for _, ct := range allCycleTimes {
 			sumCT += ct
 		}
-		avgCT := sumCT / float64(len(cycleTimes))
+		avgCT := sumCT / float64(len(allCycleTimes))
 
 		if ok1 && th > 0 && avgCT > 0 {
 			expectedWIP := th * avgCT
-			currentWIP := float64(len(wipAges))
+			currentWIP := float64(totalWIPCount)
 			ratio := currentWIP / expectedWIP
 			res.StabilityRatio = math.Round(ratio*100) / 100
 
 			if res.StabilityRatio > 1.3 {
-				res.Warnings = append(res.Warnings, fmt.Sprintf("Clogged System (Stability Index %.2f): You have %.0f%% more WIP than your historical capacity supports. Lead times will likely increase.", res.StabilityRatio, (res.StabilityRatio-1)*100))
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Clogged System (Stability Index %.2f): You have %.0f%% more WIP than your historical capacity supports.", res.StabilityRatio, (res.StabilityRatio-1)*100))
 			} else if res.StabilityRatio < 0.7 && currentWIP > 0 {
-				res.Warnings = append(res.Warnings, fmt.Sprintf("Starving System (Stability Index %.2f): You have significantly less WIP than historical levels. Throughput may drop unless more work is started.", res.StabilityRatio))
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Starving System (Stability Index %.2f): WIP is significantly lower than historical levels.", res.StabilityRatio))
 			}
 		}
 	}

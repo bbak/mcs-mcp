@@ -179,18 +179,18 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			ageRaw = downstreamDays
 
 			// Identify if it has started (ever reached commitment)
+			// It is started if:
+			// 1. It is explicitly in the Downstream or Finished tier
+			// 2. Its current status weight is >= the startStatus weight
 			isStarted := false
-			commitmentWeight := 2
-			if startStatus != "" {
-				if w, ok := GetWeightRobust(statusWeights, "", startStatus); ok {
-					commitmentWeight = w
-				}
-			}
-
-			// It is started if its current weight >= commitment OR if it has ANY downstream residency
-			weight, hasWeight := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
-			if (hasWeight && weight >= commitmentWeight) || ageRaw > 0 {
+			if currentTier == "Downstream" || currentTier == "Finished" {
 				isStarted = true
+			} else if startStatus != "" {
+				commitmentWeight, okC := GetWeightRobust(statusWeights, "", startStatus)
+				currentWeight, okW := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
+				if okC && okW && currentWeight >= commitmentWeight {
+					isStarted = true
+				}
 			}
 
 			if isStarted {

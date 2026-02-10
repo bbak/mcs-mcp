@@ -136,10 +136,15 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 }
 
 func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) []float64 {
-	return s.calculateCycleTimesList(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+	stratified := s.getCycleTimesByType(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
+	var all []float64
+	for _, cts := range stratified {
+		all = append(all, cts...)
+	}
+	return all
 }
 
-func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) []float64 {
+func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) map[string][]float64 {
 	typeMap := make(map[string]bool)
 	for _, t := range issueTypes {
 		typeMap[t] = true
@@ -147,7 +152,7 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 
 	rangeStatuses := s.getInferredRange(projectKey, boardID, startStatus, endStatus, issues)
 
-	var cycleTimes []float64
+	cycleTimes := make(map[string][]float64)
 	for _, issue := range issues {
 		if issue.ResolutionDate == nil {
 			continue
@@ -166,7 +171,11 @@ func (s *Server) calculateCycleTimesList(projectKey string, boardID int, issues 
 
 		duration := stats.SumRangeDuration(issue, rangeStatuses)
 		if duration > 0 {
-			cycleTimes = append(cycleTimes, duration)
+			t := issue.IssueType
+			if t == "" {
+				t = "Unknown"
+			}
+			cycleTimes[t] = append(cycleTimes[t], duration)
 		}
 	}
 
