@@ -69,6 +69,7 @@ type Result struct {
 	BackgroundItemsPredicted map[string]int            `json:"background_items_predicted,omitempty"`
 	ModelingInsight          string                    `json:"modeling_insight,omitempty"`
 	VolatilityAttribution    map[string]string         `json:"volatility_attribution,omitempty"`
+	TypeSLEs                 map[string]Percentiles    `json:"type_sles,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -359,7 +360,7 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 }
 
 // RunCycleTimeAnalysis calculates percentiles from a list of historical cycle times (in days).
-func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
+func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string][]float64) Result {
 	if len(cycleTimes) == 0 {
 		return Result{}
 	}
@@ -383,6 +384,28 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 			Inner80: cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
 		},
 		PercentileLabels: getPercentileLabels("cycle_time"),
+	}
+
+	// Stratified Analysis
+	if len(ctByType) > 0 {
+		res.TypeSLEs = make(map[string]Percentiles)
+		for t, cts := range ctByType {
+			if len(cts) == 0 {
+				continue
+			}
+			sort.Float64s(cts)
+			tn := len(cts)
+			res.TypeSLEs[t] = Percentiles{
+				Aggressive:    cts[int(float64(tn)*0.10)],
+				Unlikely:      cts[int(float64(tn)*0.30)],
+				CoinToss:      cts[int(float64(tn)*0.50)],
+				Probable:      cts[int(float64(tn)*0.70)],
+				Likely:        cts[int(float64(tn)*0.85)],
+				Conservative:  cts[int(float64(tn)*0.90)],
+				Safe:          cts[int(float64(tn)*0.95)],
+				AlmostCertain: cts[int(float64(tn)*0.98)],
+			}
+		}
 	}
 
 	e.assessPredictability(&res)

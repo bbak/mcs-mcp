@@ -13,7 +13,7 @@ func TestEngine_Percentiles(t *testing.T) {
 
 	// Single item cycle time analysis
 	cycleTimes := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	res := e.RunCycleTimeAnalysis(cycleTimes)
+	res := e.RunCycleTimeAnalysis(cycleTimes, nil)
 
 	if res.Percentiles.Aggressive != 2 { // P10 of 10 items
 		t.Errorf("Expected Aggressive (P10) to be 2, got %f", res.Percentiles.Aggressive)
