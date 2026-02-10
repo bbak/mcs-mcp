@@ -32,10 +32,11 @@ type TierSummary struct {
 
 // PersistenceResult is the top-level response for status persistence analysis.
 type PersistenceResult struct {
-	Statuses    []StatusPersistence    `json:"statuses"`
-	TierSummary map[string]TierSummary `json:"tier_summary,omitempty"`
-	Warnings    []string               `json:"warnings,omitempty"`
-	Guidance    []string               `json:"_guidance,omitempty"`
+	Statuses        []StatusPersistence            `json:"statuses"`
+	TierSummary     map[string]TierSummary         `json:"tier_summary,omitempty"`
+	TypePersistence map[string][]StatusPersistence `json:"type_persistence,omitempty"`
+	Warnings        []string                       `json:"warnings,omitempty"`
+	Guidance        []string                       `json:"_guidance,omitempty"`
 }
 
 // CalculateStatusPersistence analyzes how long items spend in each status.
@@ -176,4 +177,27 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 	}
 
 	return summary
+}
+
+// CalculateStratifiedStatusPersistence analyzes residency per status, grouped by issue type.
+func CalculateStratifiedStatusPersistence(issues []jira.Issue) map[string][]StatusPersistence {
+	if len(issues) == 0 {
+		return nil
+	}
+
+	byType := make(map[string][]jira.Issue)
+	for _, iss := range issues {
+		t := iss.IssueType
+		if t == "" {
+			t = "Unknown"
+		}
+		byType[t] = append(byType[t], iss)
+	}
+
+	res := make(map[string][]StatusPersistence)
+	for t, issSlice := range byType {
+		res[t] = CalculateStatusPersistence(issSlice)
+	}
+
+	return res
 }

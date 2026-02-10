@@ -41,10 +41,12 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 	}
 
 	persistence := stats.CalculateStatusPersistence(combined)
+	stratified := stats.CalculateStratifiedStatusPersistence(combined)
 
 	return map[string]interface{}{
-		"persistence":   persistence,
-		"_data_quality": s.getQualityWarnings(combined),
+		"persistence":            persistence,
+		"stratified_persistence": stratified,
+		"_data_quality":          s.getQualityWarnings(combined),
 		"_guidance": []string{
 			"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
 			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
