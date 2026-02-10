@@ -39,3 +39,5 @@ description: General user preferences and coding guidelines for the agent to fol
     - `docs`: Documentation changes
     - `chore`: Maintenance, scaffolding, or project setup
     - `build`: Build system changes
+
+- I'm fine with more modern go language features. Don't use outdated patterns or libraries if there's a modern alternative unless it massively reduces the readability of the code.

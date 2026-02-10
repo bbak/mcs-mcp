@@ -129,7 +129,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 	}
 
 	// 2. Iterate Backwards
-	now := time.Now()
+	now := time.Now().Truncate(24 * time.Hour)
 	startTime := now.AddDate(0, 0, -cfg.LookbackWindow)
 	if !driftDate.IsZero() && startTime.Before(driftDate) {
 		startTime = driftDate
@@ -144,7 +144,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		pastEvents := w.sliceEvents(d)
 
 		// Reconstruct issues as they looked at 'd'
-		pastIssues := w.reconstructAllIssues(pastEvents, d)
+		pastIssues := w.reconstructAllIssues(pastEvents, d, finishedMap)
 
 		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
 		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
@@ -255,10 +255,16 @@ func (w *WalkForwardEngine) reconstructAllIssuesAt(refDate time.Time) []jira.Iss
 	// `ReconstructIssue` in eventlog takes a list of events.
 
 	// We'll reuse the `reconstructAllIssues` helper below.
-	return w.reconstructAllIssues(w.events, refDate)
+	finishedMap := make(map[string]bool)
+	for name, m := range w.mappings {
+		if m.Tier == "Finished" {
+			finishedMap[name] = true
+		}
+	}
+	return w.reconstructAllIssues(w.events, refDate, finishedMap)
 }
 
-func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, refDate time.Time) []jira.Issue {
+func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, refDate time.Time, finishedMap map[string]bool) []jira.Issue {
 	groups := make(map[string][]eventlog.IssueEvent)
 	for _, e := range events {
 		if e.Timestamp <= refDate.UnixMicro() {
@@ -275,7 +281,7 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 		// For the purpose of "Finished Map" in ReconstructIssue,
 		// we can probably assume the standard Reconstruct logic handles explicit resolution events.
 		// Passing empty map means it relies on explicit events, which is fine.
-		issue := eventlog.ReconstructIssue(evts, nil, refDate)
+		issue := eventlog.ReconstructIssue(evts, finishedMap, refDate)
 
 		// Force Resolution Date to nil if it happened after refDate?
 		// (Already handled by event slicing, but explicit check is good)

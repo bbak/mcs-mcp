@@ -13,7 +13,7 @@
 
 ## 🚀 Key Capabilities
 
-- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope) with high statistical confidence.
+- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Supports **Stratified Simulation** for heterogeneous workloads, detecting capacity dependencies (e.g., "Bug-Tax") automatically.
 - **Forecast Backtesting**: Perform **Walk-Forward Analysis** to empirically validate forecast accuracy by "time-travelling" into historical data.
 - **Predictability Guardrails**: Use **XmR Control Charts** and **Stability Indices** to detect "Special Cause" variation and assess if a process is stable enough to forecast.
 - **Workflow Semantic Discovery**: Automatically infer the roles of workflow statuses (Active, Queue, Demand, Finished) to identify true bottlenecks instead of administrative delays.

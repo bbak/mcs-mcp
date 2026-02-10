@@ -67,6 +67,8 @@ type Result struct {
 	Insights                 []string          `json:"insights,omitempty"`
 	PercentileLabels         map[string]string `json:"percentile_labels,omitempty"`
 	BackgroundItemsPredicted map[string]int    `json:"background_items_predicted,omitempty"`
+	ModelingInsight          string            `json:"modeling_insight,omitempty"`
+	VolatilityAttribution    map[string]string `json:"volatility_attribution,omitempty"`
 }
 
 func NewEngine(h *Histogram) *Engine {
@@ -100,14 +102,23 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	return e.RunMultiTypeDurationSimulation(targets, dist, trials, true)
 }
 
-// RunMultiTypeDurationSimulation predicts how long it takes to finish specific targets while others consume capacity.
 func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribution map[string]float64, trials int, expansionEnabled bool) Result {
 	if e.histogram == nil || len(e.histogram.Counts) == 0 {
 		return Result{}
 	}
 
-	// If expansion is disabled, we re-normalize the distribution to only include types in targets.
-	// This models a "Closed System" where 100% of capacity goes to the targets.
+	// 1. Determine if we should use stratification
+	useStratification := false
+	if eligible, ok := e.histogram.Meta["stratification_eligible"].(map[string]bool); ok {
+		for _, isEligible := range eligible {
+			if isEligible {
+				useStratification = true
+				break
+			}
+		}
+	}
+
+	// 2. Prepare final distribution for pooled fallback
 	finalDist := make(map[string]float64)
 	if !expansionEnabled {
 		targetTotalProb := 0.0
@@ -119,7 +130,6 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 				finalDist[t] = distribution[t] / targetTotalProb
 			}
 		} else {
-			// Fallback: equal distribution if targets aren't in history
 			prob := 1.0 / float64(len(targets))
 			for t := range targets {
 				finalDist[t] = prob
@@ -131,18 +141,67 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		}
 	}
 
-	durations := make([]int, trials)
-	backgroundCounts := make(map[string][]int)
-	for t := range finalDist {
-		backgroundCounts[t] = make([]int, trials)
+	// 3. Parallel Execution Setup
+	numGo := 4 // Split into 4 chunks
+	if trials < 100 {
+		numGo = 1
+	}
+	trialsPerGo := trials / numGo
+
+	type trialResult struct {
+		durations []int
+		bgCounts  map[string][]int
+	}
+	resultsChan := make(chan trialResult, numGo)
+
+	// Calculate Capacity Cap (P95 of total daily throughput)
+	capPool := make([]int, len(e.histogram.Counts))
+	copy(capPool, e.histogram.Counts)
+	sort.Ints(capPool)
+	capacityCap := max(capPool[int(float64(len(capPool))*0.95)], 1)
+
+	log.Info().Int("trials", trials).Interface("targets", targets).Bool("stratified", useStratification).Msg("Starting multi-type duration simulation")
+
+	for g := 0; g < numGo; g++ {
+		go func(count int, seed int64) {
+			rng := rand.New(rand.NewSource(seed))
+			res := trialResult{
+				durations: make([]int, count),
+				bgCounts:  make(map[string][]int),
+			}
+			for t := range distribution {
+				res.bgCounts[t] = make([]int, count)
+			}
+
+			for i := range count {
+				var duration int
+				var bg map[string]int
+				if useStratification {
+					duration, bg = e.simulateDurationTrialStratified(targets, capacityCap, rng)
+				} else {
+					duration, bg = e.simulateDurationTrialWithTypeMixLocal(targets, finalDist, rng)
+				}
+				res.durations[i] = duration
+				for t, c := range bg {
+					res.bgCounts[t][i] = c
+				}
+			}
+			resultsChan <- res
+		}(trialsPerGo, time.Now().UnixNano()+int64(g))
 	}
 
-	log.Info().Int("trials", trials).Interface("targets", targets).Bool("expansion", expansionEnabled).Msg("Starting multi-type duration simulation")
-	for i := 0; i < trials; i++ {
-		duration, bg := e.simulateDurationTrialWithTypeMix(targets, finalDist)
-		durations[i] = duration
-		for t, c := range bg {
-			backgroundCounts[t][i] = c
+	// Aggregate Results
+	durations := make([]int, 0, trials)
+	backgroundCounts := make(map[string][]int)
+	for t := range distribution {
+		backgroundCounts[t] = make([]int, 0, trials)
+	}
+
+	for g := 0; g < numGo; g++ {
+		res := <-resultsChan
+		durations = append(durations, res.durations...)
+		for t, counts := range res.bgCounts {
+			backgroundCounts[t] = append(backgroundCounts[t], counts...)
 		}
 	}
 
@@ -170,17 +229,25 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 			IQR:     float64(durations[int(float64(trials)*0.75)] - durations[int(float64(trials)*0.25)]),
 			Inner80: float64(durations[int(float64(trials)*0.90)] - durations[int(float64(trials)*0.10)]),
 		},
-		PercentileLabels: map[string]string{
-			"aggressive":     "P10 (Aggressive / Best Case)",
-			"unlikely":       "P30 (Unlikely / High Risk)",
-			"coin_toss":      "P50 (Coin Toss / Median)",
-			"probable":       "P70 (Probable)",
-			"likely":         "P85 (Likely / Professional Standard)",
-			"conservative":   "P90 (Conservative / Buffer)",
-			"safe":           "P95 (Safe Bet)",
-			"almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
-		},
+		PercentileLabels:         getPercentileLabels("duration"),
 		BackgroundItemsPredicted: medianBG,
+	}
+
+	if insight, ok := e.histogram.Meta["modeling_insight"].(string); ok {
+		res.ModelingInsight = insight
+	} else {
+		res.ModelingInsight = "Pooled: Static model (no dynamic metadata found)"
+	}
+
+	// Volatility Attribution
+	if vol, ok := e.histogram.Meta["type_volatility"].(map[string]float64); ok {
+		res.VolatilityAttribution = make(map[string]string)
+		for t, v := range vol {
+			if v >= 5.6 {
+				res.VolatilityAttribution[t] = fmt.Sprintf("Fat-Tail High-Risk (%.2f)", v)
+				res.Insights = append(res.Insights, fmt.Sprintf("Volatility Alert: Item Type '%s' shows chaotic delivery patterns (Ratio %.2f). This type is the primary driver of forecast uncertainty.", t, v))
+			}
+		}
 	}
 
 	e.assessPredictability(&res)
@@ -228,9 +295,30 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 		return Result{}
 	}
 
-	scopes := make([]int, trials)
-	for i := 0; i < trials; i++ {
-		scopes[i] = e.simulateScopeTrial(days)
+	// Parallel Execution Setup
+	numGo := 4
+	if trials < 100 {
+		numGo = 1
+	}
+	trialsPerGo := trials / numGo
+
+	resultsChan := make(chan []int, numGo)
+
+	for g := 0; g < numGo; g++ {
+		go func(count int, seed int64) {
+			rng := rand.New(rand.NewSource(seed))
+			res := make([]int, count)
+			for i := range count {
+				res[i] = e.simulateScopeTrialLocal(days, rng)
+			}
+			resultsChan <- res
+		}(trialsPerGo, time.Now().UnixNano()+int64(g))
+	}
+
+	scopes := make([]int, 0, trials)
+	for g := 0; g < numGo; g++ {
+		res := <-resultsChan
+		scopes = append(scopes, res...)
 	}
 
 	sort.Ints(scopes)
@@ -250,17 +338,9 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
 			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
 		},
-		PercentileLabels: map[string]string{
-			"aggressive":     "P10 (10% probability to deliver at least this much)",
-			"unlikely":       "P30 (30% probability to deliver at least this much)",
-			"coin_toss":      "P50 (Coin Toss / Median)",
-			"probable":       "P70 (70% probability to deliver at least this much)",
-			"likely":         "P85 (85% probability to deliver at least this much)",
-			"conservative":   "P90 (90% probability to deliver at least this much)",
-			"safe":           "P95 (95% probability to deliver at least this much)",
-			"almost_certain": "P98 (98% probability to deliver at least this much)",
-		},
+		PercentileLabels: getPercentileLabels("scope"),
 	}
+
 	// Window exclusion warning
 	if droppedWindow, ok := e.histogram.Meta["dropped_by_window"].(int); ok && droppedWindow > 0 {
 		analyzed := e.histogram.Meta["issues_analyzed"].(int)
@@ -274,6 +354,7 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	// But we use the same formula on the delivery volume distribution for consistency
 	// though usually fat-tail refers to Lead/Cycle Time.
 	e.assessPredictability(&res)
+
 	return res
 }
 
@@ -301,18 +382,11 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64) Result {
 			IQR:     cycleTimes[int(float64(n)*0.75)] - cycleTimes[int(float64(n)*0.25)],
 			Inner80: cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
 		},
-		PercentileLabels: map[string]string{
-			"aggressive":     "P10 (Aggressive / Fast Outliers)",
-			"unlikely":       "P30 (Unlikely / Fast Pace)",
-			"coin_toss":      "P50 (Coin Toss / Median)",
-			"probable":       "P70 (Probable)",
-			"likely":         "P85 (Likely / SLE)",
-			"conservative":   "P90 (Conservative / Buffer)",
-			"safe":           "P95 (Safe Bet)",
-			"almost_certain": "P98 (Limit / Extreme Outliers)",
-		},
+		PercentileLabels: getPercentileLabels("cycle_time"),
 	}
+
 	e.assessPredictability(&res)
+
 	return res
 }
 
@@ -327,55 +401,80 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 		filterMap[t] = true
 	}
 
-	scopes := make([]int, trials)
-	backgroundCounts := make(map[string][]int)
-	for t := range distribution {
-		backgroundCounts[t] = make([]int, trials)
-	}
-
-	log.Info().Int("days", targetDays).Int("trials", trials).Interface("filter", filterTypes).Bool("expansion", expansionEnabled).Msg("Starting multi-type scope simulation")
-	for i := 0; i < trials; i++ {
-		scope := 0
-		bgItems := make(map[string]int)
-
-		for d := 0; d < targetDays; d++ {
-			idx := e.rng.Intn(len(e.histogram.Counts))
-			slots := e.histogram.Counts[idx]
-
-			for s := 0; s < slots; s++ {
-				// Sample type
-				r := e.rng.Float64()
-				var sampledType string
-				acc := 0.0
-				for t, p := range distribution {
-					acc += p
-					if r <= acc {
-						sampledType = t
-						break
-					}
-				}
-
-				if sampledType == "" {
-					// Fallback
-					for t := range distribution {
-						sampledType = t
-						break
-					}
-				}
-
-				// If expansion is disabled, we effectively treat all capacity as target filtered.
-				// This is handled by re-normalizing distribution in the handler or here.
-				if !expansionEnabled || filterMap[sampledType] || len(filterTypes) == 0 {
-					scope++
-				} else {
-					bgItems[sampledType]++
-				}
+	// 1. Determine if we should use stratification
+	useStratification := false
+	if eligible, ok := e.histogram.Meta["stratification_eligible"].(map[string]bool); ok {
+		for _, isEligible := range eligible {
+			if isEligible {
+				useStratification = true
+				break
 			}
 		}
+	}
 
-		scopes[i] = scope
-		for t, c := range bgItems {
-			backgroundCounts[t][i] += c
+	// Calculate Capacity Cap
+	capPool := make([]int, len(e.histogram.Counts))
+	copy(capPool, e.histogram.Counts)
+	sort.Ints(capPool)
+	capacityCap := capPool[int(float64(len(capPool))*0.95)]
+	if capacityCap < 1 {
+		capacityCap = 1
+	}
+
+	// 2. Parallel Execution Setup
+	numGo := 4
+	if trials < 100 {
+		numGo = 1
+	}
+	trialsPerGo := trials / numGo
+
+	type scopeTrialResult struct {
+		scopes   []int
+		bgCounts map[string][]int
+	}
+	resultsChan := make(chan scopeTrialResult, numGo)
+
+	log.Info().Int("days", targetDays).Int("trials", trials).Interface("filter", filterTypes).Bool("stratified", useStratification).Msg("Starting multi-type scope simulation")
+
+	for g := 0; g < numGo; g++ {
+		go func(count int, seed int64) {
+			rng := rand.New(rand.NewSource(seed))
+			res := scopeTrialResult{
+				scopes:   make([]int, count),
+				bgCounts: make(map[string][]int),
+			}
+			for t := range distribution {
+				res.bgCounts[t] = make([]int, count)
+			}
+
+			for i := range count {
+				var scope int
+				var bg map[string]int
+				if useStratification {
+					scope, bg = e.simulateScopeTrialStratified(targetDays, filterMap, capacityCap, rng)
+				} else {
+					scope, bg = e.simulateMultiTypeScopeTrialLocal(targetDays, filterMap, distribution, rng)
+				}
+				res.scopes[i] = scope
+				for t, c := range bg {
+					res.bgCounts[t][i] = c
+				}
+			}
+			resultsChan <- res
+		}(trialsPerGo, time.Now().UnixNano()+int64(g))
+	}
+
+	scopes := make([]int, 0, trials)
+	backgroundCounts := make(map[string][]int)
+	for t := range distribution {
+		backgroundCounts[t] = make([]int, 0, trials)
+	}
+
+	for g := 0; g < numGo; g++ {
+		res := <-resultsChan
+		scopes = append(scopes, res.scopes...)
+		for t, counts := range res.bgCounts {
+			backgroundCounts[t] = append(backgroundCounts[t], counts...)
 		}
 	}
 
@@ -385,7 +484,7 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 	medianBG := make(map[string]int)
 	for t, counts := range backgroundCounts {
 		sort.Ints(counts)
-		medianBG[t] = counts[trials/2]
+		medianBG[t] = counts[len(counts)/2]
 	}
 
 	res := Result{
@@ -403,21 +502,155 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
 			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
 		},
-		PercentileLabels: map[string]string{
-			"aggressive":     "P10 (10% probability to deliver at least this much)",
-			"unlikely":       "P30 (30% probability to deliver at least this much)",
-			"coin_toss":      "P50 (Coin Toss / Median)",
-			"probable":       "P70 (70% probability to deliver at least this much)",
-			"likely":         "P85 (85% probability to deliver at least this much)",
-			"conservative":   "P90 (90% probability to deliver at least this much)",
-			"safe":           "P95 (95% probability to deliver at least this much)",
-			"almost_certain": "P98 (98% probability to deliver at least this much)",
-		},
+		PercentileLabels:         getPercentileLabels("scope"),
 		BackgroundItemsPredicted: medianBG,
 	}
 
 	e.assessPredictability(&res)
+
 	return res
+}
+
+func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[string]bool, capacityCap int, rng *rand.Rand) (int, map[string]int) {
+	totalScope := 0
+	bgItems := make(map[string]int)
+
+	for range targetDays {
+		// 1. Independent Stratified Sampling (with Blending and Dependency Awareness)
+		sampled := make(map[string]int)
+		totalSampled := 0
+		deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
+
+		for t, counts := range e.histogram.StratifiedCounts {
+			h := 0
+			if len(counts) < 30 && rng.Float64() < 0.3 {
+				if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok {
+					if dist, ok := e.histogram.Meta["type_distribution"].(map[string]float64); ok {
+						h = int(math.Round(overall * dist[t]))
+					}
+				}
+			} else {
+				idx := rng.Intn(len(counts))
+				h = counts[idx]
+			}
+			sampled[t] = h
+			totalSampled += h
+		}
+
+		// Dependency Awareness
+		for taxer, taxed := range deps {
+			if hT, ok := sampled[taxer]; ok && hT > 0 {
+				if hD, ok := sampled[taxed]; ok && hD > 0 {
+					reduction := int(math.Floor(float64(hT) * 0.5))
+					if hD > reduction {
+						sampled[taxed] -= reduction
+					} else {
+						sampled[taxed] = 0
+					}
+				}
+			}
+		}
+
+		// Re-calculate
+		totalSampled = 0
+		for _, h := range sampled {
+			totalSampled += h
+		}
+
+		// 2. Capacity Coordination (Cap)
+		if totalSampled > capacityCap {
+			factor := float64(capacityCap) / float64(totalSampled)
+			for t, h := range sampled {
+				newH := int(math.Floor(float64(h) * factor))
+				if newH == 0 && h > 0 && rng.Float64() < factor {
+					newH = 1
+				}
+				sampled[t] = newH
+			}
+		}
+
+		// 3. Count Scope
+		for t, h := range sampled {
+			if filterMap[t] || len(filterMap) == 0 {
+				totalScope += h
+			} else {
+				bgItems[t] += h
+			}
+		}
+	}
+
+	return totalScope, bgItems
+}
+
+func getPercentileLabels(mode string) map[string]string {
+	labels := make(map[string]string)
+	switch mode {
+	case "duration":
+		labels["aggressive"] = "P10 (Aggressive / Best Case)"
+		labels["unlikely"] = "P30 (Unlikely / High Risk)"
+		labels["coin_toss"] = "P50 (Coin Toss / Median / 50% probability)"
+		labels["probable"] = "P70 (Probable)"
+		labels["likely"] = "P85 (Likely / Professional Standard / Professional commitment)"
+		labels["conservative"] = "P90 (Conservative / Buffer)"
+		labels["safe"] = "P95 (Safe Bet / High Confidence)"
+		labels["almost_certain"] = "P98 (Limit / Extreme Outlier Boundaries)"
+	case "scope":
+		labels["aggressive"] = "P10 (10% probability to deliver at least this much)"
+		labels["unlikely"] = "P30 (30% probability to deliver at least this much)"
+		labels["coin_toss"] = "P50 (Coin Toss / Median / 50% probability)"
+		labels["probable"] = "P70 (70% probability to deliver at least this much)"
+		labels["likely"] = "P85 (85% probability to deliver at least this much)"
+		labels["conservative"] = "P90 (90% probability to deliver at least this much)"
+		labels["safe"] = "P95 (95% probability to deliver at least this much)"
+		labels["almost_certain"] = "P98 (98% probability to deliver at least this much)"
+	case "cycle_time":
+		labels["aggressive"] = "P10 (Aggressive / Fast Outliers)"
+		labels["unlikely"] = "P30 (Unlikely / Fast Pace)"
+		labels["coin_toss"] = "P50 (Coin Toss / Median / 50% probability)"
+		labels["probable"] = "P70 (Probable)"
+		labels["likely"] = "P85 (Likely / SLE / Service Level Expectation)"
+		labels["conservative"] = "P90 (Conservative / Buffer)"
+		labels["safe"] = "P95 (Safe Bet)"
+		labels["almost_certain"] = "P98 (Limit / Extreme Outliers)"
+	}
+	return labels
+}
+
+func (e *Engine) simulateMultiTypeScopeTrialLocal(targetDays int, filterMap map[string]bool, distribution map[string]float64, rng *rand.Rand) (int, map[string]int) {
+	scope := 0
+	bgItems := make(map[string]int)
+
+	for range targetDays {
+		idx := rng.Intn(len(e.histogram.Counts))
+		slots := e.histogram.Counts[idx]
+		for range slots {
+			r := rng.Float64()
+			var sampledType string
+			acc := 0.0
+			for t, p := range distribution {
+				acc += p
+				if r <= acc {
+					sampledType = t
+					break
+				}
+			}
+
+			if sampledType == "" {
+				for t := range distribution {
+					sampledType = t
+					break
+				}
+			}
+
+			if filterMap[sampledType] || len(filterMap) == 0 {
+				scope++
+			} else {
+				bgItems[sampledType]++
+			}
+		}
+	}
+
+	return scope, bgItems
 }
 
 func (e *Engine) assessPredictability(res *Result) {
@@ -430,7 +663,6 @@ func (e *Engine) assessPredictability(res *Result) {
 			predictability = "Unstable"
 			res.Insights = append(res.Insights, fmt.Sprintf("Fat-Tail Warning (Ratio %.2f): Extreme outliers are in control of this process (Kanban heuristic >= 5.6). Your forecasts are high-risk.", res.FatTailRatio))
 		}
-
 		if res.TailToMedianRatio > 3.0 {
 			if predictability == "Stable" {
 				predictability = "Highly Volatile"
@@ -456,6 +688,7 @@ func (e *Engine) assessPredictability(res *Result) {
 		if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok && overall > 0 {
 			diff := (recent - overall) / overall
 			res.ThroughputTrend.PercentageChange = math.Round(diff*1000) / 10
+
 			if diff < -0.1 {
 				res.ThroughputTrend.Direction = "Declining"
 				if diff < -0.3 {
@@ -563,7 +796,110 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges []float64, cycleTimes 
 	}
 }
 
-func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distribution map[string]float64) (int, map[string]int) {
+func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacityCap int, rng *rand.Rand) (int, map[string]int) {
+	days := 0
+	remaining := make(map[string]int)
+	totalRemaining := 0
+	for t, c := range targets {
+		remaining[t] = c
+		totalRemaining += c
+	}
+
+	background := make(map[string]int)
+
+	for totalRemaining > 0 {
+		days++
+
+		// 1. Independent Stratified Sampling (with Bayesian Blending and Dependency Awareness)
+		sampled := make(map[string]int)
+		totalSampled := 0
+		deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
+
+		for t, counts := range e.histogram.StratifiedCounts {
+			// Bayesian Blending: If sparse data, we blend with pooled behavior
+			h := 0
+			if len(counts) < 30 && rng.Float64() < 0.3 {
+				// 30% of the time, fallback to pooled average for this type
+				if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok {
+					if dist, ok := e.histogram.Meta["type_distribution"].(map[string]float64); ok {
+						h = int(math.Round(overall * dist[t]))
+					}
+				}
+			} else {
+				idx := rng.Intn(len(counts))
+				h = counts[idx]
+			}
+
+			sampled[t] = h
+			totalSampled += h
+		}
+
+		// Dependency Awareness (Statistical Bug-Tax)
+		for taxer, taxed := range deps {
+			if hT, ok := sampled[taxer]; ok && hT > 0 {
+				if hD, ok := sampled[taxed]; ok && hD > 0 {
+					// If taxer is active, we apply a pressure based on its impact
+					// High taxer volume squeezes the taxed volume further than just the global cap
+					if hT > 0 {
+						// Simple heuristic: reduce taxed by a fraction of taxer
+						reduction := int(math.Floor(float64(hT) * 0.5))
+						if hD > reduction {
+							sampled[taxed] -= reduction
+						} else {
+							sampled[taxed] = 0
+						}
+					}
+				}
+			}
+		}
+
+		// Re-calculate total after dependency squeeze
+		totalSampled = 0
+		for _, h := range sampled {
+			totalSampled += h
+		}
+
+		// 2. Capacity Coordination (Cap)
+		// If independent processes exceed historical total p95, we scale them down.
+		if totalSampled > capacityCap {
+			factor := float64(capacityCap) / float64(totalSampled)
+			totalSampled = 0
+			for t, h := range sampled {
+				// We use Floor to be defensive/conservative
+				newH := int(math.Floor(float64(h) * factor))
+				if newH == 0 && h > 0 && rng.Float64() < factor {
+					// Stochastic rounding to ensure we don't zero out everything on low-cap systems
+					newH = 1
+				}
+				sampled[t] = newH
+				totalSampled += newH
+			}
+		}
+
+		// 3. Consume Targets
+		for t, h := range sampled {
+			if count, ok := remaining[t]; ok && count > 0 {
+				delivered := min(h, count)
+				remaining[t] -= delivered
+				totalRemaining -= delivered
+
+				// Remainder of capacity for this type goes to background
+				if h > delivered {
+					background[t] += h - delivered
+				}
+			} else {
+				background[t] += h
+			}
+		}
+
+		if days >= 20000 {
+			break
+		}
+	}
+	return days, background
+}
+
+func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, distribution map[string]float64, rng *rand.Rand) (int, map[string]int) {
 	days := 0
 	remaining := make(map[string]int)
 	totalRemaining := 0
@@ -576,7 +912,7 @@ func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distri
 
 	// Early check for infinite loop
 	totalProb := 0.0
-	for t := range targets {
+	for t := range distribution {
 		totalProb += distribution[t]
 	}
 	if totalProb == 0 {
@@ -585,12 +921,11 @@ func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distri
 
 	for totalRemaining > 0 {
 		days++
-		idx := e.rng.Intn(len(e.histogram.Counts))
+		idx := rng.Intn(len(e.histogram.Counts))
 		slots := e.histogram.Counts[idx]
 
-		for s := 0; s < slots; s++ {
-			// Sample type
-			r := e.rng.Float64()
+		for range slots {
+			r := rng.Float64()
 			var sampledType string
 			acc := 0.0
 			for t, p := range distribution {
@@ -602,7 +937,6 @@ func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distri
 			}
 
 			if sampledType == "" {
-				// Fallback if float precision issues
 				for t := range distribution {
 					sampledType = t
 					break
@@ -629,9 +963,13 @@ func (e *Engine) simulateDurationTrialWithTypeMix(targets map[string]int, distri
 }
 
 func (e *Engine) simulateScopeTrial(targetDays int) int {
+	return e.simulateScopeTrialLocal(targetDays, e.rng)
+}
+
+func (e *Engine) simulateScopeTrialLocal(targetDays int, rng *rand.Rand) int {
 	totalScope := 0
-	for d := 0; d < targetDays; d++ {
-		idx := e.rng.Intn(len(e.histogram.Counts))
+	for range targetDays {
+		idx := rng.Intn(len(e.histogram.Counts))
 		totalScope += e.histogram.Counts[idx]
 	}
 	return totalScope

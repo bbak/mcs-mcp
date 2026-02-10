@@ -83,8 +83,19 @@ MCS-MCP uses a **Hybrid Simulation Model** that integrates historical capability
 1.  **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 180 days).
 2.  **Current Reality (WIP Analysis)**: Explicitly analyzes the stability and age of in-flight work.
 3.  **Demand Expansion**: Automatically models the "Invisible Friction" of background work (Bugs, Admin) based on historical type distribution.
+4.  **Stratified Coordinated Sampling**: Detects and isolates distinct delivery streams to model capacity clashes (Bug-Tax).
 
-### 4.2 Standardized Percentile Interpretation
+### 4.2 Stratified Coordinated Sampling (Advanced Modeling)
+
+The engine can transition from a **Pooled** to a **Stratified** model if work item types show significantly different delivery profiles.
+
+- **Dynamic Eligibility**: Stratification is only enabled if a type has sufficient volume (>15 items) and its Cycle Time variance is >15% from the pooled average. This isolates unstable or bursty processes without over-fitting to sparse data.
+- **Capacity Coordination (Preventing the Capacity Fallacy)**: Independent strata are sampled concurrently butcoordinated by a **Daily Capacity Cap** (P95 of historical total throughput). This prevents the "stacking" of independent samples from generating unrealistic velocity that exceeds the team's theoretical limit.
+- **The 'Bug-Tax' (Statistical Correlation)**: The engine automatically detects negative correlations between throughput strata. If "Type A" (the Taxer) has high volume on days where "Type B" (the Taxed) is low, the simulation mirrors this constraint, ensuring that an increase in Bugs correctly constrains Story delivery.
+- **Bayesian Blending**: For types with sparse historical data, the engine "blends" stratified behavior with the pooled average (30% bias) to maintain statistical stability while honoring unique type attributes.
+- **Modeling Transparency**: Every result includes a `modeling_insight` field that discloses if the simulation used a pooled or stratified approach and why.
+
+### 4.3 Standardized Percentile Interpretation
 
 To ensure consistency across simulations, aging, and persistence, the following standardized mapping is used:
 
@@ -99,14 +110,14 @@ To ensure consistency across simulations, aging, and persistence, the following 
 | **Safe-bet**     | P95        | Extremely likely; includes heavy tail protection.       |
 | **Limit**        | P98        | The practical upper bound of historical data.           |
 
-### 4.3 Simulation Safeguards
+### 4.4 Simulation Safeguards
 
 To prevent nonsensical forecasts, the engine implements several integrity thresholds:
 
 - **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, a `WARNING` is issued. This usually indicates that filters (`issue_types` or `resolutions`) have reduced the sample size so much that outliers dominate.
 - **Resolution Density Check**: Monitors the ratio of "Delivered" items vs. "Dropped" items. If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative.
 
-### 4.4 Walk-Forward Analysis (Backtesting)
+### 4.5 Walk-Forward Analysis (Backtesting)
 
 The system provides `get_forecast_accuracy` to validate the reliability of Monte-Carlo simulations via historical backtesting.
 
@@ -180,11 +191,11 @@ When items move between projects, the system implements **History Healing**:
 
 ---
 
-## 10. Data Security & GRC Principles
+## 8. Data Security & GRC Principles
 
 MCS-MCP is designed with **Security-by-Design** and **Data Minimization** at its core.
 
-### 10.1 Principle: Need-to-Know
+### 8.1 Principle: Need-to-Know
 
 The system strictly adheres to the "Need-to-Know" principle by ingests and persisting only the analytical metadata required for flow analysis.
 
@@ -192,7 +203,7 @@ The system strictly adheres to the "Need-to-Know" principle by ingests and persi
 - **Sensitive Content (DROPPED)**: While Jira may return full objects, the ingestion and transformation layer strictly **drops** fields such as **Summary (Title), Description, Acceptance Criteria, and Assignees** at the first processing step.
 - **Impact**: This ensures that sensitive information is never exposed to the analytical models, never persisted to the cache, and never made available to the AI Agent.
 
-### 10.2 Principle: Transparency (Auditability)
+### 8.2 Principle: Transparency (Auditability)
 
 The system maintains absolute transparency in how data is stored and used.
 
