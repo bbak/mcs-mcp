@@ -40,3 +40,7 @@ $RECYCLE.BIN/
 .vscode/
 *.swp
 *.swo
+
+# Docs
+docs/*.pdf
+docs/*.docx
