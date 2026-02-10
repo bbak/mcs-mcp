@@ -13,13 +13,14 @@
 
 ## 🚀 Key Capabilities
 
-- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Supports **Stratified Simulation** for heterogeneous workloads, detecting capacity dependencies (e.g., "Bug-Tax") automatically.
+- **Stratified Analytics Baseline**: Type-stratification is pervasive across the suite. Detect "Capacity Clashes" (Bug-Tax) in simulations, identify type-specific bottlenecks in **Status Residency**, and assess **WIP Age** using type-aware benchmarks.
+- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Automatically coordinates sampling across multiple work types to ensure realistic theoretical capacity.
 - **Forecast Backtesting**: Perform **Walk-Forward Analysis** to empirically validate forecast accuracy by "time-travelling" into historical data.
-- **Predictability Guardrails**: Use **XmR Control Charts** and **Stability Indices** to detect "Special Cause" variation and assess if a process is stable enough to forecast.
+- **Predictability Guardrails**: Use **XmR Control Charts** and **Stability Indices** (stratifiable by type) to detect "Special Cause" variation and assess process stability.
 - **Workflow Semantic Discovery**: Automatically infer the roles of workflow statuses (Active, Queue, Demand, Finished) to identify true bottlenecks instead of administrative delays.
+- **Process Yield & Abandonment**: Quantify "waste" by identifying exactly where work (broken down by type) is discarded in the discovery or execution pipeline.
 - **High-Fidelity Aging Analysis**: Track **WIP Age** and status-level persistence to identify "neglected" inventory before it impacts delivery.
 - **Strategic Evolution Tracking**: Perform longitudinal audits using **Three-Way Control Charts** (Weekly/Monthly) to detect systemic improvements or process drift over time.
-- **Process Yield & Abandonment**: Quantify "waste" by identifying exactly where work is discarded in the discovery or execution pipeline.
 - **Guided Analytical Roadmaps**: Proactively guide AI agents through the correct sequence of diagnostic steps (Stability -> Discovery -> Analysis) based on specific goals.
 
 ---

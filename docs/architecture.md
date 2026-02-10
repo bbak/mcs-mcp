@@ -212,3 +212,31 @@ The system maintains absolute transparency in how data is stored and used.
 - **Human-Readable Storage**: Long-term caches (Event Logs, Workflow Metadata) are stored in plain-text JSON/JSONL formats.
 - **Auditability**: Security officers can at any time inspect the `cache` directory to verify that no sensitive data has been leaked during the ingestion process.
 - **Fact-Based Archeology**: By deriving the workflow from transition logs rather than configuration metadata, the system ensures that the analytical view remains objective and untainted by human-entered (and potentially sensitive) configuration details.
+
+---
+
+## 9. Comprehensive Stratified Analytics
+
+MCS-MCP implements **Type-Stratification** as a core architectural baseline across all diagnostics. This ensures that process insights are not diluted by a heterogeneous mix of work (e.g., mixing 2-day Bugs with 20-day Stories).
+
+### 9.1 The Architecture of Consistency
+
+Every analytical tool in the server has been extended to provide both pooled (system-wide) and stratified (type-specific) results:
+
+| Tool                | Stratified Capability                                             | Rationale                                                               |
+| :------------------ | :---------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| **Monte Carlo**     | Stratified Capacity / Bayesian Blending / correlations.           | Prevents "Invisibility" of slow items in mixed simulations.             |
+| **Cycle Time SLEs** | Full Percentile sets per Work Item Type.                          | Sets realistic, data-driven expectations for different classes of work. |
+| **WIP Aging**       | Type-Aware Staleness Detection (Percentile-based).                | Prevents false-negative "Clogged" alerts for complex/slow types.        |
+| **Stability (XmR)** | Individual & Moving Range limits per Type.                        | Detects special cause variation that is masked in a pooled view.        |
+| **Yield Analysis**  | Attribution of Delivery vs. Abandonment per Type.                 | Identifies which work types suffer the most process waste.              |
+| **Throughput**      | Weekly/Monthly delivery cadence per Type with flexible bucketing. | Visualizes where teams actually spend their delivery "bandwidth".       |
+| **Residency**       | Status-level residency percentiles (P50..P95) per Type.           | pinpoints type-specific bottlenecks at the status level.                |
+
+### 9.2 Statistical Integrity Guards
+
+To maintain reliability, stratification follows strict defensive heuristics:
+
+- **Volume Thresholds**: Smaller cohorts are automatically blended with pooled averages using **Bayesian Weighting** to prevent outlier spikes from dominating the analysis.
+- **Temporal Alignment**: All stratified time-series (XmR, Cadence) are aligned to the same analytical windows and bucket boundaries (Midnight UTC) to allow for across-tool correlation.
+- **Conceptual Coherence**: By using the same work item types and outcome semantics across every tool, the system provides a unified "Process Signature" for the project.
