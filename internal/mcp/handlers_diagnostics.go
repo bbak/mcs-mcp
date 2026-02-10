@@ -302,9 +302,11 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 
 	combined := append(finished, append(downstream, append(upstream, demand...)...)...)
 	yield := stats.CalculateProcessYield(combined, s.activeMapping, s.getResolutionMap(sourceID))
+	stratified := stats.CalculateStratifiedYield(combined, s.activeMapping, s.getResolutionMap(sourceID))
 
 	return map[string]interface{}{
 		"yield":         yield,
+		"stratified":    stratified,
 		"_data_quality": s.getQualityWarnings(combined),
 		"_guidance": []string{
 			"High 'Abandoned Upstream' often points to discovery/refinement issues.",

@@ -112,3 +112,21 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 
 	return yield
 }
+
+// CalculateStratifiedYield performs yield analysis breakdown by work item type.
+func CalculateStratifiedYield(issues []jira.Issue, mappings map[string]StatusMetadata, resolutions map[string]string) map[string]ProcessYield {
+	groups := make(map[string][]jira.Issue)
+	for _, issue := range issues {
+		t := issue.IssueType
+		if t == "" {
+			t = "Unknown"
+		}
+		groups[t] = append(groups[t], issue)
+	}
+
+	stratified := make(map[string]ProcessYield)
+	for t, issues := range groups {
+		stratified[t] = CalculateProcessYield(issues, mappings, resolutions)
+	}
+	return stratified
+}
