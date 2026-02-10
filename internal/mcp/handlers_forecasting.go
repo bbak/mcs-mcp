@@ -75,7 +75,6 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	existingBacklogCount := 0
 	wipCount := 0
-	var wipAges []float64
 
 	actualTargets := make(map[string]int)
 	if includeExistingBacklog {
@@ -89,6 +88,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	var wipIssues []jira.Issue
+	var poolCT []float64
 	if includeWIP {
 		// An issue from ProjectScope is WIP if it's in the downstream slice (already checked for commitment)
 		wipIssues = downstream
@@ -98,10 +98,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			actualTargets[issue.IssueType]++
 		}
 
-		cycleTimes := s.getCycleTimes(projectKey, boardID, finished, startStatus, endStatus, issueTypes)
-		calcWipAges := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
-		wipAges = calcWipAges
-		wipCount = len(wipAges)
+		poolCT = s.getCycleTimes(projectKey, boardID, finished, startStatus, endStatus, issueTypes)
 	}
 
 	var engine *simulation.Engine
@@ -168,8 +165,14 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 		if includeWIP {
 			deliveredFiltered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
-			cycleTimes := s.getCycleTimes(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
-			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
+			ctByType := s.getCycleTimesByType(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
+			// Reuse poolCT for calculateWIPAges as it expects a []float64 fallback
+			wipByType := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, poolCT)
+			engine.AnalyzeWIPStability(&resObj, wipByType, ctByType)
+			wipCount = 0
+			for _, ages := range wipByType {
+				wipCount += len(ages)
+			}
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
 				ExistingBacklog: existingBacklogCount,
@@ -293,8 +296,14 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 		if includeWIP {
 			deliveredFiltered := stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
-			cycleTimes := s.getCycleTimes(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
-			engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, totalBacklog)
+			poolCT := s.getCycleTimes(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
+			ctByType := s.getCycleTimesByType(projectKey, boardID, deliveredFiltered, startStatus, endStatus, issueTypes)
+			wipByType := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, poolCT)
+			engine.AnalyzeWIPStability(&resObj, wipByType, ctByType)
+			wipCount = 0
+			for _, ages := range wipByType {
+				wipCount += len(ages)
+			}
 			resObj.Composition = simulation.Composition{
 				WIP:             wipCount,
 				ExistingBacklog: existingBacklogCount,
@@ -393,15 +402,15 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		return nil, fmt.Errorf("no resolved items found that passed the commitment point '%s'", startStatus)
 	}
 
-	var wipAges []float64
 	wipIssues := stats.ApplyBackflowPolicy(downstream, analysisCtx.StatusWeights, cWeight)
-	wipAges = s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
+	wipByType := s.calculateWIPAges(wipIssues, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
 	if analyzeWIP {
-		engine.AnalyzeWIPStability(&resObj, wipAges, cycleTimes, 0)
+		ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
+		engine.AnalyzeWIPStability(&resObj, wipByType, ctByType)
 	}
 
 	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)

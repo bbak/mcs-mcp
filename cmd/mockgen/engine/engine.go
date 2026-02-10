@@ -10,7 +10,6 @@ import (
 	"mcs-mcp/internal/stats"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -59,12 +58,13 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 
 		// 1. Determine Parameters
 		k, lambda := 2.5, 9.5 // Mild: Targeted at ~5.0 day In-Progress residency
-		if cfg.Scenario == "chaos" {
+		switch cfg.Scenario {
+		case "chaos":
 			k = 0.8
 			if cfg.Distribution == "weibull" {
 				lambda = 12.0
 			}
-		} else if cfg.Scenario == "drift" {
+		case "drift":
 			ratio := float64(i) / float64(cfg.Count)
 			k = 2.5 - (1.7 * ratio) // Shift 2.5 -> 0.8
 			lambda = 9.5 + (2.5 * ratio)
@@ -146,7 +146,7 @@ func Save(outDir string, sourceID string, events []eventlog.IssueEvent, mapping 
 	}
 
 	jsonlPath := filepath.Join(outDir, fmt.Sprintf("%s.jsonl", sourceID))
-	workflowPath := filepath.Join(outDir, strings.ReplaceAll(sourceID, "_", "-")+"-workflow.json")
+	workflowPath := filepath.Join(outDir, fmt.Sprintf("%s_workflow.json", sourceID))
 
 	// Save Events
 	f, err := os.Create(jsonlPath)
