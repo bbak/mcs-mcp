@@ -407,7 +407,9 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
-	resObj := engine.RunCycleTimeAnalysis(cycleTimes)
+
+	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
+	resObj := engine.RunCycleTimeAnalysis(cycleTimes, ctByType)
 	if analyzeWIP {
 		ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 		engine.AnalyzeWIPStability(&resObj, wipByType, ctByType)
