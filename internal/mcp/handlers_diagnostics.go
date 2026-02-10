@@ -205,10 +205,26 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finishedAll, append(downstream, append(upstream, demand...)...)...))
 
 	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
+
+	// Stratified Analysis
+	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
+	wipByType := s.calculateWIPAges(downstream, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
+
+	issuesByType := make(map[string][]jira.Issue)
+	for _, iss := range delivered {
+		t := iss.IssueType
+		if t == "" {
+			t = "Unknown"
+		}
+		issuesByType[t] = append(issuesByType[t], iss)
+	}
+
 	stability := stats.CalculateProcessStability(delivered, cycleTimes, len(downstream), float64(window.ActiveDayCount()))
+	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
 	return map[string]interface{}{
 		"stability":     stability,
+		"stratified":    stratified,
 		"_data_quality": s.getQualityWarnings(append(finishedAll, append(downstream, append(upstream, demand...)...)...)),
 		"_guidance": []string{
 			"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",

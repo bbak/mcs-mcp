@@ -171,9 +171,9 @@ func TestCalculateProcessStability(t *testing.T) {
 	// Throughput = 5 / 10 = 0.5 items/day
 	// Expected Lead Time = 5 / 0.5 = 10
 	// Stability Index = 10 / 10 (avg) = 1.0
-	res := CalculateProcessStability(nil, cycleTimes, wipCount, windowDays).(map[string]interface{})
+	res := CalculateProcessStability(nil, cycleTimes, wipCount, windowDays)
 
-	index := res["stability_index"].(float64)
+	index := res.StabilityIndex
 	if math.Abs(index-1.0) > 0.001 {
 		t.Errorf("Expected stability index 1.0, got %v", index)
 	}
@@ -181,8 +181,8 @@ func TestCalculateProcessStability(t *testing.T) {
 	// Double WIP
 	// Expected Lead Time = 10 / 0.5 = 20
 	// Stability Index = 20 / 10 (avg) = 2.0
-	res2 := CalculateProcessStability(nil, cycleTimes, 10, windowDays).(map[string]interface{})
-	index2 := res2["stability_index"].(float64)
+	res2 := CalculateProcessStability(nil, cycleTimes, 10, windowDays)
+	index2 := res2.StabilityIndex
 	if math.Abs(index2-2.0) > 0.001 {
 		t.Errorf("Expected stability index 2.0, got %v", index2)
 	}

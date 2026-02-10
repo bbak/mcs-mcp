@@ -68,8 +68,16 @@ func CalculateXmRWithKeys(values []float64, keys []string) XmRResult {
 	return result
 }
 
+// StabilityResult represents the integrated view of process health for a specific set of data.
+type StabilityResult struct {
+	XmR              XmRResult `json:"xmr"`
+	StabilityIndex   float64   `json:"stability_index"`    // Ratio: Expected Lead Time / Avg Cycle Time
+	ExpectedLeadTime float64   `json:"expected_lead_time"` // Days: WIP / Throughput
+	Signals          []Signal  `json:"signals"`
+}
+
 // CalculateProcessStability evaluates the system's predictability using cycle times and WIP.
-func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int, activeDays float64) interface{} {
+func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int, activeDays float64) StabilityResult {
 	// Prepare keys for signal traceability
 	keys := make([]string, len(issues))
 	for i, iss := range issues {
@@ -90,12 +98,27 @@ func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCou
 		}
 	}
 
-	return map[string]interface{}{
-		"xmr":                xmr,
-		"stability_index":    math.Round(stabilityIndex*100) / 100, // Ratio
-		"expected_lead_time": math.Round(expectedLeadTime*10) / 10, // Days
-		"status":             xmr.Signals,
+	return StabilityResult{
+		XmR:              xmr,
+		StabilityIndex:   math.Round(stabilityIndex*100) / 100,
+		ExpectedLeadTime: math.Round(expectedLeadTime*10) / 10,
+		Signals:          xmr.Signals,
 	}
+}
+
+// CalculateStratifiedStability performs stability analysis breakdown by work item type.
+func CalculateStratifiedStability(issuesByType map[string][]jira.Issue, ctByType map[string][]float64, wipByType map[string][]float64, activeDays float64) map[string]StabilityResult {
+	stratified := make(map[string]StabilityResult)
+	for t, issues := range issuesByType {
+		cts := ctByType[t]
+		if len(cts) == 0 {
+			continue
+		}
+
+		wipCount := len(wipByType[t])
+		stratified[t] = CalculateProcessStability(issues, cts, wipCount, activeDays)
+	}
+	return stratified
 }
 
 // TimeStabilityResult represents the integrated view of done items vs current WIP.
