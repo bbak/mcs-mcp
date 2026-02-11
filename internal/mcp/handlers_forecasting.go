@@ -396,6 +396,9 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		}
 	}
 
+	// Apply Backflow Policy to historical data to ensure cycle times are measured from the last "committed" streak.
+	delivered = stats.ApplyBackflowPolicy(delivered, analysisCtx.StatusWeights, cWeight)
+
 	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 
 	if len(cycleTimes) == 0 {
