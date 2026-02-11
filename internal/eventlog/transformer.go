@@ -3,6 +3,7 @@ package eventlog
 import (
 	"mcs-mcp/internal/jira"
 	"sort"
+	"strings"
 )
 
 // TransformIssue converts a Jira Issue DTO and its changelog into a slice of IssueEvents.
@@ -23,7 +24,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 			ts := tsObj.UnixMicro()
 			for _, item := range h.Items {
-				if item.Field == "status" {
+				if strings.EqualFold(item.Field, "status") {
 					if earliestTS == 0 || ts < earliestTS {
 						earliestTS = ts
 						initialStatus = item.FromString
@@ -78,10 +79,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 			for i := range h.Items {
 				item := &h.Items[i]
-				if item.Field == "Key" || item.Field == "project" {
+				if strings.EqualFold(item.Field, "Key") || strings.EqualFold(item.Field, "project") {
 					isMove = true
 				}
-				if item.Field == "status" {
+				if strings.EqualFold(item.Field, "status") {
 					statusItem = item
 				}
 			}
@@ -126,7 +127,8 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 			hasSignal := false
 			for _, item := range history.Items {
-				switch item.Field {
+				f := strings.ToLower(item.Field)
+				switch f {
 				case "status":
 					event.FromStatus = item.FromString
 					event.FromStatusID = item.From

@@ -388,6 +388,33 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			if !isFin {
 				issue.ResolutionDate = nil
 				issue.Resolution = ""
+			} else if issue.ResolutionDate == nil {
+				// Synthetic Fallback: If in a finished status but Jira gave no resolution date,
+				// use the timestamp of the first transition into this current "finished streak".
+				var streakStart int64
+				for i := len(events) - 1; i >= 0; i-- {
+					evt := events[i]
+					isPreviousFin := finishedStatuses[evt.ToStatus] || (evt.ToStatusID != "" && finishedStatuses[evt.ToStatusID])
+					if !isPreviousFin {
+						// Case-insensitive check for streak search
+						lowerS := strings.ToLower(evt.ToStatus)
+						for name, ok := range finishedStatuses {
+							if ok && strings.ToLower(name) == lowerS {
+								isPreviousFin = true
+								break
+							}
+						}
+					}
+
+					if !isPreviousFin {
+						break
+					}
+					streakStart = evt.Timestamp
+				}
+				if streakStart != 0 {
+					resDate := time.UnixMicro(streakStart)
+					issue.ResolutionDate = &resDate
+				}
 			}
 		}
 	}

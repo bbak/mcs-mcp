@@ -46,6 +46,11 @@ func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 		issue.Transitions, issue.StatusResidency, issue.IsMoved = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
 	}
 
+	// Dynamic Fallback: if in a finished status but no resolution date provided by Jira
+	if issue.ResolutionDate == nil && finishedStatuses != nil && finishedStatuses[issue.Status] {
+		issue.ResolutionDate = &issue.Updated
+	}
+
 	return issue
 }
 
@@ -273,7 +278,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		// Recalculate residency starting from the backflow point
 		newIssue.StatusResidency = CalculateResidency(
 			newIssue.Transitions,
-			issue.Created,
+			issue.Transitions[lastBackflowIdx].Date, // Use the backflow date as the new birth anchor
 			issue.ResolutionDate,
 			issue.Status,
 			nil, // finishedStatuses not needed if we are just rebuilding from trans

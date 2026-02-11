@@ -33,9 +33,9 @@ func AssessStratificationNeeds(issues []jira.Issue, resolutions map[string]strin
 		}
 
 		// Calculate Cycle Time (Resolution - Created as current best heuristic for eligibility)
-		resDate := *iss.ResolutionDate
-		if iss.ResolutionDate == nil {
-			resDate = iss.Updated
+		resDate := iss.Updated
+		if iss.ResolutionDate != nil {
+			resDate = *iss.ResolutionDate
 		}
 		ct := resDate.Sub(iss.Created).Hours() / 24.0
 
