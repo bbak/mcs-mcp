@@ -134,9 +134,9 @@ func ProposeSemantics(issues []jira.Issue, persistence []StatusPersistence) (map
 	transitionsOutOf := make(map[string]int)
 
 	for _, issue := range issues {
-		// Entry point detection (Demand)
-		if !issue.IsMoved && len(issue.Transitions) > 0 {
-			entryCounts[issue.Transitions[0].FromStatus]++
+		// Entry point detection (Demand) using birth status
+		if issue.BirthStatus != "" {
+			entryCounts[issue.BirthStatus]++
 		}
 
 		// Resolution detection (Finished)
@@ -305,11 +305,16 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		visited := make(map[string]bool)
 		visited[status] = true
 
+		// Entry point detection using birth status
+		if issue.BirthStatus != "" {
+			entryCounts[getCanonical(issue.BirthStatus)]++
+		}
+
 		if issue.ResolutionDate != nil {
 			resolvedAt[status]++
 		}
 
-		for i, t := range issue.Transitions {
+		for _, t := range issue.Transitions {
 			from := getCanonical(t.FromStatus)
 			to := getCanonical(t.ToStatus)
 			allStatuses[from] = true
@@ -322,10 +327,6 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 			}
 			matrix[from][to]++
 			exitsTotal[from]++
-
-			if i == 0 && !issue.IsMoved {
-				entryCounts[from]++
-			}
 		}
 		for s := range visited {
 			reachability[s]++

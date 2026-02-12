@@ -203,6 +203,7 @@ func TestProposeSemantics(t *testing.T) {
 				{FromStatus: "Refinement", ToStatus: "Ready for Dev", Date: now.AddDate(0, 0, -3)},
 				{FromStatus: "Ready for Dev", ToStatus: "In Dev", Date: now.AddDate(0, 0, -2)},
 			},
+			BirthStatus: "Backlog",
 		},
 	}
 
@@ -216,7 +217,7 @@ func TestProposeSemantics(t *testing.T) {
 	// Add transitions to Backlog to make it the birth status
 	for i := 0; i < 20; i++ {
 		issues = append(issues, jira.Issue{
-			Key: "B", Status: "Backlog",
+			Key: "B", Status: "Backlog", BirthStatus: "Backlog",
 			Transitions: []jira.StatusTransition{{FromStatus: "Backlog", ToStatus: "Refinement"}},
 		})
 	}
@@ -273,6 +274,7 @@ func TestDiscoverStatusOrder_PathBased(t *testing.T) {
 				{FromStatus: "C", ToStatus: "D", Date: now.Add(30 * time.Minute)},
 				{FromStatus: "D", ToStatus: "E", Date: now.Add(40 * time.Minute)},
 			},
+			BirthStatus: "A",
 		},
 		{
 			Key:    "I-2",
@@ -283,6 +285,7 @@ func TestDiscoverStatusOrder_PathBased(t *testing.T) {
 				{FromStatus: "B", ToStatus: "C", Date: now.Add(35 * time.Minute)},
 				{FromStatus: "C", ToStatus: "E", Date: now.Add(45 * time.Minute)},
 			},
+			BirthStatus: "A",
 		},
 	}
 
@@ -314,11 +317,12 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 				{FromStatus: "awaiting development", ToStatus: "developing", Date: now.Add(-2 * time.Hour)},
 				{FromStatus: "developing", ToStatus: "Done", Date: now.Add(-1 * time.Hour)},
 			},
+			BirthStatus: "Open",
 		},
-		{Key: "M-1", Status: "Open", StatusCategory: "to-do"},
-		{Key: "M-2", Status: "refining", StatusCategory: "to-do"}, // Often to-do
-		{Key: "M-3", Status: "awaiting development", StatusCategory: "indeterminate"},
-		{Key: "M-4", Status: "developing", StatusCategory: "indeterminate"},
+		{Key: "M-1", Status: "Open", StatusCategory: "to-do", BirthStatus: "Open"},
+		{Key: "M-2", Status: "refining", StatusCategory: "to-do", BirthStatus: "refining"},
+		{Key: "M-3", Status: "awaiting development", StatusCategory: "indeterminate", BirthStatus: "awaiting development"},
+		{Key: "M-4", Status: "developing", StatusCategory: "indeterminate", BirthStatus: "developing"},
 	}
 
 	persistence := []StatusPersistence{
@@ -374,6 +378,7 @@ func TestDiscoverStatusOrder_ShortcutAvoidance(t *testing.T) {
 			Transitions: []jira.StatusTransition{
 				{FromStatus: "Refining", ToStatus: "Done", Date: now},
 			},
+			BirthStatus: "Refining",
 		})
 	}
 	// 8 Active pathers
@@ -384,6 +389,7 @@ func TestDiscoverStatusOrder_ShortcutAvoidance(t *testing.T) {
 			Transitions: []jira.StatusTransition{
 				{FromStatus: "Refining", ToStatus: "Developing", Date: now},
 			},
+			BirthStatus: "Refining",
 		})
 	}
 
