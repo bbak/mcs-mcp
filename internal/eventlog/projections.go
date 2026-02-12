@@ -343,6 +343,8 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			if e.EventType == Created {
 				issue.Created = time.UnixMicro(e.Timestamp)
 				issue.HasSyntheticBirth = false // We have a real birth event!
+				issue.BirthStatus = e.ToStatus
+				issue.BirthStatusID = e.ToStatusID
 			} else {
 				issue.Transitions = append(issue.Transitions, jira.StatusTransition{
 					FromStatus:   e.FromStatus,

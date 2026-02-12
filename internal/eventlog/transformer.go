@@ -56,6 +56,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	var lastMoveTS int64
 	var entryStatus string
 	var entryStatusID string
+	var isDifferentWorkflow bool
 
 	if dto.Changelog != nil {
 		// Pass 0: Ensure histories are chronological (ascending)
@@ -66,46 +67,47 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			return t1.Before(t2)
 		})
 
-		// Pass 1: Detective Work - Find the Entry Context (Arrival Status)
+		// Pass 1: Detective Work - Find moves and arrival context
 		for _, h := range dto.Changelog.Histories {
-			tsObj, err := jira.ParseTime(h.Created)
-			if err != nil {
-				continue
-			}
-			ts := tsObj.UnixMicro()
+			if tsObj, err := jira.ParseTime(h.Created); err == nil {
+				ts := tsObj.UnixMicro()
 
-			isMove := false
-			var statusItem *jira.ItemDTO
+				isMove := false
+				wfChanged := false
+				var statusItem *jira.ItemDTO
 
-			for i := range h.Items {
-				item := &h.Items[i]
-				if strings.EqualFold(item.Field, "Key") || strings.EqualFold(item.Field, "project") {
-					isMove = true
+				for i := range h.Items {
+					item := &h.Items[i]
+					f := item.Field
+					if strings.EqualFold(f, "Key") || strings.EqualFold(f, "project") {
+						isMove = true
+					}
+					if strings.EqualFold(f, "workflow") && !strings.EqualFold(item.FromString, item.ToString) {
+						wfChanged = true
+					}
+					if strings.EqualFold(f, "status") {
+						statusItem = item
+					}
 				}
-				if strings.EqualFold(item.Field, "status") {
-					statusItem = item
-				}
-			}
 
-			if isMove {
-				lastMoveTS = ts
-				// Reset entry status - we found a new move, so we look for the new arrival
-				entryStatus = ""
-				entryStatusID = ""
-				if statusItem != nil {
-					// If the move itself changed the status, that's our first arrival candidate
-					entryStatus = statusItem.ToString
-					entryStatusID = statusItem.To
+				if isMove {
+					lastMoveTS = ts
+					entryStatus = ""
+					entryStatusID = ""
+					isDifferentWorkflow = wfChanged
+
+					if statusItem != nil {
+						entryStatus = statusItem.ToString
+						entryStatusID = statusItem.To
+					}
+				} else if lastMoveTS != 0 && entryStatus == "" && statusItem != nil {
+					entryStatus = statusItem.FromString
+					entryStatusID = statusItem.From
 				}
-			} else if lastMoveTS != 0 && entryStatus == "" && statusItem != nil {
-				// This is the first status change AFTER a move that didn't have one in the same entry.
-				// Per user directive: take the fromStatus as the context entry point.
-				entryStatus = statusItem.FromString
-				entryStatusID = statusItem.From
 			}
 		}
 
-		// Pass 2: Emission - Transform and Heal
+		// Pass 2: Emission
 		for _, history := range dto.Changelog.Histories {
 			tsObj, err := jira.ParseTime(history.Created)
 			if err != nil {
@@ -113,8 +115,8 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 			ts := tsObj.UnixMicro()
 
-			// HEALING: Discard history before the last move
-			if lastMoveTS != 0 && ts < lastMoveTS {
+			// Case 2 Healing: Dropping history before move if workflow changed
+			if lastMoveTS != 0 && isDifferentWorkflow && ts < lastMoveTS {
 				continue
 			}
 
@@ -127,15 +129,13 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 			hasSignal := false
 			for _, item := range history.Items {
-				f := strings.ToLower(item.Field)
-				switch f {
-				case "status":
+				if strings.EqualFold(item.Field, "status") {
 					event.FromStatus = item.FromString
 					event.FromStatusID = item.From
 					event.ToStatus = item.ToString
 					event.ToStatusID = item.To
 					hasSignal = true
-				case "resolution":
+				} else if strings.EqualFold(item.Field, "resolution") {
 					if item.ToString != "" {
 						event.Resolution = item.ToString
 						event.IsUnresolved = false
@@ -155,9 +155,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 	// 4. Final Healing - Apply Synthetic Birth if moved
 	if lastMoveTS != 0 {
-		originalBirth := events[0].Timestamp // This is the 'Created' event added in step 2
+		originalBirth := events[0].Timestamp // The 'Created' event added at Step 2
+
+		// Fallback for Entry Status
 		if entryStatus == "" && len(events) > 1 {
-			// Fallback: If we still don't have entryStatus, take the first known status transition
 			for _, e := range events {
 				if e.EventType == Change && e.ToStatus != "" {
 					entryStatus = e.FromStatus
@@ -166,22 +167,36 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				}
 			}
 		}
-		// If still empty (never moved status in new project), current status is entryStatus
 		if entryStatus == "" {
 			entryStatus = initialStatus
 			entryStatusID = initialStatusID
 		}
 
-		// Discard the old 'Created' and any 'Change' events we might have emitted exactly at lastMoveTS
-		// if they are not relevant. Actually, we just replace the first event (Created).
-		events[0] = IssueEvent{
-			IssueKey:   issueKey,
-			IssueType:  issueType,
-			EventType:  Created,
-			Timestamp:  originalBirth,
-			ToStatus:   entryStatus,
-			ToStatusID: entryStatusID,
-			IsHealed:   true,
+		if isDifferentWorkflow {
+			// Case 2: Anchor synthetic birth at original TS but in Arrival Status
+			events[0] = IssueEvent{
+				IssueKey:   issueKey,
+				IssueType:  issueType,
+				EventType:  Created,
+				Timestamp:  originalBirth,
+				ToStatus:   entryStatus,
+				ToStatusID: entryStatusID,
+				IsHealed:   true,
+			}
+		} else {
+			// Case 1: Same workflow, just ensure birth points to entryStatus
+			events[0].ToStatus = entryStatus
+			events[0].ToStatusID = entryStatusID
+			events[0].IsHealed = true
+		}
+	} else {
+		// Normal path: ensure first event has the initial biological status
+		if entryStatus == "" {
+			events[0].ToStatus = initialStatus
+			events[0].ToStatusID = initialStatusID
+		} else {
+			events[0].ToStatus = entryStatus
+			events[0].ToStatusID = entryStatusID
 		}
 	}
 

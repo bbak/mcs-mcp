@@ -15,6 +15,8 @@ type Issue struct {
 	Resolution        string
 	Status            string
 	StatusID          string
+	BirthStatus       string
+	BirthStatusID     string
 	StatusCategory    string
 	StatusResidency   map[string]int64 // Seconds spent in each status
 	Transitions       []StatusTransition

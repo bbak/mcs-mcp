@@ -219,9 +219,9 @@ func TestTransformIssue_ExplicitUnresolved(t *testing.T) {
 	}
 }
 
-func TestTransformIssue_MoveArrival(t *testing.T) {
-	// Scenario: Item moved (Key/Project change) and then had a status change.
-	// We explicitly provide histories OUT OF ORDER (descending) to verify Pass 0 sorting.
+func TestTransformIssue_Case1_Preserve(t *testing.T) {
+	// Scenario: Move between projects with SAME workflow.
+	// We expect all history to be preserved.
 	dto := jira.IssueDTO{
 		Key: "NEW-1",
 		Fields: jira.FieldsDTO{
@@ -236,29 +236,40 @@ func TestTransformIssue_MoveArrival(t *testing.T) {
 					Key string "json:\"key\""
 				} "json:\"statusCategory\""
 			}{Name: "Doing", ID: "4"},
-			Created: "2017-03-02T10:00:00.000+0000",
+			Created: "2024-03-01T10:00:00.000+0000",
 		},
 		Changelog: &jira.ChangelogDTO{
 			Histories: []jira.HistoryDTO{
 				{
-					// Event 2: Status change (Next Status Event)
-					Created: "2017-03-02T12:00:00.000+0000",
+					// Event 1: Pre-move activity
+					Created: "2024-03-01T11:00:00.000+0000",
 					Items: []jira.ItemDTO{
 						{
 							Field:      "status",
-							FromString: "In Progress",
-							ToString:   "Doing",
+							FromString: "Backlog",
+							ToString:   "To Do",
 						},
 					},
 				},
 				{
-					// Event 1: Move (Context Entry)
-					Created: "2017-03-02T11:00:00.000+0000",
+					// Event 2: Move (No workflow field)
+					Created: "2024-03-01T12:00:00.000+0000",
 					Items: []jira.ItemDTO{
 						{
 							Field:      "project",
 							FromString: "OLD",
 							ToString:   "NEW",
+						},
+					},
+				},
+				{
+					// Event 3: Post-move activity
+					Created: "2024-03-01T13:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "To Do",
+							ToString:   "Doing",
 						},
 					},
 				},
@@ -268,23 +279,100 @@ func TestTransformIssue_MoveArrival(t *testing.T) {
 
 	events := TransformIssue(dto)
 
-	// We expect:
-	// 1. Created Event (Healed) @ T=10:00:00, ToStatus="In Progress" (derived from T=12:00:00 fromStatus)
-	// 2. Change Event (Move) @ T=11:00:00
-	// 3. Change Event (Status) @ T=12:00:00
-
-	if len(events) < 2 {
-		t.Fatalf("Expected at least 2 events, got %d", len(events))
+	// In Case 1, we expect all transitions (Pass 2 doesn't skip).
+	// 1. Created
+	// 2. Change (Backlog -> To Do)
+	// 3. Change (To Do -> Doing)
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events for Case 1, got %d", len(events))
 	}
 
-	created := events[0]
-	if created.EventType != Created {
-		t.Errorf("First event should be Created, got %s", created.EventType)
+	if events[1].FromStatus != "Backlog" || events[1].ToStatus != "To Do" {
+		t.Errorf("Expected pre-move history preserved, got %s -> %s", events[1].FromStatus, events[1].ToStatus)
 	}
-	if !created.IsHealed {
-		t.Errorf("Created event should be marked as IsHealed")
+}
+
+func TestTransformIssue_Case2_Heal(t *testing.T) {
+	// Scenario: Move with WORKFLOW change.
+	// We expect pre-move history to be dropped and birth anchored at arrival.
+	dto := jira.IssueDTO{
+		Key: "NEW-2",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Doing", ID: "4"},
+			Created: "2024-01-01T10:00:00.000+0000", // "Biological" birth
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Event 1: Irrelevant old history (different process)
+					Created: "2024-01-01T11:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "Backlog",
+							ToString:   "DRAFTING",
+						},
+					},
+				},
+				{
+					// Event 2: Move with Workflow change
+					Created: "2024-03-01T12:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:    "project",
+							ToString: "NEW",
+						},
+						{
+							Field:      "workflow",
+							FromString: "OLD-PROCESS",
+							ToString:   "NEW-PROCESS",
+						},
+					},
+				},
+				{
+					// Event 3: First transition in new process
+					Created: "2024-03-01T14:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "To Do",
+							ToString:   "Doing",
+						},
+					},
+				},
+			},
+		},
 	}
-	if created.ToStatus != "In Progress" {
-		t.Errorf("Expected Healed arrival status 'In Progress', got '%s'", created.ToStatus)
+
+	events := TransformIssue(dto)
+
+	// In Case 2, we expect:
+	// 1. Created (Synthetic) @ 2024-01-01, ToStatus="To Do" (derived from T=14:00 transition)
+	// 2. Change (Status) @ 2024-03-01T14:00
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events for Case 2, got %d", len(events))
+	}
+
+	birth := events[0]
+	if birth.EventType != Created || !birth.IsHealed {
+		t.Errorf("Expected Healed birth")
+	}
+	if birth.ToStatus != "To Do" {
+		t.Errorf("Expected arrival status 'To Do', got '%s'", birth.ToStatus)
+	}
+
+	// Preserves biological age
+	if birth.Timestamp != 1704103200000000 { // 2024-01-01 10:00:00 UTC
+		t.Errorf("Expected original birth timestamp, got %d", birth.Timestamp)
 	}
 }
