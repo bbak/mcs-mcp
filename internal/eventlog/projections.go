@@ -285,11 +285,16 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 		nowDelivered := false
 
 		// Signal-Aware detection
-		if e.Resolution != "" {
-			nowDelivered = true
-		} else if e.ToStatus != "" {
-			if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+		// We ignore 'Created' events for delivery because they represent the arrival of the item
+		// in the project, not the resolution itself. Subsequent resolution events or terminal
+		// status changes will trigger the delivery count.
+		if e.EventType != Created {
+			if e.Resolution != "" {
 				nowDelivered = true
+			} else if e.ToStatus != "" {
+				if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+					nowDelivered = true
+				}
 			}
 		}
 

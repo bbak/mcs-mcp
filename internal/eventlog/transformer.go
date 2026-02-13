@@ -45,7 +45,6 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			var statusItem *jira.ItemDTO
 			var resItem *jira.ItemDTO
 			isRelevantMove := false
-			hasWorkflowChange := false
 
 			for j := range history.Items {
 				item := &history.Items[j]
@@ -57,17 +56,17 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					if strings.HasPrefix(item.To, targetProjectKey+"-") || strings.HasPrefix(item.ToString, targetProjectKey+"-") {
 						isRelevantMove = true
 					}
-				} else if strings.EqualFold(item.Field, "workflow") && !strings.EqualFold(item.FromString, item.ToString) {
-					hasWorkflowChange = true
 				}
 			}
 
+			suppressStatus := false
 			// Condition 1: Terminal Move (Entering Project with Workflow Boundary)
-			// If we see a move into our project AND Workflow change, this is where the item "arrived".
-			if isRelevantMove && hasWorkflowChange {
+			// If we see a move into our project, this is where the item "arrived".
+			if isRelevantMove {
 				if statusItem != nil {
-					initialStatus = statusItem.FromString
-					initialStatusID = statusItem.From
+					initialStatus = statusItem.ToString
+					initialStatusID = statusItem.To
+					suppressStatus = true
 				} else if len(events) > 0 {
 					// Fallback: Use the "From" side of the chronologically next change
 					nextEvent := events[len(events)-1]
@@ -83,10 +82,9 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 
 			// Condition 3: Standard Transitions Emit
-			// We emit ALL status and resolution changes we encounter.
-			// Because we anchor the biological birth to the FromStatus at the boundary,
-			// the boundary transition itself is correctly captured as a Change event.
-			if statusItem != nil || resItem != nil {
+			// We emit status and resolution changes.
+			// If it's a move boundary, we suppress the status change (it's folded into 'Created' status).
+			if (statusItem != nil && !suppressStatus) || resItem != nil {
 				event := IssueEvent{
 					IssueKey:  issueKey,
 					IssueType: issueType,
@@ -94,7 +92,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					Timestamp: ts,
 				}
 
-				if statusItem != nil {
+				if statusItem != nil && !suppressStatus {
 					event.FromStatus = statusItem.FromString
 					event.FromStatusID = statusItem.From
 					event.ToStatus = statusItem.ToString

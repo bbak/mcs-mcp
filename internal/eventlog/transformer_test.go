@@ -668,7 +668,6 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 					Created: "2023-08-18T18:50:00.000+0000",
 					Items: []jira.ItemDTO{
 						{Field: "Key", FromString: "EXTPROJ-3120", ToString: "GENPROJ-87"},
-						{Field: "workflow", FromString: "old", ToString: "new"},
 						{Field: "status", FromString: "FUNCTIONAL", From: "10061", ToString: "Analysis", To: "19772"},
 						{Field: "resolution", FromString: "", ToString: "Fixed", To: "1"},
 					},
@@ -687,8 +686,8 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 	events := TransformIssue(dto)
 
 	// Expected Events:
-	// 1. Created (Synthetic @ 2023-08-17) - Status: FUNCTIONAL (From side of boundary)
-	// 2. Change (@ 2023-08-18) - From: FUNCTIONAL, To: Analysis, Resolution: Fixed
+	// 1. Created (Synthetic @ 2023-08-17) - Status: Analysis (ToString of boundary)
+	// 2. Change (@ 2023-08-18) - Status suppressed (arrival status is in Created), Resolution: Fixed
 	// 3. Change (@ 2023-08-28) - From: Analysis, To: Ready for Development
 
 	if len(events) != 3 {
@@ -699,16 +698,17 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 	if created.EventType != Created {
 		t.Errorf("First event should be Created, got %v", created.EventType)
 	}
-	if created.ToStatus != "FUNCTIONAL" {
-		t.Errorf("Created event status should be 'FUNCTIONAL', got '%s'", created.ToStatus)
+	if created.ToStatus != "Analysis" {
+		t.Errorf("Created event status should be 'Analysis' (arrival), got '%s'", created.ToStatus)
 	}
 
 	boundary := events[1]
 	if boundary.EventType != Change {
 		t.Errorf("Second event should be Change (Boundary), got %v", boundary.EventType)
 	}
-	if boundary.FromStatus != "FUNCTIONAL" || boundary.ToStatus != "Analysis" {
-		t.Errorf("Boundary change status mismatch: expected FUNCTIONAL->Analysis, got %s->%s", boundary.FromStatus, boundary.ToStatus)
+	// Status should be suppressed
+	if boundary.ToStatus != "" {
+		t.Errorf("Boundary change status should be suppressed, got ->%s", boundary.ToStatus)
 	}
 	if boundary.Resolution != "Fixed" {
 		t.Errorf("Boundary change resolution should be 'Fixed', got '%s'", boundary.Resolution)
