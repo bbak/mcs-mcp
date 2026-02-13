@@ -192,17 +192,7 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 	s.activeCommitmentPoint = commitmentPoint
 
 	// Calculate and persist DiscoveryCutoff based on confirmed mapping
-	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", time.Time{})
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	domainIssues, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
-
-	finishedMap := make(map[string]bool)
-	for name, meta := range s.activeMapping {
-		if meta.Tier == "Finished" {
-			finishedMap[name] = true
-		}
-	}
-	s.activeDiscoveryCutoff = stats.CalculateDiscoveryCutoff(domainIssues, finishedMap)
+	s.recalculateDiscoveryCutoff(sourceID)
 
 	// Save to disk
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {

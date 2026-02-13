@@ -412,6 +412,15 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
 		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, issueTypes, sampleDays, sampleStart, sampleEnd)
+	case "cache_expand_history":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		chunks := asInt(call.Arguments["chunks"])
+		data, err = s.handleCacheExpandHistory(projectKey, boardID, chunks)
+	case "cache_catch_up":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		data, err = s.handleCacheCatchUp(projectKey, boardID)
 	default:
 		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
 	}
@@ -526,4 +535,22 @@ func (s *Server) anchorContext(projectKey string, boardID int) error {
 
 	s.activeSourceID = sourceID
 	return nil
+}
+
+func (s *Server) recalculateDiscoveryCutoff(sourceID string) {
+	if s.activeMapping == nil {
+		return
+	}
+
+	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", time.Time{})
+	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	domainIssues, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+
+	finishedMap := make(map[string]bool)
+	for name, meta := range s.activeMapping {
+		if meta.Tier == "Finished" {
+			finishedMap[name] = true
+		}
+	}
+	s.activeDiscoveryCutoff = stats.CalculateDiscoveryCutoff(domainIssues, finishedMap)
 }

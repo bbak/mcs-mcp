@@ -69,6 +69,79 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 	}
 }
 
+// Merge replaces existing events for the issues contained in 'events' with the new history.
+// This is more fail-safe than simple deduplication as it handles deletions or corrections in Jira.
+func (s *EventStore) Merge(sourceID string, events []IssueEvent) {
+	if len(events) == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 1. Identify issues being updated
+	affectedIssues := make(map[string]bool)
+	for _, e := range events {
+		affectedIssues[e.IssueKey] = true
+	}
+
+	// 2. Purge old events for these issues
+	oldLog := s.logs[sourceID]
+	var newLog []IssueEvent
+	for _, e := range oldLog {
+		if !affectedIssues[e.IssueKey] {
+			newLog = append(newLog, e)
+		}
+	}
+
+	// 3. Append all new events
+	newLog = append(newLog, events...)
+
+	// 4. Sort and persist to memory
+	sort.SliceStable(newLog, func(i, j int) bool {
+		return newLog[i].Timestamp < newLog[j].Timestamp
+	})
+
+	s.logs[sourceID] = newLog
+
+	// 5. Update latest timestamp
+	if len(newLog) > 0 {
+		s.latestTs[sourceID] = time.UnixMicro(newLog[len(newLog)-1].Timestamp)
+	}
+}
+
+// GetMostRecentUpdates calculates the OMRC (Oldest Most-Recent-Change) and NMRC (Newest Most-Recent-Change).
+func (s *EventStore) GetMostRecentUpdates(sourceID string) (omrc time.Time, nmrc time.Time) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	logData, ok := s.logs[sourceID]
+	if !ok || len(logData) == 0 {
+		return time.Time{}, time.Time{}
+	}
+
+	// 1. Find max timestamp for each issue
+	issueMax := make(map[string]int64)
+	for _, e := range logData {
+		if e.Timestamp > issueMax[e.IssueKey] {
+			issueMax[e.IssueKey] = e.Timestamp
+		}
+	}
+
+	// 2. Find min and max across all issue maximums
+	var minMax, maxMax int64
+	for _, ts := range issueMax {
+		if minMax == 0 || ts < minMax {
+			minMax = ts
+		}
+		if ts > maxMax {
+			maxMax = ts
+		}
+	}
+
+	return time.UnixMicro(minMax), time.UnixMicro(maxMax)
+}
+
 // Load reads events from a JSONL cache file for the given source.
 func (s *EventStore) Load(cacheDir string, sourceID string) error {
 	s.Clear(sourceID) // Prevent accumulation if Load is called multiple times
