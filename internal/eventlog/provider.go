@@ -204,3 +204,109 @@ func (p *LogProvider) GetEventCount(sourceID string) int {
 func (p *LogProvider) PruneExcept(keepSourceID string) {
 	p.store.PruneExcept(keepSourceID)
 }
+
+// GetMostRecentUpdates returns OMRC and NMRC for a source.
+func (p *LogProvider) GetMostRecentUpdates(sourceID string) (time.Time, time.Time) {
+	return p.store.GetMostRecentUpdates(sourceID)
+}
+
+// CatchUp fetches new items since the last sync.
+func (p *LogProvider) CatchUp(sourceID string, jql string) (int, time.Time, error) {
+	_, nmrc := p.store.GetMostRecentUpdates(sourceID)
+	if nmrc.IsZero() {
+		return 0, time.Time{}, fmt.Errorf("cannot catch up: no existing cache for %s", sourceID)
+	}
+
+	const BatchSize = 300
+	totalFetched := 0
+
+	tsStr := nmrc.Format("2006-01-02 15:04")
+	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, tsStr)
+
+	log.Info().Str("source", sourceID).Time("nmrc", nmrc).Msg("Starting catch-up process")
+
+	for {
+		resp, err := p.client.SearchIssuesWithHistory(catchUpJQL, totalFetched, BatchSize)
+		if err != nil {
+			return totalFetched, nmrc, fmt.Errorf("catch-up failed at offset %d: %w", totalFetched, err)
+		}
+
+		if len(resp.Issues) == 0 {
+			break
+		}
+
+		var batchEvents []IssueEvent
+		for _, dto := range resp.Issues {
+			evts := TransformIssue(dto)
+			batchEvents = append(batchEvents, evts...)
+		}
+
+		p.store.Merge(sourceID, batchEvents)
+		totalFetched += len(resp.Issues)
+
+		if len(resp.Issues) < BatchSize {
+			break
+		}
+	}
+
+	if totalFetched > 0 && p.cacheDir != "" {
+		_ = p.store.Save(p.cacheDir, sourceID)
+	}
+
+	log.Info().Int("fetched", totalFetched).Msg("Catch-up complete")
+	return totalFetched, nmrc, nil
+}
+
+// ExpandHistory fetches older items for a source.
+func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (int, time.Time, error) {
+	omrc, _ := p.store.GetMostRecentUpdates(sourceID)
+	if omrc.IsZero() {
+		return 0, time.Time{}, fmt.Errorf("cannot expand history: no existing cache for %s", sourceID)
+	}
+
+	const BatchSize = 300
+	totalFetched := 0
+	limit := chunks * BatchSize
+
+	tsStr := omrc.Format("2006-01-02 15:04")
+	expandJQL := fmt.Sprintf("(%s) AND updated <= \"%s\" ORDER BY updated DESC", jql, tsStr)
+
+	log.Info().Str("source", sourceID).Time("omrc", omrc).Int("limit", limit).Msg("Starting history expansion")
+
+	for totalFetched < limit {
+		resp, err := p.client.SearchIssuesWithHistory(expandJQL, totalFetched, BatchSize)
+		if err != nil {
+			return totalFetched, omrc, fmt.Errorf("expansion failed at offset %d: %w", totalFetched, err)
+		}
+
+		if len(resp.Issues) == 0 {
+			break
+		}
+
+		var batchEvents []IssueEvent
+		for _, dto := range resp.Issues {
+			evts := TransformIssue(dto)
+			batchEvents = append(batchEvents, evts...)
+		}
+
+		p.store.Merge(sourceID, batchEvents)
+		totalFetched += len(resp.Issues)
+
+		if len(resp.Issues) < BatchSize {
+			break
+		}
+	}
+
+	// Always trigger catch-up to ensure consistency
+	_, _, err := p.CatchUp(sourceID, jql)
+	if err != nil {
+		log.Warn().Err(err).Msg("Expansion followed by catch-up failed")
+	}
+
+	if totalFetched > 0 && p.cacheDir != "" {
+		_ = p.store.Save(p.cacheDir, sourceID)
+	}
+
+	log.Info().Int("fetched", totalFetched).Msg("History expansion complete")
+	return totalFetched, omrc, nil
+}

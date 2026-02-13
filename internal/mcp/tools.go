@@ -340,6 +340,31 @@ func (s *Server) listTools() interface{} {
 					"required": []string{"project_key", "board_id", "simulation_mode"},
 				},
 			},
+			map[string]interface{}{
+				"name":        "cache_expand_history",
+				"description": "Extend the historical dataset backwards without creating gaps. Returns number of items fetched and used OMRC (oldest most recent change) boundary. Also triggers a catch-up.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
+						"chunks":      map[string]interface{}{"type": "integer", "description": "Optional: Number of additional batches (300 items each) to fetch. Default: 3"},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
+			map[string]interface{}{
+				"name":        "cache_catch_up",
+				"description": "Fetch newer items since the last sync to ensure the cache is up to date. Returns number of items fetched and used NMRC (newest most recent change) boundary.",
+				"inputSchema": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
 		},
 	}
 }

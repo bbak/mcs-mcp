@@ -169,6 +169,11 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
     - **2-Month Rule**: If the latest cached event is > 2 months old, the system performs a full re-ingestion to clear potential "ghost" items (moved/deleted).
     - **24-Month Horizon**: Initial hydration is bounded to 24 months.
     - **8-Page Cap**: Ingestion is capped at 2400 items to prevent memory exhaustion in legacy projects.
+    - **OMRC/NMRC Boundaries**: For targeted extensions, the system uses the Oldest/Newest Most-Recent-Change (OMRC/NMRC) boundary logic to prevent data gaps or overlaps.
+    - **Purge-before-Merge**: Targeted extensions replace existing issue histories to ensure Jira deletions or corrections are reflected.
+- **Cache Management Tools**:
+    - `cache_expand_history`: Fetches older items backwards from the **OMRC** boundary and catch-up forward from **NMRC**.
+    - `cache_catch_up`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
 ### 7.2 Discovery Sampling Rules

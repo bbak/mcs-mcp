@@ -20,7 +20,7 @@ This document describes the primary interaction scenarios between the User (Proj
     6.  AI calls `run_simulation` with `mode: "duration"`.
     7.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
     8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
-    9.  **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Steady State Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse Barrier** warning.
+    9.  **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Discovery Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse** warning (detected by >10 year duration).
 
 ---
 
@@ -78,7 +78,7 @@ This document describes the primary interaction scenarios between the User (Proj
     3.  MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
     4.  AI detects a systemic "Migration" signal.
     5.  AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
-    6.  **Rational Subgrouping**: The analysis defaults to **Weekly Subgrouping** for maximum sensitivity and automatically **excludes the current calendar week** from the Natural Process Limits calculation, ensuring that partial data doesn't skew the long-term capability baseline.
+    6.  **Rational Subgrouping**: The analysis defaults to **Monthly Subgrouping** for strategic audits and automatically **excludes the current calendar month** from the Natural Process Limits calculation, ensuring that partial data doesn't skew the long-term capability baseline.
 
 ---
 
@@ -90,9 +90,10 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** AI monitors active WIP health.
 - **Main Success Scenario:**
     1.  AI calls `get_process_stability`.
-    2.  MCP Server compares current **WIP Age** against the historical **Upper Natural Process Limit (UNPL)** of the baseline.
-    3.  AI identifies that PROJ-456 has been open for 14 days, while the historical process limit is 12 days.
-    4.  AI warns: "PROJ-456 is now a **Special Cause Outlier**. Its age (14 days) has exceeded the 98% probability limit of your historical process. This item is likely stuck or has grown in scope beyond the norm."
+    2.  MCP Server calculates the **Stability Index** (WIP / Throughput / Avg Cycle Time).
+    3.  AI identifies that the index is > 1.3, indicating the system is "clogged" (WIP is aging relative to delivery capacity).
+    4.  AI uses `get_aging_analysis` or `get_cycle_time_assessment` to identify specific items that have exceeded the 85% or 95% probability limits.
+    5.  AI warns: "Your system is becoming **Clogged** (Stability Index 1.4). PROJ-456 is a notable outlier, exceeding the 98% probability limit of your historical process."
 
 ---
 
@@ -148,7 +149,7 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** Investigating a "Long Tail" outlier item.
 - **Main Success Scenario:**
     1. AI calls `get_item_journey` for a specific issue key.
-    2. MCP Server performs a **Cross-Source Cache Lookup**, searching all in-memory board logs for the issue before calling Jira.
+    2. MCP Server performs a **Cache Lookup** within the currently anchored board log before calling Jira for missing details.
     3. MCP Server utilizes the **Event Log** to reconstruct a chronological path with residency days for each step.
     4. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked'").
 
@@ -232,3 +233,34 @@ This document describes the primary interaction scenarios between the User (Proj
     3.  For each checkpoint, the server runs a simulation and compares it to the **actual** completion history that followed.
     4.  AI detects if the accuracy score is below the **70% threshold**.
     5.  AI reports: "I've backtested my forecasting model against your last 6 months of data. It achieved **67% accuracy**. While helpful, you should treat these dates with caution due to the high volatility detected in late 2025."
+
+---
+
+## UC16: Deep Historical Exploration (Expanding Cache)
+
+**Goal:** Analyze deep historical trends for long-running projects where the initial hydration was insufficient.
+
+- **Primary Actor:** User (Operations Lead / Coach)
+- **Trigger:** User asks: "I need to see the process evolution for the last 4 years."
+- **Main Success Scenario:**
+    1. AI identifies that the current cache is truncated at the default limit.
+    2. AI calls `cache_expand_history` with additional `chunks`.
+    3. MCP Server fetches older items backwards from the **OMRC (Oldest Most Recent Change)** boundary to ensure no gaps or overlaps.
+    4. MCP Server automatically performs a **Catch-Up** to ensure the latest state is also preserved.
+    5. MCP Server recalculates the **Discovery Cutoff** (Warmup Period) for the extended dataset.
+    6. AI provides the requested deep-history analysis (e.g., `get_process_evolution`).
+
+---
+
+## UC17: Targeted Cache Synchronization (Catch-Up)
+
+**Goal:** Ensure the local cache is perfectly synchronized with the latest Jira updates before a high-stakes forecast.
+
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** AI prepares a forecast or User asks "Is this analysis based on the latest data?".
+- **Main Success Scenario:**
+    1. AI identifies the need for a synchronization pulse.
+    2. AI calls `cache_catch_up`.
+    3. MCP Server fetches all items updated since the **NMRC (Newest Most Recent Change)** boundary.
+    4. MCP Server uses **Purge-before-Merge** to replace old history for those items, ensuring Jira deletions or corrections are reflected.
+    5. AI confirms synchronization: "I've fetched 12 updates from Jira. We are now perfectly synced as of [Timestamp]."
