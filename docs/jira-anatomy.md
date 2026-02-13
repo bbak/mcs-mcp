@@ -57,22 +57,24 @@ To ensure analytical integrity when issues move between projects or change workf
 ### Core Principles
 
 1.  **Reverse Chronology**: The history is processed from the most recent change back towards the issue's creation.
-2.  **Boundary Detection**: A process boundary is identified when a change-set contains both a change in identity (`Key`) and a change in process (`workflow`).
+2.  **Boundary Detection**: A process boundary is identified when a change-set contains a change in identity (`Key`) moving the issue into the target project.
 3.  **Arrival Anchoring**:
     - Once a boundary is detected, processing of further (older) change-sets stops.
     - The state transition at this boundary defines the item's **Arrival Status** in the target project.
-    - A synthetic **Created** event is anchored at the issue's biological creation date, but using the **Arrival Status** and any **Resolution** set at the boundary.
+    - A synthetic **Created** event is anchored at the issue's biological creation date using this **Arrival Status**.
+    - If a **Resolution** is set at the boundary, it is emitted as a distinct `Change` event to ensure correct throughput dating at the point of arrival.
 
 ### Processing Conditions (Ordered by Priority)
 
 Within each change-set (traversed backwards):
 
-#### Condition 1: Terminal Move (Project/Workflow Boundary)
+#### Condition 1: Terminal Move (Project Boundary)
 
-If the change-set contains a change of `Key` (moving into the target project) AND a change of `workflow`:
+If the change-set contains a change of `Key` (moving into the target project):
 
-- **Birth Status**: If a `status` change is present, use the `FromString` (Source Value). This ensures the biological birth reflects the item's state _before_ the move, allowing the arrival transition to be captured explicitly.
-- **Arrival Transition**: We **DO NOT** skip the emission of the `status` or `resolution` changes in the same change-set (Condition 3 handles this).
+- **Birth Status**: If a `status` change is present, use the `ToString` (Target/Arrival Value). This ensures the biological birth is anchored to the state in which it entered our project.
+- **Arrival Transition**: We **suppress** the emission of the `status` change event itself, as it is now represented by the `Created` event's status.
+- **Resolution**: If a `resolution` change is also present, it is emitted as a separate `Change` event (without status) to capture the completion signal at the arrival timestamp.
 - **Termination**: Stop processing further change-sets.
 
 #### Condition 2: Status & Resolution Change
@@ -92,8 +94,9 @@ If only a `status` change is present:
 ### Finalization
 
 1.  **Reversal**: After processing stops or all history is exhausted, the resulting events are sorted chronologically (ascending).
-2.  **Biological Birth**: The `Created` event uses the biological creation timestamp. To preserve correct age and throughput dating, it is anchored to the status the item had _before_ entering our scope (or the earliest known status if no move occurred).
-3.  **Snapshot Fallback**: If the Jira DTO has a `ResolutionDate` that isn't already captured in history (within a 2-second grace period), a final `Change` event is appended to capture the terminal resolution.
+2.  **Biological Birth**: The `Created` event uses the biological creation timestamp. To preserve correct age while ensuring accurate throughput dating, it is anchored to the **Arrival Status** (the status it had upon entering our scope).
+3.  **Throughput Dating**: Analytical tools (like `BuildThroughputProjection`) strictly ignore `Created` events for delivery signals. This prevents items resolved during a move from being back-dated to their biological birth.
+4.  **Snapshot Fallback**: If the Jira DTO has a `ResolutionDate` that isn't already captured in history (within a 2-second grace period), a final `Change` event is appended to capture the terminal resolution.
 
 ---
 
