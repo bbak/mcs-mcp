@@ -278,15 +278,20 @@ func matchesAny(s string, keywords []string) bool {
 	return false
 }
 
-// DiscoverStatusOrder derives the workflow backbone by tracing the most frequent journeys.
+// DiscoverStatusOrder derives the workflow backbone by analyzing temporal precedence across all issues.
 func DiscoverStatusOrder(issues []jira.Issue) []string {
-	// 1. Build transition frequency matrix
-	matrix := make(map[string]map[string]int)
-	exitsTotal := make(map[string]int)
+	if len(issues) == 0 {
+		return nil
+	}
+
+	// 1. Initialize data structures
 	entryCounts := make(map[string]int)
 	allStatuses := make(map[string]bool)
 	resolvedAt := make(map[string]int)
 	reachability := make(map[string]int)
+
+	// precedes[A][B] = count of items where A appeared before B
+	precedes := make(map[string]map[string]int)
 
 	// Canonical casing map: lower -> original
 	canonical := make(map[string]string)
@@ -299,170 +304,117 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		return s
 	}
 
+	// 2. Build the Precedence Matrix
 	for _, issue := range issues {
-		status := getCanonical(issue.Status)
-		allStatuses[status] = true
-		visited := make(map[string]bool)
-		visited[status] = true
-
-		// Entry point detection using birth status
-		if issue.BirthStatus != "" {
-			entryCounts[getCanonical(issue.BirthStatus)]++
+		issueBirth := getCanonical(issue.BirthStatus)
+		if issueBirth != "" {
+			entryCounts[issueBirth]++
 		}
 
-		if issue.ResolutionDate != nil {
-			resolvedAt[status]++
+		// Extract unique status sequence in order of appearance
+		var sequence []string
+		seenInIssue := make(map[string]bool)
+
+		// Start with birth
+		if issueBirth != "" {
+			sequence = append(sequence, issueBirth)
+			seenInIssue[issueBirth] = true
+			allStatuses[issueBirth] = true
 		}
 
+		// Append transitions
 		for _, t := range issue.Transitions {
 			from := getCanonical(t.FromStatus)
 			to := getCanonical(t.ToStatus)
 			allStatuses[from] = true
 			allStatuses[to] = true
-			visited[from] = true
-			visited[to] = true
 
-			if matrix[from] == nil {
-				matrix[from] = make(map[string]int)
+			if !seenInIssue[from] {
+				sequence = append(sequence, from)
+				seenInIssue[from] = true
 			}
-			matrix[from][to]++
-			exitsTotal[from]++
+			if !seenInIssue[to] {
+				sequence = append(sequence, to)
+				seenInIssue[to] = true
+			}
 		}
-		for s := range visited {
+
+		// Track current status if not already in sequence (WIP items)
+		curr := getCanonical(issue.Status)
+		if curr != "" {
+			allStatuses[curr] = true
+			if !seenInIssue[curr] {
+				sequence = append(sequence, curr)
+				seenInIssue[curr] = true
+			}
+			if issue.ResolutionDate != nil {
+				resolvedAt[curr]++
+			}
+		}
+
+		// Update reachability for all discovered statuses in this issue
+		for s := range seenInIssue {
 			reachability[s]++
 		}
-	}
 
-	if len(allStatuses) == 0 {
-		return nil
-	}
-
-	// 2. Identify Birth Status
-	birthStatus := ""
-	maxEntry := 0
-	for s, count := range entryCounts {
-		if count > maxEntry {
-			maxEntry = count
-			birthStatus = s
-		}
-	}
-
-	if birthStatus == "" {
-		for s := range allStatuses {
-			birthStatus = s
-			break
-		}
-	}
-
-	// 3. Trace the "Happy Path" using Market-Share confidence
-	var order []string
-	visited := make(map[string]bool)
-	current := birthStatus
-
-	for current != "" {
-		order = append(order, current)
-		visited[current] = true
-
-		successors := matrix[current]
-		totalExits := exitsTotal[current]
-
-		// Find next best status
-		next := ""
-		var maxFreq int
-
-		// Candidate discovery
-		type candidate struct {
-			name        string
-			freq        int
-			marketShare float64
-			isTerminal  bool
-		}
-		var candidates []candidate
-		for name, freq := range successors {
-			if visited[name] {
-				continue
-			}
-			share := float64(freq) / float64(totalExits)
-			if share < 0.15 { // Minimum market share to be considered part of the "Backbone"
-				continue
-			}
-
-			resDensity := 0.0
-			if reach := reachability[name]; reach > 0 {
-				resDensity = float64(resolvedAt[name]) / float64(reach)
-			}
-
-			candidates = append(candidates, candidate{
-				name:        name,
-				freq:        freq,
-				marketShare: share,
-				isTerminal:  resDensity > 0.25,
-			})
-		}
-
-		if len(candidates) > 0 {
-			// Selection Logic:
-			// 1. Prefer non-terminal candidates with high share
-			// 2. If only one candidate, take it
-			// 3. If multiple, take the non-terminal with highest freq
-
-			bestActive := -1
-			bestTerminal := -1
-
-			for i, c := range candidates {
-				if c.isTerminal {
-					if bestTerminal == -1 || c.freq > candidates[bestTerminal].freq || (c.freq == candidates[bestTerminal].freq && c.name < candidates[bestTerminal].name) {
-						bestTerminal = i
-					}
-				} else {
-					if bestActive == -1 || c.freq > candidates[bestActive].freq || (c.freq == candidates[bestActive].freq && c.name < candidates[bestActive].name) {
-						bestActive = i
-					}
+		// Update the global precedence matrix for all unique pairs (A, B) where A precedes B
+		for i := 0; i < len(sequence); i++ {
+			for j := i + 1; j < len(sequence); j++ {
+				A, B := sequence[i], sequence[j]
+				if precedes[A] == nil {
+					precedes[A] = make(map[string]int)
 				}
-			}
-
-			if bestActive != -1 {
-				next = candidates[bestActive].name
-			} else if bestTerminal != -1 {
-				next = candidates[bestTerminal].name
+				precedes[A][B]++
 			}
 		}
-
-		if next == "" {
-			// Fallback: try pure frequency if no candidates met the share threshold
-			maxFreq = -1
-			for name, freq := range successors {
-				if !visited[name] {
-					if next == "" || freq > maxFreq || (freq == maxFreq && name < next) {
-						maxFreq = freq
-						next = name
-					}
-				}
-			}
-		}
-
-		current = next
 	}
 
-	// 4. Add any orphaned statuses using dominance-based sorting
-	var orphans []string
+	// 3. Calculate Precedence Scores
+	// A status gets a point for every other status it "globally precedes"
+	// (i.e., appears before it more often than after it).
+	type statusInfo struct {
+		name       string
+		score      int
+		birthCount int
+	}
+	var infos []statusInfo
 	for s := range allStatuses {
-		if !visited[s] {
-			orphans = append(orphans, s)
+		score := 0
+		for other := range allStatuses {
+			if s == other {
+				continue
+			}
+			// Does s generally precede other?
+			forward := precedes[s][other]
+			backward := precedes[other][s]
+			if forward > backward {
+				score++
+			}
 		}
+		infos = append(infos, statusInfo{
+			name:       s,
+			score:      score,
+			birthCount: entryCounts[s],
+		})
 	}
 
-	if len(orphans) > 0 {
-		sort.Slice(orphans, func(i, j int) bool {
-			s1, s2 := orphans[i], orphans[j]
-			f12 := matrix[s1][s2]
-			f21 := matrix[s2][s1]
-			if f12 != f21 {
-				return f12 > f21
-			}
-			return s1 < s2
-		})
-		order = append(order, orphans...)
+	// 4. Sort statuses by Global Precedence
+	sort.Slice(infos, func(i, j int) bool {
+		// Primary: Higher precedence score (more statuses follow it)
+		if infos[i].score != infos[j].score {
+			return infos[i].score > infos[j].score
+		}
+		// Secondary: Higher birth frequency (entry points)
+		if infos[i].birthCount != infos[j].birthCount {
+			return infos[i].birthCount > infos[j].birthCount
+		}
+		// Tertiary: Alphabetical for determinism
+		return infos[i].name < infos[j].name
+	})
+
+	order := make([]string, len(infos))
+	for i, info := range infos {
+		order[i] = info.name
 	}
 
 	return order

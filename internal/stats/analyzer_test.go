@@ -3,6 +3,7 @@ package stats
 import (
 	"fmt"
 	"mcs-mcp/internal/jira"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -261,45 +262,137 @@ func TestProposeSemantics(t *testing.T) {
 }
 
 func TestDiscoverStatusOrder_PathBased(t *testing.T) {
-	now := time.Now()
-	// Scenario: A (Birth) -> B -> C -> D -> E (Done)
-	// Noise: A -> D (Jump), D -> B (Backflow), D -> C (Backflow)
 	issues := []jira.Issue{
 		{
-			Key:    "I-1",
-			Status: "E",
+			Key:         "I-1",
+			BirthStatus: "To Do",
+			Status:      "Done",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "A", ToStatus: "B", Date: now.Add(10 * time.Minute)},
-				{FromStatus: "B", ToStatus: "C", Date: now.Add(20 * time.Minute)},
-				{FromStatus: "C", ToStatus: "D", Date: now.Add(30 * time.Minute)},
-				{FromStatus: "D", ToStatus: "E", Date: now.Add(40 * time.Minute)},
+				{FromStatus: "To Do", ToStatus: "In Progress"},
+				{FromStatus: "In Progress", ToStatus: "Done"},
 			},
-			BirthStatus: "A",
 		},
 		{
-			Key:    "I-2",
-			Status: "E",
+			Key:         "I-2",
+			BirthStatus: "To Do",
+			Status:      "In Progress",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "A", ToStatus: "D", Date: now.Add(15 * time.Minute)}, // Jump to D
-				{FromStatus: "D", ToStatus: "B", Date: now.Add(25 * time.Minute)}, // Backflow to B
-				{FromStatus: "B", ToStatus: "C", Date: now.Add(35 * time.Minute)},
-				{FromStatus: "C", ToStatus: "E", Date: now.Add(45 * time.Minute)},
+				{FromStatus: "To Do", ToStatus: "In Progress"},
 			},
-			BirthStatus: "A",
+		},
+	}
+
+	order := DiscoverStatusOrder(issues)
+	expected := []string{"To Do", "In Progress", "Done"}
+
+	if !reflect.DeepEqual(order, expected) {
+		t.Errorf("Expected %v, got %v", expected, order)
+	}
+}
+
+func TestDiscoverStatusOrder_Shortcuts(t *testing.T) {
+	// Scenario: Many items skip "Analysis" and go straight from "To Do" to "Development".
+	// But "Analysis" still happens before "Development" for some, and never after.
+	issues := []jira.Issue{
+		{
+			Key:         "I-1",
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Development"},
+			},
+		},
+		{
+			Key:         "I-2",
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Development"},
+			},
+		},
+		{
+			Key:         "I-3",
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Analysis"},
+				{FromStatus: "Analysis", ToStatus: "Development"},
+			},
+		},
+	}
+
+	order := DiscoverStatusOrder(issues)
+	// Even though To Do -> Development is more frequent than To Do -> Analysis,
+	// Analysis globally precedes Development (it never happens after it).
+	// So Analysis should be between To Do and Development.
+	expected := []string{"To Do", "Analysis", "Development"}
+
+	if !reflect.DeepEqual(order, expected) {
+		t.Errorf("Expected %v, got %v", expected, order)
+	}
+}
+
+func TestDiscoverStatusOrder_ComplexPath_Scenario(t *testing.T) {
+	// Mimics the user's reported "hijacked" path
+	// Expected: To Do, Analysis, Architecture Design, Refinement, Ready for Development, In Development, Validation, Ready to Deploy, In Releasing, Done
+	issues := []jira.Issue{
+		// Item 1: Perfect happy path
+		{
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Analysis"},
+				{FromStatus: "Analysis", ToStatus: "Architecture Design"},
+				{FromStatus: "Architecture Design", ToStatus: "Refinement"},
+				{FromStatus: "Refinement", ToStatus: "Ready for Development"},
+				{FromStatus: "Ready for Development", ToStatus: "In Development"},
+				{FromStatus: "In Development", ToStatus: "Validation"},
+				{FromStatus: "Validation", ToStatus: "Ready to Deploy"},
+				{FromStatus: "Ready to Deploy", ToStatus: "In Releasing"},
+				{FromStatus: "In Releasing", ToStatus: "Done"},
+			},
+		},
+		// Item 2: Shortcut "To Do -> Validation" (The Hijacker)
+		{
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Validation"},
+				{FromStatus: "Validation", ToStatus: "Done"},
+			},
+		},
+		// Item 3: Another shortcut "To Do -> Ready for Development"
+		{
+			BirthStatus: "To Do",
+			Transitions: []jira.StatusTransition{
+				{FromStatus: "To Do", ToStatus: "Ready for Development"},
+				{FromStatus: "Ready for Development", ToStatus: "Done"},
+			},
 		},
 	}
 
 	order := DiscoverStatusOrder(issues)
 
-	// A should be first (Birth)
-	if order[0] != "A" {
-		t.Errorf("Expected first status 'A', got %s", order[0])
+	// Check specific critical orderings
+	indexOf := func(s string) int {
+		for i, v := range order {
+			if v == s {
+				return i
+			}
+		}
+		return -1
 	}
 
-	// B should be after A (most frequent successor of A is B: 1 vs D: 1, tied but B is successor of I-1 first?)
-	// Actually A->B is 1, A->D is 1. Tie-breaker alphabetical B < D.
-	if order[1] != "B" {
-		t.Errorf("Expected second status 'B', got %s", order[1])
+	checks := [][]string{
+		{"To Do", "Analysis"},
+		{"Analysis", "Architecture Design"},
+		{"Architecture Design", "Refinement"},
+		{"Refinement", "Ready for Development"},
+		{"Ready for Development", "Validation"},
+		{"Validation", "Done"},
+	}
+
+	for _, pair := range checks {
+		i1 := indexOf(pair[0])
+		i2 := indexOf(pair[1])
+		if i1 == -1 || i2 == -1 || i1 >= i2 {
+			t.Errorf("Ordering failure: Expected %s before %s. Full order: %v", pair[0], pair[1], order)
+		}
 	}
 }
 
