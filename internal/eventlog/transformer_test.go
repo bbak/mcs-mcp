@@ -329,8 +329,8 @@ func TestTransformIssue_Case2_Heal(t *testing.T) {
 					Created: "2024-03-01T12:00:00.000+0000",
 					Items: []jira.ItemDTO{
 						{
-							Field:    "project",
-							ToString: "NEW",
+							Field:    "Key",
+							ToString: "NEW-2",
 						},
 						{
 							Field:      "workflow",
@@ -403,9 +403,9 @@ func TestTransformIssue_ExternalMove_NoHeal(t *testing.T) {
 					Created: "2024-02-01T12:00:00.000+0000",
 					Items: []jira.ItemDTO{
 						{
-							Field:      "project",
-							FromString: "EXT1",
-							ToString:   "EXT2",
+							Field:      "Key",
+							FromString: "EXT1-1",
+							ToString:   "EXT2-1",
 						},
 						{
 							Field:      "workflow",
@@ -438,5 +438,279 @@ func TestTransformIssue_ExternalMove_NoHeal(t *testing.T) {
 		if e.IsHealed {
 			t.Errorf("Healing should NOT have been triggered for an external move")
 		}
+	}
+}
+func TestTransformIssue_BoundaryWithLaterEvent(t *testing.T) {
+	// Scenario:
+	// H2 (Move): Key Change only (Boundary). Chronologically EARLIER.
+	// H1 (Transition): Status: DEPLOY -> Done. Chronologically LATER.
+
+	dto := jira.IssueDTO{
+		Key: "NEW-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Done", ID: "10003"},
+			Created: "2024-01-01T10:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// H2: Oldest (Move @ Feb 1st)
+					Created: "2024-02-01T10:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:    "Key",
+							To:       "NEW-1",
+							ToString: "NEW-1",
+						},
+						{
+							Field:      "workflow",
+							FromString: "OLD-WF",
+							ToString:   "NEW-WF",
+						},
+					},
+				},
+				{
+					// H1: Latest (Transition @ Mar 1st)
+					Created: "2024-03-01T10:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "DEPLOY",
+							ToString:   "Done",
+						},
+						{
+							Field:      "resolution",
+							FromString: "",
+							ToString:   "Done",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// Expecting:
+	// 1. Created (Synthetic) @ 2024-01-01 (ToStatus: DEPLOY)
+	// 2. Change (DEPLOY -> Done) @ 2024-03-01
+	if len(events) != 2 {
+		// If bug exists, user says we get ONLY ONE event (the Created one).
+		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
+	}
+
+	if events[0].EventType != Created || events[0].ToStatus != "DEPLOY" {
+		t.Errorf("First event should be Created(DEPLOY), got %s(%s)", events[0].EventType, events[0].ToStatus)
+	}
+	if events[1].EventType != Change || events[1].ToStatus != "Done" {
+		t.Errorf("Second event should be Change(Done), got %s(%s)", events[1].EventType, events[1].ToStatus)
+	}
+	if events[1].Resolution != "Done" {
+		t.Errorf("Second event should have resolution 'Done', got '%s'", events[1].Resolution)
+	}
+}
+
+func TestTransformIssue_LostTerminalEvent_UserReproduction(t *testing.T) {
+	// Scenario:
+	// Entry 2 (Oldest): Key change + Workflow change (Boundary). Feb 1st.
+	// Entry 1 (Latest): Status Change (DEPLOY -> Done) + Resolution (Fixed). Mar 1st.
+	dto := jira.IssueDTO{
+		Key: "NEW-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Done", ID: "10003"},
+			Created: "2024-01-01T10:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// H2: Move (Oldest)
+					Created: "2024-02-01T10:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{Field: "Key", To: "NEW-1", ToString: "NEW-1"},
+						{Field: "workflow", FromString: "old", ToString: "new"},
+					},
+				},
+				{
+					// H1: Transition (Latest)
+					Created: "2024-03-01T10:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{Field: "status", FromString: "DEPLOY", ToString: "Done"},
+						{Field: "resolution", FromString: "", ToString: "Fixed"},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// User says they get ONE event (the Created one).
+	// We expect 2: Created + Change.
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
+	}
+
+	// Double check the terminal resolution
+	found := false
+	for _, e := range events {
+		if e.Resolution == "Fixed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Lost the terminal resolution event from history entry 1")
+	}
+}
+func TestTransformIssue_LostTerminalEvent_SameTimestamp(t *testing.T) {
+	// Scenario:
+	// Histories[0] = Transition (Latest in intent)
+	// Histories[1] = Move (Oldest in intent)
+	// Both have same timestamp.
+	// Backward loop starts at index 1 (Move) and BREAKS.
+	// Transition at index 0 is LOST.
+	ts := "2024-02-01T10:00:00.000+0000"
+	dto := jira.IssueDTO{
+		Key: "NEW-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Done", ID: "10003"},
+			Created: "2024-01-01T10:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Index 0: Transition
+					Created: ts,
+					Items: []jira.ItemDTO{
+						{Field: "status", FromString: "DEPLOY", ToString: "Done"},
+						{Field: "resolution", FromString: "", ToString: "Fixed"},
+					},
+				},
+				{
+					// Index 1: Move
+					Created: ts,
+					Items: []jira.ItemDTO{
+						{Field: "Key", To: "NEW-1", ToString: "NEW-1"},
+						{Field: "workflow", FromString: "old", ToString: "new"},
+					},
+				},
+			},
+		},
+	}
+
+	// NOTE: We don't sort in this test setup because we want to force the order
+	// Or even if we did sort, t1.Before(t2) is false, so swap won't happen.
+
+	events := TransformIssue(dto)
+
+	if len(events) != 2 {
+		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
+	}
+}
+
+func TestTransformIssue_GlitchReproduction(t *testing.T) {
+	// Case 2 from docs/ideas.md:
+	// Simultaneous Key/Workflow change (boundary) and Status change.
+	// We want to ensure that ONLY the Created event reflects this status,
+	// and NO duplicate Change event is emitted.
+	// We ALSO check the user's mention of resolution in the same change-set.
+
+	dto := jira.IssueDTO{
+		Key: "GENPROJ-87",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Feature"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Done", ID: "10003"},
+			Created: "2023-08-17T12:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Move + Status Change + Resolution (Boundary)
+					Created: "2023-08-18T18:50:00.000+0000",
+					Items: []jira.ItemDTO{
+						{Field: "Key", FromString: "EXTPROJ-3120", ToString: "GENPROJ-87"},
+						{Field: "workflow", FromString: "old", ToString: "new"},
+						{Field: "status", FromString: "FUNCTIONAL", From: "10061", ToString: "Analysis", To: "19772"},
+						{Field: "resolution", FromString: "", ToString: "Fixed", To: "1"},
+					},
+				},
+				{
+					// Subsequent Status Change
+					Created: "2023-08-28T12:47:00.000+0000",
+					Items: []jira.ItemDTO{
+						{Field: "status", FromString: "Analysis", From: "19772", ToString: "Ready for Development", To: "10175"},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// Expected Events:
+	// 1. Created (Synthetic @ 2023-08-17) - ToStatus: Analysis, Resolution: Fixed
+	// 2. Change (@ 2023-08-28) - From: Analysis, To: Ready for Development
+
+	if len(events) != 2 {
+		// Currently it likely produces 3: Created(Analysis), Change(Analysis), Change(Ready for Development)
+		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
+	}
+
+	created := events[0]
+	if created.EventType != Created {
+		t.Errorf("First event should be Created, got %v", created.EventType)
+	}
+	if created.ToStatus != "Analysis" {
+		t.Errorf("Created event status should be 'Analysis', got '%s'", created.ToStatus)
+	}
+	if created.Resolution != "Fixed" {
+		t.Errorf("Created event resolution should be 'Fixed', got '%s'", created.Resolution)
+	}
+
+	change := events[1]
+	if change.EventType != Change {
+		t.Errorf("Second event should be Change, got %v", change.EventType)
+	}
+	if change.FromStatus != "Analysis" || change.ToStatus != "Ready for Development" {
+		t.Errorf("Change event status mismatch: expected Analysis->Ready for Development, got %s->%s", change.FromStatus, change.ToStatus)
 	}
 }

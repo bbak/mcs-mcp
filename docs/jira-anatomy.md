@@ -50,6 +50,54 @@ Obviously, we need to cleanup the "in memory" representation of the work item in
 
 ---
 
+## The `TransformIssue` Logic (Backward History Scanning)
+
+To ensure analytical integrity when issues move between projects or change workflows, MCS-MCP uses a **Backward Boundary Scanning** strategy. This approach eliminates the need for complex "healing" heuristics by correctly identifying the moment an issue enters the project's scope.
+
+### Core Principles
+
+1.  **Reverse Chronology**: The history is processed from the most recent change back towards the issue's creation.
+2.  **Boundary Detection**: A process boundary is identified when a change-set contains both a change in identity (`Key`) and a change in process (`workflow`).
+3.  **Arrival Anchoring**:
+    - Once a boundary is detected, processing of further (older) change-sets stops.
+    - The state transition at this boundary defines the item's **Arrival Status** in the target project.
+    - A synthetic **Created** event is anchored at the issue's biological creation date, but using the **Arrival Status** and any **Resolution** set at the boundary.
+
+### Processing Conditions (Ordered by Priority)
+
+Within each change-set (traversed backwards):
+
+#### Condition 1: Terminal Move (Project/Workflow Boundary)
+
+If the change-set contains a change of `Key` (moving into the target project) AND a change of `workflow`:
+
+- **Arrival Status**: Use the `ToString` (New Value) of any `status` change in the same change-set. If no status change is present, use the `FromStatus` of the chronologically next (newer) event.
+- **Arrival Resolution**: Use the `ToString` (New Value) of any `resolution` change in the same change-set.
+- **Termination**: Stop processing further change-sets.
+- **Glitch Protection**: Do NOT emit a separate `Change` event for status or resolution shifts that happen exactly at this boundary; they are already captured in the "Arrival" state of the `Created` event.
+
+#### Condition 2: Status & Resolution Change
+
+If no boundary is hit, but the change-set contains both `status` and `resolution` changes:
+
+- Emit a `Change` event capturing both.
+- If `resolution` is an empty string, set `IsUnresolved: true`.
+
+#### Condition 3: Status-Only Change
+
+If only a `status` change is present:
+
+- Emit a `Change` event for the transition.
+- The `From` state of this change becomes the `initialStatus` for the next (older) iteration.
+
+### Finalization
+
+1.  **Reversal**: After processing stops or all history is exhausted, the resulting events are sorted chronologically (ascending).
+2.  **Biological Birth**: The `Created` event uses the biological creation timestamp but reflects the "Arrival" state discovered during the backward scan.
+3.  **Snapshot Fallback**: If the Jira DTO has a `ResolutionDate` that isn't already captured in history (within a 2-second grace period), a final `Change` event is appended to capture the terminal resolution.
+
+---
+
 ## Analytical Guardrails
 
 1. **Never Sort by EventType String**: Alphabetical sorting (`Resolved` < `Transitioned`) is a logic error. If a tie-breaker is needed, use the original array order from the Jira DTO or a predefined semantic priority.
