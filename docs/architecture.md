@@ -178,12 +178,15 @@ To ensures discovery reflect the **active process**, the system applies recency 
 - **Priority Window**: Items created within the last **365 days** are prioritized.
 - **Adaptive Fallback**: Expands to 2 or 3 years only if the priority window has < 100 items. Items older than 3 years are strictly excluded from discovery.
 
-### 7.3 Move History Healing
+### 7.3 Backward Boundary Scanning (History Transformation)
 
-When items move between projects, the system implements **History Healing**:
+To ensure analytical integrity when issues move between projects or change workflows, the system uses a **Backward Boundary Scanning** strategy during transformation:
 
-- **Process Boundary**: Deters noise from the old project workflow.
-- **Synthetic Birth**: Re-anchors the item at its original creation date but in the context of the new project's arrival status, preserving **Lead Time** while cleaning process metrics.
+- **Directionality**: Histories are processed **backwards** from the current state (Truth) towards the birth.
+- **Boundary Detection**: The system identifies process boundaries by detecting a simultaneous change in identity (`Key`) and process (`workflow`).
+- **Arrival Anchoring**: The moment a boundary is hit, the scan terminates. The state transition at this boundary defines the item's **Arrival Status** in the target project.
+- **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This prevents irrelevant history from a different process from "poisoning" discovery while maintaining correct Lead Time.
+- **Throughput Integrity**: By stopping at the project boundary, the system ensures that cycle time and throughput metrics accurately reflect the current process reality without requiring complex "healing" heuristics.
 
 ### 7.4 Technical Precision
 

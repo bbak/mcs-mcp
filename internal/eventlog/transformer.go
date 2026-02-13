@@ -12,51 +12,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	issueKey := dto.Key
 	issueType := dto.Fields.IssueType.Name
 
-	// 1. Identify Initial Status and ID
+	// 1. Initial State from Snapshots (Fallback/Starting Point)
+	// We'll walk history BACKWARDS to find where the issue entered our scope.
 	initialStatus := dto.Fields.Status.Name
 	initialStatusID := dto.Fields.Status.ID
-	if dto.Changelog != nil {
-		var earliestTS int64
-		for _, h := range dto.Changelog.Histories {
-			tsObj, err := jira.ParseTime(h.Created)
-			if err != nil {
-				continue
-			}
-			ts := tsObj.UnixMicro()
-			for _, item := range h.Items {
-				if strings.EqualFold(item.Field, "status") {
-					if earliestTS == 0 || ts < earliestTS {
-						earliestTS = ts
-						initialStatus = item.FromString
-						initialStatusID = item.From
-						if initialStatus == "" {
-							initialStatus = item.ToString
-							initialStatusID = item.To
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 2. Created Event
-	createdTime, err := jira.ParseTime(dto.Fields.Created)
-	if err == nil {
-		events = append(events, IssueEvent{
-			IssueKey:   issueKey,
-			IssueType:  issueType,
-			EventType:  Created,
-			Timestamp:  createdTime.UnixMicro(),
-			ToStatus:   initialStatus,
-			ToStatusID: initialStatusID,
-		})
-	}
-
-	// 3. Changelog Transitions
-	var lastMoveTS int64
-	var entryStatus string
-	var entryStatusID string
-	var isDifferentWorkflow bool
+	initialResolution := ""
+	initialResolutionID := ""
 
 	// Infer target project key from current issue key (e.g., "PROJ" from "PROJ-123")
 	targetProjectKey := issueKey
@@ -64,157 +25,131 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 		targetProjectKey = issueKey[:idx]
 	}
 
+	stopProcessing := false
 	if dto.Changelog != nil {
-		// Pass 0: Ensure histories are chronological (ascending)
-		// Jira API often returns them descending, which breaks forward-scans.
+		// Pass 0: Ensure histories are chronological (ascending) first so we can reliably reverse.
+		// Jira API often returns them descending, but we'll sort them to be sure.
 		sort.Slice(dto.Changelog.Histories, func(i, j int) bool {
 			t1, _ := jira.ParseTime(dto.Changelog.Histories[i].Created)
 			t2, _ := jira.ParseTime(dto.Changelog.Histories[j].Created)
 			return t1.Before(t2)
 		})
 
-		// Pass 1: Detective Work - Find moves and arrival context
-		for _, h := range dto.Changelog.Histories {
-			if tsObj, err := jira.ParseTime(h.Created); err == nil {
-				ts := tsObj.UnixMicro()
-
-				isMove := false
-				wfChanged := false
-				var statusItem *jira.ItemDTO
-
-				for i := range h.Items {
-					item := &h.Items[i]
-					f := item.Field
-					if strings.EqualFold(f, "Key") {
-						// Only treat as a relevant move if it enters our target project
-						if strings.HasPrefix(item.To, targetProjectKey+"-") {
-							isMove = true
-						}
-					} else if strings.EqualFold(f, "project") {
-						// Or if the project name matches (Jira sometimes uses names/IDs here)
-						if strings.EqualFold(item.To, targetProjectKey) {
-							isMove = true
-						}
-					}
-					if strings.EqualFold(f, "workflow") && !strings.EqualFold(item.FromString, item.ToString) {
-						wfChanged = true
-					}
-					if strings.EqualFold(f, "status") {
-						statusItem = item
-					}
-				}
-
-				if isMove {
-					lastMoveTS = ts
-					entryStatus = ""
-					entryStatusID = ""
-					isDifferentWorkflow = wfChanged
-
-					if statusItem != nil {
-						entryStatus = statusItem.ToString
-						entryStatusID = statusItem.To
-					}
-				} else if lastMoveTS != 0 && entryStatus == "" && statusItem != nil {
-					entryStatus = statusItem.FromString
-					entryStatusID = statusItem.From
-				}
-			}
-		}
-
-		// Pass 2: Emission
-		for _, history := range dto.Changelog.Histories {
+		// 2. Process Histories BACKWARDS (Latest to Oldest)
+		for i := len(dto.Changelog.Histories) - 1; i >= 0; i-- {
+			history := dto.Changelog.Histories[i]
 			tsObj, err := jira.ParseTime(history.Created)
 			if err != nil {
 				continue
 			}
 			ts := tsObj.UnixMicro()
 
-			// Case 2 Healing: Dropping history before move if workflow changed
-			if lastMoveTS != 0 && isDifferentWorkflow && ts < lastMoveTS {
-				continue
-			}
+			var statusItem *jira.ItemDTO
+			var resItem *jira.ItemDTO
+			isRelevantMove := false
+			hasWorkflowChange := false
 
-			event := IssueEvent{
-				IssueKey:  issueKey,
-				IssueType: issueType,
-				EventType: Change,
-				Timestamp: ts,
-			}
-
-			hasSignal := false
-			for _, item := range history.Items {
+			for j := range history.Items {
+				item := &history.Items[j]
 				if strings.EqualFold(item.Field, "status") {
-					event.FromStatus = item.FromString
-					event.FromStatusID = item.From
-					event.ToStatus = item.ToString
-					event.ToStatusID = item.To
-					hasSignal = true
+					statusItem = item
 				} else if strings.EqualFold(item.Field, "resolution") {
-					if item.ToString != "" {
-						event.Resolution = item.ToString
+					resItem = item
+				} else if strings.EqualFold(item.Field, "Key") {
+					if strings.HasPrefix(item.To, targetProjectKey+"-") || strings.HasPrefix(item.ToString, targetProjectKey+"-") {
+						isRelevantMove = true
+					}
+				} else if strings.EqualFold(item.Field, "workflow") && !strings.EqualFold(item.FromString, item.ToString) {
+					hasWorkflowChange = true
+				}
+			}
+
+			skipBoundaryChanges := false
+			// Condition 1: Terminal Move (Entering Project with Workflow Boundary)
+			// If we see a move into our project AND Workflow change, this is where the item "arrived".
+			if isRelevantMove && hasWorkflowChange {
+				if statusItem != nil {
+					initialStatus = statusItem.ToString
+					initialStatusID = statusItem.To
+				} else if len(events) > 0 {
+					// Fallback: Use the "From" side of the chronologically next change
+					nextEvent := events[len(events)-1]
+					initialStatus = nextEvent.FromStatus
+					initialStatusID = nextEvent.FromStatusID
+				}
+
+				// Condition 1.2: Check for resolution in the same change-set
+				if resItem != nil {
+					initialResolution = resItem.ToString
+					initialResolutionID = resItem.To
+				}
+
+				stopProcessing = true
+				skipBoundaryChanges = true
+			} else if statusItem != nil {
+				// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
+				initialStatus = statusItem.FromString
+				initialStatusID = statusItem.From
+			}
+
+			// Condition 3: Standard Transitions Emit
+			if !skipBoundaryChanges && (statusItem != nil || resItem != nil) {
+				event := IssueEvent{
+					IssueKey:  issueKey,
+					IssueType: issueType,
+					EventType: Change,
+					Timestamp: ts,
+				}
+
+				if statusItem != nil {
+					event.FromStatus = statusItem.FromString
+					event.FromStatusID = statusItem.From
+					event.ToStatus = statusItem.ToString
+					event.ToStatusID = statusItem.To
+				}
+
+				if resItem != nil {
+					if resItem.ToString != "" {
+						event.Resolution = resItem.ToString
 						event.IsUnresolved = false
 					} else {
 						event.IsUnresolved = true
 						event.Resolution = ""
 					}
-					hasSignal = true
 				}
-			}
-
-			if hasSignal {
 				events = append(events, event)
 			}
-		}
-	}
 
-	// 4. Final Healing - Apply Synthetic Birth if moved
-	if lastMoveTS != 0 {
-		originalBirth := events[0].Timestamp // The 'Created' event added at Step 2
-
-		// Fallback for Entry Status
-		if entryStatus == "" && len(events) > 1 {
-			for _, e := range events {
-				if e.EventType == Change && e.ToStatus != "" {
-					entryStatus = e.FromStatus
-					entryStatusID = e.FromStatusID
+			if stopProcessing {
+				// Only break if we've finished the entire "cluster" of events for this specific timestamp.
+				// This handles cases where a move and a transition are recorded with identical timestamps.
+				if i == 0 || dto.Changelog.Histories[i-1].Created != history.Created {
 					break
 				}
 			}
 		}
-		if entryStatus == "" {
-			entryStatus = initialStatus
-			entryStatusID = initialStatusID
-		}
-
-		if isDifferentWorkflow {
-			// Case 2: Anchor synthetic birth at original TS but in Arrival Status
-			events[0] = IssueEvent{
-				IssueKey:   issueKey,
-				IssueType:  issueType,
-				EventType:  Created,
-				Timestamp:  originalBirth,
-				ToStatus:   entryStatus,
-				ToStatusID: entryStatusID,
-				IsHealed:   true,
-			}
-		} else {
-			// Case 1: Same workflow, just ensure birth points to entryStatus
-			events[0].ToStatus = entryStatus
-			events[0].ToStatusID = entryStatusID
-			events[0].IsHealed = true
-		}
-	} else {
-		// Normal path: ensure first event has the initial biological status
-		if entryStatus == "" {
-			events[0].ToStatus = initialStatus
-			events[0].ToStatusID = initialStatusID
-		} else {
-			events[0].ToStatus = entryStatus
-			events[0].ToStatusID = entryStatusID
-		}
 	}
 
-	// 4. Resolution Event (Snapshot fallback)
+	// 3. Anchoring the 'Created' event
+	// This event represents the point where the clock starts, even if the issue is years old.
+	// We use the original biological 'Created' timestamp but with the status we derived from the stop-point.
+	createdTime, _ := jira.ParseTime(dto.Fields.Created)
+	createdEvent := IssueEvent{
+		IssueKey:     issueKey,
+		IssueType:    issueType,
+		EventType:    Created,
+		Timestamp:    createdTime.UnixMicro(),
+		ToStatus:     initialStatus, // This is now our "Arrival" or "Biological Birth" status
+		ToStatusID:   initialStatusID,
+		Resolution:   initialResolution,
+		IsUnresolved: initialResolution == "" && initialResolutionID != "", // If ID exists but name is empty, it's explicitly unresolved
+		IsHealed:     stopProcessing,                                       // Flag that we hit a boundary
+	}
+
+	// Add the created event to the list
+	events = append(events, createdEvent)
+
+	// 4. Handle Snapshot Resolution (Fallthrough/De-duplication)
 	if dto.Fields.ResolutionDate != "" {
 		resTime, err := jira.ParseTime(dto.Fields.ResolutionDate)
 		if err == nil {
@@ -250,6 +185,21 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 		}
 	}
+
+	// 5. Finalize: Standardize Chronological Order
+	sort.Slice(events, func(i, j int) bool {
+		// Strict grouping: Created event always comes first if timestamps are identical
+		if events[i].Timestamp != events[j].Timestamp {
+			return events[i].Timestamp < events[j].Timestamp
+		}
+		if events[i].EventType == Created {
+			return true
+		}
+		if events[j].EventType == Created {
+			return false
+		}
+		return false
+	})
 
 	return events
 }

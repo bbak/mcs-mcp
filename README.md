@@ -51,7 +51,7 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
 MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids single-point averages, which often mask risk, and instead provides **Percentile-based outcomes** (e.g., P85 "Likely" confidence).
 
-1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, calculating exact residency time (in seconds) for every item across every status.
+1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, using **Backward Boundary Scanning** to reconstruct project-local history while calculating exact residency time (in seconds) for every item across every status.
 2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand → Upstream → Downstream → Finished) to ensure the simulation "clock" reflects actual value consumption.
 
 3. **Simulation & Validation**: The engine simulates potential futures and optionally validates them via walk-forward backtesting to ensure historical reliability.
