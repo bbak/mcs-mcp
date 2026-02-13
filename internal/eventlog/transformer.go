@@ -58,6 +58,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	var entryStatusID string
 	var isDifferentWorkflow bool
 
+	// Infer target project key from current issue key (e.g., "PROJ" from "PROJ-123")
+	targetProjectKey := issueKey
+	if idx := strings.Index(issueKey, "-"); idx > 0 {
+		targetProjectKey = issueKey[:idx]
+	}
+
 	if dto.Changelog != nil {
 		// Pass 0: Ensure histories are chronological (ascending)
 		// Jira API often returns them descending, which breaks forward-scans.
@@ -79,8 +85,16 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				for i := range h.Items {
 					item := &h.Items[i]
 					f := item.Field
-					if strings.EqualFold(f, "Key") || strings.EqualFold(f, "project") {
-						isMove = true
+					if strings.EqualFold(f, "Key") {
+						// Only treat as a relevant move if it enters our target project
+						if strings.HasPrefix(item.To, targetProjectKey+"-") {
+							isMove = true
+						}
+					} else if strings.EqualFold(f, "project") {
+						// Or if the project name matches (Jira sometimes uses names/IDs here)
+						if strings.EqualFold(item.To, targetProjectKey) {
+							isMove = true
+						}
 					}
 					if strings.EqualFold(f, "workflow") && !strings.EqualFold(item.FromString, item.ToString) {
 						wfChanged = true

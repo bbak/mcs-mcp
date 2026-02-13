@@ -376,3 +376,67 @@ func TestTransformIssue_Case2_Heal(t *testing.T) {
 		t.Errorf("Expected original birth timestamp, got %d", birth.Timestamp)
 	}
 }
+func TestTransformIssue_ExternalMove_NoHeal(t *testing.T) {
+	// Scenario: Issue is currently in target "OURPROJ".
+	// History shows a move from "EXT1" to "EXT2".
+	// This move should be IGNORED for healing purposes because it doesn't enter "OURPROJ".
+	dto := jira.IssueDTO{
+		Key: "OURPROJ-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Done", ID: "10003"},
+			Created: "2024-01-01T10:00:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Event 1: Move between two EXTERNAL projects
+					Created: "2024-02-01T12:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "project",
+							FromString: "EXT1",
+							ToString:   "EXT2",
+						},
+						{
+							Field:      "workflow",
+							FromString: "WF1",
+							ToString:   "WF2",
+						},
+					},
+				},
+				{
+					// Event 2: Normal transition in EXT2
+					Created: "2024-02-01T13:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "To Do",
+							ToString:   "In Progress",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// Since the move was EXT1 -> EXT2, and our project is OURPROJ,
+	// healing should NOT have been triggered.
+	// We expect the original history to be preserved (even though we don't care about it).
+	for _, e := range events {
+		if e.IsHealed {
+			t.Errorf("Healing should NOT have been triggered for an external move")
+		}
+	}
+}
