@@ -183,10 +183,10 @@ To ensures discovery reflect the **active process**, the system applies recency 
 To ensure analytical integrity when issues move between projects or change workflows, the system uses a **Backward Boundary Scanning** strategy during transformation:
 
 - **Directionality**: Histories are processed **backwards** from the current state (Truth) towards the birth.
-- **Boundary Detection**: The system identifies process boundaries by detecting a simultaneous change in identity (`Key`) and process (`workflow`).
+- **Boundary Detection**: The system identifies process boundaries by detecting a change in identity (`Key`) signifying entering the target project.
 - **Arrival Anchoring**: The moment a boundary is hit, the scan terminates. The state transition at this boundary defines the item's **Arrival Status** in the target project.
-- **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This prevents irrelevant history from a different process from "poisoning" discovery while maintaining correct Lead Time.
-- **Throughput Integrity**: By stopping at the project boundary, the system ensures that cycle time and throughput metrics accurately reflect the current process reality without requiring complex "healing" heuristics.
+- **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This ensures that its initial duration correctly reflects its time spent in the project's entry point.
+- **Throughput Integrity**: The system ignores `Created` events for delivery dating. Throughput is only attributed to true `Change` events (resolutions or terminal status transitions), ensuring moved items are counted at their arrival/completion point rather than their biological birth.
 
 ### 7.4 Technical Precision
 
