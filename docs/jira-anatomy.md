@@ -71,10 +71,9 @@ Within each change-set (traversed backwards):
 
 If the change-set contains a change of `Key` (moving into the target project) AND a change of `workflow`:
 
-- **Arrival Status**: Use the `ToString` (New Value) of any `status` change in the same change-set. If no status change is present, use the `FromStatus` of the chronologically next (newer) event.
-- **Arrival Resolution**: Use the `ToString` (New Value) of any `resolution` change in the same change-set.
+- **Birth Status**: If a `status` change is present, use the `FromString` (Source Value). This ensures the biological birth reflects the item's state _before_ the move, allowing the arrival transition to be captured explicitly.
+- **Arrival Transition**: We **DO NOT** skip the emission of the `status` or `resolution` changes in the same change-set (Condition 3 handles this).
 - **Termination**: Stop processing further change-sets.
-- **Glitch Protection**: Do NOT emit a separate `Change` event for status or resolution shifts that happen exactly at this boundary; they are already captured in the "Arrival" state of the `Created` event.
 
 #### Condition 2: Status & Resolution Change
 
@@ -93,7 +92,7 @@ If only a `status` change is present:
 ### Finalization
 
 1.  **Reversal**: After processing stops or all history is exhausted, the resulting events are sorted chronologically (ascending).
-2.  **Biological Birth**: The `Created` event uses the biological creation timestamp but reflects the "Arrival" state discovered during the backward scan.
+2.  **Biological Birth**: The `Created` event uses the biological creation timestamp. To preserve correct age and throughput dating, it is anchored to the status the item had _before_ entering our scope (or the earliest known status if no move occurred).
 3.  **Snapshot Fallback**: If the Jira DTO has a `ResolutionDate` that isn't already captured in history (within a 2-second grace period), a final `Change` event is appended to capture the terminal resolution.
 
 ---

@@ -687,28 +687,36 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 	events := TransformIssue(dto)
 
 	// Expected Events:
-	// 1. Created (Synthetic @ 2023-08-17) - ToStatus: Analysis, Resolution: Fixed
-	// 2. Change (@ 2023-08-28) - From: Analysis, To: Ready for Development
+	// 1. Created (Synthetic @ 2023-08-17) - Status: FUNCTIONAL (From side of boundary)
+	// 2. Change (@ 2023-08-18) - From: FUNCTIONAL, To: Analysis, Resolution: Fixed
+	// 3. Change (@ 2023-08-28) - From: Analysis, To: Ready for Development
 
-	if len(events) != 2 {
-		// Currently it likely produces 3: Created(Analysis), Change(Analysis), Change(Ready for Development)
-		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
+	if len(events) != 3 {
+		t.Fatalf("Expected 3 events, got %d. Events: %+v", len(events), events)
 	}
 
 	created := events[0]
 	if created.EventType != Created {
 		t.Errorf("First event should be Created, got %v", created.EventType)
 	}
-	if created.ToStatus != "Analysis" {
-		t.Errorf("Created event status should be 'Analysis', got '%s'", created.ToStatus)
-	}
-	if created.Resolution != "Fixed" {
-		t.Errorf("Created event resolution should be 'Fixed', got '%s'", created.Resolution)
+	if created.ToStatus != "FUNCTIONAL" {
+		t.Errorf("Created event status should be 'FUNCTIONAL', got '%s'", created.ToStatus)
 	}
 
-	change := events[1]
+	boundary := events[1]
+	if boundary.EventType != Change {
+		t.Errorf("Second event should be Change (Boundary), got %v", boundary.EventType)
+	}
+	if boundary.FromStatus != "FUNCTIONAL" || boundary.ToStatus != "Analysis" {
+		t.Errorf("Boundary change status mismatch: expected FUNCTIONAL->Analysis, got %s->%s", boundary.FromStatus, boundary.ToStatus)
+	}
+	if boundary.Resolution != "Fixed" {
+		t.Errorf("Boundary change resolution should be 'Fixed', got '%s'", boundary.Resolution)
+	}
+
+	change := events[2]
 	if change.EventType != Change {
-		t.Errorf("Second event should be Change, got %v", change.EventType)
+		t.Errorf("Third event should be Change, got %v", change.EventType)
 	}
 	if change.FromStatus != "Analysis" || change.ToStatus != "Ready for Development" {
 		t.Errorf("Change event status mismatch: expected Analysis->Ready for Development, got %s->%s", change.FromStatus, change.ToStatus)

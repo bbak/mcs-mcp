@@ -16,8 +16,6 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	// We'll walk history BACKWARDS to find where the issue entered our scope.
 	initialStatus := dto.Fields.Status.Name
 	initialStatusID := dto.Fields.Status.ID
-	initialResolution := ""
-	initialResolutionID := ""
 
 	// Infer target project key from current issue key (e.g., "PROJ" from "PROJ-123")
 	targetProjectKey := issueKey
@@ -64,13 +62,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				}
 			}
 
-			skipBoundaryChanges := false
 			// Condition 1: Terminal Move (Entering Project with Workflow Boundary)
 			// If we see a move into our project AND Workflow change, this is where the item "arrived".
 			if isRelevantMove && hasWorkflowChange {
 				if statusItem != nil {
-					initialStatus = statusItem.ToString
-					initialStatusID = statusItem.To
+					initialStatus = statusItem.FromString
+					initialStatusID = statusItem.From
 				} else if len(events) > 0 {
 					// Fallback: Use the "From" side of the chronologically next change
 					nextEvent := events[len(events)-1]
@@ -78,14 +75,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					initialStatusID = nextEvent.FromStatusID
 				}
 
-				// Condition 1.2: Check for resolution in the same change-set
-				if resItem != nil {
-					initialResolution = resItem.ToString
-					initialResolutionID = resItem.To
-				}
-
 				stopProcessing = true
-				skipBoundaryChanges = true
 			} else if statusItem != nil {
 				// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
 				initialStatus = statusItem.FromString
@@ -93,7 +83,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			}
 
 			// Condition 3: Standard Transitions Emit
-			if !skipBoundaryChanges && (statusItem != nil || resItem != nil) {
+			// We emit ALL status and resolution changes we encounter.
+			// Because we anchor the biological birth to the FromStatus at the boundary,
+			// the boundary transition itself is correctly captured as a Change event.
+			if statusItem != nil || resItem != nil {
 				event := IssueEvent{
 					IssueKey:  issueKey,
 					IssueType: issueType,
@@ -135,15 +128,13 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	// We use the original biological 'Created' timestamp but with the status we derived from the stop-point.
 	createdTime, _ := jira.ParseTime(dto.Fields.Created)
 	createdEvent := IssueEvent{
-		IssueKey:     issueKey,
-		IssueType:    issueType,
-		EventType:    Created,
-		Timestamp:    createdTime.UnixMicro(),
-		ToStatus:     initialStatus, // This is now our "Arrival" or "Biological Birth" status
-		ToStatusID:   initialStatusID,
-		Resolution:   initialResolution,
-		IsUnresolved: initialResolution == "" && initialResolutionID != "", // If ID exists but name is empty, it's explicitly unresolved
-		IsHealed:     stopProcessing,                                       // Flag that we hit a boundary
+		IssueKey:   issueKey,
+		IssueType:  issueType,
+		EventType:  Created,
+		Timestamp:  createdTime.UnixMicro(),
+		ToStatus:   initialStatus, // This is now our "Arrival" or "Biological Birth" status
+		ToStatusID: initialStatusID,
+		IsHealed:   stopProcessing, // Flag that we hit a boundary
 	}
 
 	// Add the created event to the list
