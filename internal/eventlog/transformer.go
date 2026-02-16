@@ -16,6 +16,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	// We'll walk history BACKWARDS to find where the issue entered our scope.
 	initialStatus := dto.Fields.Status.Name
 	initialStatusID := dto.Fields.Status.ID
+	initialFlagged := extractFlaggedValue(dto.Fields.Flagged)
 
 	// Infer target project key from current issue key (e.g., "PROJ" from "PROJ-123")
 	targetProjectKey := issueKey
@@ -44,6 +45,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 			var statusItem *jira.ItemDTO
 			var resItem *jira.ItemDTO
+			var flaggedItem *jira.ItemDTO
 			isRelevantMove := false
 
 			for j := range history.Items {
@@ -52,6 +54,8 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					statusItem = item
 				} else if strings.EqualFold(item.Field, "resolution") {
 					resItem = item
+				} else if strings.EqualFold(item.Field, "Flagged") {
+					flaggedItem = item
 				} else if strings.EqualFold(item.Field, "Key") {
 					if strings.HasPrefix(item.To, targetProjectKey+"-") || strings.HasPrefix(item.ToString, targetProjectKey+"-") {
 						isRelevantMove = true
@@ -68,17 +72,36 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 					initialStatusID = statusItem.To
 					suppressStatus = true
 				} else if len(events) > 0 {
-					// Fallback: Use the "From" side of the chronologically next change
-					nextEvent := events[len(events)-1]
-					initialStatus = nextEvent.FromStatus
-					initialStatusID = nextEvent.FromStatusID
+					// Fallback: Use the status from the chronologically next status change.
+					// We must walk back through already extracted events because 'Flagged' events
+					// do not contain status information and might have been emitted later.
+					for j := len(events) - 1; j >= 0; j-- {
+						if events[j].FromStatus != "" || events[j].ToStatus != "" {
+							// We use FromStatus because we are looking at the state *before* that change.
+							// For a resolution-only change, FromStatus might be empty if only resolution changed,
+							// but usually it's populated for status transitions.
+							initialStatus = events[j].FromStatus
+							initialStatusID = events[j].FromStatusID
+							break
+						}
+					}
+				}
+
+				// If we hit a boundary, we also need to know the flagged state at arrival.
+				if flaggedItem != nil {
+					initialFlagged = flaggedItem.ToString
 				}
 
 				stopProcessing = true
-			} else if statusItem != nil {
-				// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
-				initialStatus = statusItem.FromString
-				initialStatusID = statusItem.From
+			} else {
+				if statusItem != nil {
+					// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
+					initialStatus = statusItem.FromString
+					initialStatusID = statusItem.From
+				}
+				if flaggedItem != nil {
+					initialFlagged = flaggedItem.FromString
+				}
 			}
 
 			// Condition 3: Standard Transitions Emit
@@ -111,6 +134,17 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				events = append(events, event)
 			}
 
+			// Condition 4: Flagged Changes Emit
+			if flaggedItem != nil {
+				events = append(events, IssueEvent{
+					IssueKey:  issueKey,
+					IssueType: issueType,
+					EventType: Flagged,
+					Timestamp: ts,
+					Flagged:   flaggedItem.ToString,
+				})
+			}
+
 			if stopProcessing {
 				// Only break if we've finished the entire "cluster" of events for this specific timestamp.
 				// This handles cases where a move and a transition are recorded with identical timestamps.
@@ -132,6 +166,7 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 		Timestamp:  createdTime.UnixMicro(),
 		ToStatus:   initialStatus, // This is now our "Arrival" or "Biological Birth" status
 		ToStatusID: initialStatusID,
+		Flagged:    initialFlagged,
 		IsHealed:   stopProcessing, // Flag that we hit a boundary
 	}
 
@@ -181,14 +216,44 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 		if events[i].Timestamp != events[j].Timestamp {
 			return events[i].Timestamp < events[j].Timestamp
 		}
-		if events[i].EventType == Created {
+		// Tie-breaker for identical timestamps
+		if events[i].EventType == Created && events[j].EventType != Created {
 			return true
 		}
-		if events[j].EventType == Created {
+		if events[j].EventType == Created && events[i].EventType != Created {
 			return false
 		}
+		// Preserve order for other types (arbitrary but stable)
 		return false
 	})
 
 	return events
+}
+
+func extractFlaggedValue(val interface{}) string {
+	if val == nil {
+		return ""
+	}
+	// Jira Agile Flagged field is usually an array of objects: [{"id":"...","value":"Impediment"}]
+	// For simplicity, we just want to know if it's "blocked" or not.
+	slice, ok := val.([]interface{})
+	if ok {
+		if len(slice) == 0 {
+			return ""
+		}
+		// Look at first item
+		first := slice[0]
+		if s, ok := first.(string); ok {
+			return s
+		}
+		if m, ok := first.(map[string]interface{}); ok {
+			if v, ok := m["value"].(string); ok {
+				return v
+			}
+		}
+	}
+	if s, ok := val.(string); ok {
+		return s
+	}
+	return ""
 }

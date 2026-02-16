@@ -151,7 +151,7 @@ This document describes the primary interaction scenarios between the User (Proj
     1. AI calls `get_item_journey` for a specific issue key.
     2. MCP Server performs a **Cache Lookup** within the currently anchored board log before calling Jira for missing details.
     3. MCP Server utilizes the **Event Log** to reconstruct a chronological path with residency days for each step.
-    4. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked'").
+    4. AI identifies exactly which step caused the outlier behavior (e.g., "PROJ-123 took 40 days, but 35 of those were spent in 'Blocked' / 'Flagged'").
 
 ---
 

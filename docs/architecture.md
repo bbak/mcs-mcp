@@ -161,7 +161,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 
 ### 7.1 Staged Ingestion & Persistent Cache
 
-- **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Unresolved`).
+- **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Flagged`, `Unresolved`).
 - **Two-Stage Hydration**:
     - **Stage 1 (Recent Updates)**: Fetches the last 1000 items sorted by `updated DESC`.
     - **Stage 2 (Baseline Depth)**: Explicitly fetches resolved items to ensure a minimum baseline (default 200 items).

@@ -1,5 +1,7 @@
 package eventlog
 
+import "fmt"
+
 // EventType defines the objective nature of a Jira state change.
 type EventType string
 
@@ -9,6 +11,8 @@ const (
 	// Change indicates a state change from the Jira changelog (history-derived).
 	// It may contain multiple field updates (status, resolution, etc.) atomic to one history entry.
 	Change EventType = "Change"
+	// Flagged indicates a change in the blocked status of the item.
+	Flagged EventType = "Flagged"
 )
 
 // IssueEvent represents one or more atomic field changes from a Jira update.
@@ -35,9 +39,24 @@ type IssueEvent struct {
 	Resolution   string `json:"resolution,omitempty"`
 	IsUnresolved bool   `json:"isUnresolved,omitempty"`
 
+	// Flagged represents the "Blocked" state (e.g., "Impediment", "Blocked", or empty).
+	Flagged string `json:"flagged,omitempty"`
+
 	// IsHealed indicates if the event was synthetically created/modified during history healing.
 	IsHealed bool `json:"isHealed,omitempty"`
 
 	// Metadata stores extensible Jira fields that might be relevant for projections.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func (e IssueEvent) identity() string {
+	return fmt.Sprintf("%s|%d|%s|%s|%s|%v|%s",
+		e.IssueKey,
+		e.Timestamp,
+		e.EventType,
+		e.ToStatus,
+		e.Resolution,
+		e.IsUnresolved,
+		e.Flagged,
+	)
 }

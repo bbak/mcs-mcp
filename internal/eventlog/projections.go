@@ -372,6 +372,14 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			issue.Resolution = ""
 		}
 
+		if e.EventType == Flagged {
+			issue.Flagged = e.Flagged
+		}
+
+		if e.EventType == Created {
+			issue.Flagged = e.Flagged
+		}
+
 		if e.EventType == Created && e.IsHealed {
 			issue.IsMoved = true
 		}
