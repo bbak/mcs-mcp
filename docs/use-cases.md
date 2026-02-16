@@ -264,3 +264,18 @@ This document describes the primary interaction scenarios between the User (Proj
     3. MCP Server fetches all items updated since the **NMRC (Newest Most Recent Change)** boundary.
     4. MCP Server uses **Purge-before-Merge** to replace old history for those items, ensuring Jira deletions or corrections are reflected.
     5. AI confirms synchronization: "I've fetched 12 updates from Jira. We are now perfectly synced as of [Timestamp]."
+
+---
+
+## UC18: Friction Heatmap Analysis (Impediment Identification)
+
+**Goal:** Identify workflow steps that are systemic centers of friction (frequent or deep blocking).
+
+- **Primary Actor:** Project Manager / Operations Lead
+- **Trigger:** User asks "Where are we getting blocked most often?" or "Which stage has the most friction?"
+- **Main Success Scenario:**
+    1.  User asks for a friction analysis.
+    2.  AI calls `get_status_persistence`.
+    3.  MCP Server calculates the **Impediment Count** and **Impediment Depth** using geometric intersection of blocked intervals.
+    4.  AI identifies the stage with the highest friction (e.g., "Peer Review is your primary friction center: 60% of items encountered a blocker here, with a median (P50) blocked duration of 4 days").
+    5.  AI contrasts this with total residency to provide context: "While 'In Testing' has high total residency, 'Peer Review' has the highest _impediment_ density."

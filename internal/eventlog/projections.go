@@ -434,13 +434,13 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		}
 	}
 
-	issue.StatusResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, referenceDate)
+	issue.StatusResidency, issue.BlockedResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, referenceDate)
 
 	return issue
 }
 
 // CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
-func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) map[string]int64 {
+func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
 	var transitions []jira.StatusTransition
 
 	// Track the very first "From" status if possible for the birth duration
@@ -466,5 +466,56 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 		}
 	}
 
-	return stats.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
+	residency, segments := stats.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
+
+	// Friction Mapping: Extract blocked intervals and overlay them
+	blockedIntervals := ExtractBlockedIntervals(events, created, resolved, referenceDate)
+	blockedResidency := stats.CalculateBlockedResidency(segments, blockedIntervals)
+
+	return residency, blockedResidency
+}
+
+// ExtractBlockedIntervals identifies periods where an item was flagged as impeded.
+func ExtractBlockedIntervals(events []IssueEvent, created time.Time, resolved *time.Time, referenceDate time.Time) []stats.Interval {
+	var intervals []stats.Interval
+	var currentStart *time.Time
+
+	now := time.Now()
+	if !referenceDate.IsZero() {
+		now = referenceDate
+	}
+
+	for _, e := range events {
+		ts := time.UnixMicro(e.Timestamp)
+
+		// Initial state if provided in Created event or first seen in a Flagged event
+		if e.Flagged != "" {
+			if currentStart == nil {
+				currentStart = &ts
+			}
+		} else if e.EventType == Flagged || e.EventType == Created {
+			// Explicit unflagging or Created event with no flag
+			if currentStart != nil {
+				intervals = append(intervals, stats.Interval{
+					Start: *currentStart,
+					End:   ts,
+				})
+				currentStart = nil
+			}
+		}
+	}
+
+	// Tail handling: if currently flagged, close the interval at resolution or now
+	if currentStart != nil {
+		finalDate := now
+		if resolved != nil {
+			finalDate = *resolved
+		}
+		intervals = append(intervals, stats.Interval{
+			Start: *currentStart,
+			End:   finalDate,
+		})
+	}
+
+	return intervals
 }

@@ -157,9 +157,32 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 
 ---
 
-## 7. Internal Mechanics (The Event-Sourced Engine)
+## 7. Friction Mapping (Impediment Analysis)
 
-### 7.1 Staged Ingestion & Persistent Cache
+MCS-MCP identifies systemic process friction by analyzing "Flagged" events and correlating them with workflow residency.
+
+### 7.1 Methodology: Geometric Intersection
+
+Instead of calculating a prone-to-misuse "Flow Efficiency" ratio, the system identifies absolute signals of impediment:
+
+1.  **Interval Extraction**: The system extracts contiguous "Blocked" intervals from the event-sourced log (from `Flagged` to `Unflagged` or terminal status).
+2.  **Status Segmentation**: The item's journey is divided into discrete status residency segments.
+3.  **Geometric Intersection**: The system overlays blocked intervals onto status segments. If an item was flagged for 5 days while in "In Development", those 5 days are attributed to that status's `BlockedResidency`.
+
+### 7.2 Impediment Signals
+
+Friction is reported through absolute metrics rather than percentages:
+
+- **Impediment Count (`BlockedCount`)**: The frequency of blocking events within a specific stage.
+- **Impediment Depth (`BlockedP50/P85`)**: The typical duration an item remains blocked once an impediment occurs.
+
+This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisely where and for how long teams are held up, without the mathematical noise of efficiency ratios.
+
+---
+
+## 8. Internal Mechanics (The Event-Sourced Engine)
+
+### 8.1 Staged Ingestion & Persistent Cache
 
 - **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Flagged`, `Unresolved`).
 - **Two-Stage Hydration**:
@@ -176,14 +199,14 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
     - `cache_catch_up`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-### 7.2 Discovery Sampling Rules
+### 8.2 Discovery Sampling Rules
 
 To ensures discovery reflect the **active process**, the system applies recency bias:
 
 - **Priority Window**: Items created within the last **365 days** are prioritized.
 - **Adaptive Fallback**: Expands to 2 or 3 years only if the priority window has < 100 items. Items older than 3 years are strictly excluded from discovery.
 
-### 7.3 Backward Boundary Scanning (History Transformation)
+### 8.3 Backward Boundary Scanning (History Transformation)
 
 To ensure analytical integrity when issues move between projects or change workflows, the system uses a **Backward Boundary Scanning** strategy during transformation:
 
@@ -193,7 +216,7 @@ To ensure analytical integrity when issues move between projects or change workf
 - **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This ensures that its initial duration correctly reflects its time spent in the project's entry point.
 - **Throughput Integrity**: The system ignores `Created` events for delivery dating. Throughput is only attributed to true `Change` events (resolutions or terminal status transitions), ensuring moved items are counted at their arrival/completion point rather than their biological birth.
 
-### 7.4 Technical Precision
+### 8.4 Technical Precision
 
 - **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
 - **Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
@@ -201,19 +224,19 @@ To ensure analytical integrity when issues move between projects or change workf
 
 ---
 
-## 8. Data Security & GRC Principles
+## 9. Data Security & GRC Principles
 
 MCS-MCP is designed with **Security-by-Design** and **Data Minimization** at its core.
 
-### 8.1 Principle: Need-to-Know
+### 9.1 Principle: Need-to-Know
 
 The system strictly adheres to the "Need-to-Know" principle by ingests and persisting only the analytical metadata required for flow analysis.
 
-- **Analytical Metadata (Fetched & Persisted)**: Issue Keys, **Issue Types**, Status Transitions, Timestamps, and Resolution names.
+- **Analytical Metadata (Fetched & Persisted)**: Issue Keys, **Issue Types**, Status Transitions, Timestamps, Resolution names, and **Flagged/Blocked history**.
 - **Sensitive Content (DROPPED)**: While Jira may return full objects, the ingestion and transformation layer strictly **drops** fields such as **Summary (Title), Description, Acceptance Criteria, and Assignees** at the first processing step.
 - **Impact**: This ensures that sensitive information is never exposed to the analytical models, never persisted to the cache, and never made available to the AI Agent.
 
-### 8.2 Principle: Transparency (Auditability)
+### 9.2 Principle: Transparency (Auditability)
 
 The system maintains absolute transparency in how data is stored and used.
 
@@ -223,11 +246,11 @@ The system maintains absolute transparency in how data is stored and used.
 
 ---
 
-## 9. Comprehensive Stratified Analytics
+## 10. Comprehensive Stratified Analytics
 
 MCS-MCP implements **Type-Stratification** as a core architectural baseline across all diagnostics. This ensures that process insights are not diluted by a heterogeneous mix of work (e.g., mixing 2-day Bugs with 20-day Stories).
 
-### 9.1 The Architecture of Consistency
+### 10.1 The Architecture of Consistency
 
 Every analytical tool in the server has been extended to provide both pooled (system-wide) and stratified (type-specific) results:
 
@@ -241,7 +264,7 @@ Every analytical tool in the server has been extended to provide both pooled (sy
 | **Throughput**      | Weekly/Monthly delivery cadence per Type with flexible bucketing. | Visualizes where teams actually spend their delivery "bandwidth".       |
 | **Residency**       | Status-level residency percentiles (P50..P95) per Type.           | pinpoints type-specific bottlenecks at the status level.                |
 
-### 9.2 Statistical Integrity Guards
+### 10.2 Statistical Integrity Guards
 
 To maintain reliability, stratification follows strict defensive heuristics:
 
