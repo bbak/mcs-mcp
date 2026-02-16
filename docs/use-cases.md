@@ -279,3 +279,4 @@ This document describes the primary interaction scenarios between the User (Proj
     3.  MCP Server calculates the **Impediment Count** and **Impediment Depth** using geometric intersection of blocked intervals.
     4.  AI identifies the stage with the highest friction (e.g., "Peer Review is your primary friction center: 60% of items encountered a blocker here, with a median (P50) blocked duration of 4 days").
     5.  AI contrasts this with total residency to provide context: "While 'In Testing' has high total residency, 'Peer Review' has the highest _impediment_ density."
+    6.  **Stability Guardrail Awareness:** If the overall system is under high stress (>25% WIP flagged), the AI automatically surfaces a "SYSTEM PRESSURE WARNING" during forecasting simulations to alert the user that historical throughput may be overly optimistic.
