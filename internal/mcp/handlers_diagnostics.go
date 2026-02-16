@@ -354,7 +354,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	}
 
 	issue := eventlog.ReconstructIssue(events, finishedMap, time.Now())
-	residency := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finishedMap, "", time.Now())
+	residency, _ := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finishedMap, "", time.Now())
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -403,6 +403,11 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		residencyDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
+	blockedDays := make(map[string]float64)
+	for s, sec := range issue.BlockedResidency {
+		blockedDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
+	}
+
 	tierBreakdown := make(map[string]map[string]interface{})
 	for status, sec := range issue.StatusResidency {
 		tier := "Unknown"
@@ -413,12 +418,18 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		}
 		if _, ok := tierBreakdown[tier]; !ok {
 			tierBreakdown[tier] = map[string]interface{}{
-				"days":     0.0,
-				"statuses": []string{},
+				"days":         0.0,
+				"blocked_days": 0.0,
+				"statuses":     []string{},
 			}
 		}
 		data := tierBreakdown[tier]
 		data["days"] = data["days"].(float64) + math.Round((float64(sec)/86400.0)*10)/10
+
+		if bSec, ok := issue.BlockedResidency[status]; ok {
+			data["blocked_days"] = data["blocked_days"].(float64) + math.Round((float64(bSec)/86400.0)*10)/10
+		}
+
 		data["statuses"] = append(data["statuses"].([]string), status)
 		tierBreakdown[tier] = data
 	}
@@ -426,6 +437,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	return map[string]interface{}{
 		"key":            issue.Key,
 		"residency":      residencyDays,
+		"blocked_time":   blockedDays,
 		"path":           steps,
 		"tier_breakdown": tierBreakdown,
 		"warnings":       []string{},

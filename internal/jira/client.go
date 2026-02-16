@@ -19,6 +19,7 @@ type Issue struct {
 	BirthStatusID     string
 	StatusCategory    string
 	StatusResidency   map[string]int64 // Seconds spent in each status
+	BlockedResidency  map[string]int64 // Total seconds spent in 'Blocked' state per status
 	Transitions       []StatusTransition
 	IsSubtask         bool
 	IsMoved           bool

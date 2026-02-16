@@ -18,6 +18,9 @@ type StatusPersistence struct {
 	P95            float64 `json:"safe_bet"`       // P95
 	IQR            float64 `json:"iqr"`            // P75-P25
 	Inner80        float64 `json:"inner_80"`       // P90-P10
+	BlockedP50     float64 `json:"blocked_p50,omitempty"`
+	BlockedP85     float64 `json:"blocked_p85,omitempty"`
+	BlockedCount   int     `json:"blocked_count,omitempty"`
 	Interpretation string  `json:"interpretation,omitempty"`
 }
 
@@ -46,6 +49,7 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 	}
 
 	statusDurations := make(map[string][]float64)
+	blockedDurations := make(map[string][]float64)
 	totalIssues := float64(len(issues))
 
 	for _, issue := range issues {
@@ -53,6 +57,12 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			if seconds > 0 {
 				days := float64(seconds) / 86400.0
 				statusDurations[status] = append(statusDurations[status], days)
+			}
+		}
+		for status, seconds := range issue.BlockedResidency {
+			if seconds > 0 {
+				days := float64(seconds) / 86400.0
+				blockedDurations[status] = append(blockedDurations[status], days)
 			}
 		}
 	}
@@ -68,7 +78,7 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 		}
 
 		sort.Float64s(durations)
-		results = append(results, StatusPersistence{
+		sp := StatusPersistence{
 			StatusName: status,
 			Share:      math.Round(share*1000) / 1000,
 			P50:        math.Round(durations[int(float64(n)*0.50)]*10) / 10,
@@ -77,7 +87,18 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			P95:        math.Round(durations[int(float64(n)*0.95)]*10) / 10,
 			IQR:        math.Round((durations[int(float64(n)*0.75)]-durations[int(float64(n)*0.25)])*10) / 10,
 			Inner80:    math.Round((durations[int(float64(n)*0.90)]-durations[int(float64(n)*0.10)])*10) / 10,
-		})
+		}
+
+		// Blocked Metrics (Friction Mapping)
+		if bd, ok := blockedDurations[status]; ok && len(bd) > 0 {
+			sort.Float64s(bd)
+			bn := len(bd)
+			sp.BlockedCount = bn
+			sp.BlockedP50 = math.Round(bd[int(float64(bn)*0.50)]*10) / 10
+			sp.BlockedP85 = math.Round(bd[int(float64(bn)*0.85)]*10) / 10
+		}
+
+		results = append(results, sp)
 	}
 
 	// Sort results by status name for stability

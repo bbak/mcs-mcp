@@ -14,6 +14,19 @@ type Dataset struct {
 	FetchedAt time.Time          `json:"fetchedAt"`
 }
 
+// Interval represents a time range.
+type Interval struct {
+	Start time.Time
+	End   time.Time
+}
+
+// StatusSegment represents a contiguous period in a specific status.
+type StatusSegment struct {
+	Status string
+	Start  time.Time
+	End    time.Time
+}
+
 // MapIssue transforms a Jira DTO into a Domain Issue and calculates residency.
 func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
 	issue := jira.Issue{
@@ -276,7 +289,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		}
 
 		// Recalculate residency starting from the backflow point
-		newIssue.StatusResidency = CalculateResidency(
+		newIssue.StatusResidency, _ = CalculateResidency(
 			newIssue.Transitions,
 			issue.Transitions[lastBackflowIdx].Date, // Use the backflow date as the new birth anchor
 			issue.ResolutionDate,
@@ -292,8 +305,9 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 
 // CalculateResidency provides a unified way to compute status durations in seconds.
 // If referenceDate is non-zero, it is used as the "Now" for open items (Time-Travel).
-func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, initialStatus string, referenceDate time.Time) map[string]int64 {
+func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, initialStatus string, referenceDate time.Time) (map[string]int64, []StatusSegment) {
 	residency := make(map[string]int64)
+	var segments []StatusSegment
 
 	now := time.Now()
 	if !referenceDate.IsZero() {
@@ -330,7 +344,12 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 			duration = 1
 		}
 		residency[currentStatus] = duration
-		return residency
+		segments = append(segments, StatusSegment{
+			Status: currentStatus,
+			Start:  created,
+			End:    finalDate,
+		})
+		return residency, segments
 	}
 
 	// 1. Time from creation to first transition
@@ -342,6 +361,11 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 		firstDuration = 1
 	}
 	residency[initialStatus] = firstDuration
+	segments = append(segments, StatusSegment{
+		Status: initialStatus,
+		Start:  created,
+		End:    transitions[0].Date,
+	})
 
 	// 2. Time between transitions
 	for i := 0; i < len(transitions)-1; i++ {
@@ -350,6 +374,11 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 			duration = 1
 		}
 		residency[transitions[i].ToStatus] += duration
+		segments = append(segments, StatusSegment{
+			Status: transitions[i].ToStatus,
+			Start:  transitions[i].Date,
+			End:    transitions[i+1].Date,
+		})
 	}
 
 	// 3. Time since last transition
@@ -368,8 +397,13 @@ func CalculateResidency(transitions []jira.StatusTransition, created time.Time, 
 		finalDuration = 1
 	}
 	residency[lastTrans.ToStatus] += finalDuration
+	segments = append(segments, StatusSegment{
+		Status: lastTrans.ToStatus,
+		Start:  lastTrans.Date,
+		End:    finalDate,
+	})
 
-	return residency
+	return residency, segments
 }
 
 // IsDelivered determines if an issue reached a successful final state following the precedence:
@@ -513,4 +547,34 @@ func CalculateMedianContinuous(values []float64) float64 {
 		return (values[mid-1] + values[mid]) / 2.0
 	}
 	return values[mid]
+}
+
+// CalculateBlockedResidency computes the overlapping time between status segments and blocked intervals.
+func CalculateBlockedResidency(statusSegments []StatusSegment, blockedIntervals []Interval) map[string]int64 {
+	blockedResidency := make(map[string]int64)
+
+	for _, status := range statusSegments {
+		var totalBlockedSeconds int64
+		for _, blocked := range blockedIntervals {
+			// Find overlap between [status.Start, status.End] and [blocked.Start, blocked.End]
+			overlapStart := status.Start
+			if blocked.Start.After(overlapStart) {
+				overlapStart = blocked.Start
+			}
+
+			overlapEnd := status.End
+			if blocked.End.Before(overlapEnd) {
+				overlapEnd = blocked.End
+			}
+
+			if overlapStart.Before(overlapEnd) {
+				totalBlockedSeconds += int64(overlapEnd.Sub(overlapStart).Seconds())
+			}
+		}
+		if totalBlockedSeconds > 0 {
+			blockedResidency[status.Status] += totalBlockedSeconds
+		}
+	}
+
+	return blockedResidency
 }
