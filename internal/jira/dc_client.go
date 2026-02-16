@@ -177,7 +177,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	params.Set("jql", jql)
 	params.Set("startAt", fmt.Sprintf("%d", startAt))
 	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
-	params.Set("fields", "issuetype,status,resolution,resolutiondate,created,updated")
+	params.Set("fields", "issuetype,status,resolution,resolutiondate,created,updated,customfield_10014")
 	if expand != "" {
 		params.Set("expand", expand)
 	}
@@ -231,7 +231,7 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 
 	c.throttle(true) // Treat as metadata/lightweight
 
-	issueURL := fmt.Sprintf("%s/rest/api/2/issue/%s?expand=changelog&fields=issuetype,status,resolution,resolutiondate,created,updated", c.cfg.BaseURL, key)
+	issueURL := fmt.Sprintf("%s/rest/api/2/issue/%s?expand=changelog&fields=issuetype,status,resolution,resolutiondate,created,updated,customfield_10014", c.cfg.BaseURL, key)
 	req, err := http.NewRequest("GET", issueURL, nil)
 	if err != nil {
 		return nil, err

@@ -22,6 +22,7 @@ type Issue struct {
 	Transitions       []StatusTransition
 	IsSubtask         bool
 	IsMoved           bool
+	Flagged           string
 	HasSyntheticBirth bool // True if birth date was inferred from earliest event
 }
 

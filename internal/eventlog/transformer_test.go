@@ -3,6 +3,7 @@ package eventlog
 import (
 	"mcs-mcp/internal/jira"
 	"testing"
+	"time"
 )
 
 func TestTransformIssue_DuplicateResolved(t *testing.T) {
@@ -720,5 +721,196 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 	}
 	if change.FromStatus != "Analysis" || change.ToStatus != "Ready for Development" {
 		t.Errorf("Change event status mismatch: expected Analysis->Ready for Development, got %s->%s", change.FromStatus, change.ToStatus)
+	}
+}
+
+func TestTransformIssue_FlaggedHistory(t *testing.T) {
+	dto := jira.IssueDTO{
+		Key: "TEST-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "InProgress", ID: "3"},
+			Created: "2024-03-20T10:00:00.000+0000",
+			Flagged: []interface{}{map[string]interface{}{"value": "Impediment"}}, // Current snapshot state: Blocked
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Flagged as Blocked
+					Created: "2024-03-20T11:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Flagged",
+							FromString: "",
+							ToString:   "Impediment",
+						},
+					},
+				},
+				{
+					// Flagged cleared
+					Created: "2024-03-20T12:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Flagged",
+							FromString: "Impediment",
+							ToString:   "",
+						},
+					},
+				},
+				{
+					// Flagged as Blocked again
+					Created: "2024-03-20T13:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Flagged",
+							FromString: "",
+							ToString:   "Impediment",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// Expected:
+	// 1. Created (Flagged: "") @ 10:00
+	// 2. Flagged (Blocked) @ 11:00
+	// 3. Flagged ("") @ 12:00
+	// 4. Flagged (Blocked) @ 13:00
+
+	if len(events) != 4 {
+		t.Fatalf("Expected 4 events, got %d", len(events))
+	}
+
+	if events[0].EventType != Created || events[0].Flagged != "" {
+		t.Errorf("Expected Created event with empty flagged, got %v with '%s'", events[0].EventType, events[0].Flagged)
+	}
+
+	if events[1].EventType != Flagged || events[1].Flagged != "Impediment" {
+		t.Errorf("Expected first Flagged event to be Impediment, got %v with '%s'", events[1].EventType, events[1].Flagged)
+	}
+
+	if events[2].EventType != Flagged || events[2].Flagged != "" {
+		t.Errorf("Expected second Flagged event to be empty, got %v with '%s'", events[2].EventType, events[2].Flagged)
+	}
+
+	if events[3].EventType != Flagged || events[3].Flagged != "Impediment" {
+		t.Errorf("Expected third Flagged event to be Impediment, got %v with '%s'", events[3].EventType, events[3].Flagged)
+	}
+
+	// Verify Reconstruction
+	issue := ReconstructIssue(events, nil, time.Time{})
+	if issue.Flagged != "Impediment" {
+		t.Errorf("Expected reconstructed issue to be flagged 'Impediment', got '%s'", issue.Flagged)
+	}
+}
+
+func TestTransformIssue_MoveBoundaryWithFlagged(t *testing.T) {
+	dto := jira.IssueDTO{
+		Key: "IESFSCPL-153",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name    string "json:\"name\""
+				Subtask bool   "json:\"subtask\""
+			}{Name: "Story"},
+			Status: struct {
+				ID             string "json:\"id\""
+				Name           string "json:\"name\""
+				StatusCategory struct {
+					Key string "json:\"key\""
+				} "json:\"statusCategory\""
+			}{Name: "Closed", ID: "6"},
+			Created: "2023-02-01T22:41:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					// Arrival in IESFSCPL (Move)
+					Created: "2023-02-01T22:41:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Key",
+							FromString: "ITSCPL-3074",
+							ToString:   "IESFSCPL-153",
+						},
+						{
+							Field:      "Project",
+							FromString: "Compliance",
+							To:         "115133",
+							ToString:   "IES FS Compliance",
+						},
+					},
+				},
+				{
+					// Flagged set
+					Created: "2023-05-26T16:16:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Flagged",
+							FromString: "",
+							ToString:   "Impediment",
+						},
+					},
+				},
+				{
+					// Status Change (Open -> Closed) - THIS should be the arrival status
+					Created: "2023-06-15T17:51:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "Open",
+							From:       "1",
+							ToString:   "Closed",
+							To:         "6",
+						},
+						{
+							Field:      "resolution",
+							FromString: "",
+							ToString:   "Won't Do",
+						},
+					},
+				},
+				{
+					// Flagged cleared
+					Created: "2023-06-19T16:07:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "Flagged",
+							FromString: "Impediment",
+							ToString:   "",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	events := TransformIssue(dto)
+
+	// Expected 'Created' event to have ToStatus: "Open"
+	var createdEvent *IssueEvent
+	for i := range events {
+		if events[i].EventType == Created {
+			createdEvent = &events[i]
+		}
+	}
+
+	if createdEvent == nil {
+		t.Fatal("Created event not found")
+	}
+
+	if createdEvent.ToStatus != "Open" {
+		t.Errorf("Expected arrival status 'Open', got '%s'", createdEvent.ToStatus)
 	}
 }

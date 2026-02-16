@@ -341,14 +341,3 @@ func (s *EventStore) FindIssueInAllSources(issueKey string) (string, []IssueEven
 	}
 	return "", nil
 }
-
-func (e IssueEvent) identity() string {
-	return fmt.Sprintf("%s|%d|%s|%s|%s|%v",
-		e.IssueKey,
-		e.Timestamp,
-		e.EventType,
-		e.ToStatus,
-		e.Resolution,
-		e.IsUnresolved,
-	)
-}
