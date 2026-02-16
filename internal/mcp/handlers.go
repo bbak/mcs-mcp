@@ -181,16 +181,31 @@ func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []ji
 
 	return cycleTimes
 }
-func (s *Server) getQualityWarnings(issues []jira.Issue) string {
+func (s *Server) getQualityWarnings(issues []jira.Issue) []string {
+	var warnings []string
 	syntheticCount := 0
+	var active []jira.Issue
+
 	for _, issue := range issues {
 		if issue.HasSyntheticBirth {
 			syntheticCount++
 		}
+		if issue.ResolutionDate == nil {
+			active = append(active, issue)
+		}
 	}
 
 	if syntheticCount > 0 {
-		return fmt.Sprintf("DATA INTEGRITY WARNING: %d item(s) are missing their creation events. Cycle Times and Stability metrics for these items are based on the earliest recorded event, which likely understates their true age.", syntheticCount)
+		warnings = append(warnings, fmt.Sprintf("DATA INTEGRITY WARNING: %d item(s) are missing their creation events. Cycle Times and Stability metrics for these items are based on the earliest recorded event, which likely understates their true age.", syntheticCount))
 	}
-	return ""
+
+	// System Pressure Check (Stability Guardrail)
+	if len(active) > 0 {
+		pressure := stats.CalculateSystemPressure(active)
+		if pressure.PressureRatio >= 0.25 {
+			warnings = append(warnings, fmt.Sprintf("SYSTEM PRESSURE WARNING: %.0f%% of your current WIP is currently flagged as blocked. This high level of impediment makes historical throughput a potentially over-optimistic proxy for the future.", pressure.PressureRatio*100))
+		}
+	}
+
+	return warnings
 }

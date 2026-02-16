@@ -262,6 +262,38 @@ func GroupIssuesByBucket(issues []jira.Issue, cycleTimes []float64, window Analy
 	return result
 }
 
+// SystemPressureResult represents the current impediment stress on the system.
+type SystemPressureResult struct {
+	TotalWIP      int     `json:"total_wip"`
+	FlaggedCount  int     `json:"flagged_count"`
+	PressureRatio float64 `json:"pressure_ratio"` // Flagged / WIP
+}
+
+// CalculateSystemPressure quantifies the systemic impediment stress based on current WIP.
+func CalculateSystemPressure(activeIssues []jira.Issue) SystemPressureResult {
+	if len(activeIssues) == 0 {
+		return SystemPressureResult{}
+	}
+
+	flagged := 0
+	for _, iss := range activeIssues {
+		if iss.Flagged != "" {
+			flagged++
+		}
+	}
+
+	result := SystemPressureResult{
+		TotalWIP:     len(activeIssues),
+		FlaggedCount: flagged,
+	}
+
+	if result.TotalWIP > 0 {
+		result.PressureRatio = math.Round((float64(flagged)/float64(result.TotalWIP))*100) / 100
+	}
+
+	return result
+}
+
 func detectSignals(values []float64, avg, unpl, lnpl float64, keys []string) []Signal {
 	var signals []Signal
 

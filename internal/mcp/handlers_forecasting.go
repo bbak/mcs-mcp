@@ -181,8 +181,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			}
 		}
 
-		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
-			resObj.Warnings = append(resObj.Warnings, qReq)
+		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); len(qReq) > 0 {
+			resObj.Warnings = append(resObj.Warnings, qReq...)
 		}
 		return resObj, nil
 
@@ -329,8 +329,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
-		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
-			resObj.Warnings = append(resObj.Warnings, qReq)
+		if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); len(qReq) > 0 {
+			resObj.Warnings = append(resObj.Warnings, qReq...)
 		}
 		return resObj, nil
 
@@ -420,8 +420,8 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 
 	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
-	if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); qReq != "" {
-		resObj.Warnings = append(resObj.Warnings, qReq)
+	if qReq := s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)); len(qReq) > 0 {
+		resObj.Warnings = append(resObj.Warnings, qReq...)
 	}
 
 	return resObj, nil

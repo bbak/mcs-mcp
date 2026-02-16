@@ -154,6 +154,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **XmR Individual Chart**: Detects outliers (points above Natural Process Limits) and shifts (8 consecutive points on one side).
 - **Three-Way Tactical Audit**: Uses subgroup averages (weekly/monthly) to detect long-term strategic process drift.
 - **WIP Age Monitoring**: Compares current WIP against historical limits to provide early warnings of a "Clogged" system.
+- **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
 
 ---
 

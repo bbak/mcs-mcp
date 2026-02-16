@@ -187,3 +187,68 @@ func TestCalculateProcessStability(t *testing.T) {
 		t.Errorf("Expected stability index 2.0, got %v", index2)
 	}
 }
+
+func TestCalculateSystemPressure(t *testing.T) {
+	tests := []struct {
+		name      string
+		active    []jira.Issue
+		wantFlag  int
+		wantWIP   int
+		wantRatio float64
+	}{
+		{
+			name:      "Zero WIP",
+			active:    []jira.Issue{},
+			wantFlag:  0,
+			wantWIP:   0,
+			wantRatio: 0,
+		},
+		{
+			name: "No Blockers",
+			active: []jira.Issue{
+				{Key: "ISS-1"},
+				{Key: "ISS-2"},
+			},
+			wantFlag:  0,
+			wantWIP:   2,
+			wantRatio: 0,
+		},
+		{
+			name: "High Pressure (50%)",
+			active: []jira.Issue{
+				{Key: "ISS-1", Flagged: "Impediment"},
+				{Key: "ISS-2"},
+			},
+			wantFlag:  1,
+			wantWIP:   2,
+			wantRatio: 0.5,
+		},
+		{
+			name: "Moderate Pressure (25%)",
+			active: []jira.Issue{
+				{Key: "ISS-1", Flagged: "Impediment"},
+				{Key: "ISS-2"},
+				{Key: "ISS-3"},
+				{Key: "ISS-4"},
+			},
+			wantFlag:  1,
+			wantWIP:   4,
+			wantRatio: 0.25,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := CalculateSystemPressure(tt.active)
+			if res.FlaggedCount != tt.wantFlag {
+				t.Errorf("FlaggedCount = %d, want %d", res.FlaggedCount, tt.wantFlag)
+			}
+			if res.TotalWIP != tt.wantWIP {
+				t.Errorf("TotalWIP = %d, want %d", res.TotalWIP, tt.wantWIP)
+			}
+			if res.PressureRatio != tt.wantRatio {
+				t.Errorf("PressureRatio = %f, want %f", res.PressureRatio, tt.wantRatio)
+			}
+		})
+	}
+}
