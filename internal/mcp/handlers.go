@@ -5,6 +5,7 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 )
 
 func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
@@ -63,7 +64,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 
 func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
 	// Discover the backbone path order and return indexed weights
-	order := stats.DiscoverStatusOrder(issues)
+	order := discovery.DiscoverStatusOrder(issues)
 	weights := make(map[string]int)
 	for i, name := range order {
 		weights[name] = i + 1
@@ -78,7 +79,7 @@ func (s *Server) getInferredRange(projectKey string, boardID int, startStatus, e
 		return s.sliceRange(s.activeStatusOrder, startStatus, endStatus)
 	}
 
-	allStatuses := stats.DiscoverStatusOrder(issues)
+	allStatuses := discovery.DiscoverStatusOrder(issues)
 	if len(allStatuses) == 0 {
 		return []string{}
 	}
@@ -124,7 +125,7 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 
 	order := s.activeStatusOrder
 	if len(order) == 0 {
-		order = stats.DiscoverStatusOrder(issues)
+		order = discovery.DiscoverStatusOrder(issues)
 	}
 
 	for _, status := range order {

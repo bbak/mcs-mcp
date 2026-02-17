@@ -5,6 +5,7 @@ import (
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 	"sort"
 	"time"
 )
@@ -105,7 +106,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 			finishedMap[name] = true
 		}
 	}
-	globalCutoff := stats.CalculateDiscoveryCutoff(allIssues, finishedMap)
+	globalCutoff := discovery.CalculateDiscoveryCutoff(allIssues, finishedMap)
 
 	driftDate := time.Time{}
 	if evolution.Status == "migrating" {
@@ -278,10 +279,10 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 
 	for _, evts := range groups {
 
-		// For the purpose of "Finished Map" in ReconstructIssue,
+		// For the purpose of "Finished Map" in MapIssueFromEvents,
 		// we can probably assume the standard Reconstruct logic handles explicit resolution events.
 		// Passing empty map means it relies on explicit events, which is fine.
-		issue := eventlog.ReconstructIssue(evts, finishedMap, refDate)
+		issue := stats.MapIssueFromEvents(evts, finishedMap, refDate)
 
 		// Force Resolution Date to nil if it happened after refDate?
 		// (Already handled by event slicing, but explicit check is good)

@@ -1,11 +1,11 @@
-package eventlog
+package stats
 
 import (
 	"testing"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
-	"mcs-mcp/internal/stats"
 )
 
 func TestBuildWIPProjection_TimeTravel(t *testing.T) {
@@ -16,35 +16,35 @@ func TestBuildWIPProjection_TimeTravel(t *testing.T) {
 	t2 := now.AddDate(0, 0, -5)
 	t3 := now.AddDate(0, 0, -2) // Finished 2 days ago
 
-	events := []IssueEvent{
+	events := []eventlog.IssueEvent{
 		{
 			IssueKey:  "PROJ-1",
-			EventType: Created,
+			EventType: eventlog.Created,
 			ToStatus:  "Open",
 			Timestamp: t0.UnixMicro(),
 		},
 		{
 			IssueKey:  "PROJ-1",
-			EventType: Change,
+			EventType: eventlog.Change,
 			ToStatus:  "Dev",
 			Timestamp: t1.UnixMicro(),
 		},
 		{
 			IssueKey:  "PROJ-1",
-			EventType: Change,
+			EventType: eventlog.Change,
 			ToStatus:  "QA",
 			Timestamp: t2.UnixMicro(),
 		},
 		{
 			IssueKey:   "PROJ-1",
-			EventType:  Change,
+			EventType:  eventlog.Change,
 			ToStatus:   "Done",
 			Resolution: "Done",
 			Timestamp:  t3.UnixMicro(),
 		},
 	}
 
-	mappings := map[string]stats.StatusMetadata{
+	mappings := map[string]StatusMetadata{
 		"Open": {Tier: "Demand"},
 		"Dev":  {Tier: "Downstream"},
 		"QA":   {Tier: "Downstream"},
@@ -79,24 +79,24 @@ func TestBuildWIPProjection_TimeTravel(t *testing.T) {
 	}
 }
 
-func TestReconstructIssue_MoveHealing(t *testing.T) {
+func TestMapIssueFromEvents_MoveHealing(t *testing.T) {
 	// Scenario: Item created in OLD_PROJ (LegacyStatus), moved to NEW_PROJ (Open)
 	now := time.Now()
 	t0 := now.AddDate(0, 0, -10) // Original Birth
 	t2 := now.AddDate(0, 0, -2)  // Transition to 'In Progress'
 
 	// These events simulate what TRANSFORMER produces after healing
-	events := []IssueEvent{
+	events := []eventlog.IssueEvent{
 		{
 			IssueKey:  "NEW-1",
-			EventType: Created,
+			EventType: eventlog.Created,
 			ToStatus:  "Open", // Healed entry status
 			Timestamp: t0.UnixMicro(),
 			IsHealed:  true,
 		},
 		{
 			IssueKey:   "NEW-1",
-			EventType:  Change,
+			EventType:  eventlog.Change,
 			FromStatus: "Open",
 			ToStatus:   "In Progress",
 			Timestamp:  t2.UnixMicro(),
@@ -104,7 +104,7 @@ func TestReconstructIssue_MoveHealing(t *testing.T) {
 	}
 
 	finished := map[string]bool{"Done": true}
-	issue := ReconstructIssue(events, finished, now)
+	issue := MapIssueFromEvents(events, finished, now)
 
 	// Verification 1: Age should be 10 days (from T0), status residency should be split correctly
 	// T0 to T2 (8 days) in 'Open'
@@ -130,6 +130,7 @@ func TestReconstructIssue_MoveHealing(t *testing.T) {
 		t.Errorf("LegacyStatus should have been healed away")
 	}
 }
+
 func TestThroughputProjection_BoundaryResolved_Impact(t *testing.T) {
 	// Scenario: Item moved into project and resolved 1 day ago (T_move).
 	// But it was originally created 2 years ago (T_bio).
@@ -171,9 +172,9 @@ func TestThroughputProjection_BoundaryResolved_Impact(t *testing.T) {
 		},
 	}
 
-	events := TransformIssue(dto)
+	events := eventlog.TransformIssue(dto)
 
-	mappings := map[string]stats.StatusMetadata{
+	mappings := map[string]StatusMetadata{
 		"Done": {Tier: "Finished", Outcome: "delivered"},
 	}
 

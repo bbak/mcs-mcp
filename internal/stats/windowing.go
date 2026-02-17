@@ -108,6 +108,24 @@ func (w AnalysisWindow) Subdivide() []time.Time {
 	return buckets
 }
 
+// FindBucketIndex returns the index of the bucket containing t. Returns -1 if out of bounds.
+func (w AnalysisWindow) FindBucketIndex(t time.Time) int {
+	tNorm := SnapToStart(t, w.Bucket)
+	if tNorm.Before(w.Start) || tNorm.After(w.End) {
+		return -1
+	}
+
+	switch w.Bucket {
+	case "month":
+		return (tNorm.Year()-w.Start.Year())*12 + int(tNorm.Month()-w.Start.Month())
+	case "week":
+		// Use integer division on hours to avoid floating point issues
+		return int(tNorm.Sub(w.Start).Hours() / (24 * 7))
+	default: // day
+		return int(tNorm.Sub(w.Start).Hours() / 24)
+	}
+}
+
 // DayCount returns the number of calendar days in the window.
 func (w AnalysisWindow) DayCount() int {
 	return int(math.Ceil(w.End.Sub(w.Start).Hours() / 24.0))

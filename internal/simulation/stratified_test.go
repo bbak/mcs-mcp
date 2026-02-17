@@ -17,6 +17,8 @@ func TestAssessStratificationNeeds(t *testing.T) {
 			IssueType:      "Story",
 			Created:        resDate.AddDate(0, 0, -10),
 			ResolutionDate: &resDate,
+			Resolution:     "Fixed",
+			Status:         "Done",
 		}
 	}
 
@@ -33,6 +35,8 @@ func TestAssessStratificationNeeds(t *testing.T) {
 			IssueType:      "Story",
 			Created:        resDate.AddDate(0, 0, -10),
 			ResolutionDate: &resDate,
+			Resolution:     "Fixed",
+			Status:         "Done",
 		}
 	}
 	decisions = AssessStratificationNeeds(issues, nil, nil)
@@ -49,6 +53,8 @@ func TestAssessStratificationNeeds(t *testing.T) {
 			IssueType:      "Story",
 			Created:        resDate.AddDate(0, 0, -40),
 			ResolutionDate: &resDate,
+			Resolution:     "Fixed",
+			Status:         "Done",
 		})
 	}
 	// 20 Bugs taking 2 days
@@ -58,6 +64,8 @@ func TestAssessStratificationNeeds(t *testing.T) {
 			IssueType:      "Bug",
 			Created:        resDate.AddDate(0, 0, -2),
 			ResolutionDate: &resDate,
+			Resolution:     "Fixed",
+			Status:         "Done",
 		})
 	}
 

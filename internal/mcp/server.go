@@ -14,6 +14,7 @@ import (
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 
 	"github.com/rs/zerolog/log"
 )
@@ -544,7 +545,7 @@ func (s *Server) recalculateDiscoveryCutoff(sourceID string) {
 
 	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", time.Time{})
 	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	domainIssues, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	domainIssues, _, _, _ := stats.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
 
 	finishedMap := make(map[string]bool)
 	for name, meta := range s.activeMapping {
@@ -552,5 +553,5 @@ func (s *Server) recalculateDiscoveryCutoff(sourceID string) {
 			finishedMap[name] = true
 		}
 	}
-	s.activeDiscoveryCutoff = stats.CalculateDiscoveryCutoff(domainIssues, finishedMap)
+	s.activeDiscoveryCutoff = discovery.CalculateDiscoveryCutoff(domainIssues, finishedMap)
 }

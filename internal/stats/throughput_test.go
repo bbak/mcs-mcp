@@ -12,9 +12,9 @@ func TestGetStratifiedThroughput(t *testing.T) {
 	monday := SnapToStart(now, "week")
 
 	issues := []jira.Issue{
-		{Key: "S1", IssueType: "Story", ResolutionDate: &now},                                                               // This week
-		{Key: "B1", IssueType: "Bug", ResolutionDate: &now},                                                                 // This week
-		{Key: "S2", IssueType: "Story", ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, -2); return &tt }()}, // Last week (Saturday)
+		{Key: "S1", IssueType: "Story", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},                                                               // This week
+		{Key: "B1", IssueType: "Bug", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},                                                                 // This week
+		{Key: "S2", IssueType: "Story", ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, -2); return &tt }(), Resolution: "Fixed", Status: "Done"}, // Last week (Saturday)
 	}
 
 	mappings := map[string]StatusMetadata{
@@ -57,7 +57,7 @@ func TestGetStratifiedThroughput_DayBucket(t *testing.T) {
 	today := SnapToStart(now, "day")
 
 	issues := []jira.Issue{
-		{Key: "I1", IssueType: "Story", ResolutionDate: &now},
+		{Key: "I1", IssueType: "Story", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},
 	}
 
 	window := NewAnalysisWindow(today, now, "day", time.Time{})

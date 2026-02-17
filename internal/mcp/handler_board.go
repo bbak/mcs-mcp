@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 
 	"github.com/rs/zerolog/log"
 )
@@ -34,10 +34,10 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	first, last, total := eventlog.DiscoverDatasetBoundaries(events)
-	sample := eventlog.ProjectNeutralSample(events, 200)
+	first, last, total := stats.DiscoverDatasetBoundaries(events)
+	sample := stats.ProjectNeutralSample(events, 200)
 
-	summary := stats.AnalyzeProbe(sample, total, nil)
+	summary := discovery.AnalyzeProbe(sample, total)
 	summary.Whole.FirstEventAt = first
 	summary.Whole.LastEventAt = last
 

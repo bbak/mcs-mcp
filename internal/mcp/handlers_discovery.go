@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 
 	"github.com/rs/zerolog/log"
 )
@@ -33,18 +33,13 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
-	first, last, total := eventlog.DiscoverDatasetBoundaries(events)
+	first, last, total := stats.DiscoverDatasetBoundaries(events)
 
-	// 4. Project for Semantic Anchors (Accuracy preserved by using Delivered items)
-	var cutoff time.Time
-	if s.activeDiscoveryCutoff != nil {
-		cutoff = *s.activeDiscoveryCutoff
-	}
-	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	scopeEvents := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	delivered, _, _, _ := eventlog.ProjectScope(scopeEvents, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	issues := stats.ProjectNeutralSample(events, 200)
 
-	sample := stats.SelectDiscoverySample(delivered, 200)
+	discoveryResult := discovery.DiscoverWorkflow(events, issues, s.getResolutionMap(sourceID))
+
+	sample := discoveryResult.Sample
 
 	// Check if we have an active mapping from cache and NO force refresh
 	discoverySource := "NEWLY_PROPOSED"
@@ -76,7 +71,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 	if discoverySource == "LOADED_FROM_CACHE" {
 		mapping = s.activeMapping
 	} else {
-		mapping, recommendedCP = stats.ProposeSemantics(sample, persistence)
+		mapping, recommendedCP = discovery.ProposeSemantics(sample, persistence)
 	}
 
 	// Build a map of significant statuses for quick lookup
@@ -93,7 +88,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		finalMapping[name] = meta
 	}
 
-	rawOrder := stats.DiscoverStatusOrder(sample)
+	rawOrder := discovery.DiscoverStatusOrder(sample)
 	var discoveredOrder []string
 	if discoverySource == "LOADED_FROM_CACHE" && len(s.activeStatusOrder) > 0 {
 		discoveredOrder = s.activeStatusOrder
@@ -122,7 +117,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		})
 	}
 
-	summary := stats.AnalyzeProbe(sample, totalCount, s.getFinishedStatuses(sample, nil))
+	summary := discovery.AnalyzeProbe(sample, totalCount)
 	summary.Whole.FirstEventAt = first
 	summary.Whole.LastEventAt = last
 	if discoverySource == "LOADED_FROM_CACHE" && s.activeCommitmentPoint != "" {
@@ -130,8 +125,6 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 	} else {
 		summary.RecommendedCommitmentPoint = recommendedCP
 	}
-
-	// Summary no longer provides a heuristic cutoff; it's calculated on confirmation.
 
 	res := map[string]interface{}{
 		"source_id": sourceID,
