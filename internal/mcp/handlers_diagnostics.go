@@ -2,14 +2,11 @@ package mcp
 
 import (
 	"fmt"
-	"math" // Added for sorting operations
+	"math"
 	"time"
 
-	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-
-	"github.com/rs/zerolog/log"
 )
 
 func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (interface{}, error) {
@@ -30,28 +27,28 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -180), time.Now(), "day", cutoff)
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	finished, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	// Context for analysis includes historical completions, current WIP, and backlog for residency analysis
-	combined := append(finished, append(downstream, append(upstream, demand...)...)...)
-
-	if len(combined) == 0 {
+	issues := session.GetAllIssues()
+	if len(issues) == 0 {
 		return nil, fmt.Errorf("no historical data found to analyze status persistence")
 	}
 
-	persistence := stats.CalculateStatusPersistence(combined)
-	stratified := stats.CalculateStratifiedStatusPersistence(combined)
+	persistence := stats.CalculateStatusPersistence(issues)
+	persistence = stats.EnrichStatusPersistence(persistence, s.activeMapping)
+	stratified := stats.CalculateStratifiedStatusPersistence(issues)
+	tierSummary := stats.CalculateTierSummary(issues, s.activeMapping)
 
 	return map[string]interface{}{
 		"persistence":            persistence,
 		"stratified_persistence": stratified,
-		"_data_quality":          s.getQualityWarnings(combined),
+		"tier_summary":           tierSummary,
+		"_data_quality":          s.getQualityWarnings(issues),
 		"_guidance": []string{
 			"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
 			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 			"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
-			"Statuses with zero residency for many items might be bypassed in the actual process.",
+			"Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream).",
 		},
 	}, nil
 }
@@ -68,25 +65,24 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		return nil, err
 	}
 
-	// 2. Project on Demand
+	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	// handleGetAgingAnalysis doesn't currently take issueTypes as input, keeping as nil for now
-	finished, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finished, append(downstream, append(upstream, demand...)...)...))
+	all := session.GetAllIssues()
+	wip := session.GetWIP()
+	delivered := session.GetDelivered()
 
-	// Using all started issues (Downstream + Upstream) for Nave-aligned aging
-	activeIssues := append(downstream, upstream...)
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 
 	// Cycle times from history
-	cycleTimes := s.getCycleTimes(projectKey, boardID, finished, analysisCtx.CommitmentPoint, "", nil)
+	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 
-	aging := stats.CalculateInventoryAge(activeIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
+	aging := stats.CalculateInventoryAge(wip, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
 	// Apply tier filter if requested
 	if tierFilter != "All" && tierFilter != "" {
@@ -105,12 +101,11 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 
 	return map[string]interface{}{
 		"aging":         aging,
-		"_data_quality": s.getQualityWarnings(append(finished, append(downstream, append(upstream, demand...)...)...)),
+		"_data_quality": s.getQualityWarnings(all),
 		"_guidance": []string{
 			"Items in 'Demand' or 'Finished' tiers are usually excluded from WIP Age unless explicitly requested.",
 			"PercentileRelative helps identify which individual items are 'neglect' risks compared to historical performance.",
 			"AgeSinceCommitment reflects time since the LAST commitment (resets on backflow to Demand/Upstream).",
-			"Check 'cumulative_wip_days' or the Item Journey if you suspect Nave-alignment discrepancies due to backflows.",
 		},
 	}, nil
 }
@@ -130,30 +125,19 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	if windowWeeks <= 0 {
 		windowWeeks = 26
 	}
-	if bucket == "" {
-		bucket = "week"
-	}
 
-	// 2. Project on Demand
+	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	// Delivery Cadence uses a window of N weeks, grouping by bucket
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	finished, _, _, _ := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	var delivered []jira.Issue
-	if includeAbandoned {
-		delivered = finished
-	} else {
-		delivered = stats.FilterDelivered(finished, s.activeResolutions, s.activeMapping)
-	}
-
+	delivered := session.GetDelivered()
 	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions, s.activeMapping)
 
-	// Build bucket metadata using the window's subdivision
+	// Build bucket metadata
 	bucketMetadata := make([]map[string]string, 0)
 	buckets := window.Subdivide()
 	for i, bucketStart := range buckets {
@@ -191,27 +175,24 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 		return nil, err
 	}
 
-	// 2. Project on Demand
+	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	// Stability baseline uses 26 weeks by default
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -26*7), time.Now(), "week", cutoff)
-	// Fetch all events up to window end for accurate WIP count
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, window.End)
-	// handleGetProcessStability doesn't currently take issue_types as input in handleGetProcessStability call itself,
-	// but it should probably support it. For now, nil.
-	finishedAll, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
-	delivered := stats.FilterDelivered(finishedAll, s.activeResolutions, s.activeMapping)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finishedAll, append(downstream, append(upstream, demand...)...)...))
+	all := session.GetAllIssues()
+	wip := session.GetWIP()
+	delivered := session.GetDelivered()
 
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 
 	// Stratified Analysis
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
-	wipByType := s.calculateWIPAges(downstream, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
+	wipByType := s.calculateWIPAges(wip, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
 
 	issuesByType := make(map[string][]jira.Issue)
 	for _, iss := range delivered {
@@ -222,17 +203,16 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 		issuesByType[t] = append(issuesByType[t], iss)
 	}
 
-	stability := stats.CalculateProcessStability(delivered, cycleTimes, len(downstream), float64(window.ActiveDayCount()))
+	stability := stats.CalculateProcessStability(delivered, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
 	return map[string]interface{}{
 		"stability":     stability,
 		"stratified":    stratified,
-		"_data_quality": s.getQualityWarnings(append(finishedAll, append(downstream, append(upstream, demand...)...)...)),
+		"_data_quality": s.getQualityWarnings(all),
 		"_guidance": []string{
 			"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
 			"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
-			fmt.Sprintf("Baseline calculated from %d delivered items since %s.", len(delivered), window.Start.Format("2006-01-02")),
 		},
 	}, nil
 }
@@ -253,19 +233,16 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 		windowMonths = 12
 	}
 
-	// 2. Project on Demand
+	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	// Evolution uses monthly buckets by default for strategic audit
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, -windowMonths, 0), time.Now(), "month", cutoff)
-	// Fetch all events up to window end for accurate context
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, window.End)
-	finishedAll, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
-	delivered := stats.FilterDelivered(finishedAll, s.activeResolutions, s.activeMapping)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, append(finishedAll, append(downstream, append(upstream, demand...)...)...))
+	delivered := session.GetDelivered()
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, session.GetAllIssues())
 
 	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 	subgroups := stats.GroupIssuesByBucket(delivered, cycleTimes, window)
@@ -294,23 +271,22 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 		return nil, err
 	}
 
-	// 2. Project on Demand (Yield usually looks at full history to identify abandonment patterns)
+	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
-	finished, downstream, upstream, demand := eventlog.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	combined := append(finished, append(downstream, append(upstream, demand...)...)...)
-	yield := stats.CalculateProcessYield(combined, s.activeMapping, s.getResolutionMap(sourceID))
-	stratified := stats.CalculateStratifiedYield(combined, s.activeMapping, s.getResolutionMap(sourceID))
+	all := session.GetAllIssues()
+	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
+	stratified := stats.CalculateStratifiedYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 
 	return map[string]interface{}{
 		"yield":         yield,
 		"stratified":    stratified,
-		"_data_quality": s.getQualityWarnings(combined),
+		"_data_quality": s.getQualityWarnings(all),
 		"_guidance": []string{
 			"High 'Abandoned Upstream' often points to discovery/refinement issues.",
 			"High 'Abandoned Downstream' points to execution or commitment issues.",
@@ -325,20 +301,16 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	}
 	sourceID := getCombinedID(projectKey, boardID)
 
-	// 1. Try to find in existing memory log for THIS sourceID
+	// 1. Try to find in existing memory log
 	events := s.events.GetEventsForIssue(sourceID, issueKey)
 
 	// 2. Fallback to context-locked hydration if not found
 	if len(events) == 0 {
-		log.Info().Str("issue", issueKey).Str("source", sourceID).Msg("Issue not found in current source cache, performing context-locked hydration")
-		// Context-Locked JQL: Ensure the issue belongs to the board's filter
 		lockedJQL := fmt.Sprintf("(%s) AND key = %s", ctx.JQL, issueKey)
 		if err := s.events.Hydrate(sourceID, lockedJQL); err != nil {
 			return nil, err
 		}
 		events = s.events.GetEventsForIssue(sourceID, issueKey)
-	} else {
-		log.Info().Str("issue", issueKey).Str("source", sourceID).Msg("Issue found in existing source cache")
 	}
 
 	if len(events) == 0 {
@@ -353,8 +325,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		}
 	}
 
-	issue := eventlog.ReconstructIssue(events, finishedMap, time.Now())
-	residency, _ := stats.CalculateResidency(issue.Transitions, issue.Created, issue.ResolutionDate, issue.Status, finishedMap, "", time.Now())
+	issue := stats.MapIssueFromEvents(events, finishedMap, time.Now())
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -364,9 +335,9 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 
 	// Reconstruct path for display
 	if len(issue.Transitions) > 0 {
-		birthStatus := issue.Transitions[0].FromStatus
+		birthStatus := issue.BirthStatus
 		if birthStatus == "" {
-			birthStatus = issue.Transitions[0].ToStatus
+			birthStatus = issue.Transitions[0].FromStatus
 		}
 
 		firstDuration := issue.Transitions[0].Date.Sub(issue.Created).Seconds()
@@ -396,16 +367,15 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 			Days:   math.Round((finalDuration/86400.0)*10) / 10,
 		})
 	}
-	issue.StatusResidency = residency
 
 	residencyDays := make(map[string]float64)
-	for s, sec := range issue.StatusResidency {
-		residencyDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
+	for st, sec := range issue.StatusResidency {
+		residencyDays[st] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
 	blockedDays := make(map[string]float64)
-	for s, sec := range issue.BlockedResidency {
-		blockedDays[s] = math.Round((float64(sec)/86400.0)*10) / 10
+	for st, sec := range issue.BlockedResidency {
+		blockedDays[st] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
 	tierBreakdown := make(map[string]map[string]interface{})

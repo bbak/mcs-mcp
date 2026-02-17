@@ -25,7 +25,15 @@ func TestWalkForwardEngine_Execute_Scope(t *testing.T) {
 		events = append(events, eventlog.IssueEvent{
 			IssueKey: key, EventType: eventlog.Change, FromStatus: "Open", FromStatusID: "1", ToStatus: "Dev", ToStatusID: "2", Timestamp: ts.UnixMicro(),
 		})
-		doneTs := t0.AddDate(0, 0, i+1)
+		// Add variance: most take 1 day, some 0 (double on same day), some 2 (gap)
+		delta := 1
+		if i%5 == 0 {
+			delta = 0
+		} else if i%7 == 0 {
+			delta = 2
+		}
+
+		doneTs := t0.AddDate(0, 0, i+delta)
 		events = append(events, eventlog.IssueEvent{
 			IssueKey: key, EventType: eventlog.Change, FromStatus: "Dev", FromStatusID: "2", ToStatus: "Done", ToStatusID: "3", Resolution: "Fixed", Timestamp: doneTs.UnixMicro(),
 		})

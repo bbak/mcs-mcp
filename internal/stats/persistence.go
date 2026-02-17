@@ -6,24 +6,6 @@ import (
 	"sort"
 )
 
-// StatusPersistence provides historical residency analysis for a single status.
-type StatusPersistence struct {
-	StatusName     string  `json:"statusName"`
-	Share          float64 `json:"share"`          // % of sample that visited this status
-	Role           string  `json:"role,omitempty"` // Functional Role (active, queue, ignore)
-	Tier           string  `json:"tier,omitempty"` // Meta-Workflow Tier (Demand, Upstream, Downstream, Finished)
-	P50            float64 `json:"coin_toss"`      // P50
-	P70            float64 `json:"probable"`       // P70
-	P85            float64 `json:"likely"`         // P85
-	P95            float64 `json:"safe_bet"`       // P95
-	IQR            float64 `json:"iqr"`            // P75-P25
-	Inner80        float64 `json:"inner_80"`       // P90-P10
-	BlockedP50     float64 `json:"blocked_p50,omitempty"`
-	BlockedP85     float64 `json:"blocked_p85,omitempty"`
-	BlockedCount   int     `json:"blocked_count,omitempty"`
-	Interpretation string  `json:"interpretation,omitempty"`
-}
-
 // TierSummary aggregates persistence metrics by meta-workflow tier.
 type TierSummary struct {
 	Count          int      `json:"count"`

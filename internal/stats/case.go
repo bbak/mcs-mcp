@@ -64,3 +64,13 @@ func GetMetadataRobust(mappings map[string]StatusMetadata, statusID, statusName 
 func EqualFold(s1, s2 string) bool {
 	return strings.EqualFold(s1, s2)
 }
+
+// ExtractProjectKey extracts the project key portion from a Jira issue key (e.g., "PROJ" from "PROJ-123").
+func ExtractProjectKey(key string) string {
+	for i := 0; i < len(key); i++ {
+		if key[i] == '-' {
+			return key[:i]
+		}
+	}
+	return key
+}

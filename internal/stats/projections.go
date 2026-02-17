@@ -1,8 +1,8 @@
-package eventlog
+package stats
 
 import (
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
-	"mcs-mcp/internal/stats"
 	"sort"
 	"strings"
 	"time"
@@ -14,13 +14,13 @@ import (
 // 2. Downstream: Items in active execution tiers at the window's END point.
 // 3. Upstream: Items in refinement or analysis tiers at the window's END point.
 // 4. Demand: Items existing in the initial entry tier at the window's END point.
-func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPoint string, mappings map[string]stats.StatusMetadata, resolutions map[string]string, issueTypes []string) ([]jira.Issue, []jira.Issue, []jira.Issue, []jira.Issue) {
+func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmentPoint string, mappings map[string]StatusMetadata, resolutions map[string]string, issueTypes []string) ([]jira.Issue, []jira.Issue, []jira.Issue, []jira.Issue) {
 	typeMap := make(map[string]bool)
 	for _, t := range issueTypes {
 		typeMap[t] = true
 	}
 
-	grouped := make(map[string][]IssueEvent)
+	grouped := make(map[string][]eventlog.IssueEvent)
 	for _, e := range events {
 		if !window.End.IsZero() && e.Timestamp > window.End.UnixMicro() {
 			continue
@@ -44,7 +44,7 @@ func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPo
 	var demand []jira.Issue
 
 	for _, issueEvents := range grouped {
-		issue := ReconstructIssue(issueEvents, finishedMap, window.End)
+		issue := MapIssueFromEvents(issueEvents, finishedMap, window.End)
 		if issue.IsSubtask {
 			continue
 		}
@@ -56,7 +56,7 @@ func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPo
 		if issue.ResolutionDate != nil {
 			isResolved = true
 			resDate = *issue.ResolutionDate
-		} else if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+		} else if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
 			isResolved = true
 			resDate = issue.Updated
 		}
@@ -69,7 +69,7 @@ func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPo
 		}
 
 		// 2. Classify by Tier at the end of the window
-		if m, ok := stats.GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
 			switch m.Tier {
 			case "Downstream":
 				downstream = append(downstream, issue)
@@ -112,7 +112,7 @@ func ProjectScope(events []IssueEvent, window stats.AnalysisWindow, commitmentPo
 
 // DiscoverDatasetBoundaries performs a lightweight scan of the event log to find
 // temporal boundaries and the total number of unique items.
-func DiscoverDatasetBoundaries(events []IssueEvent) (first, last time.Time, total int) {
+func DiscoverDatasetBoundaries(events []eventlog.IssueEvent) (first, last time.Time, total int) {
 	uniqueKeys := make(map[string]bool)
 	var minTS, maxTS int64
 
@@ -137,9 +137,9 @@ func DiscoverDatasetBoundaries(events []IssueEvent) (first, last time.Time, tota
 
 // ProjectNeutralSample selects a recent sample of work items from the event log
 // and reconstructs them without applying tier-based filtering.
-func ProjectNeutralSample(events []IssueEvent, targetSize int) []jira.Issue {
+func ProjectNeutralSample(events []eventlog.IssueEvent, targetSize int) []jira.Issue {
 	// 1. Group events by key
-	grouped := make(map[string][]IssueEvent)
+	grouped := make(map[string][]eventlog.IssueEvent)
 	latestTS := make(map[string]int64)
 	for _, e := range events {
 		grouped[e.IssueKey] = append(grouped[e.IssueKey], e)
@@ -172,7 +172,7 @@ func ProjectNeutralSample(events []IssueEvent, targetSize int) []jira.Issue {
 		key := sortedKeys[i].key
 		issueEvents := grouped[key]
 		// Reconstruct without mappings or tier filters
-		issue := ReconstructIssue(issueEvents, nil, time.Time{})
+		issue := MapIssueFromEvents(issueEvents, nil, time.Time{})
 		if !issue.IsSubtask {
 			sample = append(sample, issue)
 		}
@@ -191,7 +191,7 @@ type WIPItem struct {
 }
 
 // BuildWIPProjection identifies active items based on a commitment point and current mappings.
-func BuildWIPProjection(events []IssueEvent, commitmentPoint string, mappings map[string]stats.StatusMetadata, referenceDate time.Time) []WIPItem {
+func BuildWIPProjection(events []eventlog.IssueEvent, commitmentPoint string, mappings map[string]StatusMetadata, referenceDate time.Time) []WIPItem {
 	type state struct {
 		key            string
 		issueType      string
@@ -265,7 +265,7 @@ type ThroughputBucket struct {
 }
 
 // BuildThroughputProjection aggregates resolution events into daily counts.
-func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.StatusMetadata) []ThroughputBucket {
+func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string]StatusMetadata) []ThroughputBucket {
 	counts := make(map[string]int)
 
 	// Track the state of each issue to detect the moment it becomes 'delivered'
@@ -285,10 +285,7 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 		nowDelivered := false
 
 		// Signal-Aware detection
-		// We ignore 'Created' events for delivery because they represent the arrival of the item
-		// in the project, not the resolution itself. Subsequent resolution events or terminal
-		// status changes will trigger the delivery count.
-		if e.EventType != Created {
+		if e.EventType != eventlog.Created {
 			if e.Resolution != "" {
 				nowDelivered = true
 			} else if e.ToStatus != "" {
@@ -322,9 +319,9 @@ func BuildThroughputProjection(events []IssueEvent, mappings map[string]stats.St
 	return result
 }
 
-// ReconstructIssue builds a Domain Issue from a chronological stream of events.
+// MapIssueFromEvents builds a Domain Issue from a chronological stream of events.
 // If referenceDate is non-zero, it is used as the "Now" for open items.
-func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, referenceDate time.Time) jira.Issue {
+func MapIssueFromEvents(events []eventlog.IssueEvent, finishedStatuses map[string]bool, referenceDate time.Time) jira.Issue {
 	if len(events) == 0 {
 		return jira.Issue{}
 	}
@@ -337,15 +334,15 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 		Created:           time.UnixMicro(first.Timestamp), // Defensive default in case birth event is missing
 		HasSyntheticBirth: true,                            // Assume synthetic until proven otherwise
 	}
-	issue.ProjectKey = stats.ExtractProjectKey(first.IssueKey)
+	issue.ProjectKey = ExtractProjectKey(first.IssueKey)
 
 	// simplified loop: events are now packed atomic change-sets
 	for _, e := range events {
 		issue.Updated = time.UnixMicro(e.Timestamp)
 
 		// Signal-Aware application
-		if e.EventType == Created || e.ToStatus != "" {
-			if e.EventType == Created {
+		if e.EventType == eventlog.Created || e.ToStatus != "" {
+			if e.EventType == eventlog.Created {
 				issue.Created = time.UnixMicro(e.Timestamp)
 				issue.HasSyntheticBirth = false // We have a real birth event!
 				issue.BirthStatus = e.ToStatus
@@ -372,21 +369,19 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 			issue.Resolution = ""
 		}
 
-		if e.EventType == Flagged {
+		if e.EventType == eventlog.Flagged {
 			issue.Flagged = e.Flagged
 		}
 
-		if e.EventType == Created {
+		if e.EventType == eventlog.Created {
 			issue.Flagged = e.Flagged
 		}
 
-		if e.EventType == Created && e.IsHealed {
+		if e.EventType == eventlog.Created && e.IsHealed {
 			issue.IsMoved = true
 		}
 
 		// Final evaluation after applying all signals in this event
-		// Guard: If we are in a status known for sure NOT to be finished, implicitly clear resolution
-		// UNLESS this same event just provided a Resolution.
 		if len(finishedStatuses) > 0 && e.Resolution == "" {
 			isFin := finishedStatuses[issue.Status] || (issue.StatusID != "" && finishedStatuses[issue.StatusID])
 			if !isFin {
@@ -404,14 +399,12 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 				issue.ResolutionDate = nil
 				issue.Resolution = ""
 			} else if issue.ResolutionDate == nil {
-				// Synthetic Fallback: If in a finished status but Jira gave no resolution date,
-				// use the timestamp of the first transition into this current "finished streak".
+				// Synthetic Fallback
 				var streakStart int64
 				for i := len(events) - 1; i >= 0; i-- {
 					evt := events[i]
 					isPreviousFin := finishedStatuses[evt.ToStatus] || (evt.ToStatusID != "" && finishedStatuses[evt.ToStatusID])
 					if !isPreviousFin {
-						// Case-insensitive check for streak search
 						lowerS := strings.ToLower(evt.ToStatus)
 						for name, ok := range finishedStatuses {
 							if ok && strings.ToLower(name) == lowerS {
@@ -440,21 +433,21 @@ func ReconstructIssue(events []IssueEvent, finishedStatuses map[string]bool, ref
 }
 
 // CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
-func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
+func CalculateResidencyFromEvents(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
 	var transitions []jira.StatusTransition
 
 	// Track the very first "From" status if possible for the birth duration
 	var initialStatus string
 
 	for _, e := range events {
-		if e.EventType == Created || e.ToStatus != "" {
-			if initialStatus == "" && e.EventType == Created {
+		if e.EventType == eventlog.Created || e.ToStatus != "" {
+			if initialStatus == "" && e.EventType == eventlog.Created {
 				initialStatus = e.ToStatus
 			} else if initialStatus == "" && e.ToStatus != "" {
 				initialStatus = e.FromStatus
 			}
 
-			if e.ToStatus != "" && e.EventType != Created {
+			if e.ToStatus != "" && e.EventType != eventlog.Created {
 				transitions = append(transitions, jira.StatusTransition{
 					FromStatus:   e.FromStatus,
 					FromStatusID: e.FromStatusID,
@@ -466,56 +459,85 @@ func CalculateResidencyFromEvents(events []IssueEvent, created time.Time, resolv
 		}
 	}
 
-	residency, segments := stats.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
+	residency, segments := jira.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
 
 	// Friction Mapping: Extract blocked intervals and overlay them
 	blockedIntervals := ExtractBlockedIntervals(events, created, resolved, referenceDate)
-	blockedResidency := stats.CalculateBlockedResidency(segments, blockedIntervals)
+	blockedResidency := CalculateBlockedResidency(segments, blockedIntervals)
 
 	return residency, blockedResidency
 }
 
 // ExtractBlockedIntervals identifies periods where an item was flagged as impeded.
-func ExtractBlockedIntervals(events []IssueEvent, created time.Time, resolved *time.Time, referenceDate time.Time) []stats.Interval {
-	var intervals []stats.Interval
+func ExtractBlockedIntervals(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, referenceDate time.Time) []Interval {
+	var intervals []Interval
 	var currentStart *time.Time
 
-	now := time.Now()
-	if !referenceDate.IsZero() {
-		now = referenceDate
-	}
-
 	for _, e := range events {
-		ts := time.UnixMicro(e.Timestamp)
+		if e.Timestamp > referenceDate.UnixMicro() {
+			break
+		}
+		if resolved != nil && e.Timestamp > resolved.UnixMicro() {
+			break
+		}
 
-		// Initial state if provided in Created event or first seen in a Flagged event
-		if e.Flagged != "" {
-			if currentStart == nil {
+		if e.EventType == eventlog.Flagged {
+			if e.Flagged != "" && currentStart == nil {
+				ts := time.UnixMicro(e.Timestamp)
 				currentStart = &ts
-			}
-		} else if e.EventType == Flagged || e.EventType == Created {
-			// Explicit unflagging or Created event with no flag
-			if currentStart != nil {
-				intervals = append(intervals, stats.Interval{
+			} else if e.Flagged == "" && currentStart != nil {
+				intervals = append(intervals, Interval{
 					Start: *currentStart,
-					End:   ts,
+					End:   time.UnixMicro(e.Timestamp),
 				})
 				currentStart = nil
 			}
 		}
 	}
 
-	// Tail handling: if currently flagged, close the interval at resolution or now
 	if currentStart != nil {
-		finalDate := now
+		end := referenceDate
 		if resolved != nil {
-			finalDate = *resolved
+			end = *resolved
 		}
-		intervals = append(intervals, stats.Interval{
+		intervals = append(intervals, Interval{
 			Start: *currentStart,
-			End:   finalDate,
+			End:   end,
 		})
 	}
 
 	return intervals
+}
+
+// GetStratifiedThroughput aggregates resolved items into time buckets, both pooled and stratified by type.
+func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutions map[string]string, mappings map[string]StatusMetadata) StratifiedThroughput {
+	buckets := window.Subdivide()
+	pooled := make([]int, len(buckets))
+	byType := make(map[string][]int)
+
+	for _, issue := range issues {
+		if !IsDelivered(issue, resolutions, mappings) {
+			continue
+		}
+
+		if issue.ResolutionDate == nil {
+			continue
+		}
+
+		idx := window.FindBucketIndex(*issue.ResolutionDate)
+		if idx < 0 || idx >= len(buckets) {
+			continue
+		}
+
+		pooled[idx]++
+		if _, ok := byType[issue.IssueType]; !ok {
+			byType[issue.IssueType] = make([]int, len(buckets))
+		}
+		byType[issue.IssueType][idx]++
+	}
+
+	return StratifiedThroughput{
+		Pooled: pooled,
+		ByType: byType,
+	}
 }

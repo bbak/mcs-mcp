@@ -12,7 +12,7 @@ func TestCalculateBlockedResidency(t *testing.T) {
 	// Status Segments:
 	// S1: [0, 10h]
 	// S2: [10h, 20h]
-	segments := []StatusSegment{
+	segments := []jira.StatusSegment{
 		{Status: "S1", Start: now, End: now.Add(10 * time.Hour)},
 		{Status: "S2", Start: now.Add(10 * time.Hour), End: now.Add(20 * time.Hour)},
 	}
@@ -41,7 +41,7 @@ func TestCalculateBlockedResidency(t *testing.T) {
 func TestCalculateBlockedResidency_EdgeCases(t *testing.T) {
 	now := time.Now()
 
-	segments := []StatusSegment{
+	segments := []jira.StatusSegment{
 		{Status: "S1", Start: now, End: now.Add(10 * time.Hour)},
 	}
 

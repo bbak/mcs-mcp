@@ -1,8 +1,10 @@
-package stats
+package stats_test
 
 import (
 	"fmt"
 	"mcs-mcp/internal/jira"
+	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/stats/discovery"
 	"reflect"
 	"strings"
 	"testing"
@@ -24,7 +26,7 @@ func TestCalculateStatusPersistence(t *testing.T) {
 		},
 	}
 
-	results := CalculateStatusPersistence(issues)
+	results := stats.CalculateStatusPersistence(issues)
 
 	// We expect statuses: "Created", "In Progress", "Done"
 	// "Created" duration: 10 - 8 = 2 days
@@ -52,15 +54,15 @@ func TestCalculateStatusPersistence(t *testing.T) {
 }
 
 func TestEnrichStatusPersistence(t *testing.T) {
-	results := []StatusPersistence{
+	results := []stats.StatusPersistence{
 		{StatusName: "Open"},
 		{StatusName: "In Dev"},
 	}
-	mappings := map[string]StatusMetadata{
+	mappings := map[string]stats.StatusMetadata{
 		"Open": {Tier: "Demand", Role: "active"},
 	}
 
-	enriched := EnrichStatusPersistence(results, mappings)
+	enriched := stats.EnrichStatusPersistence(results, mappings)
 
 	for _, r := range enriched {
 		if r.StatusName == "Open" {
@@ -93,14 +95,14 @@ func TestSumRangeDuration(t *testing.T) {
 	}
 
 	rangeStatuses := []string{"In Dev", "Testing"}
-	duration := SumRangeDuration(issue, rangeStatuses)
+	duration := stats.SumRangeDuration(issue, rangeStatuses)
 
 	if duration != 8.5 {
 		t.Errorf("Expected duration 8.5, got %f", duration)
 	}
 
 	// Non-existent status should be ignored
-	duration = SumRangeDuration(issue, []string{"In Dev", "Blocked"})
+	duration = stats.SumRangeDuration(issue, []string{"In Dev", "Blocked"})
 	if duration != 5.5 {
 		t.Errorf("Expected duration 5.5, got %f", duration)
 	}
@@ -117,11 +119,11 @@ func TestCalculateStatusAging(t *testing.T) {
 		},
 	}
 
-	persistence := []StatusPersistence{
+	persistence := []stats.StatusPersistence{
 		{StatusName: "Development", P50: 1.0, P85: 5.0},
 	}
 
-	results := CalculateStatusAging(wipIssues, persistence)
+	results := stats.CalculateStatusAging(wipIssues, persistence)
 
 	if len(results) != 1 {
 		t.Fatalf("Expected 1 result, got %d", len(results))
@@ -161,12 +163,12 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 		"In Dev":     3, // Commitment
 	}
 	history := []float64{2.0, 5.0, 10.0}
-	mappings := map[string]StatusMetadata{
+	mappings := map[string]stats.StatusMetadata{
 		"In Dev": {Tier: "Downstream", Role: "active"},
 	}
 
 	// Test WIP Age
-	results := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "wip")
+	results := stats.CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "wip")
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result in WIP mode, got %d", len(results))
@@ -183,7 +185,7 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	}
 
 	// Test Total Age
-	resultsTotal := CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "total")
+	resultsTotal := stats.CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "total")
 	for _, r := range resultsTotal {
 		if r.Key == "DEM-1" {
 			if r.TotalAgeSinceCreation < 9.9 { // ~10 days
@@ -208,7 +210,7 @@ func TestProposeSemantics(t *testing.T) {
 		},
 	}
 
-	persistence := []StatusPersistence{
+	persistence := []stats.StatusPersistence{
 		{StatusName: "Backlog", P50: 10.0},
 		{StatusName: "Refinement", P50: 2.0},
 		{StatusName: "Ready for Dev", P50: 1.0},
@@ -229,7 +231,7 @@ func TestProposeSemantics(t *testing.T) {
 			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", ToStatus: "Done"}},
 		})
 	}
-	mapping, commitmentPoint := ProposeSemantics(issues, persistence)
+	mapping, commitmentPoint := discovery.ProposeSemantics(issues, persistence)
 
 	// Verify "Backlog" is Demand (detected as first entry point)
 	if mapping["Backlog"].Tier != "Demand" {
@@ -282,7 +284,7 @@ func TestDiscoverStatusOrder_PathBased(t *testing.T) {
 		},
 	}
 
-	order := DiscoverStatusOrder(issues)
+	order := discovery.DiscoverStatusOrder(issues)
 	expected := []string{"To Do", "In Progress", "Done"}
 
 	if !reflect.DeepEqual(order, expected) {
@@ -318,7 +320,7 @@ func TestDiscoverStatusOrder_Shortcuts(t *testing.T) {
 		},
 	}
 
-	order := DiscoverStatusOrder(issues)
+	order := discovery.DiscoverStatusOrder(issues)
 	// Even though To Do -> Development is more frequent than To Do -> Analysis,
 	// Analysis globally precedes Development (it never happens after it).
 	// So Analysis should be between To Do and Development.
@@ -366,7 +368,7 @@ func TestDiscoverStatusOrder_ComplexPath_Scenario(t *testing.T) {
 		},
 	}
 
-	order := DiscoverStatusOrder(issues)
+	order := discovery.DiscoverStatusOrder(issues)
 
 	// Check specific critical orderings
 	indexOf := func(s string) int {
@@ -418,7 +420,7 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{Key: "M-4", Status: "developing", StatusCategory: "indeterminate", BirthStatus: "developing"},
 	}
 
-	persistence := []StatusPersistence{
+	persistence := []stats.StatusPersistence{
 		{StatusName: "Open"},
 		{StatusName: "refining"},
 		{StatusName: "awaiting development"},
@@ -426,8 +428,8 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{StatusName: "Done"},
 	}
 
-	proposal, _ := ProposeSemantics(issues, persistence)
-	order := DiscoverStatusOrder(issues)
+	proposal, _ := discovery.ProposeSemantics(issues, persistence)
+	order := discovery.DiscoverStatusOrder(issues)
 
 	// Verify Tiers
 	if proposal["Open"].Tier != "Demand" {
@@ -486,7 +488,7 @@ func TestDiscoverStatusOrder_ShortcutAvoidance(t *testing.T) {
 		})
 	}
 
-	order := DiscoverStatusOrder(issues)
+	order := discovery.DiscoverStatusOrder(issues)
 
 	// We expect Refining -> Developing -> Done (orphaned appended last)
 	if len(order) < 2 {
@@ -528,12 +530,12 @@ func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
 		})
 	}
 
-	persistence := []StatusPersistence{
+	persistence := []stats.StatusPersistence{
 		{StatusName: "UAT"},
 		{StatusName: "Prod"},
 	}
 
-	proposal, _ := ProposeSemantics(issues, persistence)
+	proposal, _ := discovery.ProposeSemantics(issues, persistence)
 
 	if proposal["UAT"].Tier == "Finished" {
 		t.Errorf("UAT should be Downstream (10%% density), not Finished")
@@ -577,7 +579,7 @@ func TestSelectDiscoverySample_Filtering(t *testing.T) {
 
 	// target 200. Since we have 50 in 1y (which is < 100), we should expand to 3y.
 	// 2y is within 3y. Ancient (5y) should be completely filtered out.
-	sample := SelectDiscoverySample(issues, 200)
+	sample := discovery.SelectDiscoverySample(issues, 200)
 
 	if len(sample) != 150 { // Should only have Recent (50) + Medium (100)
 		t.Errorf("Expected 150 items, got %d", len(sample))
@@ -589,6 +591,7 @@ func TestSelectDiscoverySample_Filtering(t *testing.T) {
 		}
 	}
 }
+
 func TestAnalyzeProbe_ResolutionDensity(t *testing.T) {
 	now := time.Now()
 	issues := []jira.Issue{
@@ -597,7 +600,7 @@ func TestAnalyzeProbe_ResolutionDensity(t *testing.T) {
 		{Key: "I-3"}, // Not resolved
 	}
 
-	summary := AnalyzeProbe(issues, 10, nil)
+	summary := discovery.AnalyzeProbe(issues, 10)
 
 	if summary.Sample.ResolutionDensity != 0.67 {
 		t.Errorf("Expected resolution density 0.67, got %f", summary.Sample.ResolutionDensity)
@@ -620,12 +623,12 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		})
 	}
 
-	persistence := []StatusPersistence{
+	persistence := []stats.StatusPersistence{
 		{StatusName: "Done"},
 		{StatusName: "Cancelled"},
 		{StatusName: "Rejected"},
 	}
-	mapping, _ := ProposeSemantics(issues, persistence)
+	mapping, _ := discovery.ProposeSemantics(issues, persistence)
 
 	// Done -> Delivered (Default or Keyword)
 	if mapping["Done"].Outcome != "delivered" {
@@ -636,6 +639,7 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		t.Errorf("Expected Cancelled -> abandoned, got %s", mapping["Cancelled"].Outcome)
 	}
 }
+
 func TestCalculateDiscoveryCutoff(t *testing.T) {
 	now := time.Now()
 	earliest := now.AddDate(0, 0, -100)
@@ -651,7 +655,7 @@ func TestCalculateDiscoveryCutoff(t *testing.T) {
 	}
 
 	isFinished := map[string]bool{"Done": true}
-	cutoff := CalculateDiscoveryCutoff(issues, isFinished)
+	cutoff := discovery.CalculateDiscoveryCutoff(issues, isFinished)
 
 	if cutoff == nil {
 		t.Fatal("Expected non-nil cutoff")
@@ -664,7 +668,7 @@ func TestCalculateDiscoveryCutoff(t *testing.T) {
 
 	// Test with fewer than 5 deliveries
 	smallIssues := issues[:3]
-	if nilCutoff := CalculateDiscoveryCutoff(smallIssues, isFinished); nilCutoff != nil {
+	if nilCutoff := discovery.CalculateDiscoveryCutoff(smallIssues, isFinished); nilCutoff != nil {
 		t.Errorf("Expected nil cutoff for sparse deliveries, got %v", *nilCutoff)
 	}
 }
@@ -680,7 +684,7 @@ func TestFilterIssuesByResolutionWindow_WithCutoff(t *testing.T) {
 		{Key: "I-3", ResolutionDate: func() *time.Time { tt := now.AddDate(0, 0, -25); return &tt }()}, // Drop (before window)
 	}
 
-	filtered := FilterIssuesByResolutionWindow(issues, windowDays, cutoff)
+	filtered := stats.FilterIssuesByResolutionWindow(issues, windowDays, cutoff)
 
 	if len(filtered) != 1 {
 		t.Errorf("Expected 1 filtered issue, got %d", len(filtered))

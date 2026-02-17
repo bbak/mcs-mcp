@@ -2,10 +2,42 @@ package stats
 
 import (
 	"mcs-mcp/internal/jira"
-	"sort"
-	"strings"
 	"time"
 )
+
+// FilterDelivered returns only items that have a 'delivered' outcome.
+func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) []jira.Issue {
+	var delivered []jira.Issue
+	for _, issue := range issues {
+		if IsDelivered(issue, resolutions, mappings) {
+			delivered = append(delivered, issue)
+		}
+	}
+	return delivered
+}
+
+// IsDelivered returns true if the issue has a 'delivered' outcome.
+func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) bool {
+	// 1. Primary Signal: Jira Resolution
+	if issue.Resolution != "" {
+		if outcome, ok := resolutions[issue.Resolution]; ok {
+			return outcome == "delivered"
+		}
+		// Hardcoded fallbacks if map is incomplete
+		if issue.Resolution == "Fixed" || issue.Resolution == "Done" || issue.Resolution == "Complete" {
+			return true
+		}
+	}
+
+	// 2. Secondary Signal: Status Metadata
+	if issue.ResolutionDate != nil {
+		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+			return m.Outcome == "delivered"
+		}
+	}
+
+	return false
+}
 
 // Dataset binds a SourceContext with its fetched and processed issues.
 type Dataset struct {
@@ -18,199 +50,6 @@ type Dataset struct {
 type Interval struct {
 	Start time.Time
 	End   time.Time
-}
-
-// StatusSegment represents a contiguous period in a specific status.
-type StatusSegment struct {
-	Status string
-	Start  time.Time
-	End    time.Time
-}
-
-// MapIssue transforms a Jira DTO into a Domain Issue and calculates residency.
-func MapIssue(item jira.IssueDTO, finishedStatuses map[string]bool) jira.Issue {
-	issue := jira.Issue{
-		Key:             item.Key,
-		IssueType:       item.Fields.IssueType.Name,
-		Status:          item.Fields.Status.Name,
-		StatusCategory:  item.Fields.Status.StatusCategory.Key,
-		Resolution:      item.Fields.Resolution.Name,
-		StatusResidency: make(map[string]int64),
-		IsSubtask:       item.Fields.IssueType.Subtask,
-	}
-
-	issue.ProjectKey = ExtractProjectKey(item.Key)
-
-	if t, err := jira.ParseTime(item.Fields.Created); err == nil {
-		issue.Created = t
-	}
-
-	if item.Fields.ResolutionDate != "" {
-		if t, err := jira.ParseTime(item.Fields.ResolutionDate); err == nil {
-			issue.ResolutionDate = &t
-		}
-	}
-
-	if t, err := jira.ParseTime(item.Fields.Updated); err == nil {
-		issue.Updated = t
-	}
-
-	if item.Changelog != nil {
-		issue.Transitions, issue.StatusResidency, issue.IsMoved = ProcessChangelog(item.Changelog, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses)
-	}
-
-	// Dynamic Fallback: if in a finished status but no resolution date provided by Jira
-	if issue.ResolutionDate == nil && finishedStatuses != nil && finishedStatuses[issue.Status] {
-		issue.ResolutionDate = &issue.Updated
-	}
-
-	return issue
-}
-
-// ExtractProjectKey gets the prefix from a Jira key.
-func ExtractProjectKey(key string) string {
-	for i := 0; i < len(key); i++ {
-		if key[i] == '-' {
-			return key[:i]
-		}
-	}
-	return ""
-}
-
-// ProcessChangelog calculates residency times and transitions from a Jira changelog.
-func ProcessChangelog(changelog *jira.ChangelogDTO, created time.Time, resolved *time.Time, currentStatus string, finishedStatuses map[string]bool) ([]jira.StatusTransition, map[string]int64, bool) {
-	type fullTransition struct {
-		From string
-		To   string
-		Date time.Time
-	}
-	var allTrans []fullTransition
-	var transitions []jira.StatusTransition
-
-	var lastMoveDate *time.Time
-	var entryStatus string
-
-	// Pass 1: Find context
-	for _, h := range changelog.Histories {
-		hDate, dateErr := jira.ParseTime(h.Created)
-		if dateErr != nil {
-			continue
-		}
-
-		isMove := false
-		var statusChange *jira.ItemDTO
-		for _, itm := range h.Items {
-			if itm.Field == "Key" || itm.Field == "project" {
-				isMove = true
-			}
-			if itm.Field == "status" {
-				statusChange = &itm
-			}
-		}
-
-		if isMove {
-			lastMoveDate = &hDate
-			if statusChange != nil {
-				entryStatus = statusChange.ToString
-			}
-		} else if lastMoveDate != nil && entryStatus == "" && statusChange != nil {
-			entryStatus = statusChange.FromString
-		}
-	}
-
-	// Pass 2: Process
-	for _, h := range changelog.Histories {
-		hDate, dateErr := jira.ParseTime(h.Created)
-		if dateErr != nil {
-			continue
-		}
-
-		if lastMoveDate != nil && hDate.Before(*lastMoveDate) {
-			continue
-		}
-
-		for _, itm := range h.Items {
-			if itm.Field == "status" {
-				allTrans = append(allTrans, fullTransition{
-					From: itm.FromString,
-					To:   itm.ToString,
-					Date: hDate,
-				})
-
-				transitions = append(transitions, jira.StatusTransition{
-					FromStatus: itm.FromString,
-					ToStatus:   itm.ToString,
-					Date:       hDate,
-				})
-			}
-		}
-	}
-
-	sort.Slice(transitions, func(a, b int) bool {
-		return transitions[a].Date.Before(transitions[b].Date)
-	})
-
-	residency := make(map[string]int64)
-	if len(allTrans) > 0 {
-		initialStatus := entryStatus
-		if initialStatus == "" {
-			initialStatus = allTrans[0].From
-			if initialStatus == "" {
-				initialStatus = allTrans[0].To
-			}
-		}
-
-		anchorDate := created
-		// If moved, the 'Synthetic Birth' happens at 'created' but uses 'initialStatus'
-		// which is the first project-valid status.
-		firstDuration := int64(allTrans[0].Date.Sub(anchorDate).Seconds())
-		if firstDuration <= 0 {
-			firstDuration = 1
-		}
-		residency[initialStatus] += firstDuration
-
-		for j := 0; j < len(allTrans)-1; j++ {
-			duration := int64(allTrans[j+1].Date.Sub(allTrans[j].Date).Seconds())
-			if duration <= 0 {
-				duration = 1
-			}
-			residency[allTrans[j].To] += duration
-		}
-
-		var finalDate time.Time
-		if resolved != nil {
-			finalDate = *resolved
-		} else if finishedStatuses[currentStatus] {
-			finalDate = allTrans[len(allTrans)-1].Date
-		} else {
-			finalDate = time.Now()
-		}
-
-		lastTrans := allTrans[len(allTrans)-1]
-		finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
-		if finalDuration <= 0 {
-			finalDuration = 1
-		}
-		residency[lastTrans.To] += finalDuration
-	} else if resolved != nil {
-		duration := int64(resolved.Sub(created).Seconds())
-		if duration <= 0 {
-			duration = 1
-		}
-		residency[currentStatus] = duration
-	} else {
-		finalDate := time.Now()
-		if finishedStatuses[currentStatus] {
-			finalDate = created
-		}
-		duration := int64(finalDate.Sub(created).Seconds())
-		if duration <= 0 {
-			duration = 1
-		}
-		residency[currentStatus] = duration
-	}
-
-	return transitions, residency, lastMoveDate != nil
 }
 
 // FilterTransitions returns only transitions that occurred after a specific date.
@@ -289,7 +128,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		}
 
 		// Recalculate residency starting from the backflow point
-		newIssue.StatusResidency, _ = CalculateResidency(
+		newIssue.StatusResidency, _ = jira.CalculateResidency(
 			newIssue.Transitions,
 			issue.Transitions[lastBackflowIdx].Date, // Use the backflow date as the new birth anchor
 			issue.ResolutionDate,
@@ -303,254 +142,8 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 	return clean
 }
 
-// CalculateResidency provides a unified way to compute status durations in seconds.
-// If referenceDate is non-zero, it is used as the "Now" for open items (Time-Travel).
-func CalculateResidency(transitions []jira.StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, initialStatus string, referenceDate time.Time) (map[string]int64, []StatusSegment) {
-	residency := make(map[string]int64)
-	var segments []StatusSegment
-
-	now := time.Now()
-	if !referenceDate.IsZero() {
-		now = referenceDate
-	}
-
-	isFinished := func(status string) bool {
-		if finished == nil {
-			return false
-		}
-		if val, ok := finished[status]; ok {
-			return val
-		}
-		lower := strings.ToLower(status)
-		for k, v := range finished {
-			if strings.ToLower(k) == lower {
-				return v
-			}
-		}
-		return false
-	}
-
-	if len(transitions) == 0 {
-		var finalDate time.Time
-		if resolved != nil {
-			finalDate = *resolved
-		} else if isFinished(currentStatus) {
-			finalDate = created
-		} else {
-			finalDate = now
-		}
-		duration := int64(finalDate.Sub(created).Seconds())
-		if duration <= 0 {
-			duration = 1
-		}
-		residency[currentStatus] = duration
-		segments = append(segments, StatusSegment{
-			Status: currentStatus,
-			Start:  created,
-			End:    finalDate,
-		})
-		return residency, segments
-	}
-
-	// 1. Time from creation to first transition
-	if initialStatus == "" {
-		initialStatus = transitions[0].FromStatus
-	}
-	firstDuration := int64(transitions[0].Date.Sub(created).Seconds())
-	if firstDuration <= 0 {
-		firstDuration = 1
-	}
-	residency[initialStatus] = firstDuration
-	segments = append(segments, StatusSegment{
-		Status: initialStatus,
-		Start:  created,
-		End:    transitions[0].Date,
-	})
-
-	// 2. Time between transitions
-	for i := 0; i < len(transitions)-1; i++ {
-		duration := int64(transitions[i+1].Date.Sub(transitions[i].Date).Seconds())
-		if duration <= 0 {
-			duration = 1
-		}
-		residency[transitions[i].ToStatus] += duration
-		segments = append(segments, StatusSegment{
-			Status: transitions[i].ToStatus,
-			Start:  transitions[i].Date,
-			End:    transitions[i+1].Date,
-		})
-	}
-
-	// 3. Time since last transition
-	var finalDate time.Time
-	if resolved != nil {
-		finalDate = *resolved
-	} else if isFinished(currentStatus) {
-		finalDate = transitions[len(transitions)-1].Date
-	} else {
-		finalDate = now
-	}
-
-	lastTrans := transitions[len(transitions)-1]
-	finalDuration := int64(finalDate.Sub(lastTrans.Date).Seconds())
-	if finalDuration <= 0 {
-		finalDuration = 1
-	}
-	residency[lastTrans.ToStatus] += finalDuration
-	segments = append(segments, StatusSegment{
-		Status: lastTrans.ToStatus,
-		Start:  lastTrans.Date,
-		End:    finalDate,
-	})
-
-	return residency, segments
-}
-
-// IsDelivered determines if an issue reached a successful final state following the precedence:
-// 1. Resolution Mapping (Primary)
-// 2. Status Mapping (Fallback)
-//
-// GOLD STANDARD: This logic is verified against Nave (Flow Portfolio) benchmarks.
-// DO NOT MODIFY WITHOUT EXPLICIT RE-VERIFICATION.
-func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) bool {
-	// If no resolution date and not in a terminal status, it's definitely not delivered
-	isTerminal := false
-	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
-		isTerminal = true
-	}
-
-	if issue.ResolutionDate == nil && !isTerminal {
-		return false
-	}
-
-	// 1. Resolution Mapping Precedence
-	if resolutions != nil {
-		if outcome, ok := resolutions[issue.Resolution]; ok {
-			if outcome != "" {
-				return outcome == "delivered"
-			}
-		}
-	}
-
-	// 2. Status Mapping Fallback
-	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
-		if m.Outcome != "" {
-			return m.Outcome == "delivered"
-		}
-	}
-
-	// 3. Absolute Fallback: if it has a resolution date, we assume delivered
-	// unless specifically mapped as abandoned above.
-	return issue.ResolutionDate != nil
-}
-
-// ThroughputResult holds delivery counts partitioned by time buckets.
-type ThroughputResult struct {
-	Pooled []int            `json:"pooled"`
-	ByType map[string][]int `json:"by_type"`
-}
-
-// FilterDelivered returns only items that passed the IsDelivered check.
-func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) []jira.Issue {
-	filtered := make([]jira.Issue, 0)
-	for _, iss := range issues {
-		if IsDelivered(iss, resolutions, mappings) {
-			filtered = append(filtered, iss)
-		}
-	}
-	return filtered
-}
-
-func GetDailyThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMappings map[string]string, statusMappings map[string]StatusMetadata) []int {
-	// Wrapper for backward compatibility, explicitly forcing "day" bucket
-	dayWindow := window
-	dayWindow.Bucket = "day"
-	res := GetStratifiedThroughput(issues, dayWindow, resolutionMappings, statusMappings)
-	return res.Pooled
-}
-
-// GetStratifiedThroughput calculates delivery counts per bucket (defined by window), pooled and stratified by type.
-func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutionMappings map[string]string, statusMappings map[string]StatusMetadata) ThroughputResult {
-	buckets := window.Subdivide()
-	n := len(buckets)
-	if n == 0 {
-		return ThroughputResult{}
-	}
-
-	res := ThroughputResult{
-		Pooled: make([]int, n),
-		ByType: make(map[string][]int),
-	}
-
-	for _, issue := range issues {
-		if !IsDelivered(issue, resolutionMappings, statusMappings) {
-			continue
-		}
-
-		resDate := issue.Updated
-		if issue.ResolutionDate != nil {
-			resDate = *issue.ResolutionDate
-		}
-
-		// Normalize resDate to start of bucket for comparison
-		startOfBucket := SnapToStart(resDate, window.Bucket)
-
-		// Find bucket index
-		idx := -1
-		for i, b := range buckets {
-			if b.Equal(startOfBucket) {
-				idx = i
-				break
-			}
-		}
-
-		if idx >= 0 {
-			res.Pooled[idx]++
-
-			t := issue.IssueType
-			if t == "" {
-				t = "Unknown"
-			}
-
-			if _, ok := res.ByType[t]; !ok {
-				res.ByType[t] = make([]int, n)
-			}
-			res.ByType[t][idx]++
-		}
-	}
-
-	return res
-}
-
-// CalculateMedianDiscrete returns the median of an integer slice.
-// If valid inputs are provided, it returns the 50th percentile.
-func CalculateMedianDiscrete(values []int) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	sort.Ints(values)
-	mid := len(values) / 2
-	if len(values)%2 == 0 {
-		return float64(values[mid-1]+values[mid]) / 2.0
-	}
-	return float64(values[mid])
-}
-
-// CalculateMedianContinuous returns the median of a float64 slice.
-func CalculateMedianContinuous(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	sort.Float64s(values)
-	mid := len(values) / 2
-	if len(values)%2 == 0 {
-		return (values[mid-1] + values[mid]) / 2.0
-	}
-	return values[mid]
-}
-
 // CalculateBlockedResidency computes the overlapping time between status segments and blocked intervals.
-func CalculateBlockedResidency(statusSegments []StatusSegment, blockedIntervals []Interval) map[string]int64 {
+func CalculateBlockedResidency(statusSegments []jira.StatusSegment, blockedIntervals []Interval) map[string]int64 {
 	blockedResidency := make(map[string]int64)
 
 	for _, status := range statusSegments {

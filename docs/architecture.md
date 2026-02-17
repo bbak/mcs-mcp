@@ -200,14 +200,31 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
     - `cache_catch_up`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-### 8.2 Discovery Sampling Rules
+### 8.2 Analytical Orchestration (`AnalysisSession`)
+
+To reduce boilerplate and ensure consistency across tools, the system utilizes a centralized **AnalysisSession** (Orchestrator).
+
+- **Encapsulated Pipeline**: The session handles the entire hydration-to-projection pipeline (Context -> Events -> Items -> Filtered Samples).
+- **Consolidated Projections**: All analytical projections (Scope, WIP, Throughput) are anchored to the session's temporal window, ensuring that different tools (e.g., Simulation and Aging) ALWAYS operate on the same data snapshot.
+- **Windowed Context**: The session maintains the **AnalysisWindow**, providing a single point of truth for "Now" vs "Then" during historical reconstructions.
+
+### 8.3 Strategic Decoupling (Package Boundaries)
+
+The codebase follows a strict acyclic dependency model designed for stability during rapid refactoring:
+
+- **`internal/eventlog`**: The agnostic storage layer. It knows how to transform and persist Jira events but has NO awareness of analytical metrics.
+- **`internal/stats`**: The analytical engine. It depends on `eventlog` for data but contains all the business logic for metrics, residency, and projections.
+- **`internal/jira`**: The DTO and Mapping layer. Houses the objective Jira domain models and transformation logic.
+- **`internal/stats/discovery`**: A specialized sub-package for non-deterministic "Best Guess" workflow heuristics, keeping the core `stats` package focused on pure mathematics.
+
+### 8.4 Discovery Sampling Rules
 
 To ensures discovery reflect the **active process**, the system applies recency bias:
 
 - **Priority Window**: Items created within the last **365 days** are prioritized.
 - **Adaptive Fallback**: Expands to 2 or 3 years only if the priority window has < 100 items. Items older than 3 years are strictly excluded from discovery.
 
-### 8.3 Backward Boundary Scanning (History Transformation)
+### 8.5 Backward Boundary Scanning (History Transformation)
 
 To ensure analytical integrity when issues move between projects or change workflows, the system uses a **Backward Boundary Scanning** strategy during transformation:
 
@@ -217,7 +234,7 @@ To ensure analytical integrity when issues move between projects or change workf
 - **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This ensures that its initial duration correctly reflects its time spent in the project's entry point.
 - **Throughput Integrity**: The system ignores `Created` events for delivery dating. Throughput is only attributed to true `Change` events (resolutions or terminal status transitions), ensuring moved items are counted at their arrival/completion point rather than their biological birth.
 
-### 8.4 Technical Precision
+### 8.6 Technical Precision
 
 - **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
 - **Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
