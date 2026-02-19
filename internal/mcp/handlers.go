@@ -136,13 +136,41 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 	return "", false
 }
 
-func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) []float64 {
-	stratified := s.getCycleTimesByType(projectKey, boardID, issues, startStatus, endStatus, issueTypes)
-	var all []float64
-	for _, cts := range stratified {
-		all = append(all, cts...)
+func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) ([]float64, []jira.Issue) {
+	typeMap := make(map[string]bool)
+	for _, t := range issueTypes {
+		typeMap[t] = true
 	}
-	return all
+
+	rangeStatuses := s.getInferredRange(projectKey, boardID, startStatus, endStatus, issues)
+
+	var cycleTimes []float64
+	var matchedIssues []jira.Issue
+
+	for _, issue := range issues {
+		if issue.ResolutionDate == nil {
+			continue
+		}
+		if s.activeDiscoveryCutoff != nil && issue.ResolutionDate.Before(*s.activeDiscoveryCutoff) {
+			continue
+		}
+		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
+			continue
+		}
+
+		// Only count "delivered" work
+		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+			continue
+		}
+
+		duration := stats.SumRangeDuration(issue, rangeStatuses)
+		if duration > 0 {
+			cycleTimes = append(cycleTimes, duration)
+			matchedIssues = append(matchedIssues, issue)
+		}
+	}
+
+	return cycleTimes, matchedIssues
 }
 
 func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []jira.Issue, startStatus, endStatus string, issueTypes []string) map[string][]float64 {

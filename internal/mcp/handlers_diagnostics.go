@@ -80,7 +80,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 
 	// Cycle times from history
-	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
+	cycleTimes, _ := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 
 	aging := stats.CalculateInventoryAge(wip, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType)
 
@@ -188,7 +188,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	delivered := session.GetDelivered()
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
-	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
+	cycleTimes, matchedIssues := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 
 	// Stratified Analysis
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
@@ -203,7 +203,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 		issuesByType[t] = append(issuesByType[t], iss)
 	}
 
-	stability := stats.CalculateProcessStability(delivered, cycleTimes, len(wip), float64(window.ActiveDayCount()))
+	stability := stats.CalculateProcessStability(matchedIssues, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
 	return map[string]interface{}{
@@ -244,8 +244,8 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	delivered := session.GetDelivered()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, session.GetAllIssues())
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
-	subgroups := stats.GroupIssuesByBucket(delivered, cycleTimes, window)
+	cycleTimes, matchedIssues := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
+	subgroups := stats.GroupIssuesByBucket(matchedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
 	return map[string]interface{}{
