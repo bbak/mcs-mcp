@@ -159,7 +159,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		startStatus = analysisCtx.CommitmentPoint
 	}
 
-	cycleTimes := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
+	cycleTimes, _ := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no cycle times found for criteria")
 	}
