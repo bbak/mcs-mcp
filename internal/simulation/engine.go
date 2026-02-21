@@ -55,6 +55,7 @@ type Result struct {
 	FatTailRatio      float64                `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
 	TailToMedianRatio float64                `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
 	Predictability    string                 `json:"predictability"`
+	VisualCDF         string                 `json:"visual_cdf,omitempty"`
 	Context           map[string]interface{} `json:"context,omitempty"`
 	Warnings          []string               `json:"warnings,omitempty"`
 	StabilityRatio    float64                `json:"stability_ratio,omitempty"`
@@ -121,17 +122,22 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 
 	// 2. Prepare final distribution for pooled fallback
 	finalDist := make(map[string]float64)
-	if !expansionEnabled {
+	if !expansionEnabled || len(distribution) == 0 {
 		targetTotalProb := 0.0
-		for t := range targets {
-			targetTotalProb += distribution[t]
+		if len(distribution) > 0 {
+			for t := range targets {
+				targetTotalProb += distribution[t]
+			}
 		}
 		if targetTotalProb > 0 {
 			for t := range targets {
 				finalDist[t] = distribution[t] / targetTotalProb
 			}
 		} else {
-			prob := 1.0 / float64(len(targets))
+			prob := 1.0
+			if len(targets) > 0 {
+				prob = 1.0 / float64(len(targets))
+			}
 			for t := range targets {
 				finalDist[t] = prob
 			}
@@ -141,6 +147,10 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 			finalDist[t] = p
 		}
 	}
+
+	// Always ensure we are iterating over a stable distribution for background counts
+	// rather than a potentially nil original distribution.
+	trackedDistribution := finalDist
 
 	// 3. Parallel Execution Setup
 	numGo := 4 // Split into 4 chunks
@@ -170,7 +180,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 				durations: make([]int, count),
 				bgCounts:  make(map[string][]int),
 			}
-			for t := range distribution {
+			for t := range trackedDistribution {
 				res.bgCounts[t] = make([]int, count)
 			}
 
@@ -194,7 +204,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	// Aggregate Results
 	durations := make([]int, 0, trials)
 	backgroundCounts := make(map[string][]int)
-	for t := range distribution {
+	for t := range trackedDistribution {
 		backgroundCounts[t] = make([]int, 0, trials)
 	}
 
@@ -847,6 +857,7 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 		remaining[t] = c
 		totalRemaining += c
 	}
+	originalRemaining := totalRemaining
 
 	background := make(map[string]int)
 
@@ -935,8 +946,14 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 			}
 		}
 
-		if days >= 20000 {
+		if days >= 3650 {
 			break
+		}
+
+		if days%1000 == 0 {
+			if totalRemaining == originalRemaining {
+				return 3650, background
+			}
 		}
 	}
 	return days, background
@@ -950,6 +967,7 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 		remaining[t] = c
 		totalRemaining += c
 	}
+	originalRemaining := totalRemaining
 
 	background := make(map[string]int)
 
@@ -959,7 +977,7 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 		totalProb += distribution[t]
 	}
 	if totalProb == 0 {
-		return 20000, background
+		return 3650, background
 	}
 
 	for totalRemaining > 0 {
@@ -989,7 +1007,7 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 			if count, ok := remaining[sampledType]; ok && count > 0 {
 				remaining[sampledType]--
 				totalRemaining--
-			} else {
+			} else if sampledType != "" {
 				background[sampledType]++
 			}
 
@@ -998,8 +1016,15 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 			}
 		}
 
-		if days >= 20000 {
+		if days >= 3650 {
 			break
+		}
+
+		if days%1000 == 0 {
+			// Stall Detection: If we've run 1,000 cycles and delivered nothing, break infinite loop
+			if totalRemaining == originalRemaining {
+				return 3650, background
+			}
 		}
 	}
 	return days, background

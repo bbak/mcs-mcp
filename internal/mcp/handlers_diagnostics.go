@@ -7,6 +7,7 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (interface{}, error) {
@@ -39,7 +40,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 	stratified := stats.CalculateStratifiedStatusPersistence(issues)
 	tierSummary := stats.CalculateTierSummary(issues, s.activeMapping)
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"persistence":            persistence,
 		"stratified_persistence": stratified,
 		"tier_summary":           tierSummary,
@@ -50,7 +51,13 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 			"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
 			"Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream).",
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_persistence_bar"] = visuals.GeneratePersistenceChart(persistence)
+	}
+
+	return res, nil
 }
 
 func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (interface{}, error) {
@@ -99,7 +106,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		aging = filtered
 	}
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"aging":         aging,
 		"_data_quality": s.getQualityWarnings(all),
 		"_guidance": []string{
@@ -107,10 +114,16 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 			"PercentileRelative helps identify which individual items are 'neglect' risks compared to historical performance.",
 			"AgeSinceCommitment reflects time since the LAST commitment (resets on backflow to Demand/Upstream).",
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_wip_aging"] = visuals.GenerateAgingChart(aging)
+	}
+
+	return res, nil
 }
 
-func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, includeAbandoned bool) (interface{}, error) {
+func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (interface{}, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -151,7 +164,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		})
 	}
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"total_throughput":      throughput.Pooled,
 		"stratified_throughput": throughput.ByType,
 		"@metadata":             bucketMetadata,
@@ -160,7 +173,13 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 			"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
 			fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format("2006-01-02"), bucket),
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_throughput_trend"] = visuals.GenerateThroughputChart(throughput.Pooled, bucketMetadata)
+	}
+
+	return res, nil
 }
 
 func (s *Server) handleGetProcessStability(projectKey string, boardID int) (interface{}, error) {
@@ -206,7 +225,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	stability := stats.CalculateProcessStability(matchedIssues, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"stability":     stability,
 		"stratified":    stratified,
 		"_data_quality": s.getQualityWarnings(all),
@@ -214,7 +233,13 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 			"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
 			"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_stability_xmr"] = visuals.GenerateXmRChart(stability)
+	}
+
+	return res, nil
 }
 
 func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (interface{}, error) {
@@ -248,7 +273,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	subgroups := stats.GroupIssuesByBucket(matchedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"evolution":     evolution,
 		"_data_quality": s.getQualityWarnings(delivered),
 		"context": map[string]interface{}{
@@ -256,7 +281,13 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 			"total_issues":   len(delivered),
 			"subgroup_count": len(subgroups),
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_evolution_xmr"] = visuals.GenerateEvolutionChart(evolution)
+	}
+
+	return res, nil
 }
 
 func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interface{}, error) {
@@ -283,7 +314,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 	stratified := stats.CalculateStratifiedYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"yield":         yield,
 		"stratified":    stratified,
 		"_data_quality": s.getQualityWarnings(all),
@@ -291,7 +322,13 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 			"High 'Abandoned Upstream' often points to discovery/refinement issues.",
 			"High 'Abandoned Downstream' points to execution or commitment issues.",
 		},
-	}, nil
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_yield_pie"] = visuals.GenerateYieldPie(yield)
+	}
+
+	return res, nil
 }
 
 func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (interface{}, error) {

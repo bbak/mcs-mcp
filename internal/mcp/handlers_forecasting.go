@@ -6,6 +6,7 @@ import (
 
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
+	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (interface{}, error) {
@@ -72,27 +73,47 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	actualTargets := make(map[string]int)
-	existingBacklogCount := 0
 
-	if includeExistingBacklog {
-		// Backlog items (Demand + Upstream)
-		for _, issue := range all {
-			if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); ok && (m.Tier == "Demand" || m.Tier == "Upstream") {
-				existingBacklogCount++
+	if len(targets) > 0 {
+		for k, v := range targets {
+			actualTargets[k] = v
+		}
+	} else {
+		if includeExistingBacklog {
+			// Backlog items (Demand + Upstream)
+			for _, issue := range all {
+				if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); ok && (m.Tier == "Demand" || m.Tier == "Upstream") {
+					actualTargets[issue.IssueType]++
+				}
+			}
+		}
+
+		if includeWIP {
+			wipIssues := stats.ApplyBackflowPolicy(wip, analysisCtx.StatusWeights, cWeight)
+			for _, issue := range wipIssues {
 				actualTargets[issue.IssueType]++
 			}
 		}
-	}
 
-	if includeWIP {
-		wipIssues := stats.ApplyBackflowPolicy(wip, analysisCtx.StatusWeights, cWeight)
-		for _, issue := range wipIssues {
-			actualTargets[issue.IssueType]++
+		if additionalItems > 0 {
+			if len(issueTypes) == 1 {
+				actualTargets[issueTypes[0]] += additionalItems
+			} else {
+				actualTargets["Unknown"] += additionalItems
+			}
 		}
 	}
 
 	h := simulation.NewHistogram(delivered, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
+
+	// Distribution handling
+	var dist map[string]float64
+	if len(mixOverrides) > 0 {
+		dist = mixOverrides
+	} else if histDist, ok := h.Meta["type_distribution"].(map[string]float64); ok {
+		dist = histDist
+	}
 
 	var res interface{}
 	var runErr error
@@ -109,16 +130,23 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			finalDays = int(diff.Hours() / 24)
 		}
 
-		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, nil, true)
+		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
 		res = resObj
 
 	case "duration":
-		resObj := engine.RunMultiTypeDurationSimulation(actualTargets, nil, 1000, true)
+		resObj := engine.RunMultiTypeDurationSimulation(actualTargets, dist, 1000, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
 		res = resObj
+	}
+
+	if s.enableMermaidCharts && res != nil {
+		if resObj, ok := res.(simulation.Result); ok {
+			resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, mode)
+			res = resObj
+		}
 	}
 
 	return res, runErr
@@ -177,6 +205,10 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 
 	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 	resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+
+	if s.enableMermaidCharts {
+		resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, "duration")
+	}
 
 	return resObj, nil
 }

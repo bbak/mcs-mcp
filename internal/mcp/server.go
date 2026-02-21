@@ -43,14 +43,16 @@ type Server struct {
 	activeStatusOrder     []string
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
+	enableMermaidCharts   bool
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	store := eventlog.NewEventStore()
 	return &Server{
-		jira:     jiraClient,
-		events:   eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
-		cacheDir: cfg.CacheDir,
+		jira:                jiraClient,
+		events:              eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
+		cacheDir:            cfg.CacheDir,
+		enableMermaidCharts: cfg.EnableMermaidCharts,
 	}
 }
 

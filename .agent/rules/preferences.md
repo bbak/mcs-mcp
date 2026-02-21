@@ -41,3 +41,7 @@ description: General user preferences and coding guidelines for the agent to fol
     - `build`: Build system changes
 
 - I'm fine with more modern go language features. Don't use outdated patterns or libraries if there's a modern alternative unless it massively reduces the readability of the code.
+
+# Application Constraints
+
+- We're dealing primarily with time-series data. Therefore, we need to be careful with sorting data. Cycle-Times, Moving Ranges and similar may be heaviliy impacted, if the data is not sorted correctly.
