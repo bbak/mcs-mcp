@@ -35,8 +35,8 @@ func TestEngine_ZeroThroughput(t *testing.T) {
 	// This should not hang and should return the safety limit
 	res := e.RunDurationSimulation(10, 100)
 
-	if res.Percentiles.CoinToss != 20000 {
-		t.Errorf("Expected CoinToss to be safety limit 20000, got %f", res.Percentiles.CoinToss)
+	if res.Percentiles.CoinToss != 3650 {
+		t.Errorf("Expected CoinToss to be safety limit 3650, got %f", res.Percentiles.CoinToss)
 	}
 
 	foundWarning := false

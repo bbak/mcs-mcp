@@ -14,10 +14,11 @@ import (
 
 // AppConfig holds the complete application configuration.
 type AppConfig struct {
-	Jira     jira.Config
-	DataPath string
-	LogDir   string
-	CacheDir string
+	Jira                jira.Config
+	DataPath            string
+	LogDir              string
+	CacheDir            string
+	EnableMermaidCharts bool
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -72,9 +73,10 @@ func Load() (*AppConfig, error) {
 			GCLB:         getEnv("JIRA_GCLB", ""),
 			RequestDelay: time.Duration(delaySecs) * time.Second,
 		},
-		DataPath: dataPath,
-		LogDir:   logDir,
-		CacheDir: cacheDir,
+		DataPath:            dataPath,
+		LogDir:              logDir,
+		CacheDir:            cacheDir,
+		EnableMermaidCharts: getEnvBool("ENABLE_MERMAID_CHARTS", false),
 	}
 
 	return cfg, nil
@@ -83,6 +85,15 @@ func Load() (*AppConfig, error) {
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
+		}
 	}
 	return fallback
 }
