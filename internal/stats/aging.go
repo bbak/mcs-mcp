@@ -103,15 +103,19 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAge {
 	var results []InventoryAge
 
-	// Sort historical values for percentile calculation
-	sort.Float64s(persistence)
+	// 1. Copy and Sort historical values for percentile calculation
+	// We MUST copy here to avoid modifying the caller's slice (side-effect protection).
+	sortedPersistence := make([]float64, len(persistence))
+	copy(sortedPersistence, persistence)
+	sort.Float64s(sortedPersistence)
+
 	getP := func(days float64) int {
-		if len(persistence) == 0 {
+		if len(sortedPersistence) == 0 {
 			return 0
 		}
-		for i, v := range persistence {
+		for i, v := range sortedPersistence {
 			if v > days {
-				return int(float64(i) / float64(len(persistence)) * 100)
+				return int(float64(i) / float64(len(sortedPersistence)) * 100)
 			}
 		}
 		return 100
@@ -221,8 +225,8 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			analysis.Percentile = getP(ageRaw)
 		} else if ageSinceCommitment != nil {
 			analysis.Percentile = getP(ageRaw)
-			if len(persistence) > 0 && !isFinished {
-				p85 := persistence[int(float64(len(persistence))*0.85)]
+			if len(sortedPersistence) > 0 && !isFinished {
+				p85 := sortedPersistence[int(float64(len(sortedPersistence))*0.85)]
 				if ageRaw > p85 {
 					analysis.IsStale = true
 				}
