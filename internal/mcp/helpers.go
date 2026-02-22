@@ -241,7 +241,7 @@ func (s *Server) getActiveStatuses() []string {
 func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) map[string][]float64 {
 	ages := make(map[string][]float64)
 	// Note: CalculateInventoryAge inside aging.go already handles IDs if we passed them correctly.
-	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip")
+	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip", time.Now())
 	for _, res := range results {
 		if res.AgeSinceCommitment != nil {
 			t := res.Type

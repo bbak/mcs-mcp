@@ -1,0 +1,188 @@
+{
+  "ScopeForecast": {
+    "percentiles": {
+      "aggressive": 0,
+      "unlikely": 0,
+      "coin_toss": 0,
+      "probable": 0,
+      "likely": 0,
+      "conservative": 0,
+      "safe": 0,
+      "almost_certain": 0
+    },
+    "spread": {
+      "iqr": 0,
+      "inner_80": 0
+    },
+    "fat_tail_ratio": 0,
+    "tail_to_median_ratio": 0,
+    "predictability": "Unknown",
+    "context": {
+      "days_in_sample": 367,
+      "dropped_by_resolution": 0,
+      "dropped_by_window": 0,
+      "issues_analyzed": 0,
+      "issues_total": 0,
+      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
+      "stratification_decisions": null,
+      "stratification_dependencies": {},
+      "stratification_eligible": {},
+      "throughput_overall": 0,
+      "throughput_recent": 0,
+      "type_counts": {},
+      "type_distribution": {},
+      "type_volatility": {}
+    },
+    "warnings": [
+      "Simulation based on a small sample size (0 items); results may have limited statistical significance."
+    ],
+    "composition": {
+      "existing_backlog": 0,
+      "wip": 0,
+      "additional_items": 0,
+      "total": 0
+    },
+    "throughput_trend": {
+      "direction": "Stable",
+      "percentage_change": 0
+    },
+    "percentile_labels": {
+      "aggressive": "P10 (10% probability to deliver at least this much)",
+      "almost_certain": "P98 (98% probability to deliver at least this much)",
+      "coin_toss": "P50 (Coin Toss / Median / 50% probability)",
+      "conservative": "P90 (90% probability to deliver at least this much)",
+      "likely": "P85 (85% probability to deliver at least this much)",
+      "probable": "P70 (70% probability to deliver at least this much)",
+      "safe": "P95 (95% probability to deliver at least this much)",
+      "unlikely": "P30 (30% probability to deliver at least this much)"
+    }
+  },
+  "DurationForecast": {
+    "percentiles": {
+      "aggressive": 3650,
+      "unlikely": 3650,
+      "coin_toss": 3650,
+      "probable": 3650,
+      "likely": 3650,
+      "conservative": 3650,
+      "safe": 3650,
+      "almost_certain": 3650
+    },
+    "spread": {
+      "iqr": 0,
+      "inner_80": 0
+    },
+    "fat_tail_ratio": 1,
+    "tail_to_median_ratio": 1,
+    "predictability": "Stable",
+    "context": {
+      "days_in_sample": 367,
+      "dropped_by_resolution": 0,
+      "dropped_by_window": 0,
+      "issues_analyzed": 0,
+      "issues_total": 0,
+      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
+      "stratification_decisions": null,
+      "stratification_dependencies": {},
+      "stratification_eligible": {},
+      "throughput_overall": 0,
+      "throughput_recent": 0,
+      "type_counts": {},
+      "type_distribution": {},
+      "type_volatility": {}
+    },
+    "warnings": [
+      "Simulation based on a small sample size (0 items); results may have limited statistical significance.",
+      "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data."
+    ],
+    "composition": {
+      "existing_backlog": 0,
+      "wip": 0,
+      "additional_items": 0,
+      "total": 0
+    },
+    "throughput_trend": {
+      "direction": "Stable",
+      "percentage_change": 0
+    },
+    "percentile_labels": {
+      "aggressive": "P10 (Aggressive / Best Case)",
+      "almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
+      "coin_toss": "P50 (Coin Toss / Median / 50% probability)",
+      "conservative": "P90 (Conservative / Buffer)",
+      "likely": "P85 (Likely / Professional Standard / Professional commitment)",
+      "probable": "P70 (Probable)",
+      "safe": "P95 (Safe Bet / High Confidence)",
+      "unlikely": "P30 (Unlikely / High Risk)"
+    },
+    "background_items_predicted": {
+      "Unknown": 0
+    },
+    "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling."
+  },
+  "MultiForecast": {
+    "percentiles": {
+      "aggressive": 3650,
+      "unlikely": 3650,
+      "coin_toss": 3650,
+      "probable": 3650,
+      "likely": 3650,
+      "conservative": 3650,
+      "safe": 3650,
+      "almost_certain": 3650
+    },
+    "spread": {
+      "iqr": 0,
+      "inner_80": 0
+    },
+    "fat_tail_ratio": 1,
+    "tail_to_median_ratio": 1,
+    "predictability": "Stable",
+    "context": {
+      "days_in_sample": 367,
+      "dropped_by_resolution": 0,
+      "dropped_by_window": 0,
+      "issues_analyzed": 0,
+      "issues_total": 0,
+      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
+      "stratification_decisions": null,
+      "stratification_dependencies": {},
+      "stratification_eligible": {},
+      "throughput_overall": 0,
+      "throughput_recent": 0,
+      "type_counts": {},
+      "type_distribution": {},
+      "type_volatility": {}
+    },
+    "warnings": [
+      "Simulation based on a small sample size (0 items); results may have limited statistical significance.",
+      "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data."
+    ],
+    "composition": {
+      "existing_backlog": 0,
+      "wip": 0,
+      "additional_items": 0,
+      "total": 0
+    },
+    "throughput_trend": {
+      "direction": "Stable",
+      "percentage_change": 0
+    },
+    "percentile_labels": {
+      "aggressive": "P10 (Aggressive / Best Case)",
+      "almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
+      "coin_toss": "P50 (Coin Toss / Median / 50% probability)",
+      "conservative": "P90 (Conservative / Buffer)",
+      "likely": "P85 (Likely / Professional Standard / Professional commitment)",
+      "probable": "P70 (Probable)",
+      "safe": "P95 (Safe Bet / High Confidence)",
+      "unlikely": "P30 (Unlikely / High Risk)"
+    },
+    "background_items_predicted": {
+      "Bug": 0,
+      "Story": 0,
+      "Task": 0
+    },
+    "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling."
+  }
+}

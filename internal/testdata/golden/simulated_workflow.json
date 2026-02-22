@@ -1,0 +1,57 @@
+{
+  "commitment_point": "awaiting development",
+  "discovery_cutoff": "2023-08-02T12:36:51+02:00",
+  "mapping": {
+    "Closed": {
+      "outcome": "abandoned",
+      "role": "terminal",
+      "tier": "Finished"
+    },
+    "Done": {
+      "outcome": "delivered",
+      "role": "terminal",
+      "tier": "Finished"
+    },
+    "Open": {
+      "role": "queue",
+      "tier": "Demand"
+    },
+    "UAT (+Fix)": {
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "awaiting UAT": {
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "awaiting deploy to Prod": {
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "awaiting deploy to QA": {
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "awaiting development": {
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "deploying to Prod": {
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "deploying to QA": {
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "developing": {
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "refining": {
+      "role": "active",
+      "tier": "Upstream"
+    }
+  },
+  "source_id": "MOCK_37814"
+}

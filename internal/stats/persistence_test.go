@@ -3,6 +3,7 @@ package stats
 import (
 	"mcs-mcp/internal/jira"
 	"testing"
+	"time"
 )
 
 func TestCalculateStratifiedStatusPersistence(t *testing.T) {
@@ -70,5 +71,55 @@ func TestCalculateStratifiedStatusPersistence(t *testing.T) {
 	}
 	if !foundDev {
 		t.Error("Did not find 'Development' status for Bugs")
+	}
+}
+
+func TestCalculateStatusPersistence_Friction(t *testing.T) {
+	now := time.Now()
+	issues := []jira.Issue{
+		{
+			Key:     "PROJ-1",
+			Created: now.AddDate(0, 0, -10),
+			StatusResidency: map[string]int64{
+				"In Progress": 10 * 86400,
+			},
+			BlockedResidency: map[string]int64{
+				"In Progress": 2 * 86400, // 2 days blocked
+			},
+		},
+		{
+			Key:     "PROJ-2",
+			Created: now.AddDate(0, 0, -10),
+			StatusResidency: map[string]int64{
+				"In Progress": 10 * 86400,
+			},
+			BlockedResidency: map[string]int64{
+				"In Progress": 4 * 86400, // 4 days blocked
+			},
+		},
+	}
+
+	results := CalculateStatusPersistence(issues)
+
+	var ipStatus *StatusPersistence
+	for i := range results {
+		if results[i].StatusName == "In Progress" {
+			ipStatus = &results[i]
+		}
+	}
+
+	if ipStatus == nil {
+		t.Fatal("Expected 'In Progress' status")
+	}
+
+	// BlockedCount should be 2
+	if ipStatus.BlockedCount != 2 {
+		t.Errorf("Expected BlockedCount 2, got %d", ipStatus.BlockedCount)
+	}
+
+	// BlockedP50 should be around 3.0 (avg of 2 and 4 index 1 of [2, 4])
+	// Actually index 0.50 of 2 is 1 (bd[1]) which is 4.0
+	if ipStatus.BlockedP50 != 4.0 {
+		t.Errorf("Expected BlockedP50 4.0, got %f", ipStatus.BlockedP50)
 	}
 }

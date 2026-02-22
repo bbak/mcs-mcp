@@ -45,3 +45,5 @@ description: General user preferences and coding guidelines for the agent to fol
 # Application Constraints
 
 - We're dealing primarily with time-series data. Therefore, we need to be careful with sorting data. Cycle-Times, Moving Ranges and similar may be heaviliy impacted, if the data is not sorted correctly.
+
+- **Golden Test Enforcement for Mathematical Changes**: Any code change that alters analytical, statistical, or mathematical logic in `stats` or `simulation` MUST trigger a run of the end-to-end golden tests. If the mathematical change is intentional and correct, the developer/agent MUST adapt the golden test baseline files (`*.json.actual` -> `*.json`) to permanently lock in the intended behavior before committing.

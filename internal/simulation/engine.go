@@ -80,6 +80,11 @@ func NewEngine(h *Histogram) *Engine {
 	}
 }
 
+// SetSeed locks the Monte-Carlo simulation to a deterministic RNG sequence for tests.
+func (e *Engine) SetSeed(seed int64) {
+	e.rng = rand.New(rand.NewSource(seed))
+}
+
 // RunDurationSimulation is a backward-compatible wrapper for simple backlog forecasts.
 // It assumes the backlog follows the historical distribution.
 func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {

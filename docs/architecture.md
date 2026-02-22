@@ -289,3 +289,30 @@ To maintain reliability, stratification follows strict defensive heuristics:
 - **Volume Thresholds**: Smaller cohorts are automatically blended with pooled averages using **Bayesian Weighting** to prevent outlier spikes from dominating the analysis.
 - **Temporal Alignment**: All stratified time-series (XmR, Cadence) are aligned to the same analytical windows and bucket boundaries (Midnight UTC) to allow for across-tool correlation.
 - **Conceptual Coherence**: By using the same work item types and outcome semantics across every tool, the system provides a unified "Process Signature" for the project.
+
+---
+
+## 11. Golden File Integration Testing (Mathematical Hardening)
+
+To guarantee the absolute integrity of statistical and probabilistic projections during refactoring, MCS-MCP relies on an end-to-end **Golden File Integration Testing** framework.
+
+### 11.1 The Adversarial Dataset
+
+Rather than mocking isolated 2-issue scenarios, the test suite injects a massive `simulated_events.json` database into the analytical pipelines.
+
+- **Real-World Origins**: Derived from an anonymized, high-volume production Jira log to ensure authentic process chaos.
+- **Edge-Case Injection**: The timeline is deliberately spiked with mathematical anomalies (e.g., fractional-millisecond residency, cyclic status ping-ponging, and zero-throughput gaps) to stress-test division-by-zero guards and aging thresholds.
+
+### 11.2 Deterministic Execution
+
+To ensure byte-for-byte consistency across test runs, the system enforces strict determinism:
+
+- **Simulation Seeding**: The Monte-Carlo Engine receives a fixed random seed (`SetSeed(42)`), disabling entropy so complex distributions can be byte-verified.
+- **Temporal Anchoring**: Instead of relative `time.Now()` calculations, functions like `CalculateInventoryAge` accept an injected `evaluationTime`. The testing harness computes the exact maximum timestamp present in the anonymized dataset to serve as the definitive "Now".
+
+### 11.3 Integration Baselines
+
+The framework bypasses HTTP/JSON layers and tests the core mathematical engines directly:
+
+- **Pipeline Snapshotting**: The `stats` pipeline and the `simulation` pipeline dump their entire analytical output (Cadence, YTM, XmR, percentiles) into massive JSON files (`testdata/golden/stats_pipeline_golden.json`, etc.).
+- **Drift Detection**: Any code change that shifts a percentile or alters chronological sorting causes a byte-comparison failure against the golden files. If the shift is intentional, the developer must explicitly re-anchor the system via `go test -update` to register the new mathematical truth.

@@ -42,7 +42,7 @@ type AgingResult struct {
 }
 
 // CalculateStatusAging identifies active items and compares their residence in current step to history.
-func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistence) []StatusAgeAnalysis {
+func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistence, evaluationTime time.Time) []StatusAgeAnalysis {
 	var results []StatusAgeAnalysis
 
 	pMap := make(map[string]StatusPersistence)
@@ -53,9 +53,9 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 	for _, issue := range wipIssues {
 		var seconds int64
 		if len(issue.Transitions) > 0 {
-			seconds = int64(time.Since(issue.Transitions[len(issue.Transitions)-1].Date).Seconds())
+			seconds = int64(evaluationTime.Sub(issue.Transitions[len(issue.Transitions)-1].Date).Seconds())
 		} else {
-			seconds = int64(time.Since(issue.Created).Seconds())
+			seconds = int64(evaluationTime.Sub(issue.Created).Seconds())
 		}
 
 		daysRaw := float64(seconds) / 86400.0
@@ -100,7 +100,7 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 }
 
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
-func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string) []InventoryAge {
+func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string, evaluationTime time.Time) []InventoryAge {
 	var results []InventoryAge
 
 	// 1. Copy and Sort historical values for percentile calculation
@@ -139,13 +139,13 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			if isFinished {
 				stepSeconds = 0 // Transitioned into Finished, clock stops
 			} else {
-				stepSeconds = int64(time.Since(lastTransDate).Seconds())
+				stepSeconds = int64(evaluationTime.Sub(lastTransDate).Seconds())
 			}
 		} else {
 			if isFinished {
 				stepSeconds = 0
 			} else {
-				stepSeconds = int64(time.Since(issue.Created).Seconds())
+				stepSeconds = int64(evaluationTime.Sub(issue.Created).Seconds())
 			}
 		}
 		stepDays := math.Ceil((float64(stepSeconds)/86400.0)*10) / 10

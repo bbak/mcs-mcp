@@ -4,6 +4,7 @@ import (
 	"mcs-mcp/internal/jira"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestCalculateInventoryAge_SideEffectProtection(t *testing.T) {
@@ -22,7 +23,7 @@ func TestCalculateInventoryAge_SideEffectProtection(t *testing.T) {
 	}
 
 	// 2. Execute calculation
-	_ = CalculateInventoryAge(issues, "", nil, mappings, persistenceCopy, "wip")
+	_ = CalculateInventoryAge(issues, "", nil, mappings, persistenceCopy, "wip", time.Now())
 
 	// 3. Verify side-effect protection
 	if !reflect.DeepEqual(persistenceCopy, originalPersistence) {
