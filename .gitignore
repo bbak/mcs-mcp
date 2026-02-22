@@ -44,6 +44,7 @@ $RECYCLE.BIN/
 # Docs
 docs/*.pdf
 docs/*.docx
+docs/*.png
 
 # Testing artifacts
 *.actual
