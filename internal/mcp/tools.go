@@ -4,8 +4,8 @@ func (s *Server) listTools() interface{} {
 	return map[string]interface{}{
 		"tools": []interface{}{
 			map[string]interface{}{
-				"name":        "find_jira_projects",
-				"description": "Search for Jira projects by name or key. Guidance: If you plan to run analysis, you MUST find the project's boards using 'find_jira_boards' next. Use 'get_project_details' only for general project metadata.",
+				"name":        "import_projects",
+				"description": "Search for Jira projects by name or key. Guidance: If you plan to run analysis, you MUST find the project's boards using 'import_boards' next. Use 'import_project_context' only for general project metadata.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -15,8 +15,8 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "find_jira_boards",
-				"description": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'get_board_details' next to anchor on the data shape context.",
+				"name":        "import_boards",
+				"description": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'import_board_context' next to anchor on the data shape context.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -26,8 +26,8 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_project_details",
-				"description": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'get_board_details' if you plan to run diagnostics or forecasts.",
+				"name":        "import_project_context",
+				"description": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'import_board_context' if you plan to run diagnostics or forecasts.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
@@ -37,7 +37,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_board_details",
+				"name":        "import_board_context",
 				"description": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for an Agile board. MUST be called before workflow discovery.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -192,7 +192,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_workflow_discovery",
+				"name": "workflow_discover_mapping",
 				"description": "Probe project status categories, residence times, and resolution frequencies into a semantic workflow mapping. \n\n" +
 					"AI MUST use this to verify the workflow tiers, roles, AND the 'Commitment Point' (where clock starts) with the user before diagnostics. \n" +
 					"The response provides a split view: 'Whole' (deterministic volumes) and 'Sample' (probabilistic characterization).\n" +
@@ -216,7 +216,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "set_workflow_mapping",
+				"name": "workflow_set_mapping",
 				"description": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the MANDATORY persistence step after the 'Inform & Veto' loop. \n\n" +
 					"AI MUST verify with the user:\n" +
 					"1. Tiers: (Demand, Upstream, Downstream, Finished).\n" +
@@ -274,7 +274,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "set_workflow_order",
+				"name":        "workflow_set_order",
 				"description": "Explicity define the chronological order of statuses for a project to enable range-based analytics.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -341,7 +341,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "cache_expand_history",
+				"name":        "import_history_expand",
 				"description": "Extend the historical dataset backwards without creating gaps. Returns number of items fetched and used OMRC (oldest most recent change) boundary. Also triggers a catch-up.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -354,7 +354,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "cache_catch_up",
+				"name":        "import_history_update",
 				"description": "Fetch newer items since the last sync to ensure the cache is up to date. Returns number of items fetched and used NMRC (newest most recent change) boundary.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",

@@ -42,9 +42,7 @@ $RECYCLE.BIN/
 *.swo
 
 # Docs
-docs/*.pdf
-docs/*.docx
-docs/*.png
+docs/reports/*
 
 # Testing artifacts
 *.actual

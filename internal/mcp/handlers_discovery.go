@@ -133,26 +133,31 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 			"status_order":      discoveredOrder,
 			"persistence_stats": persistence,
 		},
-		"data_summary":      summary,
-		"_discovery_source": discoverySource,
-		"_guidance": []string{
-			"AI MUST summarize the mapping of ALL statuses to TIERS (Demand, Upstream, Downstream, Finished) for the user in a clear table or list.",
-			"AI MUST confirm the 'Outcome Strategy' (Value vs. Abandonment):",
-			"  - PRIMARY: Jira Resolutions (if they exist).",
-			"  - SECONDARY: Status mapping (only if resolutions are missing).",
-			"AI MUST ask the user to confirm the 'Commitment Point' (the status where work officially starts).",
-			"PROCESS STABILITY: Understand that Stability measures Cycle-Time predictability, NOT throughput volume.",
-		},
+		"data_summary": summary,
 	}
 
+	diagnostics := map[string]interface{}{
+		"discovery_source": discoverySource,
+	}
+
+	guidance := []string{
+		"AI MUST summarize the mapping of ALL statuses to TIERS (Demand, Upstream, Downstream, Finished) for the user in a clear table or list.",
+		"AI MUST confirm the 'Outcome Strategy' (Value vs. Abandonment):",
+		"  - PRIMARY: Jira Resolutions (if they exist).",
+		"  - SECONDARY: Status mapping (only if resolutions are missing).",
+		"AI MUST ask the user to confirm the 'Commitment Point' (the status where work officially starts).",
+		"PROCESS STABILITY: Understand that Stability measures Cycle-Time predictability, NOT throughput volume.",
+	}
+
+	var insights []string
 	if discoverySource == "LOADED_FROM_CACHE" {
-		res["_guidance"] = append(res["_guidance"].([]string), "PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK and has been previously confirmed by the user. Treat this as the source of truth for your analysis.")
-		res["_guidance"] = append(res["_guidance"].([]string), "AI SHOULD simply present this mapping to reconfirm it with the user, rather than proposing it as a new discovery.")
+		insights = append(insights, "PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK and has been previously confirmed by the user. Treat this as the source of truth for your analysis.")
+		insights = append(insights, "AI SHOULD simply present this mapping to reconfirm it with the user, rather than proposing it as a new discovery.")
 	} else {
-		res["_guidance"] = append(res["_guidance"].([]string), "NOTE: This is a NEW PROPOSAL based on recent data patterns. AI MUST verify this with the user before proceeding to diagnostics.")
+		insights = append(insights, "NOTE: This is a NEW PROPOSAL based on recent data patterns. AI MUST verify this with the user before proceeding to diagnostics.")
 	}
 
-	return res
+	return WrapResponse(res, "", 0, diagnostics, guidance, insights)
 }
 
 func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}, commitmentPoint string) (interface{}, error) {
@@ -193,7 +198,7 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 		return nil, fmt.Errorf("metadata updated in memory but failed to save to disk: %w", err)
 	}
 
-	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow mapping for source %s", sourceID)}, nil
+	return WrapResponse(map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow mapping for source %s", sourceID)}, projectKey, boardID, nil, nil, nil), nil
 }
 
 func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []string) (interface{}, error) {
@@ -212,5 +217,5 @@ func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []
 		return nil, fmt.Errorf("metadata updated in memory but failed to save to disk: %w", err)
 	}
 
-	return map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow order for source %s", sourceID)}, nil
+	return WrapResponse(map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow order for source %s", sourceID)}, projectKey, boardID, nil, nil, nil), nil
 }

@@ -124,6 +124,47 @@ func (s *Server) formatResult(data interface{}) string {
 	return string(out)
 }
 
+// ResponseEnvelope represents the standardized JSON structure for all MCP tool returns.
+type ResponseEnvelope struct {
+	Context     map[string]interface{} `json:"context,omitempty"`
+	Data        interface{}            `json:"data"`
+	Diagnostics map[string]interface{} `json:"diagnostics,omitempty"`
+	Guardrails  *ResponseGuardrails    `json:"guardrails,omitempty"`
+}
+
+type ResponseGuardrails struct {
+	Insights []string `json:"insights"`
+	Warnings []string `json:"warnings"`
+}
+
+// WrapResponse constructs standard ResponseEnvelope for tools.
+func WrapResponse(data interface{}, proj string, board int, diagnostics map[string]interface{}, warnings []string, insights []string) ResponseEnvelope {
+	ctx := map[string]interface{}{}
+	if proj != "" {
+		ctx["project_key"] = proj
+	}
+	if board != 0 {
+		ctx["board_id"] = board
+	}
+
+	if warnings == nil {
+		warnings = []string{}
+	}
+	if insights == nil {
+		insights = []string{}
+	}
+
+	return ResponseEnvelope{
+		Context:     ctx,
+		Data:        data,
+		Diagnostics: diagnostics,
+		Guardrails: &ResponseGuardrails{
+			Insights: insights,
+			Warnings: warnings,
+		},
+	}
+}
+
 func (s *Server) getTotalAges(issues []jira.Issue) []float64 {
 	var ages []float64
 	for _, issue := range issues {
