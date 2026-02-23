@@ -149,7 +149,18 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 	}
 
-	return res, runErr
+	var warnings []string
+	var insights []string
+
+	if resObj, ok := res.(simulation.Result); ok {
+		warnings = resObj.Warnings
+		insights = resObj.Insights
+		resObj.Warnings = nil
+		resObj.Insights = nil
+		res = resObj
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, warnings, insights), runErr
 }
 
 func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, issueTypes []string) (interface{}, error) {
@@ -288,10 +299,11 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"accuracy":      res,
-		"_data_quality": s.getQualityWarnings(wfa.GetAnalyzedIssues()),
-	}, nil
+	resMap := map[string]interface{}{
+		"accuracy": res,
+	}
+
+	return WrapResponse(resMap, projectKey, boardID, nil, s.getQualityWarnings(wfa.GetAnalyzedIssues()), nil), nil
 }
 
 func (s *Server) addCommitmentInsights(insights []string, analysisCtx *AnalysisContext, explicitStart string) []string {
