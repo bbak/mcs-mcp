@@ -1,7 +1,7 @@
 package jira
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -123,8 +123,8 @@ func ProcessChangelog(changelog *ChangelogDTO, created time.Time, resolved *time
 		}
 	}
 
-	sort.Slice(transitions, func(a, b int) bool {
-		return transitions[a].Date.Before(transitions[b].Date)
+	slices.SortFunc(transitions, func(a, b StatusTransition) int {
+		return a.Date.Compare(b.Date)
 	})
 
 	initialStatus := entryStatus

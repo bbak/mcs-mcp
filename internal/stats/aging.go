@@ -1,9 +1,10 @@
 package stats
 
 import (
+	"cmp"
 	"math"
 	"mcs-mcp/internal/jira"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -92,8 +93,8 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 		results = append(results, analysis)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].DaysInStatus > results[j].DaysInStatus
+	slices.SortFunc(results, func(a, b StatusAgeAnalysis) int {
+		return cmp.Compare(b.DaysInStatus, a.DaysInStatus)
 	})
 
 	return results
@@ -107,7 +108,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 	// We MUST copy here to avoid modifying the caller's slice (side-effect protection).
 	sortedPersistence := make([]float64, len(persistence))
 	copy(sortedPersistence, persistence)
-	sort.Float64s(sortedPersistence)
+	slices.Sort(sortedPersistence)
 
 	getP := func(days float64) int {
 		if len(sortedPersistence) == 0 {
@@ -236,11 +237,11 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		results = append(results, analysis)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].AgeSinceCommitment != nil && results[j].AgeSinceCommitment != nil {
-			return *results[i].AgeSinceCommitment > *results[j].AgeSinceCommitment
+	slices.SortFunc(results, func(a, b InventoryAge) int {
+		if a.AgeSinceCommitment != nil && b.AgeSinceCommitment != nil {
+			return cmp.Compare(*b.AgeSinceCommitment, *a.AgeSinceCommitment)
 		}
-		return results[i].AgeInCurrentStatus > results[j].AgeInCurrentStatus
+		return cmp.Compare(b.AgeInCurrentStatus, a.AgeInCurrentStatus)
 	})
 
 	return results

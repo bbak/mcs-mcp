@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/stats"
 	"os"

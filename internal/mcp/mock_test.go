@@ -19,14 +19,14 @@ func (d *DummyClient) SearchIssues(jql string, startAt int, maxResults int) (*ji
 func (d *DummyClient) SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*jira.SearchResponse, error) {
 	return nil, nil
 }
-func (d *DummyClient) GetIssueWithHistory(key string) (*jira.IssueDTO, error)        { return nil, nil }
-func (d *DummyClient) GetProject(key string) (any, error)                    { return nil, nil }
-func (d *DummyClient) GetProjectStatuses(key string) (any, error)            { return nil, nil }
-func (d *DummyClient) GetBoard(id int) (any, error)                          { return nil, nil }
-func (d *DummyClient) GetBoardConfig(id int) (any, error)                    { return nil, nil }
-func (d *DummyClient) GetFilter(id string) (any, error)                      { return nil, nil }
-func (d *DummyClient) FindProjects(query string) ([]any, error)              { return nil, nil }
-func (d *DummyClient) FindBoards(pKey string, nFilter string) ([]any, error) { return nil, nil }
+func (d *DummyClient) GetIssueWithHistory(key string) (*jira.IssueDTO, error) { return nil, nil }
+func (d *DummyClient) GetProject(key string) (any, error)                     { return nil, nil }
+func (d *DummyClient) GetProjectStatuses(key string) (any, error)             { return nil, nil }
+func (d *DummyClient) GetBoard(id int) (any, error)                           { return nil, nil }
+func (d *DummyClient) GetBoardConfig(id int) (any, error)                     { return nil, nil }
+func (d *DummyClient) GetFilter(id string) (any, error)                       { return nil, nil }
+func (d *DummyClient) FindProjects(query string) ([]any, error)               { return nil, nil }
+func (d *DummyClient) FindBoards(pKey string, nFilter string) ([]any, error)  { return nil, nil }
 
 func TestMCSTEST_Integration(t *testing.T) {
 	dists := []string{"uniform", "weibull"}

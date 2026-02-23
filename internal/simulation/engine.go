@@ -3,8 +3,8 @@ package simulation
 import (
 	"fmt"
 	"math"
-	"math/rand"
-	"sort"
+	"math/rand/v2"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -50,16 +50,16 @@ type SpreadMetrics struct {
 
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
-	Percentiles       Percentiles            `json:"percentiles"`
-	Spread            SpreadMetrics          `json:"spread"`
-	FatTailRatio      float64                `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
-	TailToMedianRatio float64                `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
-	Predictability    string                 `json:"predictability"`
-	VisualCDF         string                 `json:"visual_cdf,omitempty"`
+	Percentiles       Percentiles    `json:"percentiles"`
+	Spread            SpreadMetrics  `json:"spread"`
+	FatTailRatio      float64        `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
+	TailToMedianRatio float64        `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
+	Predictability    string         `json:"predictability"`
+	VisualCDF         string         `json:"visual_cdf,omitempty"`
 	Context           map[string]any `json:"context,omitempty"`
-	Warnings          []string               `json:"warnings,omitempty"`
-	StabilityRatio    float64                `json:"stability_ratio,omitempty"`
-	StaleWIPCount     int                    `json:"stale_wip_count,omitempty"`
+	Warnings          []string       `json:"warnings,omitempty"`
+	StabilityRatio    float64        `json:"stability_ratio,omitempty"`
+	StaleWIPCount     int            `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
 	Composition              Composition               `json:"composition"`
@@ -76,13 +76,13 @@ type Result struct {
 func NewEngine(h *Histogram) *Engine {
 	return &Engine{
 		histogram: h,
-		rng:       rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:       rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0)),
 	}
 }
 
 // SetSeed locks the Monte-Carlo simulation to a deterministic RNG sequence for tests.
 func (e *Engine) SetSeed(seed int64) {
-	e.rng = rand.New(rand.NewSource(seed))
+	e.rng = rand.New(rand.NewPCG(uint64(seed), 0))
 }
 
 // RunDurationSimulation is a backward-compatible wrapper for simple backlog forecasts.
@@ -173,14 +173,14 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	// Calculate Capacity Cap (P95 of total daily throughput)
 	capPool := make([]int, len(e.histogram.Counts))
 	copy(capPool, e.histogram.Counts)
-	sort.Ints(capPool)
+	slices.Sort(capPool)
 	capacityCap := max(capPool[int(float64(len(capPool))*0.95)], 1)
 
 	log.Info().Int("trials", trials).Interface("targets", targets).Bool("stratified", useStratification).Msg("Starting multi-type duration simulation")
 
 	for g := 0; g < numGo; g++ {
 		go func(count int, seed int64) {
-			rng := rand.New(rand.NewSource(seed))
+			rng := rand.New(rand.NewPCG(uint64(seed), 0))
 			res := trialResult{
 				durations: make([]int, count),
 				bgCounts:  make(map[string][]int),
@@ -221,12 +221,12 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		}
 	}
 
-	sort.Ints(durations)
+	slices.Sort(durations)
 
 	// Calculate median background items
 	medianBG := make(map[string]int)
 	for t, counts := range backgroundCounts {
-		sort.Ints(counts)
+		slices.Sort(counts)
 		medianBG[t] = counts[trials/2]
 	}
 
@@ -322,7 +322,7 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 
 	for g := 0; g < numGo; g++ {
 		go func(count int, seed int64) {
-			rng := rand.New(rand.NewSource(seed))
+			rng := rand.New(rand.NewPCG(uint64(seed), 0))
 			res := make([]int, count)
 			for i := range count {
 				res[i] = e.simulateScopeTrialLocal(days, rng)
@@ -337,7 +337,7 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 		scopes = append(scopes, res...)
 	}
 
-	sort.Ints(scopes)
+	slices.Sort(scopes)
 
 	res := Result{
 		Percentiles: Percentiles{
@@ -380,7 +380,7 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 		return Result{}
 	}
 
-	sort.Float64s(cycleTimes)
+	slices.Sort(cycleTimes)
 	n := len(cycleTimes)
 
 	res := Result{
@@ -408,7 +408,7 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 			if len(cts) == 0 {
 				continue
 			}
-			sort.Float64s(cts)
+			slices.Sort(cts)
 			tn := len(cts)
 			res.TypeSLEs[t] = Percentiles{
 				Aggressive:    cts[int(float64(tn)*0.10)],
@@ -453,7 +453,7 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 	// Calculate Capacity Cap
 	capPool := make([]int, len(e.histogram.Counts))
 	copy(capPool, e.histogram.Counts)
-	sort.Ints(capPool)
+	slices.Sort(capPool)
 	capacityCap := capPool[int(float64(len(capPool))*0.95)]
 	if capacityCap < 1 {
 		capacityCap = 1
@@ -476,7 +476,7 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 
 	for g := 0; g < numGo; g++ {
 		go func(count int, seed int64) {
-			rng := rand.New(rand.NewSource(seed))
+			rng := rand.New(rand.NewPCG(uint64(seed), 0))
 			res := scopeTrialResult{
 				scopes:   make([]int, count),
 				bgCounts: make(map[string][]int),
@@ -516,12 +516,12 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 		}
 	}
 
-	sort.Ints(scopes)
+	slices.Sort(scopes)
 
 	// Calculate median background items
 	medianBG := make(map[string]int)
 	for t, counts := range backgroundCounts {
-		sort.Ints(counts)
+		slices.Sort(counts)
 		medianBG[t] = counts[len(counts)/2]
 	}
 
@@ -568,7 +568,7 @@ func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[stri
 					}
 				}
 			} else {
-				idx := rng.Intn(len(counts))
+				idx := rng.IntN(len(counts))
 				h = counts[idx]
 			}
 			sampled[t] = h
@@ -659,7 +659,7 @@ func (e *Engine) simulateMultiTypeScopeTrialLocal(targetDays int, filterMap map[
 	bgItems := make(map[string]int)
 
 	for range targetDays {
-		idx := rng.Intn(len(e.histogram.Counts))
+		idx := rng.IntN(len(e.histogram.Counts))
 		slots := e.histogram.Counts[idx]
 		for range slots {
 			r := rng.Float64()
@@ -757,7 +757,7 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 	for _, cts := range cycleTimes {
 		allCycleTimes = append(allCycleTimes, cts...)
 	}
-	sort.Float64s(allCycleTimes)
+	slices.Sort(allCycleTimes)
 	pn := len(allCycleTimes)
 	pP50 := allCycleTimes[int(float64(pn)*0.50)]
 	pP85 := allCycleTimes[int(float64(pn)*0.85)]
@@ -779,7 +779,7 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 		// Determine benchmarks for this type
 		tP50, tP85, tP95 := pP50, pP85, pP95
 		if cts, ok := cycleTimes[t]; ok && len(cts) >= 5 {
-			sort.Float64s(cts)
+			slices.Sort(cts)
 			tn := len(cts)
 			tP50 = cts[int(float64(tn)*0.50)]
 			tP85 = cts[int(float64(tn)*0.85)]
@@ -885,7 +885,7 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 					}
 				}
 			} else {
-				idx := rng.Intn(len(counts))
+				idx := rng.IntN(len(counts))
 				h = counts[idx]
 			}
 
@@ -987,7 +987,7 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 
 	for totalRemaining > 0 {
 		days++
-		idx := rng.Intn(len(e.histogram.Counts))
+		idx := rng.IntN(len(e.histogram.Counts))
 		slots := e.histogram.Counts[idx]
 
 		for range slots {
@@ -1042,7 +1042,7 @@ func (e *Engine) simulateScopeTrial(targetDays int) int {
 func (e *Engine) simulateScopeTrialLocal(targetDays int, rng *rand.Rand) int {
 	totalScope := 0
 	for range targetDays {
-		idx := rng.Intn(len(e.histogram.Counts))
+		idx := rng.IntN(len(e.histogram.Counts))
 		totalScope += e.histogram.Counts[idx]
 	}
 	return totalScope

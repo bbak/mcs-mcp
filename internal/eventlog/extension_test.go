@@ -16,12 +16,12 @@ func (m *MockJiraClient) FindProjects(query string) ([]any, error) { return nil,
 func (m *MockJiraClient) FindBoards(projectKey, nameFilter string) ([]any, error) {
 	return nil, nil
 }
-func (m *MockJiraClient) GetBoard(id int) (any, error)                   { return nil, nil }
+func (m *MockJiraClient) GetBoard(id int) (any, error)                           { return nil, nil }
 func (m *MockJiraClient) GetIssueWithHistory(key string) (*jira.IssueDTO, error) { return nil, nil }
-func (m *MockJiraClient) GetProject(key string) (any, error)             { return nil, nil }
-func (m *MockJiraClient) GetProjectStatuses(key string) (any, error)     { return nil, nil }
-func (m *MockJiraClient) GetBoardConfig(id int) (any, error)             { return nil, nil }
-func (m *MockJiraClient) GetFilter(id string) (any, error)               { return nil, nil }
+func (m *MockJiraClient) GetProject(key string) (any, error)                     { return nil, nil }
+func (m *MockJiraClient) GetProjectStatuses(key string) (any, error)             { return nil, nil }
+func (m *MockJiraClient) GetBoardConfig(id int) (any, error)                     { return nil, nil }
+func (m *MockJiraClient) GetFilter(id string) (any, error)                       { return nil, nil }
 func (m *MockJiraClient) SearchIssues(jql string, startAt int, maxResults int) (*jira.SearchResponse, error) {
 	return nil, nil
 }

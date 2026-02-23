@@ -126,10 +126,10 @@ func (s *Server) formatResult(data any) string {
 
 // ResponseEnvelope represents the standardized JSON structure for all MCP tool returns.
 type ResponseEnvelope struct {
-	Context     map[string]any `json:"context,omitempty"`
-	Data        any            `json:"data"`
-	Diagnostics map[string]any `json:"diagnostics,omitempty"`
-	Guardrails  *ResponseGuardrails    `json:"guardrails,omitempty"`
+	Context     map[string]any      `json:"context,omitempty"`
+	Data        any                 `json:"data"`
+	Diagnostics map[string]any      `json:"diagnostics,omitempty"`
+	Guardrails  *ResponseGuardrails `json:"guardrails,omitempty"`
 }
 
 type ResponseGuardrails struct {

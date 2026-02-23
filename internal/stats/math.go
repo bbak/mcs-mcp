@@ -1,8 +1,6 @@
 package stats
 
-import (
-	"sort"
-)
+import "slices"
 
 // CalculateMedianDiscrete finds the median value in a slice of integers.
 func CalculateMedianDiscrete(values []int) float64 {
@@ -13,7 +11,7 @@ func CalculateMedianDiscrete(values []int) float64 {
 	// Work on a copy to avoid mutating the original
 	temp := make([]int, len(values))
 	copy(temp, values)
-	sort.Ints(temp)
+	slices.Sort(temp)
 
 	n := len(temp)
 	if n%2 == 1 {
@@ -30,7 +28,7 @@ func CalculateMedianContinuous(values []float64) float64 {
 
 	temp := make([]float64, len(values))
 	copy(temp, values)
-	sort.Float64s(temp)
+	slices.Sort(temp)
 
 	n := len(temp)
 	if n%2 == 1 {

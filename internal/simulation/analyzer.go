@@ -4,7 +4,7 @@ import (
 	"math"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"sort"
+	"slices"
 )
 
 // StratificationDecision holds the result of the eligibility check for a specific type.
@@ -89,7 +89,7 @@ func calculateP85(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	sort.Float64s(values)
+	slices.Sort(values)
 	idx := int(float64(len(values)) * 0.85)
 	if idx >= len(values) {
 		idx = len(values) - 1
@@ -164,7 +164,7 @@ func CalculateFatTail(counts []int) float64 {
 	for i, c := range counts {
 		floats[i] = float64(c)
 	}
-	sort.Float64s(floats)
+	slices.Sort(floats)
 
 	p50 := floats[int(float64(len(floats))*0.50)]
 	p98 := floats[int(float64(len(floats))*0.98)]

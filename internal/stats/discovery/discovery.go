@@ -1,11 +1,13 @@
 package discovery
 
 import (
+	"cmp"
 	"math"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -76,7 +78,7 @@ func AnalyzeProbe(sample []jira.Issue, totalCount int) stats.MetadataSummary {
 	for name := range resNames {
 		summary.Sample.ResolutionNames = append(summary.Sample.ResolutionNames, name)
 	}
-	sort.Strings(summary.Sample.ResolutionNames)
+	slices.Sort(summary.Sample.ResolutionNames)
 
 	summary.Sample.ResolutionDensity = math.Round((float64(resolvedCount)/float64(len(sample)))*100) / 100
 
@@ -98,8 +100,8 @@ func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *
 	}
 
 	// Sort deliveries chronologically
-	sort.Slice(deliveryDates, func(i, j int) bool {
-		return deliveryDates[i].Before(deliveryDates[j])
+	slices.SortFunc(deliveryDates, func(a, b time.Time) int {
+		return a.Compare(b)
 	})
 
 	// The cutoff is the timestamp of the 5th delivery.
@@ -388,17 +390,17 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	}
 
 	// 4. Sort statuses by Global Precedence
-	sort.Slice(infos, func(i, j int) bool {
+	slices.SortFunc(infos, func(a, b statusInfo) int {
 		// Primary: Higher precedence score (more statuses follow it)
-		if infos[i].score != infos[j].score {
-			return infos[i].score > infos[j].score
+		if a.score != b.score {
+			return cmp.Compare(b.score, a.score)
 		}
 		// Secondary: Higher birth frequency (entry points)
-		if infos[i].birthCount != infos[j].birthCount {
-			return infos[i].birthCount > infos[j].birthCount
+		if a.birthCount != b.birthCount {
+			return cmp.Compare(b.birthCount, a.birthCount)
 		}
 		// Tertiary: Alphabetical for determinism
-		return infos[i].name < infos[j].name
+		return cmp.Compare(a.name, b.name)
 	})
 
 	order := make([]string, len(infos))

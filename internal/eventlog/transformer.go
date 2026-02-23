@@ -1,8 +1,9 @@
 package eventlog
 
 import (
+	"cmp"
 	"mcs-mcp/internal/jira"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -28,10 +29,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	if dto.Changelog != nil {
 		// Pass 0: Ensure histories are chronological (ascending) first so we can reliably reverse.
 		// Jira API often returns them descending, but we'll sort them to be sure.
-		sort.Slice(dto.Changelog.Histories, func(i, j int) bool {
-			t1, _ := jira.ParseTime(dto.Changelog.Histories[i].Created)
-			t2, _ := jira.ParseTime(dto.Changelog.Histories[j].Created)
-			return t1.Before(t2)
+		slices.SortFunc(dto.Changelog.Histories, func(a, b jira.HistoryDTO) int {
+			t1, _ := jira.ParseTime(a.Created)
+			t2, _ := jira.ParseTime(b.Created)
+			return t1.Compare(t2)
 		})
 
 		// 2. Process Histories BACKWARDS (Latest to Oldest)
@@ -211,20 +212,20 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	}
 
 	// 5. Finalize: Standardize Chronological Order
-	sort.Slice(events, func(i, j int) bool {
+	slices.SortFunc(events, func(a, b IssueEvent) int {
 		// Strict grouping: Created event always comes first if timestamps are identical
-		if events[i].Timestamp != events[j].Timestamp {
-			return events[i].Timestamp < events[j].Timestamp
+		if a.Timestamp != b.Timestamp {
+			return cmp.Compare(a.Timestamp, b.Timestamp)
 		}
 		// Tie-breaker for identical timestamps
-		if events[i].EventType == Created && events[j].EventType != Created {
-			return true
+		if a.EventType == Created && b.EventType != Created {
+			return -1
 		}
-		if events[j].EventType == Created && events[i].EventType != Created {
-			return false
+		if b.EventType == Created && a.EventType != Created {
+			return 1
 		}
 		// Preserve order for other types (arbitrary but stable)
-		return false
+		return 0
 	})
 
 	return events

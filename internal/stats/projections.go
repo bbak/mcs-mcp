@@ -1,9 +1,10 @@
 package stats
 
 import (
+	"cmp"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -89,16 +90,16 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 
 	// Chronological Sort: All analytical consumers expect deterministic time-ordered data.
 	sortByDate := func(issues []jira.Issue) {
-		sort.Slice(issues, func(i, j int) bool {
-			dateI := issues[i].Updated
-			if issues[i].ResolutionDate != nil {
-				dateI = *issues[i].ResolutionDate
+		slices.SortFunc(issues, func(a, b jira.Issue) int {
+			dateA := a.Updated
+			if a.ResolutionDate != nil {
+				dateA = *a.ResolutionDate
 			}
-			dateJ := issues[j].Updated
-			if issues[j].ResolutionDate != nil {
-				dateJ = *issues[j].ResolutionDate
+			dateB := b.Updated
+			if b.ResolutionDate != nil {
+				dateB = *b.ResolutionDate
 			}
-			return dateI.Before(dateJ)
+			return dateA.Compare(dateB)
 		})
 	}
 
@@ -157,8 +158,8 @@ func ProjectNeutralSample(events []eventlog.IssueEvent, targetSize int) []jira.I
 	for k, ts := range latestTS {
 		sortedKeys = append(sortedKeys, keyTS{k, ts})
 	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return sortedKeys[i].ts > sortedKeys[j].ts
+	slices.SortFunc(sortedKeys, func(a, b keyTS) int {
+		return cmp.Compare(b.ts, a.ts)
 	})
 
 	// 3. Take top targetSize and reconstruct
@@ -312,8 +313,8 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 		result = append(result, ThroughputBucket{Date: t, Count: count})
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Date.Before(result[j].Date)
+	slices.SortFunc(result, func(a, b ThroughputBucket) int {
+		return a.Date.Compare(b.Date)
 	})
 
 	return result
