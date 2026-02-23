@@ -226,20 +226,20 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
 	res := map[string]interface{}{
-		"stability":     stability,
-		"stratified":    stratified,
-		"_data_quality": s.getQualityWarnings(all),
-		"_guidance": []string{
-			"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
-			"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
-		},
+		"stability":  stability,
+		"stratified": stratified,
 	}
 
 	if s.enableMermaidCharts {
 		res["visual_stability_xmr"] = visuals.GenerateXmRChart(stability)
 	}
 
-	return res, nil
+	guidance := []string{
+		"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
+		"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
 func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (interface{}, error) {
@@ -274,8 +274,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
 	res := map[string]interface{}{
-		"evolution":     evolution,
-		"_data_quality": s.getQualityWarnings(delivered),
+		"evolution": evolution,
 		"context": map[string]interface{}{
 			"window_months":  windowMonths,
 			"total_issues":   len(delivered),
@@ -287,7 +286,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 		res["visual_evolution_xmr"] = visuals.GenerateEvolutionChart(evolution)
 	}
 
-	return res, nil
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), nil), nil
 }
 
 func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interface{}, error) {

@@ -14,40 +14,40 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 			"title":       "Analytical Workflow: Professional Forecasting",
 			"description": "Recommended sequence to produce reliable delivery dates or volume forecasts.",
 			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "get_workflow_discovery", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
-				map[string]interface{}{"step": 2, "tool": "get_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
-				map[string]interface{}{"step": 3, "tool": "get_cycle_time_assessment", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
-				map[string]interface{}{"step": 4, "tool": "get_aging_analysis", "description": "Check if current WIP is clogging the system."},
-				map[string]interface{}{"step": 5, "tool": "run_simulation", "description": "Perform Monte-Carlo simulation using the historical baseline."},
-				map[string]interface{}{"step": 6, "tool": "get_forecast_accuracy", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
+				map[string]interface{}{"step": 1, "tool": "workflow_discover_mapping", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
+				map[string]interface{}{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
+				map[string]interface{}{"step": 3, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
+				map[string]interface{}{"step": 4, "tool": "analyze_work_item_age", "description": "Check if current WIP is clogging the system."},
+				map[string]interface{}{"step": 5, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
+				map[string]interface{}{"step": 6, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
 			},
 		},
 		"bottlenecks": map[string]interface{}{
 			"title":       "Analytical Workflow: Bottleneck & Flow Analysis",
 			"description": "Recommended sequence to identify systemic delays and batching behavior.",
 			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "get_workflow_discovery", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
-				map[string]interface{}{"step": 2, "tool": "get_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
-				map[string]interface{}{"step": 3, "tool": "get_delivery_cadence", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
-				map[string]interface{}{"step": 4, "tool": "get_process_yield", "description": "Check for high abandonment rates between tiers."},
-				map[string]interface{}{"step": 5, "tool": "get_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
+				map[string]interface{}{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
+				map[string]interface{}{"step": 2, "tool": "analyze_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
+				map[string]interface{}{"step": 3, "tool": "analyze_throughput", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
+				map[string]interface{}{"step": 4, "tool": "analyze_yield", "description": "Check for high abandonment rates between tiers."},
+				map[string]interface{}{"step": 5, "tool": "analyze_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
 			},
 		},
 		"capacity_planning": map[string]interface{}{
 			"title":       "Analytical Workflow: Capacity & Volume Planning",
 			"description": "Recommended sequence to determine if the team can take on more scope.",
 			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "get_delivery_cadence", "description": "Determine the current weekly throughput baseline."},
-				map[string]interface{}{"step": 2, "tool": "get_process_stability", "description": "Compare current WIP against historical capacity (Stability Index)."},
-				map[string]interface{}{"step": 3, "tool": "run_simulation", "description": "Use 'scope' mode to see how much we can reasonably finish in the next period."},
+				map[string]interface{}{"step": 1, "tool": "analyze_throughput", "description": "Determine the current weekly throughput baseline."},
+				map[string]interface{}{"step": 2, "tool": "analyze_process_stability", "description": "Compare current WIP against historical capacity (Stability Index)."},
+				map[string]interface{}{"step": 3, "tool": "forecast_monte_carlo", "description": "Use 'scope' mode to see how much we can reasonably finish in the next period."},
 			},
 		},
 		"system_health": map[string]interface{}{
 			"title":       "Analytical Workflow: Strategic System Health",
 			"description": "Recommended sequence for long-term process oversight and strategic shift detection.",
 			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "get_process_evolution", "description": "Perform a longitudinal audit (Three-Way Control Charts)."},
-				map[string]interface{}{"step": 2, "tool": "get_process_yield", "description": "Evaluate long-term conversion efficiency across the entire pipe."},
+				map[string]interface{}{"step": 1, "tool": "analyze_process_evolution", "description": "Perform a longitudinal audit (Three-Way Control Charts)."},
+				map[string]interface{}{"step": 2, "tool": "analyze_yield", "description": "Evaluate long-term conversion efficiency across the entire pipe."},
 			},
 		},
 	}
@@ -57,7 +57,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
 		return nil, fmt.Errorf("unknown goal: %s. Available goals: forecasting, bottlenecks, capacity_planning, system_health", goal)
 	}
 
-	return res, nil
+	return WrapResponse(res, "", 0, nil, nil, nil), nil
 }
 
 // Internal shared logic

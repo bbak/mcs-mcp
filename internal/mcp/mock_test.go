@@ -116,7 +116,8 @@ func TestMCSTEST_Integration(t *testing.T) {
 						t.Fatalf("Failed to get forecast accuracy: %v", err)
 					}
 
-					wfa := wfaRes.(map[string]interface{})
+					wfaEnv := wfaRes.(ResponseEnvelope)
+					wfa := wfaEnv.Data.(map[string]interface{})
 					res := wfa["accuracy"].(simulation.WalkForwardResult)
 					accuracy := res.AccuracyScore
 					t.Logf("[%s/%s] WFA Accuracy: %.2f", dist, scen, accuracy)

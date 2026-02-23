@@ -49,7 +49,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "run_simulation",
+				"name": "forecast_monte_carlo",
 				"description": "Run a Monte-Carlo simulation to forecast project outcomes (How Much / When) based solely on historical THROUGHPUT (work items / time). \n\n" +
 					"NOT FOR CYCLE TIME: This tool does NOT analyze lead times or individual item durations. Use it for scope/date forecasting only.\n" +
 					"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n\n" +
@@ -70,8 +70,8 @@ func (s *Server) listTools() interface{} {
 						"start_status":             map[string]interface{}{"type": "string", "description": "Optional: Start status (Commitment Point)."},
 						"end_status":               map[string]interface{}{"type": "string", "description": "Optional: End status (Resolution Point)."},
 						"issue_types":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story'])."},
-						"sample_start_date":        map[string]interface{}{"type": "string", "description": "Optional: Explicit start date for the historical baseline (YYYY-MM-DD)."},
-						"sample_end_date":          map[string]interface{}{"type": "string", "description": "Optional: Explicit end date for the historical baseline (YYYY-MM-DD). Default: Today."},
+						"history_start_date":       map[string]interface{}{"type": "string", "description": "Optional: Explicit start date for the historical baseline (YYYY-MM-DD)."},
+						"history_end_date":         map[string]interface{}{"type": "string", "description": "Optional: Explicit end date for the historical baseline (YYYY-MM-DD). Default: Today."},
 						"targets": map[string]interface{}{
 							"type":                 "object",
 							"description":          "Optional: Exact counts of items to simulate (e.g. {'Story': 10, 'Bug': 5}). If provided, 'additional_items' is ignored and the simulation targets these specific counts.",
@@ -153,18 +153,18 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_process_stability",
+				"name": "analyze_process_stability",
 				"description": "Analyze process stability and predictability using XmR charts. \n" +
 					"PROCESS STABILITY: Measures the predictability of Lead Times (Cycle-Time). High stability means future delivery dates are more certain. It is NOT about throughput volume.\n" +
 					"Stability is high if most items fall within Natural Process Limits. Chaos is high if many points are beyond limits (signals).\n\n" +
 					"PREREQUISITE: Proper workflow mapping is required for accurate results. \n" +
-					"Use 'get_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.",
+					"Use 'analyze_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
 						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
 						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
-						"window_weeks": map[string]interface{}{
+						"history_window_weeks": map[string]interface{}{
 							"type":        "integer",
 							"description": "Number of weeks to analyze (default: 26)",
 						},
@@ -173,7 +173,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_process_evolution",
+				"name": "analyze_process_evolution",
 				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. \n\n" +
 					"PROCESS EVOLUTION: Measures long-term predictability and capability of Lead Times (Cycle-Time). It is THROUGHPUT-AGNOSTIC.\n" +
 					"AI MUST use this for deep history analysis or after significant organizational changes. NOT intended for routine daily analysis.\n" +
@@ -183,7 +183,7 @@ func (s *Server) listTools() interface{} {
 					"properties": map[string]interface{}{
 						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
 						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
-						"window_months": map[string]interface{}{
+						"history_window_months": map[string]interface{}{
 							"type":        "integer",
 							"description": "Number of months to analyze (default: 12, supports up to 60 for deep history)",
 						},
@@ -304,7 +304,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_diagnostic_roadmap",
+				"name":        "guide_diagnostic_roadmap",
 				"description": "Returns a recommended sequence of analysis steps based on the user's specific goal (e.g., forecasting, bottleneck analysis, capacity planning). Use this to align your analytical strategy with the project's current state.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -320,7 +320,7 @@ func (s *Server) listTools() interface{} {
 			},
 
 			map[string]interface{}{
-				"name": "get_forecast_accuracy",
+				"name": "forecast_backtest",
 				"description": "Perform a 'Walk-Forward Analysis' (Backtesting) to empirically validate the accuracy of Monte-Carlo Forecasts. \n\n" +
 					"This tool uses Time-Travel logic to reconstruct the state of the system at past points in time, runs a simulation, and checks if the ACTUAL outcome fell within the predicted cone. \n" +
 					"Drift Protection: The analysis automatically stops blindly backtesting if it detects a System Drift (Process Shift via 3-Way Chart).",
@@ -333,9 +333,9 @@ func (s *Server) listTools() interface{} {
 						"items_to_forecast":     map[string]interface{}{"type": "integer", "description": "Number of items to forecast (duration mode). Default: 5"},
 						"forecast_horizon_days": map[string]interface{}{"type": "integer", "description": "Number of days to forecast (scope mode). Default: 14"},
 						"issue_types":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional: List of issue types to include in the validation."},
-						"sample_days":           map[string]interface{}{"type": "integer", "description": "Optional: Lookback for historical baseline."},
-						"sample_start_date":     map[string]interface{}{"type": "string", "description": "Optional: Start date for historical baseline."},
-						"sample_end_date":       map[string]interface{}{"type": "string", "description": "Optional: End date for historical baseline."},
+						"history_window_days":   map[string]interface{}{"type": "integer", "description": "Optional: Lookback for historical baseline."},
+						"history_start_date":    map[string]interface{}{"type": "string", "description": "Optional: Start date for historical baseline."},
+						"history_end_date":      map[string]interface{}{"type": "string", "description": "Optional: End date for historical baseline."},
 					},
 					"required": []string{"project_key", "board_id", "simulation_mode"},
 				},

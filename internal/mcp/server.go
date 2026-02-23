@@ -253,7 +253,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetBoardDetails(projectKey, boardID)
-	case "run_simulation":
+	case "forecast_monte_carlo":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["mode"])
@@ -282,9 +282,9 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			includeWIP = w
 		}
 
-		sampleDays := asInt(call.Arguments["sample_days"])
-		sampleStart := asString(call.Arguments["sample_start_date"])
-		sampleEnd := asString(call.Arguments["sample_end_date"])
+		sampleDays := asInt(call.Arguments["history_window_days"])
+		sampleStart := asString(call.Arguments["history_start_date"])
+		sampleEnd := asString(call.Arguments["history_end_date"])
 
 		var targets map[string]int
 		if t, ok := call.Arguments["targets"].(map[string]interface{}); ok {
@@ -382,7 +382,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 		data, err = s.handleSetWorkflowOrder(projectKey, boardID, order)
-	case "get_diagnostic_roadmap":
+	case "guide_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
 	case "analyze_item_journey":
@@ -390,7 +390,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		boardID := asInt(call.Arguments["board_id"])
 		issueKey := asString(call.Arguments["issue_key"])
 		data, err = s.handleGetItemJourney(projectKey, boardID, issueKey)
-	case "analyze_forecast_accuracy":
+	case "forecast_backtest":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["simulation_mode"])
@@ -404,9 +404,9 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 
-		sampleDays := asInt(call.Arguments["sample_days"])
-		sampleStart := asString(call.Arguments["sample_start_date"])
-		sampleEnd := asString(call.Arguments["sample_end_date"])
+		sampleDays := asInt(call.Arguments["history_window_days"])
+		sampleStart := asString(call.Arguments["history_start_date"])
+		sampleEnd := asString(call.Arguments["history_end_date"])
 
 		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, issueTypes, sampleDays, sampleStart, sampleEnd)
 	case "import_history_expand":
