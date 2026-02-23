@@ -9,7 +9,7 @@ import (
 	"mcs-mcp/internal/visuals"
 )
 
-func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (interface{}, error) {
+func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		dist = histDist
 	}
 
-	var res interface{}
+	var res any
 	var runErr error
 
 	switch mode {
@@ -163,7 +163,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	return WrapResponse(res, projectKey, boardID, nil, warnings, insights), runErr
 }
 
-func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, issueTypes []string) (interface{}, error) {
+func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, issueTypes []string) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	return WrapResponse(resObj, projectKey, boardID, nil, warnings, insights), nil
 }
 
-func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {
+func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, sampleDays int, sampleStartDate, sampleEndDate string) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
-	resMap := map[string]interface{}{
+	resMap := map[string]any{
 		"accuracy": res,
 	}
 

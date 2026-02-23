@@ -10,7 +10,7 @@ import (
 	"mcs-mcp/internal/visuals"
 )
 
-func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 	stratified := stats.CalculateStratifiedStatusPersistence(issues)
 	tierSummary := stats.CalculateTierSummary(issues, s.activeMapping)
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"persistence":            persistence,
 		"stratified_persistence": stratified,
 		"tier_summary":           tierSummary,
@@ -60,7 +60,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(issues), guidance), nil
 }
 
-func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (interface{}, error) {
+func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		aging = filtered
 	}
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"aging": aging,
 	}
 
@@ -123,7 +123,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (interface{}, error) {
+func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		})
 	}
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"total_throughput":      throughput.Pooled,
 		"stratified_throughput": throughput.ByType,
 		"@metadata":             bucketMetadata,
@@ -182,7 +182,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
 }
 
-func (s *Server) handleGetProcessStability(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -225,7 +225,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	stability := stats.CalculateProcessStability(matchedIssues, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"stability":  stability,
 		"stratified": stratified,
 	}
@@ -242,7 +242,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (inte
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (interface{}, error) {
+func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -273,9 +273,9 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	subgroups := stats.GroupIssuesByBucket(matchedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"evolution": evolution,
-		"context": map[string]interface{}{
+		"context": map[string]any{
 			"window_months":  windowMonths,
 			"total_issues":   len(delivered),
 			"subgroup_count": len(subgroups),
@@ -289,7 +289,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), nil), nil
 }
 
-func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -313,7 +313,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 	stratified := stats.CalculateStratifiedYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"yield":      yield,
 		"stratified": stratified,
 	}
@@ -330,7 +330,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (interface{}, error) {
+func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -414,7 +414,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		blockedDays[st] = math.Round((float64(sec)/86400.0)*10) / 10
 	}
 
-	tierBreakdown := make(map[string]map[string]interface{})
+	tierBreakdown := make(map[string]map[string]any)
 	for status, sec := range issue.StatusResidency {
 		tier := "Unknown"
 		if s.activeMapping != nil {
@@ -423,7 +423,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 			}
 		}
 		if _, ok := tierBreakdown[tier]; !ok {
-			tierBreakdown[tier] = map[string]interface{}{
+			tierBreakdown[tier] = map[string]any{
 				"days":         0.0,
 				"blocked_days": 0.0,
 				"statuses":     []string{},
@@ -440,7 +440,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		tierBreakdown[tier] = data
 	}
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"key":            issue.Key,
 		"residency":      residencyDays,
 		"blocked_time":   blockedDays,

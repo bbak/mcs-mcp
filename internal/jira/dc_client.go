@@ -22,13 +22,13 @@ type dcClient struct {
 	cacheMutex sync.RWMutex
 
 	// Internal Inventory (Sliding Window)
-	projectInventory []interface{}
-	boardInventory   []interface{}
+	projectInventory []any
+	boardInventory   []any
 	inventoryMutex   sync.RWMutex
 }
 
 type cacheEntry struct {
-	Value       interface{}
+	Value       any
 	Expiration  time.Time
 	AccessCount int
 	OriginalTTL time.Duration
@@ -47,7 +47,7 @@ func NewDataCenterClient(cfg Config) Client {
 	}
 }
 
-func (c *dcClient) getFromCache(key string) (interface{}, bool) {
+func (c *dcClient) getFromCache(key string) (any, bool) {
 	c.cacheMutex.Lock()
 	defer c.cacheMutex.Unlock()
 
@@ -73,7 +73,7 @@ func (c *dcClient) getFromCache(key string) (interface{}, bool) {
 	return entry.Value, true
 }
 
-func (c *dcClient) addToCache(key string, value interface{}, ttl time.Duration) {
+func (c *dcClient) addToCache(key string, value any, ttl time.Duration) {
 	c.cacheMutex.Lock()
 	defer c.cacheMutex.Unlock()
 
@@ -262,7 +262,7 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 	return &result, nil
 }
 
-func (c *dcClient) GetProject(key string) (interface{}, error) {
+func (c *dcClient) GetProject(key string) (any, error) {
 	cacheKey := "project:" + key
 	if val, ok := c.getFromCache(cacheKey); ok {
 		return val, nil
@@ -295,18 +295,18 @@ func (c *dcClient) GetProject(key string) (interface{}, error) {
 		}
 	}
 
-	var project map[string]interface{}
+	var project map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		return nil, fmt.Errorf("failed to decode project response: %w", err)
 	}
 
 	c.addToCache(cacheKey, project, 5*time.Minute)
 	// Add to inventory
-	c.updateInventory(&c.projectInventory, []interface{}{project}, 1000, "key")
+	c.updateInventory(&c.projectInventory, []any{project}, 1000, "key")
 	return project, nil
 }
 
-func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
+func (c *dcClient) GetProjectStatuses(key string) (any, error) {
 	cacheKey := "statuses:" + key
 	if val, ok := c.getFromCache(cacheKey); ok {
 		return val, nil
@@ -339,7 +339,7 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 		}
 	}
 
-	var statuses []interface{}
+	var statuses []any
 	if err := json.NewDecoder(resp.Body).Decode(&statuses); err != nil {
 		return nil, fmt.Errorf("failed to decode project statuses response: %w", err)
 	}
@@ -348,7 +348,7 @@ func (c *dcClient) GetProjectStatuses(key string) (interface{}, error) {
 	return statuses, nil
 }
 
-func (c *dcClient) GetBoard(id int) (interface{}, error) {
+func (c *dcClient) GetBoard(id int) (any, error) {
 	cacheKey := fmt.Sprintf("board:%d", id)
 	if val, ok := c.getFromCache(cacheKey); ok {
 		return val, nil
@@ -381,19 +381,19 @@ func (c *dcClient) GetBoard(id int) (interface{}, error) {
 		}
 	}
 
-	var board map[string]interface{}
+	var board map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&board); err != nil {
 		return nil, fmt.Errorf("failed to decode board response: %w", err)
 	}
 
 	// Add to inventory
-	c.updateInventory(&c.boardInventory, []interface{}{board}, 1000, "id")
+	c.updateInventory(&c.boardInventory, []any{board}, 1000, "id")
 	return board, nil
 }
-func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
+func (c *dcClient) FindProjects(query string) ([]any, error) {
 	cacheKey := "find_projects:" + query
 	if val, ok := c.getFromCache(cacheKey); ok {
-		return val.([]interface{}), nil
+		return val.([]any), nil
 	}
 
 	c.throttle(true)
@@ -428,21 +428,21 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 	}
 
 	var pickerResponse struct {
-		Projects []interface{} `json:"projects"`
+		Projects []any `json:"projects"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&pickerResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode project picker response: %w", err)
 	}
 
 	// Normalizing picker project structure to standard project structure
-	var result []interface{}
+	var result []any
 	for _, p := range pickerResponse.Projects {
-		pMap, ok := p.(map[string]interface{})
+		pMap, ok := p.(map[string]any)
 		if !ok {
 			log.Warn().Msg("Failed to type-assert project from picker response")
 			continue
 		}
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"id":   pMap["id"],
 			"key":  pMap["key"],
 			"name": pMap["name"],
@@ -456,10 +456,10 @@ func (c *dcClient) FindProjects(query string) ([]interface{}, error) {
 	return c.filterInventory(c.projectInventory, query, 30, "key", "name"), nil
 }
 
-func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface{}, error) {
+func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]any, error) {
 	cacheKey := fmt.Sprintf("find_boards:%s:%s", projectKey, nameFilter)
 	if val, ok := c.getFromCache(cacheKey); ok {
-		return val.([]interface{}), nil
+		return val.([]any), nil
 	}
 
 	c.throttle(true)
@@ -497,7 +497,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 	}
 
 	var resultObj struct {
-		Values []interface{} `json:"values"`
+		Values []any `json:"values"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&resultObj); err != nil {
 		return nil, fmt.Errorf("failed to decode board search response: %w", err)
@@ -510,12 +510,12 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]interface
 	return c.filterInventory(c.boardInventory, nameFilter, 30, "name", "id"), nil
 }
 
-func (c *dcClient) updateInventory(inventory *[]interface{}, newItems []interface{}, limit int, idField string) {
+func (c *dcClient) updateInventory(inventory *[]any, newItems []any, limit int, idField string) {
 	c.inventoryMutex.Lock()
 	defer c.inventoryMutex.Unlock()
 
 	for _, newItem := range newItems {
-		newMap, ok := newItem.(map[string]interface{})
+		newMap, ok := newItem.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -525,7 +525,7 @@ func (c *dcClient) updateInventory(inventory *[]interface{}, newItems []interfac
 
 		// Find if it already exists to move it to the end
 		for i, existingItem := range *inventory {
-			existingMap, ok := existingItem.(map[string]interface{})
+			existingMap, ok := existingItem.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -552,16 +552,16 @@ func (c *dcClient) updateInventory(inventory *[]interface{}, newItems []interfac
 	log.Debug().Int("size", len(*inventory)).Str("field", idField).Msg("Inventory updated")
 }
 
-func (c *dcClient) filterInventory(inventory []interface{}, query string, limit int, fields ...string) []interface{} {
+func (c *dcClient) filterInventory(inventory []any, query string, limit int, fields ...string) []any {
 	c.inventoryMutex.RLock()
 	defer c.inventoryMutex.RUnlock()
 
-	var matches []interface{}
+	var matches []any
 	q := strings.ToLower(query)
 
 	// Iterate backwards to prioritize most recent discoveries
 	for i := len(inventory) - 1; i >= 0; i-- {
-		item, ok := inventory[i].(map[string]interface{})
+		item, ok := inventory[i].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -591,7 +591,7 @@ func (c *dcClient) filterInventory(inventory []interface{}, query string, limit 
 
 	return matches
 }
-func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
+func (c *dcClient) GetBoardConfig(id int) (any, error) {
 	cacheKey := fmt.Sprintf("board_config:%d", id)
 	if val, ok := c.getFromCache(cacheKey); ok {
 		return val, nil
@@ -624,7 +624,7 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 		}
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
 		return nil, fmt.Errorf("failed to decode board configuration response: %w", err)
 	}
@@ -634,7 +634,7 @@ func (c *dcClient) GetBoardConfig(id int) (interface{}, error) {
 	return config, nil
 }
 
-func (c *dcClient) GetFilter(id string) (interface{}, error) {
+func (c *dcClient) GetFilter(id string) (any, error) {
 	cacheKey := "filter:" + id
 	if val, ok := c.getFromCache(cacheKey); ok {
 		return val, nil
@@ -667,7 +667,7 @@ func (c *dcClient) GetFilter(id string) (interface{}, error) {
 		}
 	}
 
-	var filter map[string]interface{}
+	var filter map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&filter); err != nil {
 		return nil, fmt.Errorf("failed to decode filter response: %w", err)
 	}

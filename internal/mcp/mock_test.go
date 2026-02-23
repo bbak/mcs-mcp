@@ -20,13 +20,13 @@ func (d *DummyClient) SearchIssuesWithHistory(jql string, startAt int, maxResult
 	return nil, nil
 }
 func (d *DummyClient) GetIssueWithHistory(key string) (*jira.IssueDTO, error)        { return nil, nil }
-func (d *DummyClient) GetProject(key string) (interface{}, error)                    { return nil, nil }
-func (d *DummyClient) GetProjectStatuses(key string) (interface{}, error)            { return nil, nil }
-func (d *DummyClient) GetBoard(id int) (interface{}, error)                          { return nil, nil }
-func (d *DummyClient) GetBoardConfig(id int) (interface{}, error)                    { return nil, nil }
-func (d *DummyClient) GetFilter(id string) (interface{}, error)                      { return nil, nil }
-func (d *DummyClient) FindProjects(query string) ([]interface{}, error)              { return nil, nil }
-func (d *DummyClient) FindBoards(pKey string, nFilter string) ([]interface{}, error) { return nil, nil }
+func (d *DummyClient) GetProject(key string) (any, error)                    { return nil, nil }
+func (d *DummyClient) GetProjectStatuses(key string) (any, error)            { return nil, nil }
+func (d *DummyClient) GetBoard(id int) (any, error)                          { return nil, nil }
+func (d *DummyClient) GetBoardConfig(id int) (any, error)                    { return nil, nil }
+func (d *DummyClient) GetFilter(id string) (any, error)                      { return nil, nil }
+func (d *DummyClient) FindProjects(query string) ([]any, error)              { return nil, nil }
+func (d *DummyClient) FindBoards(pKey string, nFilter string) ([]any, error) { return nil, nil }
 
 func TestMCSTEST_Integration(t *testing.T) {
 	dists := []string{"uniform", "weibull"}
@@ -49,7 +49,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 					t.Fatalf("Failed to get board details: %v", err)
 				}
 				env := res.(ResponseEnvelope)
-				boardRes := env.Data.(map[string]interface{})
+				boardRes := env.Data.(map[string]any)
 				summary := boardRes["data_summary"].(stats.MetadataSummary)
 
 				if summary.Whole.TotalItems < 200 {
@@ -63,7 +63,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 				}
 
 				pEnv := pRes.(ResponseEnvelope)
-				persistenceMap := pEnv.Data.(map[string]interface{})
+				persistenceMap := pEnv.Data.(map[string]any)
 				persistence := persistenceMap["persistence"].([]stats.StatusPersistence)
 
 				var inProgressFound bool
@@ -103,7 +103,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 					t.Fatalf("Failed to get aging analysis: %v", err)
 				}
 				aEnv := aRes.(ResponseEnvelope)
-				aging := aEnv.Data.(map[string]interface{})
+				aging := aEnv.Data.(map[string]any)
 				itemsFound := aging["aging"].([]stats.InventoryAge)
 				if len(itemsFound) == 0 {
 					t.Errorf("Expected WIP items in Downstream, got 0")
@@ -117,7 +117,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 					}
 
 					wfaEnv := wfaRes.(ResponseEnvelope)
-					wfa := wfaEnv.Data.(map[string]interface{})
+					wfa := wfaEnv.Data.(map[string]any)
 					res := wfa["accuracy"].(simulation.WalkForwardResult)
 					accuracy := res.AccuracyScore
 					t.Logf("[%s/%s] WFA Accuracy: %.2f", dist, scen, accuracy)

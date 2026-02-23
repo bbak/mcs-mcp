@@ -56,7 +56,7 @@ type Result struct {
 	TailToMedianRatio float64                `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
 	Predictability    string                 `json:"predictability"`
 	VisualCDF         string                 `json:"visual_cdf,omitempty"`
-	Context           map[string]interface{} `json:"context,omitempty"`
+	Context           map[string]any `json:"context,omitempty"`
 	Warnings          []string               `json:"warnings,omitempty"`
 	StabilityRatio    float64                `json:"stability_ratio,omitempty"`
 	StaleWIPCount     int                    `json:"stale_wip_count,omitempty"`

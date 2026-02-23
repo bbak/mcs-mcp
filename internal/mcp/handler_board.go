@@ -12,7 +12,7 @@ import (
 )
 
 // handleGetBoardDetails fetches metadata and triggers Eager Ingestion (Hydrate).
-func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, error) {
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Resolve Source Context (ensures consistent JQL and validates board exists)
@@ -42,9 +42,9 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 	summary.Whole.LastEventAt = last
 
 	// 4. Fetch Board Metadata for the response (uses internal Jira cache)
-	var board interface{}
+	var board any
 	if strings.ToUpper(projectKey) == "MCSTEST" {
-		board = map[string]interface{}{
+		board = map[string]any{
 			"id":   boardID,
 			"name": fmt.Sprintf("Mock Test Board %d (Synthetic)", boardID),
 			"type": "kanban",
@@ -54,7 +54,7 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (interfac
 	}
 
 	// 5. Return wrapped response
-	res := map[string]interface{}{
+	res := map[string]any{
 		"board":        board,
 		"data_summary": summary,
 	}

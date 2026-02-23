@@ -46,7 +46,7 @@ type IssueEvent struct {
 	IsHealed bool `json:"isHealed,omitempty"`
 
 	// Metadata stores extensible Jira fields that might be relevant for projections.
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 func (e IssueEvent) identity() string {
