@@ -743,7 +743,7 @@ func TestTransformIssue_FlaggedHistory(t *testing.T) {
 				} `json:"statusCategory"`
 			}{Name: "InProgress", ID: "3"},
 			Created: "2024-03-20T10:00:00.000+0000",
-			Flagged: []interface{}{map[string]interface{}{"value": "Impediment"}}, // Current snapshot state: Blocked
+			Flagged: []any{map[string]any{"value": "Impediment"}}, // Current snapshot state: Blocked
 		},
 		Changelog: &jira.ChangelogDTO{
 			Histories: []jira.HistoryDTO{

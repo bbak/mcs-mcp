@@ -32,7 +32,7 @@ type FieldsDTO struct {
 		Name string `json:"name"`
 	} `json:"resolution"`
 	ResolutionDate string `json:"resolutiondate"`
-	Flagged        interface{} `json:"customfield_10014,omitempty"` // Standard Flagged field ID or common alias
+	Flagged        any `json:"customfield_10014,omitempty"` // Standard Flagged field ID or common alias
 	Created        string `json:"created"`
 	Updated        string `json:"updated"`
 }
@@ -59,7 +59,7 @@ type ItemDTO struct {
 
 // FindBoardsResponse is used for the board search API.
 type FindBoardsResponse struct {
-	Values []interface{} `json:"values"`
+	Values []any `json:"values"`
 }
 
 // ParseTime is a helper for the strict Jira time format.

@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forceRefresh bool) (interface{}, error) {
+func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forceRefresh bool) (any, error) {
 	// 1. Resolve Source Context (ensures consistent JQL)
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
@@ -50,11 +50,11 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	res := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource)
 
 	// Add is_cached signal to _metadata
-	if m, ok := res.(map[string]interface{}); ok {
-		if meta, ok := m["_metadata"].(map[string]interface{}); ok {
+	if m, ok := res.(map[string]any); ok {
+		if meta, ok := m["_metadata"].(map[string]any); ok {
 			meta["is_cached"] = isCachedMapping
 		} else {
-			m["_metadata"] = map[string]interface{}{
+			m["_metadata"] = map[string]any{
 				"is_cached": isCachedMapping,
 			}
 		}
@@ -63,7 +63,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	return res, nil
 }
 
-func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string) interface{} {
+func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string) any {
 	persistence := stats.CalculateStatusPersistence(sample)
 
 	var mapping map[string]stats.StatusMetadata
@@ -126,9 +126,9 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		summary.RecommendedCommitmentPoint = recommendedCP
 	}
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"source_id": sourceID,
-		"workflow": map[string]interface{}{
+		"workflow": map[string]any{
 			"status_mapping":    finalMapping,
 			"status_order":      discoveredOrder,
 			"persistence_stats": persistence,
@@ -136,7 +136,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		"data_summary": summary,
 	}
 
-	diagnostics := map[string]interface{}{
+	diagnostics := map[string]any{
 		"discovery_source": discoverySource,
 	}
 
@@ -160,7 +160,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 	return WrapResponse(res, "", 0, diagnostics, guidance, insights)
 }
 
-func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]interface{}, resolutions map[string]interface{}, commitmentPoint string) (interface{}, error) {
+func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]any, resolutions map[string]any, commitmentPoint string) (any, error) {
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// Ensure we are anchored
@@ -170,7 +170,7 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 
 	m := make(map[string]stats.StatusMetadata)
 	for k, v := range mapping {
-		if vm, ok := v.(map[string]interface{}); ok {
+		if vm, ok := v.(map[string]any); ok {
 			m[k] = stats.StatusMetadata{
 				Tier:    asString(vm["tier"]),
 				Role:    asString(vm["role"]),
@@ -201,7 +201,7 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 	return WrapResponse(map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow mapping for source %s", sourceID)}, projectKey, boardID, nil, nil, nil), nil
 }
 
-func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []string) (interface{}, error) {
+func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []string) (any, error) {
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// Ensure we are anchored

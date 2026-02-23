@@ -8,46 +8,46 @@ import (
 	"mcs-mcp/internal/stats/discovery"
 )
 
-func (s *Server) handleGetDiagnosticRoadmap(goal string) (interface{}, error) {
-	roadmaps := map[string]interface{}{
-		"forecasting": map[string]interface{}{
+func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
+	roadmaps := map[string]any{
+		"forecasting": map[string]any{
 			"title":       "Analytical Workflow: Professional Forecasting",
 			"description": "Recommended sequence to produce reliable delivery dates or volume forecasts.",
-			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "workflow_discover_mapping", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
-				map[string]interface{}{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
-				map[string]interface{}{"step": 3, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
-				map[string]interface{}{"step": 4, "tool": "analyze_work_item_age", "description": "Check if current WIP is clogging the system."},
-				map[string]interface{}{"step": 5, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
-				map[string]interface{}{"step": 6, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
+			"steps": []any{
+				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
+				map[string]any{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
+				map[string]any{"step": 3, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
+				map[string]any{"step": 4, "tool": "analyze_work_item_age", "description": "Check if current WIP is clogging the system."},
+				map[string]any{"step": 5, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
+				map[string]any{"step": 6, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
 			},
 		},
-		"bottlenecks": map[string]interface{}{
+		"bottlenecks": map[string]any{
 			"title":       "Analytical Workflow: Bottleneck & Flow Analysis",
 			"description": "Recommended sequence to identify systemic delays and batching behavior.",
-			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
-				map[string]interface{}{"step": 2, "tool": "analyze_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
-				map[string]interface{}{"step": 3, "tool": "analyze_throughput", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
-				map[string]interface{}{"step": 4, "tool": "analyze_yield", "description": "Check for high abandonment rates between tiers."},
-				map[string]interface{}{"step": 5, "tool": "analyze_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
+			"steps": []any{
+				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
+				map[string]any{"step": 2, "tool": "analyze_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
+				map[string]any{"step": 3, "tool": "analyze_throughput", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
+				map[string]any{"step": 4, "tool": "analyze_yield", "description": "Check for high abandonment rates between tiers."},
+				map[string]any{"step": 5, "tool": "analyze_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
 			},
 		},
-		"capacity_planning": map[string]interface{}{
+		"capacity_planning": map[string]any{
 			"title":       "Analytical Workflow: Capacity & Volume Planning",
 			"description": "Recommended sequence to determine if the team can take on more scope.",
-			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "analyze_throughput", "description": "Determine the current weekly throughput baseline."},
-				map[string]interface{}{"step": 2, "tool": "analyze_process_stability", "description": "Compare current WIP against historical capacity (Stability Index)."},
-				map[string]interface{}{"step": 3, "tool": "forecast_monte_carlo", "description": "Use 'scope' mode to see how much we can reasonably finish in the next period."},
+			"steps": []any{
+				map[string]any{"step": 1, "tool": "analyze_throughput", "description": "Determine the current weekly throughput baseline."},
+				map[string]any{"step": 2, "tool": "analyze_process_stability", "description": "Compare current WIP against historical capacity (Stability Index)."},
+				map[string]any{"step": 3, "tool": "forecast_monte_carlo", "description": "Use 'scope' mode to see how much we can reasonably finish in the next period."},
 			},
 		},
-		"system_health": map[string]interface{}{
+		"system_health": map[string]any{
 			"title":       "Analytical Workflow: Strategic System Health",
 			"description": "Recommended sequence for long-term process oversight and strategic shift detection.",
-			"steps": []interface{}{
-				map[string]interface{}{"step": 1, "tool": "analyze_process_evolution", "description": "Perform a longitudinal audit (Three-Way Control Charts)."},
-				map[string]interface{}{"step": 2, "tool": "analyze_yield", "description": "Evaluate long-term conversion efficiency across the entire pipe."},
+			"steps": []any{
+				map[string]any{"step": 1, "tool": "analyze_process_evolution", "description": "Perform a longitudinal audit (Three-Way Control Charts)."},
+				map[string]any{"step": 2, "tool": "analyze_yield", "description": "Evaluate long-term conversion efficiency across the entire pipe."},
 			},
 		},
 	}

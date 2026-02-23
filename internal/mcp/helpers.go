@@ -40,14 +40,14 @@ func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.Sou
 	if err != nil {
 		return nil, err
 	}
-	cMap, ok := config.(map[string]interface{})
+	cMap, ok := config.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid board config response format from Jira")
 	}
 
 	// Extract and Verify Project Key from location
 	boardProjectKey := ""
-	if loc, ok := cMap["location"].(map[string]interface{}); ok {
+	if loc, ok := cMap["location"].(map[string]any); ok {
 		boardProjectKey = asString(loc["projectKey"])
 	}
 
@@ -65,14 +65,14 @@ func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.Sou
 		return nil, fmt.Errorf("could not determine project key; please provide it explicitly")
 	}
 
-	filterObj, ok := cMap["filter"].(map[string]interface{})
+	filterObj, ok := cMap["filter"].(map[string]any)
 	if !ok {
 		// Fallback: Try Board Configuration
 		log.Debug().Int("boardId", boardID).Msg("Filter missing in board metadata, trying board configuration")
 		configObj, err := s.jira.GetBoardConfig(boardID)
 		if err == nil {
-			if conf, isMap := configObj.(map[string]interface{}); isMap {
-				filterObj, ok = conf["filter"].(map[string]interface{})
+			if conf, isMap := configObj.(map[string]any); isMap {
+				filterObj, ok = conf["filter"].(map[string]any)
 			}
 		}
 	}
@@ -86,7 +86,7 @@ func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.Sou
 	if err != nil {
 		return nil, err
 	}
-	fMap, ok := filter.(map[string]interface{})
+	fMap, ok := filter.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid filter response format from Jira")
 	}
@@ -119,16 +119,16 @@ func stripOrderBy(jql string) string {
 	return jql
 }
 
-func (s *Server) formatResult(data interface{}) string {
+func (s *Server) formatResult(data any) string {
 	out, _ := json.MarshalIndent(data, "", "  ")
 	return string(out)
 }
 
 // ResponseEnvelope represents the standardized JSON structure for all MCP tool returns.
 type ResponseEnvelope struct {
-	Context     map[string]interface{} `json:"context,omitempty"`
-	Data        interface{}            `json:"data"`
-	Diagnostics map[string]interface{} `json:"diagnostics,omitempty"`
+	Context     map[string]any `json:"context,omitempty"`
+	Data        any            `json:"data"`
+	Diagnostics map[string]any `json:"diagnostics,omitempty"`
 	Guardrails  *ResponseGuardrails    `json:"guardrails,omitempty"`
 }
 
@@ -138,8 +138,8 @@ type ResponseGuardrails struct {
 }
 
 // WrapResponse constructs standard ResponseEnvelope for tools.
-func WrapResponse(data interface{}, proj string, board int, diagnostics map[string]interface{}, warnings []string, insights []string) ResponseEnvelope {
-	ctx := map[string]interface{}{}
+func WrapResponse(data any, proj string, board int, diagnostics map[string]any, warnings []string, insights []string) ResponseEnvelope {
+	ctx := map[string]any{}
 	if proj != "" {
 		ctx["project_key"] = proj
 	}
@@ -207,14 +207,14 @@ func (s *Server) getResolutionMap(sourceID string) map[string]string {
 	}
 }
 
-func asString(v interface{}) string {
+func asString(v any) string {
 	if v == nil {
 		return ""
 	}
 	return fmt.Sprintf("%v", v)
 }
 
-func asInt(v interface{}) int {
+func asInt(v any) int {
 	if v == nil {
 		return 0
 	}

@@ -230,13 +230,13 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 	return events
 }
 
-func extractFlaggedValue(val interface{}) string {
+func extractFlaggedValue(val any) string {
 	if val == nil {
 		return ""
 	}
 	// Jira Agile Flagged field is usually an array of objects: [{"id":"...","value":"Impediment"}]
 	// For simplicity, we just want to know if it's "blocked" or not.
-	slice, ok := val.([]interface{})
+	slice, ok := val.([]any)
 	if ok {
 		if len(slice) == 0 {
 			return ""
@@ -246,7 +246,7 @@ func extractFlaggedValue(val interface{}) string {
 		if s, ok := first.(string); ok {
 			return s
 		}
-		if m, ok := first.(map[string]interface{}); ok {
+		if m, ok := first.(map[string]any); ok {
 			if v, ok := m["value"].(string); ok {
 				return v
 			}

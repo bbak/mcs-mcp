@@ -49,13 +49,13 @@ type Client interface {
 	SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error)
 	SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*SearchResponse, error)
 	GetIssueWithHistory(key string) (*IssueDTO, error)
-	GetProject(key string) (interface{}, error)
-	GetProjectStatuses(key string) (interface{}, error)
-	GetBoard(id int) (interface{}, error)
-	GetBoardConfig(id int) (interface{}, error)
-	GetFilter(id string) (interface{}, error)
-	FindProjects(query string) ([]interface{}, error)
-	FindBoards(projectKey string, nameFilter string) ([]interface{}, error)
+	GetProject(key string) (any, error)
+	GetProjectStatuses(key string) (any, error)
+	GetBoard(id int) (any, error)
+	GetBoardConfig(id int) (any, error)
+	GetFilter(id string) (any, error)
+	FindProjects(query string) ([]any, error)
+	FindBoards(projectKey string, nameFilter string) ([]any, error)
 }
 
 // Config holds the authentication and connection settings for Jira.

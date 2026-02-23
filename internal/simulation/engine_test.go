@@ -136,7 +136,7 @@ func TestBugTaxSimulation(t *testing.T) {
 	h := &Histogram{
 		Counts:           buckets,
 		StratifiedCounts: stratified,
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"stratification_eligible":     map[string]bool{"Story": true, "Bug": true},
 			"stratification_dependencies": map[string]string{"Bug": "Story"},
 			"type_distribution":           map[string]float64{"Story": 0.5, "Bug": 0.5},
@@ -170,7 +170,7 @@ func TestMultiTypeSimulation(t *testing.T) {
 	// 1. Create a histogram with 1 item/day throughput
 	h := &Histogram{
 		Counts: []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"type_distribution": map[string]float64{
 				"Story": 0.5,
 				"Bug":   0.5,
@@ -317,7 +317,7 @@ func TestStratifiedSimulation(t *testing.T) {
 	h := &Histogram{
 		Counts:           buckets,
 		StratifiedCounts: stratified,
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"stratification_eligible": map[string]bool{
 				"Story": true,
 				"Bug":   true,
@@ -357,7 +357,7 @@ func TestParallelPerformance(t *testing.T) {
 	buckets := []int{1, 0, 2, 1, 0, 1, 3}
 	h := &Histogram{
 		Counts: buckets,
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"type_distribution": map[string]float64{"Story": 1.0},
 		},
 	}

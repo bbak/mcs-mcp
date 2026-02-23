@@ -13,7 +13,7 @@ import (
 )
 
 // handleGetProjectDetails fetches metadata and performs a data probe for a project.
-func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error) {
+func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 	// 1. Resolve Source Context (ensures consistent JQL for the project)
 	ctx, err := s.resolveSourceContext(projectKey, 0)
 	if err != nil {
@@ -45,9 +45,9 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 	summary.Whole.LastEventAt = last
 
 	// 4. Fetch Project Metadata
-	var project interface{}
+	var project any
 	if strings.ToUpper(projectKey) == "MCSTEST" {
-		project = map[string]interface{}{
+		project = map[string]any{
 			"key":  "MCSTEST",
 			"name": "Mock Test Project (Synthetic)",
 		}
@@ -59,7 +59,7 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 	}
 
 	// 5. Return wrapped response
-	res := map[string]interface{}{
+	res := map[string]any{
 		"project":      project,
 		"data_summary": summary,
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (interface{}, error) {
+func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error) {
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Resolve Source Context
@@ -28,7 +28,7 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (interface{}
 	s.recalculateDiscoveryCutoff(sourceID)
 	_ = s.saveWorkflow(projectKey, boardID)
 
-	res := map[string]interface{}{
+	res := map[string]any{
 		"message": fmt.Sprintf("%d items fetched that were updated since %s", fetched, nmrc.Format("2006-01-02 15:04")),
 		"fetched": fetched,
 		"nmrc":    nmrc,
@@ -37,7 +37,7 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (interface{}
 	return WrapResponse(res, projectKey, boardID, nil, nil, nil), nil
 }
 
-func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks int) (interface{}, error) {
+func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks int) (any, error) {
 	if chunks <= 0 {
 		chunks = 3 // Default
 	}
@@ -73,13 +73,13 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 		fetched, omrc.Format("2006-01-02 15:04"), cutoffStr)
 
 	// The ExpandHistory internal call already triggered its own catch-up log, but we return a clean integrated message.
-	res := map[string]interface{}{
+	res := map[string]any{
 		"message": msg,
 		"fetched": fetched,
 		"omrc":    omrc,
 	}
 
-	diagnostics := map[string]interface{}{
+	diagnostics := map[string]any{
 		"discovery_cutoff": cutoffStr,
 	}
 

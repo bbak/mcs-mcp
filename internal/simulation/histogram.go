@@ -11,7 +11,7 @@ import (
 type Histogram struct {
 	Counts           []int
 	StratifiedCounts map[string][]int
-	Meta             map[string]interface{}
+	Meta             map[string]any
 }
 
 // NewHistogram creates a histogram from a list of resolved issues.
@@ -141,7 +141,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 		insight = fmt.Sprintf("Stratified: Modeling %d distinct delivery streams independently to capture capacity clashes and variance.", stratCount)
 	}
 
-	meta := map[string]interface{}{
+	meta := map[string]any{
 		"issues_total":                len(issues),
 		"issues_analyzed":             totalDelivered,
 		"dropped_by_resolution":       droppedByResolution,

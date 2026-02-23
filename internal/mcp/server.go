@@ -21,16 +21,16 @@ import (
 
 type JSONRPCRequest struct {
 	Jsonrpc string          `json:"jsonrpc"`
-	ID      interface{}     `json:"id"`
+	ID      any     `json:"id"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
 }
 
 type JSONRPCResponse struct {
 	Jsonrpc string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
-	Error   interface{} `json:"error,omitempty"`
+	ID      any `json:"id"`
+	Result  any `json:"result,omitempty"`
+	Error   any `json:"error,omitempty"`
 }
 
 type Server struct {
@@ -80,7 +80,7 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 				Interface("panic", r).
 				Str("stack", stack).
 				Msg("Panic recovered in dispatch")
-			s.sendError(req.ID, map[string]interface{}{
+			s.sendError(req.ID, map[string]any{
 				"code":    -32603,
 				"message": fmt.Sprintf("Internal error: %v", r),
 			})
@@ -105,10 +105,10 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 
 	switch req.Method {
 	case "initialize":
-		s.sendResponse(req.ID, map[string]interface{}{
+		s.sendResponse(req.ID, map[string]any{
 			"protocolVersion": "2024-11-05",
-			"capabilities":    map[string]interface{}{},
-			"serverInfo":      map[string]interface{}{"name": "mcs-mcp", "version": "0.1.0"},
+			"capabilities":    map[string]any{},
+			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.1.0"},
 		})
 	case "tools/list":
 		s.sendResponse(req.ID, s.listTools())
@@ -120,14 +120,14 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 			s.sendResponse(req.ID, res)
 		}
 	default:
-		s.sendError(req.ID, map[string]interface{}{
+		s.sendError(req.ID, map[string]any{
 			"code":    -32601,
 			"message": fmt.Sprintf("Method not found: %s", req.Method),
 		})
 	}
 }
 
-func (s *Server) sendResponse(id interface{}, result interface{}) {
+func (s *Server) sendResponse(id any, result any) {
 	resp := JSONRPCResponse{
 		Jsonrpc: "2.0",
 		ID:      id,
@@ -137,7 +137,7 @@ func (s *Server) sendResponse(id interface{}, result interface{}) {
 	fmt.Println(string(out))
 }
 
-func (s *Server) sendError(id interface{}, err interface{}) {
+func (s *Server) sendError(id any, err any) {
 	resp := JSONRPCResponse{
 		Jsonrpc: "2.0",
 		ID:      id,
@@ -147,7 +147,7 @@ func (s *Server) sendError(id interface{}, err interface{}) {
 	fmt.Println(string(out))
 }
 
-func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes interface{}) {
+func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 	defer func() {
 		if r := recover(); r != nil {
 			stack := string(debug.Stack())
@@ -155,7 +155,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 				Interface("panic", r).
 				Str("stack", stack).
 				Msg("Panic recovered in callTool")
-			errRes = map[string]interface{}{
+			errRes = map[string]any{
 				"code":    -32603,
 				"message": fmt.Sprintf("Internal error: %v\n\nStack trace:\n%s", r, stack),
 			}
@@ -164,28 +164,28 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 
 	var call struct {
 		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments"`
+		Arguments map[string]any `json:"arguments"`
 	}
 	if err := json.Unmarshal(params, &call); err != nil {
-		return nil, map[string]interface{}{"code": -32602, "message": "Invalid params"}
+		return nil, map[string]any{"code": -32602, "message": "Invalid params"}
 	}
 
 	log.Info().Str("tool", call.Name).Msg("Processing tool call")
 	log.Debug().Interface("arguments", call.Arguments).Msg("Tool arguments")
 
-	var data interface{}
+	var data any
 	var err error
 
 	switch call.Name {
 	case "import_projects":
 		query := asString(call.Arguments["query"])
-		var projects []interface{}
+		var projects []any
 		var findErr error
 
 		// Intercept MCSTEST (case-insensitive) or broad searches
 		isMockQuery := strings.Contains(strings.ToUpper(query), "MCSTEST") || query == ""
 		if isMockQuery {
-			projects = append(projects, map[string]interface{}{
+			projects = append(projects, map[string]any{
 				"key":  "MCSTEST",
 				"name": "Mock Test Project (Synthetic)",
 			})
@@ -204,7 +204,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		}
 
 		if findErr == nil {
-			data = map[string]interface{}{
+			data = map[string]any{
 				"projects": projects,
 				"_guidance": []string{
 					"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
@@ -215,12 +215,12 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "import_boards":
 		pKey := asString(call.Arguments["project_key"])
 		nFilter := asString(call.Arguments["name_filter"])
-		var boards []interface{}
+		var boards []any
 		var findErr error
 
 		isMockKey := strings.ToUpper(pKey) == "MCSTEST" || pKey == ""
 		if isMockKey {
-			boards = append(boards, map[string]interface{}{
+			boards = append(boards, map[string]any{
 				"id":   0,
 				"name": "Mock Test Board 0 (Synthetic)",
 				"type": "kanban",
@@ -238,7 +238,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 		if findErr == nil {
-			data = map[string]interface{}{
+			data = map[string]any{
 				"boards": boards,
 				"_guidance": []string{
 					"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
@@ -271,7 +271,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		targetDate := asString(call.Arguments["target_date"])
 
 		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
+		if it, ok := call.Arguments["issue_types"].([]any); ok {
 			for _, v := range it {
 				issueTypes = append(issueTypes, asString(v))
 			}
@@ -287,7 +287,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleEnd := asString(call.Arguments["history_end_date"])
 
 		var targets map[string]int
-		if t, ok := call.Arguments["targets"].(map[string]interface{}); ok {
+		if t, ok := call.Arguments["targets"].(map[string]any); ok {
 			targets = make(map[string]int)
 			for k, v := range t {
 				targets[k] = asInt(v)
@@ -295,7 +295,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		}
 
 		var mixOverrides map[string]float64
-		if m, ok := call.Arguments["mix_overrides"].(map[string]interface{}); ok {
+		if m, ok := call.Arguments["mix_overrides"].(map[string]any); ok {
 			mixOverrides = make(map[string]float64)
 			for k, v := range m {
 				if f, ok := v.(float64); ok {
@@ -311,7 +311,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		issueTypes := []string{}
-		if types, ok := call.Arguments["issue_types"].([]interface{}); ok {
+		if types, ok := call.Arguments["issue_types"].([]any); ok {
 			for _, t := range types {
 				issueTypes = append(issueTypes, asString(t))
 			}
@@ -368,15 +368,15 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	case "workflow_set_mapping":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
-		resolutions, _ := call.Arguments["resolutions"].(map[string]interface{})
+		mapping, _ := call.Arguments["mapping"].(map[string]any)
+		resolutions, _ := call.Arguments["resolutions"].(map[string]any)
 		commitmentPoint := asString(call.Arguments["commitment_point"])
 		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions, commitmentPoint)
 	case "workflow_set_order":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		order := []string{}
-		if o, ok := call.Arguments["order"].([]interface{}); ok {
+		if o, ok := call.Arguments["order"].([]any); ok {
 			for _, v := range o {
 				order = append(order, asString(v))
 			}
@@ -398,7 +398,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		horizon := asInt(call.Arguments["forecast_horizon_days"])
 
 		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
+		if it, ok := call.Arguments["issue_types"].([]any); ok {
 			for _, v := range it {
 				issueTypes = append(issueTypes, asString(v))
 			}
@@ -419,19 +419,19 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleCacheCatchUp(projectKey, boardID)
 	default:
-		return nil, map[string]interface{}{"code": -32601, "message": "Tool not found"}
+		return nil, map[string]any{"code": -32601, "message": "Tool not found"}
 	}
 
 	if err != nil {
 		log.Error().Err(err).Str("tool", call.Name).Msg("Tool call failed")
-		return nil, map[string]interface{}{"code": -32000, "message": err.Error()}
+		return nil, map[string]any{"code": -32000, "message": err.Error()}
 	}
 
 	log.Info().Str("tool", call.Name).Msg("Tool call completed successfully")
 
-	return map[string]interface{}{
-		"content": []interface{}{
-			map[string]interface{}{
+	return map[string]any{
+		"content": []any{
+			map[string]any{
 				"type": "text",
 				"text": s.formatResult(data),
 			},
