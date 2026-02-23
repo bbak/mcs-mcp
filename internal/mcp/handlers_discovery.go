@@ -1,8 +1,9 @@
 package mcp
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"mcs-mcp/internal/jira"
@@ -107,13 +108,10 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 			"Finished":   4,
 		}
 
-		sort.SliceStable(discoveredOrder, func(i, j int) bool {
-			ti := finalMapping[discoveredOrder[i]].Tier
-			tj := finalMapping[discoveredOrder[j]].Tier
-			if tierWeights[ti] != tierWeights[tj] {
-				return tierWeights[ti] < tierWeights[tj]
-			}
-			return i < j
+		slices.SortStableFunc(discoveredOrder, func(a, b string) int {
+			ta := finalMapping[a].Tier
+			tb := finalMapping[b].Tier
+			return cmp.Compare(tierWeights[ta], tierWeights[tb])
 		})
 	}
 
