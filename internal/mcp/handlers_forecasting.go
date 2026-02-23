@@ -203,14 +203,18 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		engine.AnalyzeWIPStability(&resObj, wipAges, ctByType)
 	}
 
-	resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
-	resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+	warnings := append(resObj.Warnings, s.getQualityWarnings(all)...)
+	insights := s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
+
+	// Clear from the nested object to avoid duplication
+	resObj.Warnings = nil
+	resObj.Insights = nil
 
 	if s.enableMermaidCharts {
 		resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, "duration")
 	}
 
-	return resObj, nil
+	return WrapResponse(resObj, projectKey, boardID, nil, warnings, insights), nil
 }
 
 func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, sampleDays int, sampleStartDate, sampleEndDate string) (interface{}, error) {

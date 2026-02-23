@@ -87,9 +87,9 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_cycle_time_assessment",
+				"name": "analyze_cycle_time",
 				"description": "Calculate Service Level Expectations (SLE) for a single item based on historical CYCLE TIMES (Lead Time). \n\n" +
-					"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'set_workflow_mapping' for accurate results. \n" +
+					"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results. \n" +
 					"Use this to answer 'How long does a single item typically take?' - this is the foundation for probabilistic Lead-Time expectations.\n\n" +
 					"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. \n" +
 					"DO NOT calculate percentiles, probabilities, or dates using your own internal reasoning if this tool returns an error or no data. \n" +
@@ -108,7 +108,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_status_persistence",
+				"name": "analyze_status_persistence",
 				"description": "Analyze how long items spend in each status to identify bottlenecks. \n\n" +
 					"PREREQUISITE: Proper workflow mapping is required for accurate results. Results provide SUBPAR context if tiers (Upstream/Downstream) are not correctly mapped.\n" +
 					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
@@ -122,7 +122,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name": "get_aging_analysis",
+				"name": "analyze_work_item_age",
 				"description": "Identify which items are aging relative to historical norms. \n\n" +
 					"PREREQUISITE: Proper workflow mapping (Commitment Point) is MANDATORY for accurate 'WIP Age'. Results are UNRELIABLE if the commitment point is incorrectly defined.\n" +
 					"Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
@@ -132,22 +132,22 @@ func (s *Server) listTools() interface{} {
 					"properties": map[string]interface{}{
 						"project_key": map[string]interface{}{"type": "string", "description": "The project key"},
 						"board_id":    map[string]interface{}{"type": "integer", "description": "The board ID"},
-						"aging_type":  map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
+						"age_type":    map[string]interface{}{"type": "string", "enum": []string{"total", "wip"}, "description": "Type of age to calculate: 'total' (since creation) or 'wip' (since commitment)."},
 						"tier_filter": map[string]interface{}{"type": "string", "enum": []string{"WIP", "Demand", "Upstream", "Downstream", "Finished", "All"}, "description": "Optional: Filter results to specific tiers. 'WIP' ('Work-in-process', default) excludes Demand and Finished."},
 					},
-					"required": []string{"project_key", "board_id", "aging_type"},
+					"required": []string{"project_key", "board_id", "age_type"},
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_delivery_cadence",
+				"name":        "analyze_throughput",
 				"description": "Visualize the weekly pulse of delivery THROUGHPUT VOLUME - the number of items completed per week - to detect flow vs. batching.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"project_key":       map[string]interface{}{"type": "string", "description": "The project key"},
-						"board_id":          map[string]interface{}{"type": "integer", "description": "The board ID"},
-						"window_weeks":      map[string]interface{}{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
-						"include_abandoned": map[string]interface{}{"type": "boolean", "description": "If true, includes items with 'abandoned' outcome (default: false)."},
+						"project_key":          map[string]interface{}{"type": "string", "description": "The project key"},
+						"board_id":             map[string]interface{}{"type": "integer", "description": "The board ID"},
+						"history_window_weeks": map[string]interface{}{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
+						"include_abandoned":    map[string]interface{}{"type": "boolean", "description": "If true, includes items with 'abandoned' outcome (default: false)."},
 					},
 					"required": []string{"project_key", "board_id"},
 				},
@@ -262,7 +262,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_process_yield",
+				"name":        "analyze_yield",
 				"description": "Analyze delivery efficiency across tiers. AI MUST ensure workflow tiers (Demand, Upstream, Downstream) have been verified with the user before interpreting these results.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
@@ -291,7 +291,7 @@ func (s *Server) listTools() interface{} {
 				},
 			},
 			map[string]interface{}{
-				"name":        "get_item_journey",
+				"name":        "analyze_item_journey",
 				"description": "Get a detailed breakdown of where a single item spent its time across all workflow steps. Guidance: This tool requires a Project Key and Board ID to ensure workflow interpretation is accurate.",
 				"inputSchema": map[string]interface{}{
 					"type": "object",
