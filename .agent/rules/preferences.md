@@ -40,7 +40,7 @@ description: General user preferences and coding guidelines for the agent to fol
     - `chore`: Maintenance, scaffolding, or project setup
     - `build`: Build system changes
 
-- I'm fine with more modern go language features. Don't use outdated patterns or libraries if there's a modern alternative unless it massively reduces the readability of the code.
+- Let's optimize for Go 1.25 and newer versions. Don't use outdated patterns or libraries if there's a modern alternative unless it massively reduces the readability of the code.
 
 # Application Constraints
 

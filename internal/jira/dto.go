@@ -32,7 +32,7 @@ type FieldsDTO struct {
 		Name string `json:"name"`
 	} `json:"resolution"`
 	ResolutionDate string `json:"resolutiondate"`
-	Flagged        any `json:"customfield_10014,omitempty"` // Standard Flagged field ID or common alias
+	Flagged        any    `json:"customfield_10014,omitempty"` // Standard Flagged field ID or common alias
 	Created        string `json:"created"`
 	Updated        string `json:"updated"`
 }

@@ -6,7 +6,7 @@ import (
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/stats/discovery"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -82,8 +82,8 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 	}
 
 	// Sort by resolution date
-	sort.Slice(finishedIssues, func(i, j int) bool {
-		return finishedIssues[i].ResolutionDate.Before(*finishedIssues[j].ResolutionDate)
+	slices.SortFunc(finishedIssues, func(a, b jira.Issue) int {
+		return a.ResolutionDate.Compare(*b.ResolutionDate)
 	})
 
 	// Get Cycle Times for Stability Analysis
@@ -347,8 +347,8 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 		return -1.0 // Not enough data
 	}
 
-	sort.Slice(resolvedAfter, func(i, j int) bool {
-		return resolvedAfter[i].Before(resolvedAfter[j])
+	slices.SortFunc(resolvedAfter, func(a, b time.Time) int {
+		return a.Compare(b)
 	})
 
 	nthDate := resolvedAfter[n-1]

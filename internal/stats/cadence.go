@@ -2,7 +2,7 @@ package stats
 
 import (
 	"mcs-mcp/internal/jira"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -44,8 +44,8 @@ func CalculateDeliveryCadence(issues []jira.Issue, windowWeeks int) []DeliveryCa
 		})
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].WeekStarting.Before(results[j].WeekStarting)
+	slices.SortFunc(results, func(a, b DeliveryCadence) int {
+		return a.WeekStarting.Compare(b.WeekStarting)
 	})
 
 	return results

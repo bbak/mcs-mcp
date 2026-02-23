@@ -21,16 +21,16 @@ import (
 
 type JSONRPCRequest struct {
 	Jsonrpc string          `json:"jsonrpc"`
-	ID      any     `json:"id"`
+	ID      any             `json:"id"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
 }
 
 type JSONRPCResponse struct {
-	Jsonrpc string      `json:"jsonrpc"`
-	ID      any `json:"id"`
-	Result  any `json:"result,omitempty"`
-	Error   any `json:"error,omitempty"`
+	Jsonrpc string `json:"jsonrpc"`
+	ID      any    `json:"id"`
+	Result  any    `json:"result,omitempty"`
+	Error   any    `json:"error,omitempty"`
 }
 
 type Server struct {
@@ -163,7 +163,7 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 	}()
 
 	var call struct {
-		Name      string                 `json:"name"`
+		Name      string         `json:"name"`
 		Arguments map[string]any `json:"arguments"`
 	}
 	if err := json.Unmarshal(params, &call); err != nil {

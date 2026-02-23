@@ -1,9 +1,10 @@
 package stats
 
 import (
+	"cmp"
 	"math"
 	"mcs-mcp/internal/jira"
-	"sort"
+	"slices"
 )
 
 // TierSummary aggregates persistence metrics by meta-workflow tier.
@@ -59,7 +60,7 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			continue
 		}
 
-		sort.Float64s(durations)
+		slices.Sort(durations)
 		sp := StatusPersistence{
 			StatusName: status,
 			Share:      math.Round(share*1000) / 1000,
@@ -73,7 +74,7 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 
 		// Blocked Metrics (Friction Mapping)
 		if bd, ok := blockedDurations[status]; ok && len(bd) > 0 {
-			sort.Float64s(bd)
+			slices.Sort(bd)
 			bn := len(bd)
 			sp.BlockedCount = bn
 			sp.BlockedP50 = math.Round(bd[int(float64(bn)*0.50)]*10) / 10
@@ -84,8 +85,8 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 	}
 
 	// Sort results by status name for stability
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].StatusName < results[j].StatusName
+	slices.SortFunc(results, func(a, b StatusPersistence) int {
+		return cmp.Compare(a.StatusName, b.StatusName)
 	})
 
 	return results
@@ -149,14 +150,14 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 		if len(durations) == 0 {
 			continue
 		}
-		sort.Float64s(durations)
+		slices.Sort(durations)
 		n := len(durations)
 
 		statuses := []string{}
 		for s := range tierStatuses[tier] {
 			statuses = append(statuses, s)
 		}
-		sort.Strings(statuses)
+		slices.Sort(statuses)
 
 		interpretation := ""
 		switch tier {
