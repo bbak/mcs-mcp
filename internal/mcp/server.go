@@ -177,7 +177,7 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 	var err error
 
 	switch call.Name {
-	case "find_jira_projects":
+	case "import_projects":
 		query := asString(call.Arguments["query"])
 		var projects []interface{}
 		var findErr error
@@ -207,12 +207,12 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"projects": projects,
 				"_guidance": []string{
-					"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'find_jira_boards' next.",
+					"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
 				},
 			}
 		}
 		err = findErr
-	case "find_jira_boards":
+	case "import_boards":
 		pKey := asString(call.Arguments["project_key"])
 		nFilter := asString(call.Arguments["name_filter"])
 		var boards []interface{}
@@ -241,15 +241,15 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			data = map[string]interface{}{
 				"boards": boards,
 				"_guidance": []string{
-					"Board located. You MUST now call 'get_board_details' to anchor on the data distribution and metadata before performing workflow discovery.",
+					"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
 				},
 			}
 		}
 		err = findErr
-	case "get_project_details":
+	case "import_project_context":
 		key := asString(call.Arguments["project_key"])
 		data, err = s.handleGetProjectDetails(key)
-	case "get_board_details":
+	case "import_board_context":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetBoardDetails(projectKey, boardID)
@@ -347,19 +347,19 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetProcessYield(projectKey, boardID)
-	case "get_workflow_discovery":
+	case "workflow_discover_mapping":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		force, _ := call.Arguments["force_refresh"].(bool)
 		data, err = s.handleGetWorkflowDiscovery(projectKey, boardID, force)
-	case "set_workflow_mapping":
+	case "workflow_set_mapping":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		mapping, _ := call.Arguments["mapping"].(map[string]interface{})
 		resolutions, _ := call.Arguments["resolutions"].(map[string]interface{})
 		commitmentPoint := asString(call.Arguments["commitment_point"])
 		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions, commitmentPoint)
-	case "set_workflow_order":
+	case "workflow_set_order":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		order := []string{}
@@ -415,12 +415,12 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		sampleEnd := asString(call.Arguments["sample_end_date"])
 
 		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, issueTypes, sampleDays, sampleStart, sampleEnd)
-	case "cache_expand_history":
+	case "import_history_expand":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		chunks := asInt(call.Arguments["chunks"])
 		data, err = s.handleCacheExpandHistory(projectKey, boardID, chunks)
-	case "cache_catch_up":
+	case "import_history_update":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleCacheCatchUp(projectKey, boardID)

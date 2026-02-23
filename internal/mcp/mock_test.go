@@ -48,7 +48,8 @@ func TestMCSTEST_Integration(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to get board details: %v", err)
 				}
-				boardRes := res.(map[string]interface{})
+				env := res.(ResponseEnvelope)
+				boardRes := env.Data.(map[string]interface{})
 				summary := boardRes["data_summary"].(stats.MetadataSummary)
 
 				if summary.Whole.TotalItems < 200 {
@@ -112,6 +113,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Failed to get forecast accuracy: %v", err)
 					}
+
 					wfa := wfaRes.(map[string]interface{})
 					res := wfa["accuracy"].(simulation.WalkForwardResult)
 					accuracy := res.AccuracyScore

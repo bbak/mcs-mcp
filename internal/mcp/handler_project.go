@@ -59,14 +59,17 @@ func (s *Server) handleGetProjectDetails(projectKey string) (interface{}, error)
 	}
 
 	// 5. Return wrapped response
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"project":      project,
 		"data_summary": summary,
-		"_guidance": []string{
-			"Data Ingestion Complete: History is loaded and analyzed.",
-			"Review the 'data_summary' to understand volume and issue types.",
-			"Next Step: Call 'get_workflow_discovery' to establish the semantic process mapping.",
-			"Once mapping is confirmed, use 'get_diagnostic_roadmap' to plan your analysis.",
-		},
-	}, nil
+	}
+
+	guidance := []string{
+		"Data Ingestion Complete: History is loaded and analyzed.",
+		"Review the 'data_summary' to understand volume and issue types.",
+		"Next Step: Call 'workflow_discover_mapping' to establish the semantic process mapping.",
+		"Once mapping is confirmed, use 'guide_diagnostic_roadmap' to plan your analysis.",
+	}
+
+	return WrapResponse(res, projectKey, 0, nil, nil, guidance), nil
 }

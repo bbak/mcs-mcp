@@ -1,0 +1,1183 @@
+{"issueKey":"MCSTEST-1","issueType":"Story","eventType":"Created","ts":1745950556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-1","issueType":"Story","eventType":"Change","ts":1745990156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-1","issueType":"Story","eventType":"Change","ts":1746058556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-1","issueType":"Story","eventType":"Change","ts":1746224156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-2","issueType":"Story","eventType":"Created","ts":1746036956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-2","issueType":"Story","eventType":"Change","ts":1746108956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-2","issueType":"Story","eventType":"Change","ts":1746234956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-2","issueType":"Story","eventType":"Change","ts":1746533756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-3","issueType":"Story","eventType":"Created","ts":1746123356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-3","issueType":"Story","eventType":"Change","ts":1746249356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-3","issueType":"Story","eventType":"Change","ts":1746465356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-3","issueType":"Story","eventType":"Change","ts":1746976556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-4","issueType":"Story","eventType":"Created","ts":1746209756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-4","issueType":"Story","eventType":"Change","ts":1746450956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-4","issueType":"Story","eventType":"Change","ts":1746854156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-4","issueType":"Story","eventType":"Change","ts":1747826156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-5","issueType":"Story","eventType":"Created","ts":1746296156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-5","issueType":"Story","eventType":"Change","ts":1746436556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-5","issueType":"Story","eventType":"Change","ts":1746674156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-5","issueType":"Story","eventType":"Change","ts":1747242956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-6","issueType":"Story","eventType":"Created","ts":1746382556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-6","issueType":"Story","eventType":"Change","ts":1746497756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-6","issueType":"Story","eventType":"Change","ts":1746695756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-6","issueType":"Story","eventType":"Change","ts":1747170956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-7","issueType":"Story","eventType":"Created","ts":1746468956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-7","issueType":"Story","eventType":"Change","ts":1746656156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-7","issueType":"Story","eventType":"Change","ts":1746972956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-7","issueType":"Story","eventType":"Change","ts":1747736156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-8","issueType":"Story","eventType":"Created","ts":1746555356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-8","issueType":"Story","eventType":"Change","ts":1746576956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-8","issueType":"Story","eventType":"Change","ts":1746620156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-8","issueType":"Story","eventType":"Change","ts":1746717356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-9","issueType":"Story","eventType":"Created","ts":1746641756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-9","issueType":"Story","eventType":"Change","ts":1746710156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-9","issueType":"Story","eventType":"Change","ts":1746828956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-9","issueType":"Story","eventType":"Change","ts":1747113356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-10","issueType":"Story","eventType":"Created","ts":1746728156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-10","issueType":"Story","eventType":"Change","ts":1746774956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-10","issueType":"Story","eventType":"Change","ts":1746857756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-10","issueType":"Story","eventType":"Change","ts":1747052156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-11","issueType":"Story","eventType":"Created","ts":1746814556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-11","issueType":"Story","eventType":"Change","ts":1746933356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-11","issueType":"Story","eventType":"Change","ts":1747134956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-11","issueType":"Story","eventType":"Change","ts":1747613756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-12","issueType":"Story","eventType":"Created","ts":1746900956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-12","issueType":"Story","eventType":"Change","ts":1746936956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-12","issueType":"Story","eventType":"Change","ts":1747005356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-12","issueType":"Story","eventType":"Change","ts":1747160156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-13","issueType":"Story","eventType":"Created","ts":1746987356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-13","issueType":"Story","eventType":"Change","ts":1747077356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-13","issueType":"Story","eventType":"Change","ts":1747232156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-13","issueType":"Story","eventType":"Change","ts":1747599356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-14","issueType":"Story","eventType":"Created","ts":1747073756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-14","issueType":"Story","eventType":"Change","ts":1747098956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-14","issueType":"Story","eventType":"Change","ts":1747142156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-14","issueType":"Story","eventType":"Change","ts":1747246556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-15","issueType":"Story","eventType":"Created","ts":1747160156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-15","issueType":"Story","eventType":"Change","ts":1747264556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-15","issueType":"Story","eventType":"Change","ts":1747444556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-15","issueType":"Story","eventType":"Change","ts":1747876556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-16","issueType":"Story","eventType":"Created","ts":1747246556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-16","issueType":"Story","eventType":"Change","ts":1747444556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-16","issueType":"Story","eventType":"Change","ts":1747775756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-16","issueType":"Story","eventType":"Change","ts":1748567756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-17","issueType":"Story","eventType":"Created","ts":1747332956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-17","issueType":"Story","eventType":"Change","ts":1747466156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-17","issueType":"Story","eventType":"Change","ts":1747689356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-17","issueType":"Story","eventType":"Change","ts":1748225756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-18","issueType":"Story","eventType":"Created","ts":1747419356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-18","issueType":"Story","eventType":"Change","ts":1747548956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-18","issueType":"Story","eventType":"Change","ts":1747772156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-18","issueType":"Story","eventType":"Change","ts":1748304956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-19","issueType":"Story","eventType":"Created","ts":1747505756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-19","issueType":"Story","eventType":"Change","ts":1747613756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-19","issueType":"Story","eventType":"Change","ts":1747800956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-19","issueType":"Story","eventType":"Change","ts":1748243756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-20","issueType":"Story","eventType":"Created","ts":1747592156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-20","issueType":"Story","eventType":"Change","ts":1747620956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-20","issueType":"Story","eventType":"Change","ts":1747674956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-20","issueType":"Story","eventType":"Change","ts":1747800956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-21","issueType":"Story","eventType":"Created","ts":1747678556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-21","issueType":"Story","eventType":"Change","ts":1747750556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-21","issueType":"Story","eventType":"Change","ts":1747872956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-21","issueType":"Story","eventType":"Change","ts":1748168156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-22","issueType":"Story","eventType":"Created","ts":1747764956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-22","issueType":"Story","eventType":"Change","ts":1747901756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-22","issueType":"Story","eventType":"Change","ts":1748128556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-22","issueType":"Story","eventType":"Change","ts":1748675756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-23","issueType":"Story","eventType":"Created","ts":1747851356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-23","issueType":"Story","eventType":"Change","ts":1747937756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-23","issueType":"Story","eventType":"Change","ts":1748088956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-23","issueType":"Story","eventType":"Change","ts":1748445356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-24","issueType":"Story","eventType":"Created","ts":1747937756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-24","issueType":"Story","eventType":"Change","ts":1748092556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-24","issueType":"Story","eventType":"Change","ts":1748351756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-24","issueType":"Story","eventType":"Change","ts":1748978156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-25","issueType":"Story","eventType":"Created","ts":1748024156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-25","issueType":"Story","eventType":"Change","ts":1748139356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-25","issueType":"Story","eventType":"Change","ts":1748333756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-25","issueType":"Story","eventType":"Change","ts":1748798156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-26","issueType":"Story","eventType":"Created","ts":1748110556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-26","issueType":"Story","eventType":"Change","ts":1748232956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-26","issueType":"Story","eventType":"Change","ts":1748438156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-26","issueType":"Story","eventType":"Change","ts":1748927756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-27","issueType":"Story","eventType":"Created","ts":1748196956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-27","issueType":"Story","eventType":"Change","ts":1748340956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-27","issueType":"Story","eventType":"Change","ts":1748585756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-27","issueType":"Story","eventType":"Change","ts":1749168956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-28","issueType":"Story","eventType":"Created","ts":1748283356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-28","issueType":"Story","eventType":"Change","ts":1748330156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-28","issueType":"Story","eventType":"Change","ts":1748409356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-28","issueType":"Story","eventType":"Change","ts":1748603756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-29","issueType":"Story","eventType":"Created","ts":1748369756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-29","issueType":"Story","eventType":"Change","ts":1748466956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-29","issueType":"Story","eventType":"Change","ts":1748628956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-29","issueType":"Story","eventType":"Change","ts":1749017756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-30","issueType":"Story","eventType":"Created","ts":1748456156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-30","issueType":"Story","eventType":"Change","ts":1748614556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-30","issueType":"Story","eventType":"Change","ts":1748880956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-30","issueType":"Story","eventType":"Change","ts":1749525356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-31","issueType":"Story","eventType":"Created","ts":1748542556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-31","issueType":"Story","eventType":"Change","ts":1748675756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-31","issueType":"Story","eventType":"Change","ts":1748902556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-31","issueType":"Story","eventType":"Change","ts":1749446156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-32","issueType":"Story","eventType":"Created","ts":1748628956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-32","issueType":"Story","eventType":"Change","ts":1748758556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-32","issueType":"Story","eventType":"Change","ts":1748981756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-32","issueType":"Story","eventType":"Change","ts":1749510956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-33","issueType":"Story","eventType":"Created","ts":1748715356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-33","issueType":"Story","eventType":"Change","ts":1748877356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-33","issueType":"Story","eventType":"Change","ts":1749150956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-33","issueType":"Story","eventType":"Change","ts":1749809756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-34","issueType":"Story","eventType":"Created","ts":1748801756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-34","issueType":"Story","eventType":"Change","ts":1748970956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-34","issueType":"Story","eventType":"Change","ts":1749255356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-34","issueType":"Story","eventType":"Change","ts":1749942956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-35","issueType":"Story","eventType":"Created","ts":1748888156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-35","issueType":"Story","eventType":"Change","ts":1749035756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-35","issueType":"Story","eventType":"Change","ts":1749280556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-35","issueType":"Story","eventType":"Change","ts":1749874556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-36","issueType":"Story","eventType":"Created","ts":1748974556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-36","issueType":"Story","eventType":"Change","ts":1749064556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-36","issueType":"Story","eventType":"Change","ts":1749219356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-36","issueType":"Story","eventType":"Change","ts":1749593756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-37","issueType":"Story","eventType":"Created","ts":1749060956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-37","issueType":"Story","eventType":"Change","ts":1749197756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-37","issueType":"Story","eventType":"Change","ts":1749424556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-37","issueType":"Story","eventType":"Change","ts":1749975356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-38","issueType":"Story","eventType":"Created","ts":1749147356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-38","issueType":"Story","eventType":"Change","ts":1749291356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-38","issueType":"Story","eventType":"Change","ts":1749536156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-38","issueType":"Story","eventType":"Change","ts":1750126556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-39","issueType":"Story","eventType":"Created","ts":1749233756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-39","issueType":"Story","eventType":"Change","ts":1749294956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-39","issueType":"Story","eventType":"Change","ts":1749399356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-39","issueType":"Story","eventType":"Change","ts":1749654956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-40","issueType":"Story","eventType":"Created","ts":1749320156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-40","issueType":"Story","eventType":"Change","ts":1749460556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-40","issueType":"Story","eventType":"Change","ts":1749698156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-40","issueType":"Story","eventType":"Change","ts":1750270556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-41","issueType":"Story","eventType":"Created","ts":1749406556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-41","issueType":"Story","eventType":"Change","ts":1749474956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-41","issueType":"Story","eventType":"Change","ts":1749593756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-41","issueType":"Story","eventType":"Change","ts":1749881756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-42","issueType":"Story","eventType":"Created","ts":1749492956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-42","issueType":"Story","eventType":"Change","ts":1749550556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-42","issueType":"Story","eventType":"Change","ts":1749651356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-42","issueType":"Story","eventType":"Change","ts":1749888956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-43","issueType":"Story","eventType":"Created","ts":1749579356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-43","issueType":"Story","eventType":"Change","ts":1749608156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-43","issueType":"Story","eventType":"Change","ts":1749658556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-43","issueType":"Story","eventType":"Change","ts":1749784556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-44","issueType":"Story","eventType":"Created","ts":1749665756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-44","issueType":"Story","eventType":"Change","ts":1749676556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-44","issueType":"Story","eventType":"Change","ts":1749698156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-44","issueType":"Story","eventType":"Change","ts":1749744956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-45","issueType":"Story","eventType":"Created","ts":1749752156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-45","issueType":"Story","eventType":"Change","ts":1749834956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-45","issueType":"Story","eventType":"Change","ts":1749978956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-45","issueType":"Story","eventType":"Change","ts":1750320956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-46","issueType":"Story","eventType":"Created","ts":1749838556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-46","issueType":"Story","eventType":"Change","ts":1749914156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-46","issueType":"Story","eventType":"Change","ts":1750043756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-46","issueType":"Story","eventType":"Change","ts":1750356956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-47","issueType":"Story","eventType":"Created","ts":1749924956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-47","issueType":"Story","eventType":"Change","ts":1750007756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-47","issueType":"Story","eventType":"Change","ts":1750151756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-47","issueType":"Story","eventType":"Change","ts":1750493756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-48","issueType":"Story","eventType":"Created","ts":1750011356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-48","issueType":"Story","eventType":"Change","ts":1750227356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-48","issueType":"Story","eventType":"Change","ts":1750590956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-48","issueType":"Story","eventType":"Change","ts":1751465756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-49","issueType":"Story","eventType":"Created","ts":1750097756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-49","issueType":"Story","eventType":"Change","ts":1750137356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-49","issueType":"Story","eventType":"Change","ts":1750202156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-49","issueType":"Story","eventType":"Change","ts":1750360556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-50","issueType":"Story","eventType":"Created","ts":1750184156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-50","issueType":"Story","eventType":"Change","ts":1750281356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-50","issueType":"Story","eventType":"Change","ts":1750446956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-50","issueType":"Story","eventType":"Change","ts":1750846556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-51","issueType":"Story","eventType":"Created","ts":1750270556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-51","issueType":"Story","eventType":"Change","ts":1750428956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-51","issueType":"Story","eventType":"Change","ts":1750695356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-51","issueType":"Story","eventType":"Change","ts":1751336156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-52","issueType":"Story","eventType":"Created","ts":1750356956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-52","issueType":"Story","eventType":"Change","ts":1750522556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-52","issueType":"Story","eventType":"Change","ts":1750799756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-52","issueType":"Story","eventType":"Change","ts":1751469356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-53","issueType":"Story","eventType":"Created","ts":1750443356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-53","issueType":"Story","eventType":"Change","ts":1750616156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-53","issueType":"Story","eventType":"Change","ts":1750911356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-53","issueType":"Story","eventType":"Change","ts":1751613356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-54","issueType":"Story","eventType":"Created","ts":1750529756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-54","issueType":"Story","eventType":"Change","ts":1750727756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-54","issueType":"Story","eventType":"Change","ts":1751062556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-54","issueType":"Story","eventType":"Change","ts":1751861756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-55","issueType":"Story","eventType":"Created","ts":1750616156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-55","issueType":"Story","eventType":"Change","ts":1750749356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-55","issueType":"Story","eventType":"Change","ts":1750976156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-55","issueType":"Story","eventType":"Change","ts":1751516156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-56","issueType":"Story","eventType":"Created","ts":1750702556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-56","issueType":"Story","eventType":"Change","ts":1750846556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-56","issueType":"Story","eventType":"Change","ts":1751087756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-56","issueType":"Story","eventType":"Change","ts":1751667356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-57","issueType":"Story","eventType":"Created","ts":1750788956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-57","issueType":"Story","eventType":"Change","ts":1750860956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-57","issueType":"Story","eventType":"Change","ts":1750983356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-57","issueType":"Story","eventType":"Change","ts":1751274956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-58","issueType":"Story","eventType":"Created","ts":1750875356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-58","issueType":"Story","eventType":"Change","ts":1751094956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-58","issueType":"Story","eventType":"Change","ts":1751462156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-58","issueType":"Story","eventType":"Change","ts":1752347756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-59","issueType":"Story","eventType":"Created","ts":1750961756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-59","issueType":"Story","eventType":"Change","ts":1751044556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-59","issueType":"Story","eventType":"Change","ts":1751184956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-59","issueType":"Story","eventType":"Change","ts":1751526956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-60","issueType":"Story","eventType":"Created","ts":1751048156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-60","issueType":"Story","eventType":"Change","ts":1751134556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-60","issueType":"Story","eventType":"Change","ts":1751278556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-60","issueType":"Story","eventType":"Change","ts":1751624156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-61","issueType":"Story","eventType":"Created","ts":1751134556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-61","issueType":"Story","eventType":"Change","ts":1751332556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-61","issueType":"Story","eventType":"Change","ts":1751670956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-61","issueType":"Story","eventType":"Change","ts":1752473756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-62","issueType":"Story","eventType":"Created","ts":1751220956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-62","issueType":"Story","eventType":"Change","ts":1751271356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-62","issueType":"Story","eventType":"Change","ts":1751361356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-62","issueType":"Story","eventType":"Change","ts":1751570156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-63","issueType":"Story","eventType":"Created","ts":1751307356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-63","issueType":"Story","eventType":"Change","ts":1751418956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-63","issueType":"Story","eventType":"Change","ts":1751606156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-63","issueType":"Story","eventType":"Change","ts":1752052556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-64","issueType":"Story","eventType":"Created","ts":1751393756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-64","issueType":"Story","eventType":"Change","ts":1751415356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-64","issueType":"Story","eventType":"Change","ts":1751451356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-64","issueType":"Story","eventType":"Change","ts":1751544956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-65","issueType":"Story","eventType":"Created","ts":1751480156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-65","issueType":"Story","eventType":"Change","ts":1751667356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-65","issueType":"Story","eventType":"Change","ts":1751984156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-65","issueType":"Story","eventType":"Change","ts":1752743756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-66","issueType":"Story","eventType":"Created","ts":1751566556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-66","issueType":"Story","eventType":"Change","ts":1751667356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-66","issueType":"Story","eventType":"Change","ts":1751836556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-66","issueType":"Story","eventType":"Change","ts":1752246956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-67","issueType":"Story","eventType":"Created","ts":1751652956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-67","issueType":"Story","eventType":"Change","ts":1751717756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-67","issueType":"Story","eventType":"Change","ts":1751825756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-67","issueType":"Story","eventType":"Change","ts":1752088556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-68","issueType":"Story","eventType":"Created","ts":1751739356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-68","issueType":"Story","eventType":"Change","ts":1751872556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-68","issueType":"Story","eventType":"Change","ts":1752099356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-68","issueType":"Story","eventType":"Change","ts":1752639356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-69","issueType":"Story","eventType":"Created","ts":1751825756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-69","issueType":"Story","eventType":"Change","ts":1751984156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-69","issueType":"Story","eventType":"Change","ts":1752250556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-69","issueType":"Story","eventType":"Change","ts":1752887756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-70","issueType":"Story","eventType":"Created","ts":1751912156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-70","issueType":"Story","eventType":"Change","ts":1752056156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-70","issueType":"Story","eventType":"Change","ts":1752297356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-70","issueType":"Story","eventType":"Change","ts":1752873356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-71","issueType":"Story","eventType":"Created","ts":1751998556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-71","issueType":"Story","eventType":"Change","ts":1752164156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-71","issueType":"Story","eventType":"Change","ts":1752444956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-71","issueType":"Story","eventType":"Change","ts":1753118156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-72","issueType":"Story","eventType":"Created","ts":1752084956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-72","issueType":"Story","eventType":"Change","ts":1752167756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-72","issueType":"Story","eventType":"Change","ts":1752304556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-72","issueType":"Story","eventType":"Change","ts":1752639356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-73","issueType":"Story","eventType":"Created","ts":1752171356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-73","issueType":"Story","eventType":"Change","ts":1752200156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-73","issueType":"Story","eventType":"Change","ts":1752250556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-73","issueType":"Story","eventType":"Change","ts":1752369356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-74","issueType":"Story","eventType":"Created","ts":1752257756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-74","issueType":"Story","eventType":"Change","ts":1752380156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-74","issueType":"Story","eventType":"Change","ts":1752588956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-74","issueType":"Story","eventType":"Change","ts":1753089356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-75","issueType":"Story","eventType":"Created","ts":1752344156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-75","issueType":"Story","eventType":"Change","ts":1752434156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-75","issueType":"Story","eventType":"Change","ts":1752588956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-75","issueType":"Story","eventType":"Change","ts":1752963356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-76","issueType":"Story","eventType":"Created","ts":1752430556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-76","issueType":"Story","eventType":"Change","ts":1752509756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-76","issueType":"Story","eventType":"Change","ts":1752650156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-76","issueType":"Story","eventType":"Change","ts":1752981356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-77","issueType":"Story","eventType":"Created","ts":1752516956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-77","issueType":"Story","eventType":"Change","ts":1752657356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-77","issueType":"Story","eventType":"Change","ts":1752891356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-77","issueType":"Story","eventType":"Change","ts":1753452956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-78","issueType":"Story","eventType":"Created","ts":1752603356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-78","issueType":"Story","eventType":"Change","ts":1752693356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-78","issueType":"Story","eventType":"Change","ts":1752848156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-78","issueType":"Story","eventType":"Change","ts":1753222556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-79","issueType":"Story","eventType":"Created","ts":1752689756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-79","issueType":"Story","eventType":"Change","ts":1752812156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-79","issueType":"Story","eventType":"Change","ts":1753024556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-79","issueType":"Story","eventType":"Change","ts":1753528556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-80","issueType":"Story","eventType":"Created","ts":1752776156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-80","issueType":"Story","eventType":"Change","ts":1752819356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-80","issueType":"Story","eventType":"Change","ts":1752898556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-80","issueType":"Story","eventType":"Change","ts":1753082156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-81","issueType":"Story","eventType":"Created","ts":1752862556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-81","issueType":"Story","eventType":"Change","ts":1752981356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-81","issueType":"Story","eventType":"Change","ts":1753186556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-81","issueType":"Story","eventType":"Change","ts":1753676156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-82","issueType":"Story","eventType":"Created","ts":1752948956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-82","issueType":"Story","eventType":"Change","ts":1752995756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-82","issueType":"Story","eventType":"Change","ts":1753078556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-82","issueType":"Story","eventType":"Change","ts":1753272956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-83","issueType":"Story","eventType":"Created","ts":1753035356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-83","issueType":"Story","eventType":"Change","ts":1753100156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-83","issueType":"Story","eventType":"Change","ts":1753211756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-83","issueType":"Story","eventType":"Change","ts":1753481756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-84","issueType":"Story","eventType":"Created","ts":1753121756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-84","issueType":"Story","eventType":"Change","ts":1753218956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-84","issueType":"Story","eventType":"Change","ts":1753380956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-84","issueType":"Story","eventType":"Change","ts":1753769756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-85","issueType":"Story","eventType":"Created","ts":1753208156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-85","issueType":"Story","eventType":"Change","ts":1753251356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-85","issueType":"Story","eventType":"Change","ts":1753323356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-85","issueType":"Story","eventType":"Change","ts":1753496156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-86","issueType":"Story","eventType":"Created","ts":1753294556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-86","issueType":"Story","eventType":"Change","ts":1753362956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-86","issueType":"Story","eventType":"Change","ts":1753481756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-86","issueType":"Story","eventType":"Change","ts":1753762556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-87","issueType":"Story","eventType":"Created","ts":1753380956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-87","issueType":"Story","eventType":"Change","ts":1753445756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-87","issueType":"Story","eventType":"Change","ts":1753560956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-87","issueType":"Story","eventType":"Change","ts":1753834556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-88","issueType":"Story","eventType":"Created","ts":1753467356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-88","issueType":"Story","eventType":"Change","ts":1753640156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-88","issueType":"Story","eventType":"Change","ts":1753931756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-88","issueType":"Story","eventType":"Change","ts":1754633756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-89","issueType":"Story","eventType":"Created","ts":1753553756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-89","issueType":"Story","eventType":"Change","ts":1753697756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-89","issueType":"Story","eventType":"Change","ts":1753938956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-89","issueType":"Story","eventType":"Change","ts":1754518556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-90","issueType":"Story","eventType":"Created","ts":1753640156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-90","issueType":"Story","eventType":"Change","ts":1753924556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-90","issueType":"Story","eventType":"Change","ts":1754406956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-90","issueType":"Story","eventType":"Change","ts":1755558956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-91","issueType":"Story","eventType":"Created","ts":1753726556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-91","issueType":"Story","eventType":"Change","ts":1753877756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-91","issueType":"Story","eventType":"Change","ts":1754129756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-91","issueType":"Story","eventType":"Change","ts":1754738156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-92","issueType":"Story","eventType":"Created","ts":1753812956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-92","issueType":"Story","eventType":"Change","ts":1753996556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-92","issueType":"Story","eventType":"Change","ts":1754302556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-92","issueType":"Story","eventType":"Change","ts":1755036956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-93","issueType":"Story","eventType":"Created","ts":1753899356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-93","issueType":"Story","eventType":"Change","ts":1753953356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-93","issueType":"Story","eventType":"Change","ts":1754050556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-93","issueType":"Story","eventType":"Change","ts":1754280956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-94","issueType":"Story","eventType":"Created","ts":1753985756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-94","issueType":"Story","eventType":"Change","ts":1754093756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-94","issueType":"Story","eventType":"Change","ts":1754277356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-94","issueType":"Story","eventType":"Change","ts":1754716556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-95","issueType":"Story","eventType":"Created","ts":1754072156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-95","issueType":"Story","eventType":"Change","ts":1754176556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-95","issueType":"Story","eventType":"Change","ts":1754352956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-95","issueType":"Story","eventType":"Change","ts":1754774156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-96","issueType":"Story","eventType":"Created","ts":1754158556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-96","issueType":"Story","eventType":"Change","ts":1754244956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-96","issueType":"Story","eventType":"Change","ts":1754396156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-96","issueType":"Story","eventType":"Change","ts":1754752556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-97","issueType":"Story","eventType":"Created","ts":1754244956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-97","issueType":"Story","eventType":"Change","ts":1754306156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-97","issueType":"Story","eventType":"Change","ts":1754410556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-97","issueType":"Story","eventType":"Change","ts":1754666156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-98","issueType":"Story","eventType":"Created","ts":1754331356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-98","issueType":"Story","eventType":"Change","ts":1754507756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-98","issueType":"Story","eventType":"Change","ts":1754806556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-98","issueType":"Story","eventType":"Change","ts":1755526556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-99","issueType":"Story","eventType":"Created","ts":1754417756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-99","issueType":"Story","eventType":"Change","ts":1754486156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-99","issueType":"Story","eventType":"Change","ts":1754604956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-99","issueType":"Story","eventType":"Change","ts":1754889356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-100","issueType":"Story","eventType":"Created","ts":1754504156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-100","issueType":"Story","eventType":"Change","ts":1754586956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-100","issueType":"Story","eventType":"Change","ts":1754727356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-100","issueType":"Story","eventType":"Change","ts":1755069356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-101","issueType":"Story","eventType":"Created","ts":1754590556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-101","issueType":"Story","eventType":"Change","ts":1754759756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-101","issueType":"Story","eventType":"Change","ts":1755047756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-101","issueType":"Story","eventType":"Change","ts":1755738956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-102","issueType":"Story","eventType":"Created","ts":1754676956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-102","issueType":"Story","eventType":"Change","ts":1754853356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-102","issueType":"Story","eventType":"Change","ts":1755148556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-102","issueType":"Story","eventType":"Change","ts":1755854156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-103","issueType":"Story","eventType":"Created","ts":1754763356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-103","issueType":"Story","eventType":"Change","ts":1754856956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-103","issueType":"Story","eventType":"Change","ts":1755015356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-103","issueType":"Story","eventType":"Change","ts":1755400556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-104","issueType":"Story","eventType":"Created","ts":1754849756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-104","issueType":"Story","eventType":"Change","ts":1754896556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-104","issueType":"Story","eventType":"Change","ts":1754979356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-104","issueType":"Story","eventType":"Change","ts":1755173756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-105","issueType":"Story","eventType":"Created","ts":1754936156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-105","issueType":"Story","eventType":"Change","ts":1755015356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-105","issueType":"Story","eventType":"Change","ts":1755148556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-105","issueType":"Story","eventType":"Change","ts":1755472556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-106","issueType":"Story","eventType":"Created","ts":1755022556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-106","issueType":"Story","eventType":"Change","ts":1755184556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-106","issueType":"Story","eventType":"Change","ts":1755454556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-106","issueType":"Story","eventType":"Change","ts":1756102556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-107","issueType":"Story","eventType":"Created","ts":1755108956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-107","issueType":"Story","eventType":"Change","ts":1755195356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-107","issueType":"Story","eventType":"Change","ts":1755346556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-107","issueType":"Story","eventType":"Change","ts":1755702956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-108","issueType":"Story","eventType":"Created","ts":1755195356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-108","issueType":"Story","eventType":"Change","ts":1755288956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-108","issueType":"Story","eventType":"Change","ts":1755443756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-108","issueType":"Story","eventType":"Change","ts":1755818156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-109","issueType":"Story","eventType":"Created","ts":1755281756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-109","issueType":"Story","eventType":"Change","ts":1755425756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-109","issueType":"Story","eventType":"Change","ts":1755663356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-109","issueType":"Story","eventType":"Change","ts":1756242956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-110","issueType":"Story","eventType":"Created","ts":1755368156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-110","issueType":"Story","eventType":"Change","ts":1755476156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-110","issueType":"Story","eventType":"Change","ts":1755663356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-110","issueType":"Story","eventType":"Change","ts":1756106156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-111","issueType":"Story","eventType":"Created","ts":1755454556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-111","issueType":"Story","eventType":"Change","ts":1755609356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-111","issueType":"Story","eventType":"Change","ts":1755868556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-111","issueType":"Story","eventType":"Change","ts":1756487756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-112","issueType":"Story","eventType":"Created","ts":1755540956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-112","issueType":"Story","eventType":"Change","ts":1755605756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-112","issueType":"Story","eventType":"Change","ts":1755717356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-112","issueType":"Story","eventType":"Change","ts":1755983756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-113","issueType":"Story","eventType":"Created","ts":1755627356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-113","issueType":"Story","eventType":"Change","ts":1755688556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-113","issueType":"Story","eventType":"Change","ts":1755796556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-113","issueType":"Story","eventType":"Change","ts":1756055756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-114","issueType":"Story","eventType":"Created","ts":1755713756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-114","issueType":"Story","eventType":"Change","ts":1755767756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-114","issueType":"Story","eventType":"Change","ts":1755857756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-114","issueType":"Story","eventType":"Change","ts":1756077356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-115","issueType":"Story","eventType":"Created","ts":1755800156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-115","issueType":"Story","eventType":"Change","ts":1756019756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-115","issueType":"Story","eventType":"Change","ts":1756390556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-115","issueType":"Story","eventType":"Change","ts":1757283356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-116","issueType":"Story","eventType":"Created","ts":1755886556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-116","issueType":"Story","eventType":"Change","ts":1756016156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-116","issueType":"Story","eventType":"Change","ts":1756235756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-116","issueType":"Story","eventType":"Change","ts":1756757756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-117","issueType":"Story","eventType":"Created","ts":1755972956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-117","issueType":"Story","eventType":"Change","ts":1756026956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-117","issueType":"Story","eventType":"Change","ts":1756116956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-117","issueType":"Story","eventType":"Change","ts":1756336556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-118","issueType":"Story","eventType":"Created","ts":1756059356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-118","issueType":"Story","eventType":"Change","ts":1756134956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-118","issueType":"Story","eventType":"Change","ts":1756268156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-118","issueType":"Story","eventType":"Change","ts":1756584956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-119","issueType":"Story","eventType":"Created","ts":1756145756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-119","issueType":"Story","eventType":"Change","ts":1756203356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-119","issueType":"Story","eventType":"Change","ts":1756300556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-119","issueType":"Story","eventType":"Change","ts":1756534556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-120","issueType":"Story","eventType":"Created","ts":1756232156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-120","issueType":"Story","eventType":"Change","ts":1756304156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-120","issueType":"Story","eventType":"Change","ts":1756426556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-120","issueType":"Story","eventType":"Change","ts":1756721756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-121","issueType":"Story","eventType":"Created","ts":1756318556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-121","issueType":"Story","eventType":"Change","ts":1756527356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-121","issueType":"Story","eventType":"Change","ts":1756880156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-121","issueType":"Story","eventType":"Change","ts":1757726156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-122","issueType":"Story","eventType":"Created","ts":1756404956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-122","issueType":"Story","eventType":"Change","ts":1756494956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-122","issueType":"Story","eventType":"Change","ts":1756646156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-122","issueType":"Story","eventType":"Change","ts":1757013356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-123","issueType":"Story","eventType":"Created","ts":1756491356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-123","issueType":"Story","eventType":"Change","ts":1756541756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-123","issueType":"Story","eventType":"Change","ts":1756628156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-123","issueType":"Story","eventType":"Change","ts":1756840556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-124","issueType":"Story","eventType":"Created","ts":1756577756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-124","issueType":"Story","eventType":"Change","ts":1756649756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-124","issueType":"Story","eventType":"Change","ts":1756772156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-124","issueType":"Story","eventType":"Change","ts":1757070956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-125","issueType":"Story","eventType":"Created","ts":1756664156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-125","issueType":"Story","eventType":"Change","ts":1756797356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-125","issueType":"Story","eventType":"Change","ts":1757020556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-125","issueType":"Story","eventType":"Change","ts":1757556956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-126","issueType":"Story","eventType":"Created","ts":1756750556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-126","issueType":"Story","eventType":"Change","ts":1756984556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-126","issueType":"Story","eventType":"Change","ts":1757376956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-126","issueType":"Story","eventType":"Change","ts":1758323756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-127","issueType":"Story","eventType":"Created","ts":1756836956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-127","issueType":"Story","eventType":"Change","ts":1756937756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-127","issueType":"Story","eventType":"Change","ts":1757110556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-127","issueType":"Story","eventType":"Change","ts":1757524556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-128","issueType":"Story","eventType":"Created","ts":1756923356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-128","issueType":"Story","eventType":"Change","ts":1757009756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-128","issueType":"Story","eventType":"Change","ts":1757153756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-128","issueType":"Story","eventType":"Change","ts":1757506556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-129","issueType":"Story","eventType":"Created","ts":1757009756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-129","issueType":"Story","eventType":"Change","ts":1757060156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-129","issueType":"Story","eventType":"Change","ts":1757146556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-129","issueType":"Story","eventType":"Change","ts":1757355356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-130","issueType":"Story","eventType":"Created","ts":1757096156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-130","issueType":"Story","eventType":"Change","ts":1757196956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-130","issueType":"Story","eventType":"Change","ts":1757366156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-130","issueType":"Story","eventType":"Change","ts":1757772956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-131","issueType":"Story","eventType":"Created","ts":1757182556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-131","issueType":"Story","eventType":"Change","ts":1757358956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-131","issueType":"Story","eventType":"Change","ts":1757661356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-131","issueType":"Story","eventType":"Change","ts":1758377756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-132","issueType":"Story","eventType":"Created","ts":1757268956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-132","issueType":"Story","eventType":"Change","ts":1757520956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-132","issueType":"Story","eventType":"Change","ts":1757945756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-132","issueType":"Story","eventType":"Change","ts":1758964556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-133","issueType":"Story","eventType":"Created","ts":1757355356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-133","issueType":"Story","eventType":"Change","ts":1757585756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-133","issueType":"Story","eventType":"Change","ts":1757974556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-133","issueType":"Story","eventType":"Change","ts":1758906956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-134","issueType":"Story","eventType":"Created","ts":1757441756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-134","issueType":"Story","eventType":"Change","ts":1757477756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-134","issueType":"Story","eventType":"Change","ts":1757542556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-134","issueType":"Story","eventType":"Change","ts":1757693756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-135","issueType":"Story","eventType":"Created","ts":1757528156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-135","issueType":"Story","eventType":"Change","ts":1757657756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-135","issueType":"Story","eventType":"Change","ts":1757880956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-135","issueType":"Story","eventType":"Change","ts":1758410156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-136","issueType":"Story","eventType":"Created","ts":1757614556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-136","issueType":"Story","eventType":"Change","ts":1757769356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-136","issueType":"Story","eventType":"Change","ts":1758024956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-136","issueType":"Story","eventType":"Change","ts":1758647756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-137","issueType":"Story","eventType":"Created","ts":1757700956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-137","issueType":"Story","eventType":"Change","ts":1758060956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-137","issueType":"Story","eventType":"Change","ts":1758665756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-137","issueType":"Story","eventType":"Change","ts":1760112956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-138","issueType":"Story","eventType":"Created","ts":1757787356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-138","issueType":"Story","eventType":"Change","ts":1757992556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-138","issueType":"Story","eventType":"Change","ts":1758338156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-138","issueType":"Story","eventType":"Change","ts":1759166156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-139","issueType":"Story","eventType":"Created","ts":1757873756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-139","issueType":"Story","eventType":"Change","ts":1757938556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-139","issueType":"Story","eventType":"Change","ts":1758046556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-139","issueType":"Story","eventType":"Change","ts":1758305756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-140","issueType":"Story","eventType":"Created","ts":1757960156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-140","issueType":"Story","eventType":"Change","ts":1758168956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-140","issueType":"Story","eventType":"Change","ts":1758521756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-140","issueType":"Story","eventType":"Change","ts":1759371356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-141","issueType":"Story","eventType":"Created","ts":1758046556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-141","issueType":"Story","eventType":"Change","ts":1758089756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-141","issueType":"Story","eventType":"Change","ts":1758165356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-141","issueType":"Story","eventType":"Change","ts":1758348956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-142","issueType":"Story","eventType":"Created","ts":1758132956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-142","issueType":"Story","eventType":"Change","ts":1758158156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-142","issueType":"Story","eventType":"Change","ts":1758197756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-142","issueType":"Story","eventType":"Change","ts":1758302156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-143","issueType":"Story","eventType":"Created","ts":1758219356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-143","issueType":"Story","eventType":"Change","ts":1758348956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-143","issueType":"Story","eventType":"Change","ts":1758568556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-143","issueType":"Story","eventType":"Change","ts":1759097756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-144","issueType":"Story","eventType":"Created","ts":1758305756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-144","issueType":"Story","eventType":"Change","ts":1758388556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-144","issueType":"Story","eventType":"Change","ts":1758532556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-144","issueType":"Story","eventType":"Change","ts":1758878156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-145","issueType":"Story","eventType":"Created","ts":1758392156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-145","issueType":"Story","eventType":"Change","ts":1758500156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-145","issueType":"Story","eventType":"Change","ts":1758683756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-145","issueType":"Story","eventType":"Change","ts":1759126556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-146","issueType":"Story","eventType":"Created","ts":1758478556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-146","issueType":"Story","eventType":"Change","ts":1758590156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-146","issueType":"Story","eventType":"Change","ts":1758777356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-146","issueType":"Story","eventType":"Change","ts":1759227356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-147","issueType":"Story","eventType":"Created","ts":1758564956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-147","issueType":"Story","eventType":"Change","ts":1758788156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-147","issueType":"Story","eventType":"Change","ts":1759158956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-147","issueType":"Story","eventType":"Change","ts":1760055356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-148","issueType":"Story","eventType":"Created","ts":1758651356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-148","issueType":"Story","eventType":"Change","ts":1758856556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-148","issueType":"Story","eventType":"Change","ts":1759198556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-148","issueType":"Story","eventType":"Change","ts":1760019356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-149","issueType":"Story","eventType":"Created","ts":1758737756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-149","issueType":"Story","eventType":"Change","ts":1758874556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-149","issueType":"Story","eventType":"Change","ts":1759104956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-149","issueType":"Story","eventType":"Change","ts":1759655756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-150","issueType":"Story","eventType":"Created","ts":1758824156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-150","issueType":"Story","eventType":"Change","ts":1758932156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-150","issueType":"Story","eventType":"Change","ts":1759119356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-150","issueType":"Story","eventType":"Change","ts":1759562156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-151","issueType":"Story","eventType":"Created","ts":1758910556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-151","issueType":"Story","eventType":"Change","ts":1759072556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-151","issueType":"Story","eventType":"Change","ts":1759342556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-151","issueType":"Story","eventType":"Change","ts":1759994156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-152","issueType":"Story","eventType":"Created","ts":1758996956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-152","issueType":"Story","eventType":"Change","ts":1759083356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-152","issueType":"Story","eventType":"Change","ts":1759230956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-152","issueType":"Story","eventType":"Change","ts":1759583756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-153","issueType":"Story","eventType":"Created","ts":1759083356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-153","issueType":"Story","eventType":"Change","ts":1759187756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-153","issueType":"Story","eventType":"Change","ts":1759367756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-153","issueType":"Story","eventType":"Change","ts":1759792556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-154","issueType":"Story","eventType":"Created","ts":1759169756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-154","issueType":"Story","eventType":"Change","ts":1759245356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-154","issueType":"Story","eventType":"Change","ts":1759378556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-154","issueType":"Story","eventType":"Change","ts":1759691756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-155","issueType":"Story","eventType":"Created","ts":1759256156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-155","issueType":"Story","eventType":"Change","ts":1759493756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-155","issueType":"Story","eventType":"Change","ts":1759893356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-155","issueType":"Story","eventType":"Change","ts":1760854556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-156","issueType":"Story","eventType":"Created","ts":1759342556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-156","issueType":"Story","eventType":"Change","ts":1759360556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-156","issueType":"Story","eventType":"Change","ts":1759396556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-156","issueType":"Story","eventType":"Change","ts":1759475756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-157","issueType":"Story","eventType":"Created","ts":1759428956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-157","issueType":"Story","eventType":"Change","ts":1759518956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-157","issueType":"Story","eventType":"Change","ts":1759670156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-157","issueType":"Story","eventType":"Change","ts":1760030156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-158","issueType":"Story","eventType":"Created","ts":1759515356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-158","issueType":"Story","eventType":"Change","ts":1759551356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-158","issueType":"Story","eventType":"Change","ts":1759612556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-158","issueType":"Story","eventType":"Change","ts":1759760156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-159","issueType":"Story","eventType":"Created","ts":1759601756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-159","issueType":"Story","eventType":"Change","ts":1759684556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-159","issueType":"Story","eventType":"Change","ts":1759828556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-159","issueType":"Story","eventType":"Change","ts":1760166956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-160","issueType":"Story","eventType":"Created","ts":1759688156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-160","issueType":"Story","eventType":"Change","ts":1759767356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-160","issueType":"Story","eventType":"Change","ts":1759896956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-160","issueType":"Story","eventType":"Change","ts":1760213756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-161","issueType":"Story","eventType":"Created","ts":1759774556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-161","issueType":"Story","eventType":"Change","ts":1759875356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-161","issueType":"Story","eventType":"Change","ts":1760044556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-161","issueType":"Story","eventType":"Change","ts":1760451356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-162","issueType":"Story","eventType":"Created","ts":1759860956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-162","issueType":"Story","eventType":"Change","ts":1760022956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-162","issueType":"Story","eventType":"Change","ts":1760300156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-162","issueType":"Story","eventType":"Change","ts":1760962556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-163","issueType":"Story","eventType":"Created","ts":1759947356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-163","issueType":"Story","eventType":"Change","ts":1760116556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-163","issueType":"Story","eventType":"Change","ts":1760397356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-163","issueType":"Story","eventType":"Change","ts":1761074156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-164","issueType":"Story","eventType":"Created","ts":1760033756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-164","issueType":"Story","eventType":"Change","ts":1760069756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-164","issueType":"Story","eventType":"Change","ts":1760130956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-164","issueType":"Story","eventType":"Change","ts":1760282156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-165","issueType":"Story","eventType":"Created","ts":1760120156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-165","issueType":"Story","eventType":"Change","ts":1760224556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-165","issueType":"Story","eventType":"Change","ts":1760397356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-165","issueType":"Story","eventType":"Change","ts":1760814956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-166","issueType":"Story","eventType":"Created","ts":1760206556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-166","issueType":"Story","eventType":"Change","ts":1760296556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-166","issueType":"Story","eventType":"Change","ts":1760451356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-166","issueType":"Story","eventType":"Change","ts":1760822156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-167","issueType":"Story","eventType":"Created","ts":1760292956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-167","issueType":"Story","eventType":"Change","ts":1760418956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-167","issueType":"Story","eventType":"Change","ts":1760631356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-167","issueType":"Story","eventType":"Change","ts":1761138956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-168","issueType":"Story","eventType":"Created","ts":1760379356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-168","issueType":"Story","eventType":"Change","ts":1760490956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-168","issueType":"Story","eventType":"Change","ts":1760678156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-168","issueType":"Story","eventType":"Change","ts":1761131756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-169","issueType":"Story","eventType":"Created","ts":1760465756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-169","issueType":"Story","eventType":"Change","ts":1760548556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-169","issueType":"Story","eventType":"Change","ts":1760688956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-169","issueType":"Story","eventType":"Change","ts":1761023756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-170","issueType":"Story","eventType":"Created","ts":1760552156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-170","issueType":"Story","eventType":"Change","ts":1760764556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-170","issueType":"Story","eventType":"Change","ts":1761120956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-170","issueType":"Story","eventType":"Change","ts":1761974156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-171","issueType":"Story","eventType":"Created","ts":1760638556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-171","issueType":"Story","eventType":"Change","ts":1760739356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-171","issueType":"Story","eventType":"Change","ts":1760912156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-171","issueType":"Story","eventType":"Change","ts":1761326156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-172","issueType":"Story","eventType":"Created","ts":1760724956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-172","issueType":"Story","eventType":"Change","ts":1760847356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-172","issueType":"Story","eventType":"Change","ts":1761052556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-172","issueType":"Story","eventType":"Change","ts":1761545756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-173","issueType":"Story","eventType":"Created","ts":1760811356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-173","issueType":"Story","eventType":"Change","ts":1760948156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-173","issueType":"Story","eventType":"Change","ts":1761174956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-173","issueType":"Story","eventType":"Change","ts":1761725756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-174","issueType":"Story","eventType":"Created","ts":1760897756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-174","issueType":"Story","eventType":"Change","ts":1760987756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-174","issueType":"Story","eventType":"Change","ts":1761146156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-174","issueType":"Story","eventType":"Change","ts":1761520556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-175","issueType":"Story","eventType":"Created","ts":1760984156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-175","issueType":"Story","eventType":"Change","ts":1761117356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-175","issueType":"Story","eventType":"Change","ts":1761340556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-175","issueType":"Story","eventType":"Change","ts":1761880556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-176","issueType":"Story","eventType":"Created","ts":1761070556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-176","issueType":"Story","eventType":"Change","ts":1761102956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-176","issueType":"Story","eventType":"Change","ts":1761164156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-176","issueType":"Story","eventType":"Change","ts":1761308156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-177","issueType":"Story","eventType":"Created","ts":1761156956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-177","issueType":"Story","eventType":"Change","ts":1761315356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-177","issueType":"Story","eventType":"Change","ts":1761585356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-177","issueType":"Story","eventType":"Change","ts":1762226156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-178","issueType":"Story","eventType":"Created","ts":1761243356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-178","issueType":"Story","eventType":"Change","ts":1761340556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-178","issueType":"Story","eventType":"Change","ts":1761502556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-178","issueType":"Story","eventType":"Change","ts":1761891356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-179","issueType":"Story","eventType":"Created","ts":1761329756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-179","issueType":"Story","eventType":"Change","ts":1761470156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-179","issueType":"Story","eventType":"Change","ts":1761707756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-179","issueType":"Story","eventType":"Change","ts":1762276556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-180","issueType":"Story","eventType":"Created","ts":1761416156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-180","issueType":"Story","eventType":"Change","ts":1761563756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-180","issueType":"Story","eventType":"Change","ts":1761812156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-180","issueType":"Story","eventType":"Change","ts":1762406156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-181","issueType":"Story","eventType":"Created","ts":1761502556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-181","issueType":"Story","eventType":"Change","ts":1761574556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-181","issueType":"Story","eventType":"Change","ts":1761693356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-181","issueType":"Story","eventType":"Change","ts":1761984956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-182","issueType":"Story","eventType":"Created","ts":1761588956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-182","issueType":"Story","eventType":"Change","ts":1761736556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-182","issueType":"Story","eventType":"Change","ts":1761988556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-182","issueType":"Story","eventType":"Change","ts":1762586156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-183","issueType":"Story","eventType":"Created","ts":1761675356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-183","issueType":"Story","eventType":"Change","ts":1761858956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-183","issueType":"Story","eventType":"Change","ts":1762172156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-183","issueType":"Story","eventType":"Change","ts":1762917356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-184","issueType":"Story","eventType":"Created","ts":1761761756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-184","issueType":"Story","eventType":"Change","ts":1761880556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-184","issueType":"Story","eventType":"Change","ts":1762082156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-184","issueType":"Story","eventType":"Change","ts":1762568156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-185","issueType":"Story","eventType":"Created","ts":1761848156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-185","issueType":"Story","eventType":"Change","ts":1762233356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-185","issueType":"Story","eventType":"Change","ts":1762881356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-185","issueType":"Story","eventType":"Change","ts":1764432956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-186","issueType":"Story","eventType":"Created","ts":1761934556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-186","issueType":"Story","eventType":"Change","ts":1761999356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-186","issueType":"Story","eventType":"Change","ts":1762110956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-186","issueType":"Story","eventType":"Change","ts":1762373756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-187","issueType":"Story","eventType":"Created","ts":1762020956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-187","issueType":"Story","eventType":"Change","ts":1762373756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-187","issueType":"Story","eventType":"Change","ts":1762967756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-187","issueType":"Story","eventType":"Change","ts":1764389756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-188","issueType":"Story","eventType":"Created","ts":1762107356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-188","issueType":"Story","eventType":"Change","ts":1762308956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-188","issueType":"Story","eventType":"Change","ts":1762647356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-188","issueType":"Story","eventType":"Change","ts":1763460956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-189","issueType":"Story","eventType":"Created","ts":1762193756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-189","issueType":"Story","eventType":"Change","ts":1762481756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-189","issueType":"Story","eventType":"Change","ts":1762967756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-189","issueType":"Story","eventType":"Change","ts":1764134156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-190","issueType":"Story","eventType":"Created","ts":1762280156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-190","issueType":"Story","eventType":"Change","ts":1762416956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-190","issueType":"Story","eventType":"Change","ts":1762647356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-190","issueType":"Story","eventType":"Change","ts":1763205356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-191","issueType":"Story","eventType":"Created","ts":1762366556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-191","issueType":"Story","eventType":"Change","ts":1762420556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-191","issueType":"Story","eventType":"Change","ts":1762517756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-191","issueType":"Story","eventType":"Change","ts":1762748156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-192","issueType":"Story","eventType":"Created","ts":1762452956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-192","issueType":"Story","eventType":"Change","ts":1762632956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-192","issueType":"Story","eventType":"Change","ts":1762938956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-192","issueType":"Story","eventType":"Change","ts":1763673356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-193","issueType":"Story","eventType":"Created","ts":1762539356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-193","issueType":"Story","eventType":"Change","ts":1762604156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-193","issueType":"Story","eventType":"Change","ts":1762719356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-193","issueType":"Story","eventType":"Change","ts":1762989356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-194","issueType":"Story","eventType":"Created","ts":1762625756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-194","issueType":"Story","eventType":"Change","ts":1762820156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-194","issueType":"Story","eventType":"Change","ts":1763144156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-194","issueType":"Story","eventType":"Change","ts":1763921756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-195","issueType":"Story","eventType":"Created","ts":1762712156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-195","issueType":"Story","eventType":"Change","ts":1762809356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-195","issueType":"Story","eventType":"Change","ts":1762978556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-195","issueType":"Story","eventType":"Change","ts":1763378156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-196","issueType":"Story","eventType":"Created","ts":1762798556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-196","issueType":"Story","eventType":"Change","ts":1762830956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-196","issueType":"Story","eventType":"Change","ts":1762892156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-196","issueType":"Story","eventType":"Change","ts":1763036156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-197","issueType":"Story","eventType":"Created","ts":1762884956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-197","issueType":"Story","eventType":"Change","ts":1762964156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-197","issueType":"Story","eventType":"Change","ts":1763097356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-197","issueType":"Story","eventType":"Change","ts":1763414156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-198","issueType":"Story","eventType":"Created","ts":1762971356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-198","issueType":"Story","eventType":"Change","ts":1763014556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-198","issueType":"Story","eventType":"Change","ts":1763086556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-198","issueType":"Story","eventType":"Change","ts":1763259356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-199","issueType":"Story","eventType":"Created","ts":1763057756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-199","issueType":"Story","eventType":"Change","ts":1763180156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-199","issueType":"Story","eventType":"Change","ts":1763388956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-199","issueType":"Story","eventType":"Change","ts":1763892956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-200","issueType":"Story","eventType":"Created","ts":1763144156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-200","issueType":"Story","eventType":"Change","ts":1763165756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-200","issueType":"Story","eventType":"Change","ts":1763205356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-200","issueType":"Story","eventType":"Change","ts":1763302556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-201","issueType":"Story","eventType":"Created","ts":1763230556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-201","issueType":"Story","eventType":"Change","ts":1763284556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-201","issueType":"Story","eventType":"Change","ts":1763374556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-201","issueType":"Story","eventType":"Change","ts":1763594156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-202","issueType":"Story","eventType":"Created","ts":1763316956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-202","issueType":"Story","eventType":"Change","ts":1763468156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-202","issueType":"Story","eventType":"Change","ts":1763723756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-202","issueType":"Story","eventType":"Change","ts":1764339356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-203","issueType":"Story","eventType":"Created","ts":1763403356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-203","issueType":"Story","eventType":"Change","ts":1763478956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-203","issueType":"Story","eventType":"Change","ts":1763604956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-203","issueType":"Story","eventType":"Change","ts":1763907356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-204","issueType":"Story","eventType":"Created","ts":1763489756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-204","issueType":"Story","eventType":"Change","ts":1763619356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-204","issueType":"Story","eventType":"Change","ts":1763838956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-204","issueType":"Story","eventType":"Change","ts":1764368156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-205","issueType":"Story","eventType":"Created","ts":1763576156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-205","issueType":"Story","eventType":"Change","ts":1763741756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-205","issueType":"Story","eventType":"Change","ts":1764018956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-205","issueType":"Story","eventType":"Change","ts":1764684956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-206","issueType":"Story","eventType":"Created","ts":1763662556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-206","issueType":"Story","eventType":"Change","ts":1763712956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-206","issueType":"Story","eventType":"Change","ts":1763802956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-206","issueType":"Story","eventType":"Change","ts":1764018956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-207","issueType":"Story","eventType":"Created","ts":1763748956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-207","issueType":"Story","eventType":"Change","ts":1763982956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-207","issueType":"Story","eventType":"Change","ts":1764375356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-207","issueType":"Story","eventType":"Change","ts":1765314956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-208","issueType":"Story","eventType":"Created","ts":1763835356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-208","issueType":"Story","eventType":"Change","ts":1764051356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-208","issueType":"Story","eventType":"Change","ts":1764411356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-208","issueType":"Story","eventType":"Change","ts":1765278956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-209","issueType":"Story","eventType":"Created","ts":1763921756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-209","issueType":"Story","eventType":"Change","ts":1763979356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-209","issueType":"Story","eventType":"Change","ts":1764072956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-209","issueType":"Story","eventType":"Change","ts":1764306956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-210","issueType":"Story","eventType":"Created","ts":1764008156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-210","issueType":"Story","eventType":"Change","ts":1764209756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-210","issueType":"Story","eventType":"Change","ts":1764548156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-210","issueType":"Story","eventType":"Change","ts":1765361756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-211","issueType":"Story","eventType":"Created","ts":1764094556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-211","issueType":"Story","eventType":"Change","ts":1764335756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-211","issueType":"Story","eventType":"Change","ts":1764735356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-211","issueType":"Story","eventType":"Change","ts":1765700156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-212","issueType":"Story","eventType":"Created","ts":1764180956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-212","issueType":"Story","eventType":"Change","ts":1764281756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-212","issueType":"Story","eventType":"Change","ts":1764450956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-212","issueType":"Story","eventType":"Change","ts":1764861356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-213","issueType":"Story","eventType":"Created","ts":1764267356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-213","issueType":"Story","eventType":"Change","ts":1764353756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-213","issueType":"Story","eventType":"Change","ts":1764504956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-213","issueType":"Story","eventType":"Change","ts":1764861356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-214","issueType":"Story","eventType":"Created","ts":1764353756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-214","issueType":"Story","eventType":"Change","ts":1764411356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-214","issueType":"Story","eventType":"Change","ts":1764512156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-214","issueType":"Story","eventType":"Change","ts":1764753356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-215","issueType":"Story","eventType":"Created","ts":1764440156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-215","issueType":"Story","eventType":"Change","ts":1764497756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-215","issueType":"Story","eventType":"Change","ts":1764594956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-215","issueType":"Story","eventType":"Change","ts":1764828956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-216","issueType":"Story","eventType":"Created","ts":1764526556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-216","issueType":"Story","eventType":"Change","ts":1764623756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-216","issueType":"Story","eventType":"Change","ts":1764785756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-216","issueType":"Story","eventType":"Change","ts":1765178156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-217","issueType":"Story","eventType":"Created","ts":1764612956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-217","issueType":"Story","eventType":"Change","ts":1764623756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-217","issueType":"Story","eventType":"Change","ts":1764645356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-217","issueType":"Story","eventType":"Change","ts":1764695756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-218","issueType":"Story","eventType":"Created","ts":1764699356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-218","issueType":"Story","eventType":"Change","ts":1764868556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-218","issueType":"Story","eventType":"Change","ts":1765156556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-218","issueType":"Story","eventType":"Change","ts":1765847756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-219","issueType":"Story","eventType":"Created","ts":1764785756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-219","issueType":"Story","eventType":"Change","ts":1764814556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-219","issueType":"Story","eventType":"Change","ts":1764864956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-219","issueType":"Story","eventType":"Change","ts":1764987356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-220","issueType":"Story","eventType":"Created","ts":1764872156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-220","issueType":"Story","eventType":"Change","ts":1765102556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-220","issueType":"Story","eventType":"Change","ts":1765487756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-220","issueType":"Story","eventType":"Change","ts":1766412956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-221","issueType":"Story","eventType":"Created","ts":1764958556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-221","issueType":"Story","eventType":"Change","ts":1764965756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-221","issueType":"Story","eventType":"Change","ts":1764980156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-221","issueType":"Story","eventType":"Change","ts":1765016156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-222","issueType":"Story","eventType":"Created","ts":1765044956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-222","issueType":"Story","eventType":"Change","ts":1765127756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-222","issueType":"Story","eventType":"Change","ts":1765268156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-222","issueType":"Story","eventType":"Change","ts":1765606556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-223","issueType":"Story","eventType":"Created","ts":1765131356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-223","issueType":"Story","eventType":"Change","ts":1765260956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-223","issueType":"Story","eventType":"Change","ts":1765480556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-223","issueType":"Story","eventType":"Change","ts":1766006156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-224","issueType":"Story","eventType":"Created","ts":1765217756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-224","issueType":"Story","eventType":"Change","ts":1765286156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-224","issueType":"Story","eventType":"Change","ts":1765404956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-224","issueType":"Story","eventType":"Change","ts":1765689356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-225","issueType":"Story","eventType":"Created","ts":1765304156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-225","issueType":"Story","eventType":"Change","ts":1765584956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-225","issueType":"Story","eventType":"Change","ts":1766052956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-225","issueType":"Story","eventType":"Change","ts":1767179756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-226","issueType":"Story","eventType":"Created","ts":1765390556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-226","issueType":"Story","eventType":"Change","ts":1765430156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-226","issueType":"Story","eventType":"Change","ts":1765498556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-226","issueType":"Story","eventType":"Change","ts":1765660556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-227","issueType":"Story","eventType":"Created","ts":1765476956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-227","issueType":"Story","eventType":"Change","ts":1765520156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-227","issueType":"Story","eventType":"Change","ts":1765595756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-227","issueType":"Story","eventType":"Change","ts":1765775756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-228","issueType":"Story","eventType":"Created","ts":1765563356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-228","issueType":"Story","eventType":"Change","ts":1766232956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-228","issueType":"Story","eventType":"Change","ts":1767356156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-228","issueType":"Story","eventType":"Change","ts":1770048956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-229","issueType":"Story","eventType":"Created","ts":1765649756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-229","issueType":"Story","eventType":"Change","ts":1765865756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-229","issueType":"Story","eventType":"Change","ts":1766225756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-229","issueType":"Story","eventType":"Change","ts":1767093356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-230","issueType":"Story","eventType":"Created","ts":1765736156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-230","issueType":"Story","eventType":"Change","ts":1765754156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-230","issueType":"Story","eventType":"Change","ts":1765786556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-230","issueType":"Story","eventType":"Change","ts":1765865756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-231","issueType":"Story","eventType":"Created","ts":1765822556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-231","issueType":"Story","eventType":"Change","ts":1765890956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-231","issueType":"Story","eventType":"Change","ts":1766002556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-231","issueType":"Story","eventType":"Change","ts":1766279756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-232","issueType":"Story","eventType":"Created","ts":1765908956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-232","issueType":"Story","eventType":"Change","ts":1765970156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-232","issueType":"Story","eventType":"Change","ts":1766074556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-232","issueType":"Story","eventType":"Change","ts":1766322956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-233","issueType":"Story","eventType":"Created","ts":1765995356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-233","issueType":"Story","eventType":"Change","ts":1766074556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-233","issueType":"Story","eventType":"Change","ts":1766207756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-233","issueType":"Story","eventType":"Change","ts":1766531756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-234","issueType":"Story","eventType":"Created","ts":1766081756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-234","issueType":"Story","eventType":"Change","ts":1766229356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-234","issueType":"Story","eventType":"Change","ts":1766477756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-234","issueType":"Story","eventType":"Change","ts":1767071756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-235","issueType":"Story","eventType":"Created","ts":1766168156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-235","issueType":"Story","eventType":"Change","ts":1766171756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-235","issueType":"Story","eventType":"Change","ts":1766186156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-235","issueType":"Story","eventType":"Change","ts":1766214956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-236","issueType":"Story","eventType":"Created","ts":1766254556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-236","issueType":"Story","eventType":"Change","ts":1766589356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-236","issueType":"Story","eventType":"Change","ts":1767150956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-236","issueType":"Story","eventType":"Change","ts":1768493756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-237","issueType":"Story","eventType":"Created","ts":1766340956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-237","issueType":"Story","eventType":"Change","ts":1766621756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-237","issueType":"Story","eventType":"Change","ts":1767093356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-237","issueType":"Story","eventType":"Change","ts":1768223756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-238","issueType":"Story","eventType":"Created","ts":1766427356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-238","issueType":"Story","eventType":"Change","ts":1766664956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-238","issueType":"Story","eventType":"Change","ts":1767064556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-238","issueType":"Story","eventType":"Change","ts":1768025756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-239","issueType":"Story","eventType":"Created","ts":1766513756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-239","issueType":"Story","eventType":"Change","ts":1766546156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-239","issueType":"Story","eventType":"Change","ts":1766603756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-239","issueType":"Story","eventType":"Change","ts":1766744156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-240","issueType":"Story","eventType":"Created","ts":1766600156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-240","issueType":"Story","eventType":"Change","ts":1766693756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-240","issueType":"Story","eventType":"Change","ts":1766855756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-240","issueType":"Story","eventType":"Change","ts":1767240956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-241","issueType":"Story","eventType":"Created","ts":1766686556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-241","issueType":"Story","eventType":"Change","ts":1766722556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-241","issueType":"Story","eventType":"Change","ts":1766783756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-241","issueType":"Story","eventType":"Change","ts":1766934956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-242","issueType":"Story","eventType":"Created","ts":1766772956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-242","issueType":"Story","eventType":"Change","ts":1766916956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-242","issueType":"Story","eventType":"Change","ts":1767161756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-242","issueType":"Story","eventType":"Change","ts":1767752156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-243","issueType":"Story","eventType":"Created","ts":1766859356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-243","issueType":"Story","eventType":"Change","ts":1766888156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-243","issueType":"Story","eventType":"Change","ts":1766934956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-243","issueType":"Story","eventType":"Change","ts":1767050156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-244","issueType":"Story","eventType":"Created","ts":1766945756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-244","issueType":"Story","eventType":"Change","ts":1766978156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-244","issueType":"Story","eventType":"Change","ts":1767039356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-244","issueType":"Story","eventType":"Change","ts":1767183356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-245","issueType":"Story","eventType":"Created","ts":1767032156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-245","issueType":"Story","eventType":"Change","ts":1767435356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-245","issueType":"Story","eventType":"Change","ts":1768112156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-245","issueType":"Story","eventType":"Change","ts":1769735756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-246","issueType":"Story","eventType":"Created","ts":1767118556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-246","issueType":"Story","eventType":"Change","ts":1767309356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-246","issueType":"Story","eventType":"Change","ts":1767633356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-246","issueType":"Story","eventType":"Change","ts":1768410956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-247","issueType":"Story","eventType":"Created","ts":1767204956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-247","issueType":"Story","eventType":"Change","ts":1767320156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-247","issueType":"Story","eventType":"Change","ts":1767514556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-247","issueType":"Story","eventType":"Change","ts":1767986156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-248","issueType":"Story","eventType":"Created","ts":1767291356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-248","issueType":"Story","eventType":"Change","ts":1767388556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-248","issueType":"Story","eventType":"Change","ts":1767550556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-248","issueType":"Story","eventType":"Change","ts":1767939356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-249","issueType":"Story","eventType":"Created","ts":1767377756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-249","issueType":"Story","eventType":"Change","ts":1767449756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-249","issueType":"Story","eventType":"Change","ts":1767572156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-249","issueType":"Story","eventType":"Change","ts":1767863756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-250","issueType":"Story","eventType":"Created","ts":1767464156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-250","issueType":"Story","eventType":"Change","ts":1767989756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-250","issueType":"Story","eventType":"Change","ts":1768871756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-250","issueType":"Story","eventType":"Change","ts":1770988556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-251","issueType":"Story","eventType":"Created","ts":1767550556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-251","issueType":"Story","eventType":"Change","ts":1767809756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-251","issueType":"Story","eventType":"Change","ts":1768245356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-251","issueType":"Story","eventType":"Change","ts":1769289356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-252","issueType":"Story","eventType":"Created","ts":1767636956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-252","issueType":"Story","eventType":"Change","ts":1767824156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-252","issueType":"Story","eventType":"Change","ts":1768137356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-252","issueType":"Story","eventType":"Change","ts":1768893356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-253","issueType":"Story","eventType":"Created","ts":1767723356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-253","issueType":"Story","eventType":"Change","ts":1767741356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-253","issueType":"Story","eventType":"Change","ts":1767773756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-253","issueType":"Story","eventType":"Change","ts":1767849356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-254","issueType":"Story","eventType":"Created","ts":1767809756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-254","issueType":"Story","eventType":"Change","ts":1767824156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-254","issueType":"Story","eventType":"Change","ts":1767856556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-254","issueType":"Story","eventType":"Change","ts":1767928556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-255","issueType":"Story","eventType":"Created","ts":1767896156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-255","issueType":"Story","eventType":"Change","ts":1768202156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-255","issueType":"Story","eventType":"Change","ts":1768713356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-255","issueType":"Story","eventType":"Change","ts":1769944556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-256","issueType":"Story","eventType":"Created","ts":1767982556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-256","issueType":"Story","eventType":"Change","ts":1768144556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-256","issueType":"Story","eventType":"Change","ts":1768414556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-256","issueType":"Story","eventType":"Change","ts":1769066156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-257","issueType":"Story","eventType":"Created","ts":1768068956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-257","issueType":"Story","eventType":"Change","ts":1768112156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-257","issueType":"Story","eventType":"Change","ts":1768184156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-257","issueType":"Story","eventType":"Change","ts":1768360556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-258","issueType":"Story","eventType":"Created","ts":1768155356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-258","issueType":"Story","eventType":"Change","ts":1768216556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-258","issueType":"Story","eventType":"Change","ts":1768320956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-258","issueType":"Story","eventType":"Change","ts":1768569356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-259","issueType":"Story","eventType":"Created","ts":1768241756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-259","issueType":"Story","eventType":"Change","ts":1768490156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-259","issueType":"Story","eventType":"Change","ts":1768904156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-259","issueType":"Story","eventType":"Change","ts":1769901356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-260","issueType":"Story","eventType":"Created","ts":1768328156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-260","issueType":"Story","eventType":"Change","ts":1768436156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-260","issueType":"Story","eventType":"Change","ts":1768616156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-260","issueType":"Story","eventType":"Change","ts":1769048156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-261","issueType":"Story","eventType":"Created","ts":1768414556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-261","issueType":"Story","eventType":"Change","ts":1768551356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-261","issueType":"Story","eventType":"Change","ts":1768778156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-261","issueType":"Story","eventType":"Change","ts":1769325356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-262","issueType":"Story","eventType":"Created","ts":1768500956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-262","issueType":"Story","eventType":"Change","ts":1768727756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-262","issueType":"Story","eventType":"Change","ts":1769112956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-262","issueType":"Story","eventType":"Change","ts":1770034556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-263","issueType":"Story","eventType":"Created","ts":1768587356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-263","issueType":"Story","eventType":"Change","ts":1768684556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-263","issueType":"Story","eventType":"Change","ts":1768846556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-263","issueType":"Story","eventType":"Change","ts":1769235356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-264","issueType":"Story","eventType":"Created","ts":1768673756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-264","issueType":"Story","eventType":"Change","ts":1768778156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-264","issueType":"Story","eventType":"Change","ts":1768958156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-264","issueType":"Story","eventType":"Change","ts":1769386556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-265","issueType":"Story","eventType":"Created","ts":1768760156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-265","issueType":"Story","eventType":"Change","ts":1768904156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-265","issueType":"Story","eventType":"Change","ts":1769148956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-265","issueType":"Story","eventType":"Change","ts":1769732156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-266","issueType":"Story","eventType":"Created","ts":1768846556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-266","issueType":"Story","eventType":"Change","ts":1768850156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-266","issueType":"Story","eventType":"Change","ts":1768857356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-266","issueType":"Story","eventType":"Change","ts":1768871756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-267","issueType":"Story","eventType":"Created","ts":1768932956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-267","issueType":"Story","eventType":"Change","ts":1768986956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-267","issueType":"Story","eventType":"Change","ts":1769076956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-267","issueType":"Story","eventType":"Change","ts":1769292956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-268","issueType":"Story","eventType":"Created","ts":1769019356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-268","issueType":"Story","eventType":"Change","ts":1769094956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-268","issueType":"Story","eventType":"Change","ts":1769228156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-268","issueType":"Story","eventType":"Change","ts":1769541356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-269","issueType":"Story","eventType":"Created","ts":1769105756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-269","issueType":"Story","eventType":"Change","ts":1769260556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-269","issueType":"Story","eventType":"Change","ts":1769523356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-269","issueType":"Story","eventType":"Change","ts":1770153356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-270","issueType":"Story","eventType":"Created","ts":1769192156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-270","issueType":"Story","eventType":"Change","ts":1769382956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-270","issueType":"Story","eventType":"Change","ts":1769699756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-270","issueType":"Story","eventType":"Change","ts":1770462956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-271","issueType":"Story","eventType":"Created","ts":1769278556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-271","issueType":"Story","eventType":"Change","ts":1769822156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-271","issueType":"Story","eventType":"Change","ts":1770729356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-272","issueType":"Story","eventType":"Created","ts":1769364956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-272","issueType":"Story","eventType":"Change","ts":1769490956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-272","issueType":"Story","eventType":"Change","ts":1769703356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-272","issueType":"Story","eventType":"Change","ts":1770214556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-273","issueType":"Story","eventType":"Created","ts":1769451356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-273","issueType":"Story","eventType":"Change","ts":1769573756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-273","issueType":"Story","eventType":"Change","ts":1769778956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-273","issueType":"Story","eventType":"Change","ts":1770275756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-274","issueType":"Story","eventType":"Created","ts":1769537756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-274","issueType":"Story","eventType":"Change","ts":1769573756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-274","issueType":"Story","eventType":"Change","ts":1769638556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-274","issueType":"Story","eventType":"Change","ts":1769796956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-275","issueType":"Story","eventType":"Created","ts":1769624156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-275","issueType":"Story","eventType":"Change","ts":1770686156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-276","issueType":"Story","eventType":"Created","ts":1769710556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-276","issueType":"Story","eventType":"Change","ts":1769789756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-276","issueType":"Story","eventType":"Change","ts":1769922956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-276","issueType":"Story","eventType":"Change","ts":1770246956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-277","issueType":"Story","eventType":"Created","ts":1769796956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-277","issueType":"Story","eventType":"Change","ts":1769850956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-277","issueType":"Story","eventType":"Change","ts":1769948156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-277","issueType":"Story","eventType":"Change","ts":1770174956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-278","issueType":"Story","eventType":"Created","ts":1769883356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-278","issueType":"Story","eventType":"Change","ts":1769973356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-278","issueType":"Story","eventType":"Change","ts":1770131756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-278","issueType":"Story","eventType":"Change","ts":1770502556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-279","issueType":"Story","eventType":"Created","ts":1769969756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-279","issueType":"Story","eventType":"Change","ts":1770070556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-279","issueType":"Story","eventType":"Change","ts":1770246956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-279","issueType":"Story","eventType":"Change","ts":1770660956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-280","issueType":"Story","eventType":"Created","ts":1770056156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-280","issueType":"Story","eventType":"Change","ts":1770826556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-281","issueType":"Story","eventType":"Created","ts":1770142556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-281","issueType":"Story","eventType":"Change","ts":1770243356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-281","issueType":"Story","eventType":"Change","ts":1770416156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-281","issueType":"Story","eventType":"Change","ts":1770830156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-282","issueType":"Story","eventType":"Created","ts":1770228956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-282","issueType":"Story","eventType":"Change","ts":1770455756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-282","issueType":"Story","eventType":"Change","ts":1770833756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-282","issueType":"Story","eventType":"Change","ts":1771744556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-283","issueType":"Story","eventType":"Created","ts":1770315356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-283","issueType":"Story","eventType":"Change","ts":1770326156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-283","issueType":"Story","eventType":"Change","ts":1770344156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-283","issueType":"Story","eventType":"Change","ts":1770387356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-284","issueType":"Story","eventType":"Created","ts":1770401756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-284","issueType":"Story","eventType":"Change","ts":1770401756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-284","issueType":"Story","eventType":"Change","ts":1770405356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-284","issueType":"Story","eventType":"Change","ts":1770416156692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-285","issueType":"Story","eventType":"Created","ts":1770488156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-285","issueType":"Story","eventType":"Change","ts":1770801356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-285","issueType":"Story","eventType":"Change","ts":1771323356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-286","issueType":"Story","eventType":"Created","ts":1770574556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-286","issueType":"Story","eventType":"Change","ts":1770772556692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-286","issueType":"Story","eventType":"Change","ts":1771110956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-287","issueType":"Story","eventType":"Created","ts":1770660956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-287","issueType":"Story","eventType":"Change","ts":1770707756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-287","issueType":"Story","eventType":"Change","ts":1770786956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-287","issueType":"Story","eventType":"Change","ts":1770977756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-288","issueType":"Story","eventType":"Created","ts":1770747356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-288","issueType":"Story","eventType":"Change","ts":1770848156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-288","issueType":"Story","eventType":"Change","ts":1771017356692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-288","issueType":"Story","eventType":"Change","ts":1771427756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-289","issueType":"Story","eventType":"Created","ts":1770833756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-289","issueType":"Story","eventType":"Change","ts":1770876956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-289","issueType":"Story","eventType":"Change","ts":1770952556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-289","issueType":"Story","eventType":"Change","ts":1771132556692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-290","issueType":"Story","eventType":"Created","ts":1770920156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-290","issueType":"Story","eventType":"Change","ts":1771074956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-290","issueType":"Story","eventType":"Change","ts":1771337756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-291","issueType":"Story","eventType":"Created","ts":1771006556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-291","issueType":"Story","eventType":"Change","ts":1771067756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-291","issueType":"Story","eventType":"Change","ts":1771168556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-291","issueType":"Story","eventType":"Change","ts":1771416956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-292","issueType":"Story","eventType":"Created","ts":1771092956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-292","issueType":"Story","eventType":"Change","ts":1771233356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-292","issueType":"Story","eventType":"Change","ts":1771474556692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-293","issueType":"Story","eventType":"Created","ts":1771179356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-293","issueType":"Story","eventType":"Change","ts":1771193756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-293","issueType":"Story","eventType":"Change","ts":1771218956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-293","issueType":"Story","eventType":"Change","ts":1771283756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-294","issueType":"Story","eventType":"Created","ts":1771265756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-294","issueType":"Story","eventType":"Change","ts":1771265756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-294","issueType":"Story","eventType":"Change","ts":1771272956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-294","issueType":"Story","eventType":"Change","ts":1771283756692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-295","issueType":"Story","eventType":"Created","ts":1771352156692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-295","issueType":"Story","eventType":"Change","ts":1771460156692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-295","issueType":"Story","eventType":"Change","ts":1771640156692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-296","issueType":"Story","eventType":"Created","ts":1771438556692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-296","issueType":"Story","eventType":"Change","ts":1771632956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-297","issueType":"Story","eventType":"Created","ts":1771524956692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-297","issueType":"Story","eventType":"Change","ts":1771557356692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-297","issueType":"Story","eventType":"Change","ts":1771614956692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-297","issueType":"Story","eventType":"Change","ts":1771755356692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-298","issueType":"Story","eventType":"Created","ts":1771611356692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-298","issueType":"Story","eventType":"Change","ts":1771614956692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-298","issueType":"Story","eventType":"Change","ts":1771625756692176,"fromStatus":"Refinement","fromStatusId":"2","toStatus":"In Progress","toStatusId":"3"}
+{"issueKey":"MCSTEST-298","issueType":"Story","eventType":"Change","ts":1771650956692176,"fromStatus":"In Progress","fromStatusId":"3","toStatus":"Done","toStatusId":"4","resolution":"Fixed"}
+{"issueKey":"MCSTEST-299","issueType":"Story","eventType":"Created","ts":1771697756692176,"toStatus":"Open","toStatusId":"1"}
+{"issueKey":"MCSTEST-299","issueType":"Story","eventType":"Change","ts":1771787756692176,"fromStatus":"Open","fromStatusId":"1","toStatus":"Refinement","toStatusId":"2"}
+{"issueKey":"MCSTEST-300","issueType":"Story","eventType":"Created","ts":1771784156692176,"toStatus":"Open","toStatusId":"1"}
