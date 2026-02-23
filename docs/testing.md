@@ -45,7 +45,7 @@ go run cmd/mockgen/main.go --scenario chaos --distribution weibull --count 300 -
 We maintain an integration test at `internal/mcp/mock_test.go` that exercises all three scenarios. This suite:
 
 - Automatically generates the required truth data for each scenario.
-- Calls the JSON-RPC tools (`get_board_details`, `get_status_persistence`, etc.).
+- Calls the JSON-RPC tools (`import_board_context`, `analyze_status_persistence`, etc.).
 - Asserts that the statistical output (P50, P85) matches the expected mathematical profile of the scenario.
 
 ### Running the Suite
