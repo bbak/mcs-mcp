@@ -62,7 +62,8 @@ func TestMCSTEST_Integration(t *testing.T) {
 					t.Fatalf("Failed to get status persistence: %v", err)
 				}
 
-				persistenceMap := pRes.(map[string]interface{})
+				pEnv := pRes.(ResponseEnvelope)
+				persistenceMap := pEnv.Data.(map[string]interface{})
 				persistence := persistenceMap["persistence"].([]stats.StatusPersistence)
 
 				var inProgressFound bool
@@ -101,7 +102,8 @@ func TestMCSTEST_Integration(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to get aging analysis: %v", err)
 				}
-				aging := aRes.(map[string]interface{})
+				aEnv := aRes.(ResponseEnvelope)
+				aging := aEnv.Data.(map[string]interface{})
 				itemsFound := aging["aging"].([]stats.InventoryAge)
 				if len(itemsFound) == 0 {
 					t.Errorf("Expected WIP items in Downstream, got 0")

@@ -307,43 +307,56 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 		}
 
 		data, err = s.handleRunSimulation(projectKey, boardID, mode, includeExisting, additional, targetDays, targetDate, startStatus, endStatus, issueTypes, includeWIP, sampleDays, sampleStart, sampleEnd, targets, mixOverrides)
-	case "get_status_persistence":
+	case "analyze_cycle_time":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		issueTypes := []string{}
+		if types, ok := call.Arguments["issue_types"].([]interface{}); ok {
+			for _, t := range types {
+				issueTypes = append(issueTypes, asString(t))
+			}
+		}
+		wipStability, _ := call.Arguments["analyze_wip_stability"].(bool)
+		startStatus := asString(call.Arguments["start_status"])
+		endStatus := asString(call.Arguments["end_status"])
+		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, wipStability, startStatus, endStatus, issueTypes)
+	case "analyze_status_persistence":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetStatusPersistence(projectKey, boardID)
-	case "get_delivery_cadence":
+	case "analyze_work_item_age":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["window_weeks"])
+		agingType := asString(call.Arguments["age_type"])
+		tierFilter := asString(call.Arguments["tier_filter"])
+		data, err = s.handleGetAgingAnalysis(projectKey, boardID, agingType, tierFilter)
+	case "analyze_throughput":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		weeks := asInt(call.Arguments["history_window_weeks"])
 		includeAbandoned, _ := call.Arguments["include_abandoned"].(bool)
 		bucket := asString(call.Arguments["bucket"])
 		if bucket == "" {
 			bucket = "week"
 		}
-		data, err = s.handleGetDeliveryCadence(projectKey, boardID, windowWeeks, bucket, includeAbandoned)
-	case "get_aging_analysis":
+		data, err = s.handleGetDeliveryCadence(projectKey, boardID, weeks, bucket, includeAbandoned)
+	case "analyze_process_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		agingType := asString(call.Arguments["aging_type"])
-		tierFilter := asString(call.Arguments["tier_filter"])
-		data, err = s.handleGetAgingAnalysis(projectKey, boardID, agingType, tierFilter)
-	case "get_process_stability":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		window := asInt(call.Arguments["window_weeks"])
+		window := asInt(call.Arguments["history_window_weeks"])
 		if window == 0 {
 			window = 26
 		}
 		data, err = s.handleGetProcessStability(projectKey, boardID)
-	case "get_process_evolution":
+	case "analyze_process_evolution":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		window := asInt(call.Arguments["window_months"])
+		window := asInt(call.Arguments["history_window_months"])
 		if window == 0 {
 			window = 12
 		}
 		data, err = s.handleGetProcessEvolution(projectKey, boardID, window)
-	case "get_process_yield":
+	case "analyze_yield":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleGetProcessYield(projectKey, boardID)
@@ -369,34 +382,15 @@ func (s *Server) callTool(params json.RawMessage) (res interface{}, errRes inter
 			}
 		}
 		data, err = s.handleSetWorkflowOrder(projectKey, boardID, order)
-	case "get_cycle_time_assessment":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		startStatus := asString(call.Arguments["start_status"])
-		endStatus := asString(call.Arguments["end_status"])
-
-		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]interface{}); ok {
-			for _, v := range it {
-				issueTypes = append(issueTypes, asString(v))
-			}
-		}
-
-		var analyzeWIP bool
-		if w, ok := call.Arguments["analyze_wip_stability"].(bool); ok {
-			analyzeWIP = w
-		}
-
-		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, analyzeWIP, startStatus, endStatus, issueTypes)
 	case "get_diagnostic_roadmap":
 		goal := asString(call.Arguments["goal"])
 		data, err = s.handleGetDiagnosticRoadmap(goal)
-	case "get_item_journey":
+	case "analyze_item_journey":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		key := asString(call.Arguments["issue_key"])
-		data, err = s.handleGetItemJourney(projectKey, boardID, key)
-	case "get_forecast_accuracy":
+		issueKey := asString(call.Arguments["issue_key"])
+		data, err = s.handleGetItemJourney(projectKey, boardID, issueKey)
+	case "analyze_forecast_accuracy":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		mode := asString(call.Arguments["simulation_mode"])

@@ -44,20 +44,20 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (int
 		"persistence":            persistence,
 		"stratified_persistence": stratified,
 		"tier_summary":           tierSummary,
-		"_data_quality":          s.getQualityWarnings(issues),
-		"_guidance": []string{
-			"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
-			"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
-			"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
-			"Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream).",
-		},
 	}
 
 	if s.enableMermaidCharts {
 		res["visual_persistence_bar"] = visuals.GeneratePersistenceChart(persistence)
 	}
 
-	return res, nil
+	guidance := []string{
+		"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
+		"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
+		"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
+		"Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream).",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(issues), guidance), nil
 }
 
 func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (interface{}, error) {
@@ -107,20 +107,20 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	}
 
 	res := map[string]interface{}{
-		"aging":         aging,
-		"_data_quality": s.getQualityWarnings(all),
-		"_guidance": []string{
-			"Items in 'Demand' or 'Finished' tiers are usually excluded from WIP Age unless explicitly requested.",
-			"PercentileRelative helps identify which individual items are 'neglect' risks compared to historical performance.",
-			"AgeSinceCommitment reflects time since the LAST commitment (resets on backflow to Demand/Upstream).",
-		},
+		"aging": aging,
 	}
 
 	if s.enableMermaidCharts {
 		res["visual_wip_aging"] = visuals.GenerateAgingChart(aging)
 	}
 
-	return res, nil
+	guidance := []string{
+		"Items in 'Demand' or 'Finished' tiers are usually excluded from WIP Age unless explicitly requested.",
+		"PercentileRelative helps identify which individual items are 'neglect' risks compared to historical performance.",
+		"AgeSinceCommitment reflects time since the LAST commitment (resets on backflow to Demand/Upstream).",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
 func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (interface{}, error) {
@@ -168,18 +168,18 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		"total_throughput":      throughput.Pooled,
 		"stratified_throughput": throughput.ByType,
 		"@metadata":             bucketMetadata,
-		"_data_quality":         s.getQualityWarnings(delivered),
-		"_guidance": []string{
-			"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
-			fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format("2006-01-02"), bucket),
-		},
 	}
 
 	if s.enableMermaidCharts {
 		res["visual_throughput_trend"] = visuals.GenerateThroughputChart(throughput.Pooled, bucketMetadata)
 	}
 
-	return res, nil
+	guidance := []string{
+		"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
+		fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format("2006-01-02"), bucket),
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
 }
 
 func (s *Server) handleGetProcessStability(projectKey string, boardID int) (interface{}, error) {
@@ -315,20 +315,20 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (interfac
 	stratified := stats.CalculateStratifiedYield(all, s.activeMapping, s.getResolutionMap(sourceID))
 
 	res := map[string]interface{}{
-		"yield":         yield,
-		"stratified":    stratified,
-		"_data_quality": s.getQualityWarnings(all),
-		"_guidance": []string{
-			"High 'Abandoned Upstream' often points to discovery/refinement issues.",
-			"High 'Abandoned Downstream' points to execution or commitment issues.",
-		},
+		"yield":      yield,
+		"stratified": stratified,
 	}
 
 	if s.enableMermaidCharts {
 		res["visual_yield_pie"] = visuals.GenerateYieldPie(yield)
 	}
 
-	return res, nil
+	guidance := []string{
+		"High 'Abandoned Upstream' often points to discovery/refinement issues.",
+		"High 'Abandoned Downstream' points to execution or commitment issues.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
 func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (interface{}, error) {
@@ -441,16 +441,18 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		tierBreakdown[tier] = data
 	}
 
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"key":            issue.Key,
 		"residency":      residencyDays,
 		"blocked_time":   blockedDays,
 		"path":           steps,
 		"tier_breakdown": tierBreakdown,
 		"warnings":       []string{},
-		"_data_quality":  s.getQualityWarnings([]jira.Issue{issue}),
-		"_guidance": []string{
-			"The 'path' shows chronological flow, while 'residency' shows cumulative totals.",
-		},
-	}, nil
+	}
+
+	guidance := []string{
+		"The 'path' shows chronological flow, while 'residency' shows cumulative totals.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings([]jira.Issue{issue}), guidance), nil
 }
