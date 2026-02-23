@@ -8,7 +8,6 @@ import (
 	"mcs-mcp/internal/stats"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -477,8 +476,8 @@ func SelectDiscoverySample(issues []jira.Issue, targetSize int) []jira.Issue {
 	}
 
 	// 1. Sort by Updated DESC to ensure we get most recent activity
-	sort.SliceStable(issues, func(i, j int) bool {
-		return issues[i].Updated.After(issues[j].Updated)
+	slices.SortStableFunc(issues, func(a, b jira.Issue) int {
+		return b.Updated.Compare(a.Updated)
 	})
 
 	now := time.Now()

@@ -2,11 +2,12 @@ package eventlog
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -57,8 +58,8 @@ func (s *EventStore) Append(sourceID string, events []IssueEvent) {
 
 	// 3. Sort by Timestamp only.
 	// For equal timestamps, we preserve the original order from the Jira response.
-	sort.SliceStable(log, func(i, j int) bool {
-		return log[i].Timestamp < log[j].Timestamp
+	slices.SortStableFunc(log, func(a, b IssueEvent) int {
+		return cmp.Compare(a.Timestamp, b.Timestamp)
 	})
 
 	s.logs[sourceID] = log
@@ -98,8 +99,8 @@ func (s *EventStore) Merge(sourceID string, events []IssueEvent) {
 	newLog = append(newLog, events...)
 
 	// 4. Sort and persist to memory
-	sort.SliceStable(newLog, func(i, j int) bool {
-		return newLog[i].Timestamp < newLog[j].Timestamp
+	slices.SortStableFunc(newLog, func(a, b IssueEvent) int {
+		return cmp.Compare(a.Timestamp, b.Timestamp)
 	})
 
 	s.logs[sourceID] = newLog
