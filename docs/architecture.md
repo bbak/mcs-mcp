@@ -10,16 +10,16 @@ To achieve reliable forecasts, the interaction with MCS-MCP follows a specific a
 
 ```mermaid
 graph TD
-    A["<b>1. Identification</b><br/>find_jira_boards"] --> B["<b>2. Context Anchoring</b><br/>get_board_details"]
-    B --> C["<b>3. Semantic Mapping</b><br/>get_workflow_discovery"]
-    C --> D["<b>4. Planning</b><br/>get_diagnostic_roadmap"]
-    D --> E["<b>5. Forecast & Diagnostics</b><br/>run_simulation / get_aging_analysis"]
+    A["<b>1. Identification</b><br/>import_boards"] --> B["<b>2. Context Anchoring</b><br/>import_board_context"]
+    B --> C["<b>3. Semantic Mapping</b><br/>workflow_discover_mapping"]
+    C --> D["<b>4. Planning</b><br/>guide_diagnostic_roadmap"]
+    D --> E["<b>5. Forecast & Diagnostics</b><br/>forecast_monte_carlo / analyze_work_item_age"]
 ```
 
-1.  **Identification**: Use `find_jira_projects/boards` to locate the target.
-2.  **Context Anchoring**: `get_board_details` performs an **Eager Fetch** of history and stabilizes the project context via the **Data Shape Anchor**.
-3.  **Semantic Mapping**: `get_workflow_discovery` uses **Data Archeology** to propose logical process tiers (Demand, Upstream, Downstream, Finished). **AI agents must verify this mapping before proceeding.**
-4.  **Planning**: `get_diagnostic_roadmap` recommends a sequence of tools based on the user's goal (e.g., forecasting, bottleneck analysis).
+1.  **Identification**: Use `import_projects`/`import_boards` to locate the target.
+2.  **Context Anchoring**: `import_board_context` performs an **Eager Fetch** of history and stabilizes the project context via the **Data Shape Anchor**.
+3.  **Semantic Mapping**: `workflow_discover_mapping` uses **Data Archeology** to propose logical process tiers (Demand, Upstream, Downstream, Finished). **AI agents must verify this mapping before proceeding.**
+4.  **Planning**: `guide_diagnostic_roadmap` recommends a sequence of tools based on the user's goal (e.g., forecasting, bottleneck analysis).
 5.  **Analytics**: High-fidelity diagnostics (Aging, Stability, Simulation) are performed against confirmed tiers.
 
 ---
@@ -119,7 +119,7 @@ To prevent nonsensical forecasts, the engine implements several integrity thresh
 
 ### 4.5 Walk-Forward Analysis (Backtesting)
 
-The system provides `get_forecast_accuracy` to validate the reliability of Monte-Carlo simulations via historical backtesting.
+The system provides `forecast_backtest` to validate the reliability of Monte-Carlo simulations via historical backtesting.
 
 - **Adaptive Validation Batching**: If not provided, the number of items to forecast is automatically set to **2x the median weekly throughput** of the last 10 weeks. This ensures the forecast horizon is always relevant to the team's actual velocity.
 - **Overlapping Weekly Steps**: The analysis iterates backwards through history using a **7-day step size** (overlapping windows). This increases diagnostic sensitivity and allows for earlier detection of systemic process shifts.
@@ -196,8 +196,8 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
     - **OMRC/NMRC Boundaries**: For targeted extensions, the system uses the Oldest/Newest Most-Recent-Change (OMRC/NMRC) boundary logic to prevent data gaps or overlaps.
     - **Purge-before-Merge**: Targeted extensions replace existing issue histories to ensure Jira deletions or corrections are reflected.
 - **Cache Management Tools**:
-    - `cache_expand_history`: Fetches older items backwards from the **OMRC** boundary and catch-up forward from **NMRC**.
-    - `cache_catch_up`: Syncs the cache with any updates made in Jira since the last **NMRC**.
+    - `import_history_expand`: Fetches older items backwards from the **OMRC** boundary and catch-up forward from **NMRC**.
+    - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
 ### 8.2 Analytical Orchestration (`AnalysisSession`)
