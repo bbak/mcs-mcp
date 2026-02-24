@@ -37,13 +37,13 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 
 	for _, issue := range issues {
 		for status, seconds := range issue.StatusResidency {
-			if seconds > 0 {
+			if seconds >= 60 { // Ignore automated touch-and-go transitions < 1m
 				days := float64(seconds) / 86400.0
 				statusDurations[status] = append(statusDurations[status], days)
 			}
 		}
 		for status, seconds := range issue.BlockedResidency {
-			if seconds > 0 {
+			if seconds >= 60 {
 				days := float64(seconds) / 86400.0
 				blockedDurations[status] = append(blockedDurations[status], days)
 			}
@@ -128,7 +128,7 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 
 	for _, issue := range issues {
 		for status, seconds := range issue.StatusResidency {
-			if seconds <= 0 {
+			if seconds < 60 { // Ignore automated touch-and-go transitions < 1m
 				continue
 			}
 			days := float64(seconds) / 86400.0

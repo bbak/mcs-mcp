@@ -238,6 +238,7 @@ To ensure analytical integrity when issues move between projects or change workf
 
 - **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
 - **Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
+- **Touch-and-Go Automation Filter**: Any status residency under 60 seconds is automatically discarded during persistence analytics. This prevents high-speed Jira automation rules or bulk-transitions from artificially dragging down stage medians with unrepresentative 0-day flow debt.
 - **Zero-Day Safeguard**: Current aging metrics are rounded up to the nearest 0.1 to avoid misleading "0.0 days" results.
 
 ---
