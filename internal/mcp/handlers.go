@@ -17,7 +17,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
 				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
 				map[string]any{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
 				map[string]any{"step": 3, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
-				map[string]any{"step": 4, "tool": "analyze_work_item_age", "description": "Check if current WIP is clogging the system."},
+				map[string]any{"step": 4, "tool": "analyze_work_item_age", "description": "Identify items aging beyond historical norms (Aging Outliers)."},
 				map[string]any{"step": 5, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
 				map[string]any{"step": 6, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
 			},
@@ -27,7 +27,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
 			"description": "Recommended sequence to identify systemic delays and batching behavior.",
 			"steps": []any{
 				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
-				map[string]any{"step": 2, "tool": "analyze_status_persistence", "description": "Find where items spend the most time and identify 'High Variance' statuses."},
+				map[string]any{"step": 2, "tool": "analyze_status_persistence", "description": "Identify tiers and statuses where items spend the most time (High Persistence)."},
 				map[string]any{"step": 3, "tool": "analyze_throughput", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
 				map[string]any{"step": 4, "tool": "analyze_yield", "description": "Check for high abandonment rates between tiers."},
 				map[string]any{"step": 5, "tool": "analyze_item_journey", "description": "Drill down into specific 'Long Tail' outlier items to see exact path delays."},
