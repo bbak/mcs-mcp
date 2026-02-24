@@ -39,24 +39,13 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 		"Refinement":  {Tier: "Upstream", Role: "active"},
 		"In Progress": {Tier: "Downstream", Role: "active"},
 		"Done":        {Tier: "Finished", Outcome: "delivered"},
+		"Closed":      {Tier: "Finished", Outcome: "abandoned"},
 	}
 
 	var events []eventlog.IssueEvent
 
-	// We want the last arrival to be today (cfg.Now)
-	// Average arrival rate: 1 per day
-	tArrival := cfg.Now.AddDate(0, 0, -cfg.Count)
-
 	for i := 0; i < cfg.Count; i++ {
 		key := fmt.Sprintf("MCSTEST-%d", i+1)
-
-		// 1. Arrival
-		arrival := tArrival.Add(time.Duration(i*24) * time.Hour)
-		events = append(events, eventlog.IssueEvent{
-			IssueKey: key, IssueType: "Story", EventType: eventlog.Created, ToStatus: "Open", ToStatusID: "1", Timestamp: arrival.UnixMicro(),
-		})
-
-		// 1. Determine Parameters
 		k, lambda := 2.5, 9.5 // Mild: Targeted at ~5.0 day In-Progress residency
 		switch cfg.Scenario {
 		case "chaos":
@@ -84,6 +73,27 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 				totalDuration *= 2.0
 			}
 		}
+
+		// Calculate Arrival independently to fix bounds
+		var arrival time.Time
+		if float64(i)/float64(cfg.Count) < 0.60 {
+			// Finished: Must arrive early enough to finish
+			maxArrivalIdx := 100.0 - totalDuration
+			if maxArrivalIdx < 1.0 {
+				maxArrivalIdx = 1.0
+			}
+			offsetDays := totalDuration + rand.Float64()*maxArrivalIdx
+			arrival = cfg.Now.Add(-time.Duration(offsetDays*24) * time.Hour)
+		} else {
+			// WIP: Arrived more recently than totalDuration
+			offsetDays := rand.Float64() * totalDuration
+			arrival = cfg.Now.Add(-time.Duration(offsetDays*24) * time.Hour)
+		}
+
+		// Add Created event
+		events = append(events, eventlog.IssueEvent{
+			IssueKey: key, IssueType: "Story", EventType: eventlog.Created, ToStatus: "Open", ToStatusID: "1", Timestamp: arrival.UnixMicro(),
+		})
 
 		// 3. Determine Status based on current Age
 		ageDays := cfg.Now.Sub(arrival).Hours() / 24.0
@@ -119,11 +129,22 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 			})
 		}
 
-		// Move to Done at 100% of totalDuration
+		// Move to Terminal at 100% of totalDuration
 		tDone := arrival.Add(time.Duration(totalDuration*24) * time.Hour)
 		if tDone.Before(cfg.Now) {
+			resolution := "Fixed"
+			toStatus := "Done"
+			toStatusID := "4"
+
+			// 20% of finished items are abandoned
+			if rand.Float64() < 0.2 {
+				resolution = "Won't Do"
+				toStatus = "Closed"
+				toStatusID = "5"
+			}
+
 			events = append(events, eventlog.IssueEvent{
-				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "In Progress", FromStatusID: "3", ToStatus: "Done", ToStatusID: "4", Resolution: "Fixed", Timestamp: tDone.UnixMicro(),
+				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "In Progress", FromStatusID: "3", ToStatus: toStatus, ToStatusID: toStatusID, Resolution: resolution, Timestamp: tDone.UnixMicro(),
 			})
 		}
 	}
@@ -172,8 +193,8 @@ func Save(outDir string, sourceID string, events []eventlog.IssueEvent, mapping 
 	meta := WorkflowMetadata{
 		SourceID:        sourceID,
 		Mapping:         mapping,
-		Resolutions:     map[string]string{"Fixed": "delivered"},
-		StatusOrder:     []string{"Open", "Refinement", "In Progress", "Done"},
+		Resolutions:     map[string]string{"Fixed": "delivered", "Won't Do": "abandoned"},
+		StatusOrder:     []string{"Open", "Refinement", "In Progress", "Done", "Closed"},
 		CommitmentPoint: "In Progress",
 	}
 

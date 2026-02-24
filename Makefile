@@ -17,9 +17,9 @@ help:
 
 ## build: Build the binary
 build:
-	@mkdir -p $(DIST_DIR)
 	@cd cmd/mcs-mcp && goversioninfo -platform-specific -ver-major $(shell echo $(VERSION) | cut -d. -f1) -ver-minor $(shell echo $(VERSION) | cut -d. -f2) -ver-patch $(shell echo $(VERSION) | cut -d. -f3) -file-version $(VERSION) -product-version $(VERSION)
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/mcs-mcp
+	go build -ldflags "-s -w" -o $(DIST_DIR)/mockgen.exe ./cmd/mockgen
 	@cp conf/.env-example $(DIST_DIR)/.env-example
 
 ## run: Build and run the binary
@@ -44,6 +44,7 @@ verify: fmt lint test
 ## install: Install the binary to GOBIN
 install: build
 	go install $(LDFLAGS) ./cmd/mcs-mcp
+	go install -ldflags "-s -w" ./cmd/mockgen
 
 ## clean: Remove build artifacts
 clean:

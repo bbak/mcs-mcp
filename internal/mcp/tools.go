@@ -111,6 +111,7 @@ func (s *Server) listTools() any {
 				"name": "analyze_status_persistence",
 				"description": "Analyze how long items spend in each status to identify bottlenecks. \n\n" +
 					"PREREQUISITE: Proper workflow mapping is required for accurate results. Results provide SUBPAR context if tiers (Upstream/Downstream) are not correctly mapped.\n" +
+					"CRITICAL: This tool ONLY analyzes items that have successfully finished ('delivered'). It ignores active WIP to ensure the historical norms are not artificially lowered by incomplete items.\n" +
 					"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
 				"inputSchema": map[string]any{
 					"type": "object",

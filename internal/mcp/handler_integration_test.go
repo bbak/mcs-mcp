@@ -35,7 +35,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 	for _, dist := range dists {
 		for _, scen := range scenarios {
 			t.Run(fmt.Sprintf("%s_%s", dist, scen), func(t *testing.T) {
-				cacheDir := "../../.cache"
+				cacheDir := t.TempDir()
 				sourceID := "MCSTEST_0"
 				generateMockData(scen, dist, 300, cacheDir, sourceID)
 

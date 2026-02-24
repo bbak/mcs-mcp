@@ -30,9 +30,9 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -180), time.Now(), "day", cutoff)
 	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
-	issues := session.GetAllIssues()
+	issues := session.GetDelivered()
 	if len(issues) == 0 {
-		return nil, fmt.Errorf("no historical data found to analyze status persistence")
+		return nil, fmt.Errorf("no historical data found to analyze status persistence (must have finished items)")
 	}
 
 	persistence := stats.CalculateStatusPersistence(issues)
@@ -52,6 +52,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 
 	guidance := []string{
 		"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
+		"Status Persistence EXCLUSIVELY analyzes items that have successfully finished ('delivered') to prevent active WIP from skewing historical norms.",
 		"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 		"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
 		"Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream).",

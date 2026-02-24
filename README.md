@@ -144,6 +144,16 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 ---
 
+## 🎲 Offline Testing & Simulation (mockgen)
+
+If you do not have a live Jira connection (or simply want to test the server's analytical capabilities without using sensitive corporate data), MCS-MCP includes a built-in mock data generator called `mockgen`.
+
+This tool produces a standardized, simulated dataset inside your `cache` folder that you can analyze using the `"MCSTEST"` project key. The server ships with this synthetic dataset configured, enabling immediate out-of-the-box evaluation.
+
+For comprehensive details on how to use `mockgen`, configure data distributions (mild, chaotic, drifted), and rebuild the cached simulation, please check the **[Mock Data Generator Guide](docs/mockdata.md)**.
+
+---
+
 ## 📖 Guided Interaction
 
 MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detailed guidance on specific workflows, refer to:
@@ -151,7 +161,7 @@ MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detai
 - **[Project Charter](docs/charter.md)**: Conceptual foundations and architectural principles.
 - **[Interaction Use Cases](docs/use-cases.md)**: Detailed scenarios for PMs and AI Agents (When, Scope, Bottlenecks, Backtesting, etc.).
 - **[Architecture Deep-Dive](docs/architecture.md)**: Aging math, backflow policies, and the status-granular flow model.
-- **[Testing & Verification](docs/testing.md)**: Instructions for the `MCSTEST` sandbox and mock data generator.
+- **[Mock Data Generator](docs/mockdata.md)**: Instructions for using `mockgen` and manipulating the `MCSTEST` synthetic sandbox.
 
 ---
 
