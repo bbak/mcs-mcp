@@ -126,7 +126,8 @@ func (s *Server) listTools() any {
 				"description": "Identify which items are aging relative to historical norms. \n\n" +
 					"PREREQUISITE: Proper workflow mapping (Commitment Point) is MANDATORY for accurate 'WIP Age'. Results are UNRELIABLE if the commitment point is incorrectly defined.\n" +
 					"Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
-					"This tool uses the Tail-to-Median and Fat-Tail ratios to determine if the overall system is stable or if individual items are being 'neglected' in the tail.",
+					"The 'is_aging_outlier' flag indicates an item is older than the historical 85th percentile (P85). \n" +
+					"IMPORTANT: An aging outlier is NOT necessarily blocked or impeded; it simply exceeds the normal historical residency for that status.",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{

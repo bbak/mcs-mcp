@@ -10,12 +10,12 @@ import (
 
 // StatusAgeAnalysis represents the risk of a single active item's residence in its current step.
 type StatusAgeAnalysis struct {
-	Key          string  `json:"key"`
-	Type         string  `json:"type"`
-	Status       string  `json:"status"`
-	DaysInStatus float64 `json:"daysInStatus"`
-	Percentile   int     `json:"percentile"` // e.g., 85 if it's at the P85 level
-	IsStale      bool    `json:"isStale"`    // true if DaysInStatus > P85
+	Key            string  `json:"key"`
+	Type           string  `json:"type"`
+	Status         string  `json:"status"`
+	DaysInStatus   float64 `json:"daysInStatus"`
+	Percentile     int     `json:"percentile"`       // e.g., 85 if it's at the P85 level
+	IsAgingOutlier bool    `json:"is_aging_outlier"` // true if DaysInStatus > P85
 }
 
 // InventoryAge represents the process-wide risk of a single item.
@@ -32,7 +32,7 @@ type InventoryAge struct {
 	CumulativeUpstreamDays   float64  `json:"cumulative_upstream_days"`
 	CumulativeDownstreamDays float64  `json:"cumulative_downstream_days"`
 	Percentile               int      `json:"percentile"` // Relative to historical distribution
-	IsStale                  bool     `json:"is_stale"`
+	IsAgingOutlier           bool     `json:"is_aging_outlier"`
 }
 
 // AgingResult is the top-level response for inventory aging analysis.
@@ -77,10 +77,10 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 		if p, ok := pMap[issue.Status]; ok {
 			if daysRaw > p.P95 {
 				analysis.Percentile = 95
-				analysis.IsStale = true
+				analysis.IsAgingOutlier = true
 			} else if daysRaw > p.P85 {
 				analysis.Percentile = 85
-				analysis.IsStale = true
+				analysis.IsAgingOutlier = true
 			} else if daysRaw > p.P70 {
 				analysis.Percentile = 70
 			} else if daysRaw > p.P50 {
@@ -229,7 +229,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			if len(sortedPersistence) > 0 && !isFinished {
 				p85 := sortedPersistence[int(float64(len(sortedPersistence))*0.85)]
 				if ageRaw > p85 {
-					analysis.IsStale = true
+					analysis.IsAgingOutlier = true
 				}
 			}
 		}

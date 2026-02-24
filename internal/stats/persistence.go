@@ -121,7 +121,9 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 
 // CalculateTierSummary aggregates persistence data into tiers.
 func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadata) map[string]TierSummary {
-	tierDurations := make(map[string][]float64)
+	// 1. Group total residency per issue, per tier
+	// issueTierTotals[tier][issueKey] = totalDays
+	issueTierTotals := make(map[string]map[string]float64)
 	tierStatuses := make(map[string]map[string]bool)
 
 	for _, issue := range issues {
@@ -137,7 +139,16 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 				tier = m.Tier
 			}
 
-			tierDurations[tier] = append(tierDurations[tier], days)
+			// Skip terminal tier analysis in persistence overview
+			if tier == "Finished" {
+				continue
+			}
+
+			if issueTierTotals[tier] == nil {
+				issueTierTotals[tier] = make(map[string]float64)
+			}
+			issueTierTotals[tier][issue.Key] += days
+
 			if tierStatuses[tier] == nil {
 				tierStatuses[tier] = make(map[string]bool)
 			}
@@ -146,7 +157,13 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 	}
 
 	summary := make(map[string]TierSummary)
-	for tier, durations := range tierDurations {
+	for tier, totalsMap := range issueTierTotals {
+		// Convert map to slice for distribution analysis
+		durations := make([]float64, 0, len(totalsMap))
+		for _, d := range totalsMap {
+			durations = append(durations, d)
+		}
+
 		if len(durations) == 0 {
 			continue
 		}
@@ -167,8 +184,6 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 			interpretation = "Total time spent in definition/refinement. Key indicator of 'Definition Bottlenecks'."
 		case "Downstream":
 			interpretation = "Total time spent in implementation/testing. This is your primary delivery capacity."
-		case "Finished":
-			interpretation = "Total time spent in terminal statuses. Expected to be high for archived work."
 		}
 
 		summary[tier] = TierSummary{

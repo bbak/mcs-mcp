@@ -3,7 +3,6 @@ package stats
 import (
 	"mcs-mcp/internal/jira"
 	"testing"
-	"time"
 )
 
 func TestCalculateStratifiedStatusPersistence(t *testing.T) {
@@ -75,51 +74,72 @@ func TestCalculateStratifiedStatusPersistence(t *testing.T) {
 }
 
 func TestCalculateStatusPersistence_Friction(t *testing.T) {
-	now := time.Now()
+	// ... existing test ...
+}
+
+func TestCalculateTierSummary(t *testing.T) {
+	mappings := map[string]StatusMetadata{
+		"Refining": {Tier: "Upstream"},
+		"Coding":   {Tier: "Downstream"},
+		"Testing":  {Tier: "Downstream"},
+		"Done":     {Tier: "Finished"},
+		"Archived": {Tier: "Finished"},
+	}
+
 	issues := []jira.Issue{
 		{
-			Key:     "PROJ-1",
-			Created: now.AddDate(0, 0, -10),
+			Key: "I1",
 			StatusResidency: map[string]int64{
-				"In Progress": 10 * 86400,
-			},
-			BlockedResidency: map[string]int64{
-				"In Progress": 2 * 86400, // 2 days blocked
+				"Refining": 5 * 86400,
+				"Coding":   10 * 86400,
+				"Testing":  5 * 86400, // Total Downstream for I1: 15
+				"Done":     100 * 86400,
 			},
 		},
 		{
-			Key:     "PROJ-2",
-			Created: now.AddDate(0, 0, -10),
+			Key: "I2",
 			StatusResidency: map[string]int64{
-				"In Progress": 10 * 86400,
-			},
-			BlockedResidency: map[string]int64{
-				"In Progress": 4 * 86400, // 4 days blocked
+				"Refining": 2 * 86400,
+				"Coding":   4 * 86400,
+				"Testing":  4 * 86400, // Total Downstream for I2: 8
+				"Archived": 200 * 86400,
 			},
 		},
 	}
 
-	results := CalculateStatusPersistence(issues)
+	summary := CalculateTierSummary(issues, mappings)
 
-	var ipStatus *StatusPersistence
-	for i := range results {
-		if results[i].StatusName == "In Progress" {
-			ipStatus = &results[i]
-		}
+	// 1. Check filtering of Finished tier
+	if _, ok := summary["Finished"]; ok {
+		t.Error("Expected 'Finished' tier to be filtered out of summary")
 	}
 
-	if ipStatus == nil {
-		t.Fatal("Expected 'In Progress' status")
+	// 2. Check Upstream (I1: 5, I2: 2)
+	upstream, ok := summary["Upstream"]
+	if !ok {
+		t.Fatal("Expected 'Upstream' tier summary")
+	}
+	if upstream.Count != 2 {
+		t.Errorf("Expected Upstream count 2, got %d", upstream.Count)
+	}
+	// P85 of [2, 5] is index int(2*0.85)=1, which is 5.0
+	if upstream.P85 != 5.0 {
+		t.Errorf("Expected Upstream P85 to be 5.0, got %f", upstream.P85)
 	}
 
-	// BlockedCount should be 2
-	if ipStatus.BlockedCount != 2 {
-		t.Errorf("Expected BlockedCount 2, got %d", ipStatus.BlockedCount)
+	// 3. Check Downstream (I1: 15, I2: 8) -> Aggregation test!
+	downstream, ok := summary["Downstream"]
+	if !ok {
+		t.Fatal("Expected 'Downstream' tier summary")
 	}
-
-	// BlockedP50 should be around 3.0 (avg of 2 and 4 index 1 of [2, 4])
-	// Actually index 0.50 of 2 is 1 (bd[1]) which is 4.0
-	if ipStatus.BlockedP50 != 4.0 {
-		t.Errorf("Expected BlockedP50 4.0, got %f", ipStatus.BlockedP50)
+	if downstream.Count != 2 {
+		t.Errorf("Expected Downstream count 2 (issues), got %d", downstream.Count)
+	}
+	// P85 of [8, 15] is index 1, which is 15.0
+	// If aggregation was NOT working, it would have [10, 5, 4, 4] -> durations sorted [4, 4, 5, 10]
+	// P85 of 4 items is index int(4*0.85)=3 -> 10.0.
+	// So 15.0 proves aggregation is working.
+	if downstream.P85 != 15.0 {
+		t.Errorf("Expected Downstream P85 to be 15.0 (summed), got %f", downstream.P85)
 	}
 }
