@@ -16,8 +16,7 @@ var (
 	Commit    = "none"
 	BuildDate = "unknown"
 
-	verbose bool
-	cfg     *config.AppConfig
+	cfg *config.AppConfig
 
 	jiraClient jira.Client
 )
@@ -28,7 +27,7 @@ var rootCmd = &cobra.Command{
 	Long: `A specialized MCP Server that provides statistical forecasting (throughput histograms, fat-tail analysis)
 using Monte-Carlo-Simulation based on Jira data.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		logging.Init(verbose)
+		logging.Init()
 
 		// Load configuration
 		var err error
@@ -58,5 +57,4 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
 }
