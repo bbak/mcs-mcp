@@ -38,6 +38,9 @@ switch ($Command) {
 
 		go build -ldflags "$LdFlags" -o $BinaryName ./cmd/mcs-mcp
 
+		Write-Host "Building $DistDir/mockgen.exe..." -ForegroundColor Cyan
+		go build -ldflags "-s -w" -o "$DistDir/mockgen.exe" ./cmd/mockgen
+
 		Write-Host "Copying example configs to $DistDir..." -ForegroundColor Cyan
 		Copy-Item "conf/.env-example" -Destination "$DistDir/.env-example" -Force
 	}

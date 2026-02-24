@@ -27,6 +27,20 @@ builds:
           - -X mcs-mcp/cmd/mcs-mcp/commands.Version={{ .Version }}
           - -X mcs-mcp/cmd/mcs-mcp/commands.Commit={{ .ShortCommit }}
           - -X mcs-mcp/cmd/mcs-mcp/commands.BuildDate={{ .Date }}
+    - id: "mockgen"
+      main: ./cmd/mockgen
+      binary: mockgen
+      env:
+          - CGO_ENABLED=0
+      goos:
+          - windows
+          - linux
+          - darwin
+      goarch:
+          - amd64
+          - arm64
+      ldflags:
+          - -s -w
 
 archives:
     - name_template: >-

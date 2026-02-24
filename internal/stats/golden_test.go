@@ -84,14 +84,14 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
 		wf.Mapping,
-		map[string]string{"Done": "Done"},
+		map[string]string{"Done": "delivered"},
 		window,
 	)
 
 	// 4. Execute the Pipeline
-	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, map[string]string{"Done": "Done"}, wf.Mapping)
+	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, map[string]string{"Done": "delivered"}, wf.Mapping)
 
-	yield := stats.CalculateProcessYield(session.GetAllIssues(), wf.Mapping, map[string]string{"Done": "Done"})
+	yield := stats.CalculateProcessYield(session.GetAllIssues(), wf.Mapping, map[string]string{"Done": "delivered"})
 
 	// We need some mock history for aging, let's use [5.0, 10.0, 15.0]
 	// Weights are usually derived dynamically, but we'll supply a flat weight for stability.
@@ -104,8 +104,18 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	aging := stats.CalculateInventoryAge(session.GetWIP(), wf.CommitmentPoint, flatWeights, wf.Mapping, []float64{10.0, 20.0, 30.0}, "wip", window.End)
 
 	var cycleTimes []float64
-	for range session.GetDelivered() {
-		cycleTimes = append(cycleTimes, 5.0) // Fake cycle time for stability charting
+	for _, issue := range session.GetDelivered() {
+		var sumSeconds int64
+		for st, secs := range issue.StatusResidency {
+			if m, ok := stats.GetMetadataRobust(wf.Mapping, "", st); ok && m.Tier == "Downstream" {
+				sumSeconds += secs
+			}
+		}
+		ct := float64(sumSeconds) / 86400.0
+		if ct <= 0 {
+			ct = 0.1
+		}
+		cycleTimes = append(cycleTimes, ct)
 	}
 
 	var stability stats.StabilityResult
@@ -120,7 +130,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	}
 
 	persistence := stats.EnrichStatusPersistence(
-		stats.CalculateStatusPersistence(session.GetAllIssues()),
+		stats.CalculateStatusPersistence(session.GetDelivered()),
 		wf.Mapping,
 	)
 
@@ -133,6 +143,8 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 		ThreeWayXmR:       threeWay,
 		StatusPersistence: persistence,
 	}
+
+	t.Logf("Golden Test Data Lengths -> All: %d, WIP: %d, Delivered: %d", len(session.GetAllIssues()), len(session.GetWIP()), len(session.GetDelivered()))
 
 	// 6. Serialize & Golden Compare
 	actualJSON, err := json.MarshalIndent(result, "", "  ")
