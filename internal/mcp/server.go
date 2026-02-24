@@ -128,6 +128,7 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 }
 
 func (s *Server) sendResponse(id any, result any) {
+	log.Info().Interface("id", id).Msg("Sending response")
 	resp := JSONRPCResponse{
 		Jsonrpc: "2.0",
 		ID:      id,
@@ -138,6 +139,7 @@ func (s *Server) sendResponse(id any, result any) {
 }
 
 func (s *Server) sendError(id any, err any) {
+	log.Info().Interface("id", id).Interface("error", err).Msg("Sending error response")
 	resp := JSONRPCResponse{
 		Jsonrpc: "2.0",
 		ID:      id,

@@ -15,7 +15,7 @@ import (
 )
 
 // Init initializes the global logger with dual sinks: os.Stderr and a rotating file.
-func Init(verbose bool) {
+func Init() {
 	// 0. Load .env from binary directory to ensure LOGS_FOLDER is available.
 	// We do this here because Init is called before config.Load.
 	exePath, err := os.Executable()
@@ -26,7 +26,7 @@ func Init(verbose bool) {
 
 	// 1. Determine log level
 	level := zerolog.InfoLevel
-	if verbose {
+	if os.Getenv("VERBOSE") == "true" {
 		level = zerolog.DebugLevel
 	}
 	zerolog.SetGlobalLevel(level)
@@ -35,7 +35,7 @@ func Init(verbose bool) {
 	isTerminal := isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        os.Stderr,
-		TimeFormat: time.RFC3339,
+		TimeFormat: time.RFC3339Nano,
 		NoColor:    !isTerminal,
 	}
 
@@ -75,4 +75,6 @@ func Init(verbose bool) {
 		With().
 		Timestamp().
 		Logger()
+
+	log.Info().Msg("Logging initialized")
 }
