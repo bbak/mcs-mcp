@@ -52,5 +52,6 @@ type StatusPersistence struct {
 // StratifiedThroughput represents delivery volume across different work item types.
 type StratifiedThroughput struct {
 	Pooled []int            `json:"pooled"`
-	ByType map[string][]int `json:"byType"`
+	ByType map[string][]int `json:"by_type"`       // Stratified by type
+	XmR    *XmRResult       `json:"xmr,omitempty"` // Stability limits calculated against pooled throughput
 }

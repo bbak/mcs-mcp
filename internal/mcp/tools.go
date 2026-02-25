@@ -141,8 +141,11 @@ func (s *Server) listTools() any {
 				},
 			},
 			map[string]any{
-				"name":        "analyze_throughput",
-				"description": "Visualize the weekly pulse of delivery THROUGHPUT VOLUME - the number of items completed per week - to detect flow vs. batching.",
+				"name": "analyze_throughput",
+				"description": "Analyze the weekly pulse of delivery THROUGHPUT VOLUME - the number of items completed per week - to detect flow vs. batching.\n" +
+					"THROUGHPUT STABILITY (XmR): This tool automatically calculates Wheeler Process Behavior Chart (XmR) limits for the delivery cadence.\n" +
+					"Use this tool to determine if the team's delivery volume is predictable and stable over time, or if there are systemic variations (zero-count weeks, extreme surges).\n" +
+					"The response includes both the raw aggregated volumes and the calculated statistically-derived Limits (UNPL/LNPL) via the 'stability' object.",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -160,7 +163,8 @@ func (s *Server) listTools() any {
 					"PROCESS STABILITY: Measures the predictability of Lead Times (Cycle-Time). High stability means future delivery dates are more certain. It is NOT about throughput volume.\n" +
 					"Stability is high if most items fall within Natural Process Limits. Chaos is high if many points are beyond limits (signals).\n\n" +
 					"PREREQUISITE: Proper workflow mapping is required for accurate results. \n" +
-					"Use 'analyze_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.",
+					"Use 'analyze_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.\n" +
+					"NOTE: If you want to analyze the stability of Delivery Cadence/Volume, DO NOT use this tool. Use 'analyze_throughput' instead.",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{

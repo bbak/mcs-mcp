@@ -91,6 +91,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	// 4. Execute the Pipeline
 	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, map[string]string{"Done": "delivered"}, wf.Mapping)
+	cadence.XmR = stats.AnalyzeThroughputStability(cadence)
 
 	yield := stats.CalculateProcessYield(session.GetAllIssues(), wf.Mapping, map[string]string{"Done": "delivered"})
 

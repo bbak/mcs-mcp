@@ -49,24 +49,38 @@ func GenerateXmRChart(result stats.StabilityResult) string {
 	return sb.String()
 }
 
-// GenerateThroughputChart creates a Mermaid bar chart for Delivery Cadence over time buckets.
-func GenerateThroughputChart(throughput []int, metadata []map[string]string) string {
+// GenerateThroughputChart creates a Mermaid bar chart for Delivery Cadence, optionally bounded by XmR limits.
+func GenerateThroughputChart(throughput []int, metadata []map[string]string, xmr *stats.XmRResult) string {
 	if len(throughput) == 0 || len(metadata) == 0 {
 		return ""
 	}
 
 	var labels []string
 	var values []string
+	var averages []string
+	var unpls []string
+	var lnpls []string
 
-	maxVal := 0
+	maxVal := 0.0
 	for i, count := range throughput {
 		if i < len(metadata) {
 			labels = append(labels, fmt.Sprintf("\"%s\"", metadata[i]["label"]))
 			values = append(values, fmt.Sprintf("%d", count))
-			if count > maxVal {
-				maxVal = count
+
+			if xmr != nil {
+				averages = append(averages, fmt.Sprintf("%.1f", xmr.Average))
+				unpls = append(unpls, fmt.Sprintf("%.1f", xmr.UNPL))
+				lnpls = append(lnpls, fmt.Sprintf("%.1f", xmr.LNPL))
+			}
+
+			if float64(count) > maxVal {
+				maxVal = float64(count)
 			}
 		}
+	}
+
+	if xmr != nil && xmr.UNPL > maxVal {
+		maxVal = xmr.UNPL
 	}
 
 	var sb strings.Builder
@@ -74,8 +88,15 @@ func GenerateThroughputChart(throughput []int, metadata []map[string]string) str
 	sb.WriteString("xychart-beta\n")
 	sb.WriteString("    title \"Delivery Cadence (Throughput)\"\n")
 	sb.WriteString(fmt.Sprintf("    x-axis [%s]\n", strings.Join(labels, ", ")))
-	sb.WriteString(fmt.Sprintf("    y-axis \"Items Delivered\" 0 --> %d\n", maxVal+int(math.Max(1, float64(maxVal)*0.2))))
+	sb.WriteString(fmt.Sprintf("    y-axis \"Items Delivered\" 0 --> %d\n", int(math.Max(1.0, math.Ceil(maxVal*1.1)))))
 	sb.WriteString(fmt.Sprintf("    bar [%s]\n", strings.Join(values, ", ")))
+
+	if xmr != nil {
+		sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(averages, ", ")))
+		sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(unpls, ", ")))
+		sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(lnpls, ", ")))
+	}
+
 	sb.WriteString("```")
 	return sb.String()
 }

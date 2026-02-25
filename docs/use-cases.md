@@ -59,10 +59,11 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Proactive) or User
 - **Trigger:** AI is about to run a simulation or User asks "Is our process stable?"
 - **Main Success Scenario:**
-    1.  AI calls `analyze_process_stability`.
-    2.  MCP Server performs **XmR analysis** (Individuals and Moving Range) on Cycle Time and Throughput.
-    3.  AI identifies **Special Cause** signals (Outliers beyond UNPL or Process Shifts).
-    4.  AI reports: "Your process is currently **Unstable**. We detected a 9-day shift in cycle time starting last week. Any forecast run now will have a higher margin of error until the process is brought back into control."
+    1.  AI calls `analyze_process_stability` for Cycle-Time predictability.
+    2.  AI calls `analyze_throughput` for Delivery Cadence stability.
+    3.  MCP Server performs **XmR analysis** (Individuals and Moving Range) on the selected metric.
+    4.  AI identifies **Special Cause** signals (Outliers beyond UNPL or Process Shifts).
+    5.  AI reports: "Your delivery cadence is currently **Unstable**. We detected 2 weeks with zero throughput which are statistical outliers. Any forecast run now will have a higher margin of error until the process is brought back into control."
 
 ---
 
@@ -133,9 +134,9 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** AI prepares a forecast and wants to validate the "Stability" assumption of MCS.
 - **Main Success Scenario:**
     1. AI calls `analyze_throughput`.
-    2. MCP Server returns weekly throughput counts.
-    3. AI detects "Batching" (e.g., three weeks of 0, then one week of 20).
-    4. AI warns: "Your delivery pulse is currently **Batch-based**. While the forecast says you'll finish by March, be aware that this assumes a massive delivery at the very end rather than a steady flow."
+    2. MCP Server returns weekly throughput counts with **XmR Natural Process Limits**.
+    3. AI detects "Batching" (points bouncing between limits or zero-counts) or "Chaos" (points beyond limits).
+    4. AI warns: "Your delivery pulse is currently **Batch-based**. While the forecast says you'll finish by March, be aware that your throughput is statistically unstable, making the P85 date more volatile than usual."
 
 ---
 
