@@ -108,7 +108,7 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 		s.sendResponse(req.ID, map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{},
-			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.9.0"},
+			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.10.0"},
 		})
 	case "tools/list":
 		s.sendResponse(req.ID, s.listTools())

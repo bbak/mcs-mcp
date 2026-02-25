@@ -355,3 +355,20 @@ func detectSignals(values []float64, avg, unpl, lnpl float64, keys []string) []S
 
 	return signals
 }
+
+// AnalyzeThroughputStability assesses whether the weekly/monthly delivery cadence is predictable.
+// It applies Wheeler's XmR methodology to the raw throughput counts.
+// Note: 0-count weeks are valid data points in throughput analysis.
+func AnalyzeThroughputStability(throughput StratifiedThroughput) *XmRResult {
+	if len(throughput.Pooled) == 0 {
+		return nil
+	}
+
+	values := make([]float64, len(throughput.Pooled))
+	for i, count := range throughput.Pooled {
+		values[i] = float64(count)
+	}
+
+	res := CalculateXmR(values)
+	return &res
+}

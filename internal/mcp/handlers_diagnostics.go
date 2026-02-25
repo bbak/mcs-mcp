@@ -150,6 +150,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 
 	delivered := session.GetDelivered()
 	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions, s.activeMapping)
+	throughput.XmR = stats.AnalyzeThroughputStability(throughput)
 
 	// Build bucket metadata
 	bucketMetadata := make([]map[string]string, 0)
@@ -171,8 +172,12 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		"@metadata":             bucketMetadata,
 	}
 
+	if throughput.XmR != nil {
+		res["stability"] = throughput.XmR
+	}
+
 	if s.enableMermaidCharts {
-		res["visual_throughput_trend"] = visuals.GenerateThroughputChart(throughput.Pooled, bucketMetadata)
+		res["visual_throughput_trend"] = visuals.GenerateThroughputChart(throughput.Pooled, bucketMetadata, throughput.XmR)
 	}
 
 	guidance := []string{

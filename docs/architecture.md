@@ -155,6 +155,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **Three-Way Tactical Audit**: Uses subgroup averages (weekly/monthly) to detect long-term strategic process drift.
 - **WIP Age Monitoring**: Compares current WIP against historical limits to provide early warnings of a "Clogged" system.
 - **WIP Stability Bounding**: Generates daily WIP run charts bounded by weekly sampled XmR limits to detect Little's Law violations without daily autocorrelation skew.
+- **Throughput Cadence (XmR)**: Applies XmR limits to weekly/monthly delivery volumes to detect batching behavior or "Special Cause" surges/dips in capacity.
 - **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
 
 ---
@@ -274,15 +275,15 @@ MCS-MCP implements **Type-Stratification** as a core architectural baseline acro
 
 Every analytical tool in the server has been extended to provide both pooled (system-wide) and stratified (type-specific) results:
 
-| Tool                | Stratified Capability                                             | Rationale                                                               |
-| :------------------ | :---------------------------------------------------------------- | :---------------------------------------------------------------------- |
-| **Monte Carlo**     | Stratified Capacity / Bayesian Blending / correlations.           | Prevents "Invisibility" of slow items in mixed simulations.             |
-| **Cycle Time SLEs** | Full Percentile sets per Work Item Type.                          | Sets realistic, data-driven expectations for different classes of work. |
-| **WIP Aging**       | Type-Aware Staleness Detection (Percentile-based).                | Prevents false-negative "Clogged" alerts for complex/slow types.        |
-| **Stability (XmR)** | Individual & Moving Range limits per Type.                        | Detects special cause variation that is masked in a pooled view.        |
-| **Yield Analysis**  | Attribution of Delivery vs. Abandonment per Type.                 | Identifies which work types suffer the most process waste.              |
-| **Throughput**      | Weekly/Monthly delivery cadence per Type with flexible bucketing. | Visualizes where teams actually spend their delivery "bandwidth".       |
-| **Residency**       | Status-level residency percentiles (P50..P95) per Type.           | pinpoints type-specific bottlenecks at the status level.                |
+| Tool                | Stratified Capability                                                    | Rationale                                                               |
+| :------------------ | :----------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| **Monte Carlo**     | Stratified Capacity / Bayesian Blending / correlations.                  | Prevents "Invisibility" of slow items in mixed simulations.             |
+| **Cycle Time SLEs** | Full Percentile sets per Work Item Type.                                 | Sets realistic, data-driven expectations for different classes of work. |
+| **WIP Aging**       | Type-Aware Staleness Detection (Percentile-based).                       | Prevents false-negative "Clogged" alerts for complex/slow types.        |
+| **Stability (XmR)** | Individual & Moving Range limits per Type (Cycle-Time, WIP, Throughput). | Detects special cause variation that is masked in a pooled view.        |
+| **Yield Analysis**  | Attribution of Delivery vs. Abandonment per Type.                        | Identifies which work types suffer the most process waste.              |
+| **Throughput**      | Delivery cadence with XmR stability limits and flexible bucketing.       | Visualizes and bounds delivery "bandwidth" predictability.              |
+| **Residency**       | Status-level residency percentiles (P50..P95) per Type.                  | pinpoints type-specific bottlenecks at the status level.                |
 
 ### 10.2 Statistical Integrity Guards
 

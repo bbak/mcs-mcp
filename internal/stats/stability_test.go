@@ -252,3 +252,35 @@ func TestCalculateSystemPressure(t *testing.T) {
 		})
 	}
 }
+
+func TestAnalyzeThroughputStability(t *testing.T) {
+	// 1. Empty/Missing Data
+	empty := StratifiedThroughput{
+		Pooled: []int{},
+	}
+	resEmpty := AnalyzeThroughputStability(empty)
+	if resEmpty != nil {
+		t.Errorf("Expected nil XmR result for empty throughput, got %v", resEmpty)
+	}
+
+	// 2. Standard Cadence (Including zeros)
+	// We use the same stable input from TestCalculateXmR but interleaved with zero weeks
+	cadence := StratifiedThroughput{
+		Pooled: []int{10, 0, 10, 0, 10},
+	}
+
+	res := AnalyzeThroughputStability(cadence)
+	if res == nil {
+		t.Fatalf("Expected valid XmR result, got nil")
+	}
+
+	expectedAvg := 6.0 // (10+0+10+0+10)/5
+	if math.Abs(res.Average-expectedAvg) > 0.001 {
+		t.Errorf("Expected throughput average %v, got %v", expectedAvg, res.Average)
+	}
+
+	expectedAmR := 10.0 // (|10-0| + |0-10| + |10-0| + |0-10|) / 4
+	if math.Abs(res.AmR-expectedAmR) > 0.001 {
+		t.Errorf("Expected throughput AmR %v, got %v", expectedAmR, res.AmR)
+	}
+}
