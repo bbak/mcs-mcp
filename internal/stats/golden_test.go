@@ -21,6 +21,7 @@ type PipelineGoldenResult struct {
 	ProcessYield      stats.ProcessYield
 	WIPAging          []stats.InventoryAge
 	ProcessStability  stats.StabilityResult
+	WIPStability      stats.WIPStabilityResult
 	ThreeWayXmR       stats.ThreeWayResult
 	StatusPersistence []stats.StatusPersistence
 }
@@ -134,12 +135,15 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 		wf.Mapping,
 	)
 
+	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, wf.Mapping)
+
 	// 5. Gather Results
 	result := PipelineGoldenResult{
 		DeliveryCadence:   cadence,
 		ProcessYield:      yield,
 		WIPAging:          aging,
 		ProcessStability:  stability,
+		WIPStability:      wipStability,
 		ThreeWayXmR:       threeWay,
 		StatusPersistence: persistence,
 	}

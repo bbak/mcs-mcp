@@ -108,7 +108,7 @@ func (s *Server) dispatch(req JSONRPCRequest) {
 		s.sendResponse(req.ID, map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{},
-			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.1.0"},
+			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.9.0"},
 		})
 	case "tools/list":
 		s.sendResponse(req.ID, s.listTools())
@@ -350,6 +350,11 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 			window = 26
 		}
 		data, err = s.handleGetProcessStability(projectKey, boardID)
+	case "analyze_wip_stability":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		windowWeeks := asInt(call.Arguments["history_window_weeks"])
+		data, err = s.handleAnalyzeWIPStability(projectKey, boardID, windowWeeks)
 	case "analyze_process_evolution":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])

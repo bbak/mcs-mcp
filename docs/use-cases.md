@@ -66,6 +66,20 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
+## UC4b: WIP Stability Validation (Little's Law Guardrail)
+
+**Goal:** Assess if the system's "Population" (Work-In-Progress) is actively managed and stable over time.
+
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** AI is confirming prerequisites for forecasting, or User asks "Is our WIP under control?"
+- **Main Success Scenario:**
+    1.  AI calls `analyze_wip_stability`.
+    2.  MCP Server calculates a daily run chart of active WIP and computes Natural Process Limits derived strictly from weekly samples.
+    3.  AI identifies periods where daily WIP breached the Upper Limit.
+    4.  AI reports: "Your WIP is historically **Unstable**. There was an unmanaged WIP spike in October that violated Little's Law. Cycle times established during this period are mathematically unreliable for forward-looking forecasts."
+
+---
+
 ## UC5: Strategic Process Evolution (The Strategic Audit)
 
 **Goal:** Perform a longitudinal analysis of process behavior to detect long-term shifts or maturity changes.

@@ -15,11 +15,12 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
 			"description": "Recommended sequence to produce reliable delivery dates or volume forecasts.",
 			"steps": []any{
 				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Verify the semantic workflow mapping (tiers and roles) and data shape."},
-				map[string]any{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable XmR)."},
-				map[string]any{"step": 3, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
-				map[string]any{"step": 4, "tool": "analyze_work_item_age", "description": "Identify items aging beyond historical norms (Aging Outliers)."},
-				map[string]any{"step": 5, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
-				map[string]any{"step": 6, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
+				map[string]any{"step": 2, "tool": "analyze_process_stability", "description": "Verify that the process is predictable (Stable Cycle Time and Throughput)."},
+				map[string]any{"step": 3, "tool": "analyze_wip_stability", "description": "Verify that Work-In-Progress is stable and managed (Little's Law assumption)."},
+				map[string]any{"step": 4, "tool": "analyze_cycle_time", "description": "Understand baseline SLE (Service Level Expectations) for different work items."},
+				map[string]any{"step": 5, "tool": "analyze_work_item_age", "description": "Identify items aging beyond historical norms (Aging Outliers)."},
+				map[string]any{"step": 6, "tool": "forecast_monte_carlo", "description": "Perform Monte-Carlo simulation using the historical baseline."},
+				map[string]any{"step": 7, "tool": "forecast_backtest", "description": "Perform a 'Walk-Forward Analysis' to validate the reliability of the forecast model."},
 			},
 		},
 		"bottlenecks": map[string]any{

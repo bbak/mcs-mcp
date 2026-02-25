@@ -456,3 +456,52 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings([]jira.Issue{issue}), guidance), nil
 }
+
+func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windowWeeks int) (any, error) {
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// 1. Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+		return nil, err
+	}
+
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+
+	// 2. Project EVERYTHING from the beginning of time to capture stagnant WIP
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+
+	fullWindow := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+
+	all := session.GetAllIssues()
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
+
+	// 3. Bound the chart output strictly to the requested display window
+	displayWindow := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), "day", cutoff)
+	wipStability := stats.AnalyzeHistoricalWIP(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
+
+	res := map[string]any{
+		"wip_stability": wipStability,
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_wip_run_chart"] = visuals.GenerateWIPRunChart(wipStability)
+	}
+
+	guidance := []string{
+		"WIP Stability provides a daily historical view of system population.",
+		"Signals (Outliers/Shifts) indicate that WIP was not actively managed or constrained, which violates Little's Law.",
+		"If the system is 'unstable', flow metrics (Cycle Time, Throughput) will be unpredictable and simulations may fail.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
+}

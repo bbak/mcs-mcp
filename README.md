@@ -144,6 +144,12 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 ---
 
+## Usage Tips:
+
+- Many Agents can create Charts right from the data that's passed from the MCP-Server. In Claude Desktop a prompt like _"Please create a Chart for WIP; use React and Recharts with a dark color scheme."_ works well.
+
+---
+
 ## 🎲 Offline Testing & Simulation (mockgen)
 
 If you do not have a live Jira connection (or simply want to test the server's analytical capabilities without using sensitive corporate data), MCS-MCP includes a built-in mock data generator called `mockgen`.

@@ -175,6 +175,24 @@ func (s *Server) listTools() any {
 				},
 			},
 			map[string]any{
+				"name": "analyze_wip_stability",
+				"description": "Analyze system population (Work-In-Progress) stability over time using XmR charts and a historical daily Run Chart. \n" +
+					"WIP STABILITY: A highly variable WIP size violates the assumptions of Little's Law, making systems fundamentally unpredictable. \n" +
+					"This tool generates a daily run-chart of active WIP, bounded by strict weekly XmR statistically-derived Process Limits to detect volatile WIP management.",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"project_key": map[string]any{"type": "string", "description": "The project key"},
+						"board_id":    map[string]any{"type": "integer", "description": "The board ID"},
+						"history_window_weeks": map[string]any{
+							"type":        "integer",
+							"description": "Number of weeks to analyze (default: 26)",
+						},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
+			map[string]any{
 				"name": "analyze_process_evolution",
 				"description": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. \n\n" +
 					"PROCESS EVOLUTION: Measures long-term predictability and capability of Lead Times (Cycle-Time). It is THROUGHPUT-AGNOSTIC.\n" +
