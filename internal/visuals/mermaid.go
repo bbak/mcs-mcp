@@ -165,6 +165,57 @@ func GenerateEvolutionChart(result stats.ThreeWayResult) string {
 	return sb.String()
 }
 
+// GenerateWIPRunChart creates a Mermaid xychart-beta for Historical WIP bounding.
+func GenerateWIPRunChart(result stats.WIPStabilityResult) string {
+	if len(result.RunChart) == 0 {
+		return ""
+	}
+
+	var labels []string
+	var values []string
+	var unpls []string
+	var lnpls []string
+
+	// XmR Process limits are scalar across the entire run chart for visual context
+	unpl := fmt.Sprintf("%.1f", result.XmR.UNPL)
+	lnpl := fmt.Sprintf("%.1f", result.XmR.LNPL)
+
+	// Subsample points if the chart is too wide for Mermaid's layout engine
+	// Typically Mermaid xychart starts overflowing/overlapping text around 60 points
+	subsampleRate := 1
+	if len(result.RunChart) > 60 {
+		subsampleRate = int(math.Ceil(float64(len(result.RunChart)) / 60.0))
+	}
+
+	for i, point := range result.RunChart {
+		if i%subsampleRate == 0 || i == len(result.RunChart)-1 {
+			labels = append(labels, fmt.Sprintf("\"%s\"", point.Date.Format("Jan02")))
+			values = append(values, fmt.Sprintf("%d", point.Count))
+			unpls = append(unpls, unpl)
+			lnpls = append(lnpls, lnpl)
+		}
+	}
+
+	maxY := result.XmR.UNPL * 1.2
+	for _, p := range result.RunChart {
+		if float64(p.Count) > maxY {
+			maxY = float64(p.Count) * 1.1
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("```mermaid\n")
+	sb.WriteString("xychart-beta\n")
+	sb.WriteString("    title \"Work-In-Progress (WIP) Stability\"\n")
+	sb.WriteString(fmt.Sprintf("    x-axis [%s]\n", strings.Join(labels, ", ")))
+	sb.WriteString(fmt.Sprintf("    y-axis \"Active Items\" 0 --> %d\n", int(math.Ceil(maxY))))
+	sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(values, ", ")))
+	sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(unpls, ", ")))
+	sb.WriteString(fmt.Sprintf("    line [%s]\n", strings.Join(lnpls, ", ")))
+	sb.WriteString("```")
+	return sb.String()
+}
+
 // GenerateYieldPie creates a Mermaid Pie chart indicating abandonment points.
 func GenerateYieldPie(result stats.ProcessYield) string {
 	if result.TotalIngested == 0 {
