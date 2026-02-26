@@ -156,6 +156,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **WIP Age Monitoring**: Compares current WIP against historical limits to provide early warnings of a "Clogged" system.
 - **WIP Stability Bounding**: Generates daily WIP run charts bounded by weekly sampled XmR limits to detect Little's Law violations without daily autocorrelation skew.
 - **Throughput Cadence (XmR)**: Applies XmR limits to weekly/monthly delivery volumes to detect batching behavior or "Special Cause" surges/dips in capacity.
+- **Flow Debt (Arrival vs. Departure)**: Explicitly monitors the gap between items crossing the **Commitment Point** (Arrivals) and items being **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
 - **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
 
 ---
@@ -283,6 +284,7 @@ Every analytical tool in the server has been extended to provide both pooled (sy
 | **Stability (XmR)** | Individual & Moving Range limits per Type (Cycle-Time, WIP, Throughput). | Detects special cause variation that is masked in a pooled view.        |
 | **Yield Analysis**  | Attribution of Delivery vs. Abandonment per Type.                        | Identifies which work types suffer the most process waste.              |
 | **Throughput**      | Delivery cadence with XmR stability limits and flexible bucketing.       | Visualizes and bounds delivery "bandwidth" predictability.              |
+| **Flow Debt**       | Arrival Rate vs. Departure Rate comparison.                              | Leading indicator of WIP inflation and future cycle time degradation.   |
 | **Residency**       | Status-level residency percentiles (P50..P95) per Type.                  | pinpoints type-specific bottlenecks at the status level.                |
 
 ### 10.2 Statistical Integrity Guards

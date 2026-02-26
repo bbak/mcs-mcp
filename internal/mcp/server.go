@@ -350,6 +350,12 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 			window = 26
 		}
 		data, err = s.handleGetProcessStability(projectKey, boardID)
+	case "analyze_flow_debt":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		windowWeeks := asInt(call.Arguments["history_window_weeks"])
+		bucket := asString(call.Arguments["bucket_size"])
+		data, err = s.handleGetFlowDebt(projectKey, boardID, windowWeeks, bucket)
 	case "analyze_wip_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])

@@ -24,6 +24,7 @@ type PipelineGoldenResult struct {
 	WIPStability      stats.WIPStabilityResult
 	ThreeWayXmR       stats.ThreeWayResult
 	StatusPersistence []stats.StatusPersistence
+	FlowDebt          stats.FlowDebtResult
 }
 
 func TestAnalyticalPipeline_Golden(t *testing.T) {
@@ -138,6 +139,8 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, wf.Mapping)
 
+	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, map[string]string{"Done": "delivered"}, wf.Mapping)
+
 	// 5. Gather Results
 	result := PipelineGoldenResult{
 		DeliveryCadence:   cadence,
@@ -147,6 +150,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 		WIPStability:      wipStability,
 		ThreeWayXmR:       threeWay,
 		StatusPersistence: persistence,
+		FlowDebt:          flowDebt,
 	}
 
 	t.Logf("Golden Test Data Lengths -> All: %d, WIP: %d, Delivered: %d", len(session.GetAllIssues()), len(session.GetWIP()), len(session.GetDelivered()))
