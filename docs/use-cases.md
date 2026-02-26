@@ -295,3 +295,19 @@ This document describes the primary interaction scenarios between the User (Proj
     4.  AI identifies the stage with the highest friction (e.g., "Peer Review is your primary friction center: 60% of items encountered a blocker here, with a median (P50) blocked duration of 4 days").
     5.  AI contrasts this with total residency to provide context: "While 'In Testing' has high total residency, 'Peer Review' has the highest _impediment_ density."
     6.  **Stability Guardrail Awareness:** If the overall system is under high stress (>25% WIP flagged), the AI automatically surfaces a "SYSTEM PRESSURE WARNING" during forecasting simulations to alert the user that historical throughput may be overly optimistic.
+
+---
+
+## UC19: Flow Debt & System Balance Analysis
+
+**Goal:** Identify if the system is taking on more work than it can deliver (Leading indicator of congestion).
+
+- **Primary Actor:** User (Project Manager / Scrum Master)
+- **Trigger:** Investigating why cycle times are starting to creep up, or confirming if the team can take on a new project.
+- **Main Success Scenario:**
+    1.  User asks: "Is our workload balanced? Are we taking on too much?"
+    2.  AI calls `analyze_flow_debt`.
+    3.  MCP Server calculates the **Arrival Rate** (items crossing the Commitment Point) and **Departure Rate** (items Delivered) per bucket.
+    4.  AI identifies a period of **Positive Flow Debt** (e.g., "In the last 4 weeks, you committed to 12 items but only delivered 8").
+    5.  AI warns: "Your system is in a state of **Accumulating Debt**. If this trend continues, your Cycle Times are mathematically guaranteed to increase to accommodate the growing WIP."
+    6.  AI correlates this with `analyze_wip_stability` to show the resulting WIP inflation.

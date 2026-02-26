@@ -510,3 +510,48 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
+
+func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks int, bucket string) (any, error) {
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// 1. Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+		return nil, err
+	}
+
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+	if bucket == "" {
+		bucket = "week"
+	}
+
+	// 2. Project
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
+	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+
+	all := session.GetAllIssues()
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
+
+	flowDebt := stats.CalculateFlowDebt(all, window, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, s.activeResolutions, s.activeMapping)
+
+	res := map[string]any{
+		"flow_debt": flowDebt,
+	}
+
+	guidance := []string{
+		"Positive Flow Debt (Arrivals > Departures) is a leading indicator of cycle time inflation.",
+		"Zero or Negative Flow Debt indicates a stable or improving system throughput-to-workload ratio.",
+		fmt.Sprintf("The current window uses a %d-week historical baseline with Commitment Point: %s.", windowWeeks, analysisCtx.CommitmentPoint),
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
+}

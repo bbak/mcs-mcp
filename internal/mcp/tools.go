@@ -158,6 +158,23 @@ func (s *Server) listTools() any {
 				},
 			},
 			map[string]any{
+				"name": "analyze_flow_debt",
+				"description": "Analyze the systemic balance between incoming work (Arrival Rate / Commitment) and outgoing work (Departure Rate / Delivery).\n" +
+					"FLOW DEBT: This tool calculates the 'Debt' - the gap between arrivals and departures - to detect leading indicators of cycle time inflation.\n" +
+					"A positive Flow Debt (Arrivals > Departures) means WIP is growing, which mathematically GUARANTEES higher cycle times in the future (Little's Law).\n" +
+					"Use this tool to find the root cause of 'Flow Clog' before it manifests as delayed delivery dates.",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"project_key":          map[string]any{"type": "string", "description": "The project key"},
+						"board_id":             map[string]any{"type": "integer", "description": "The board ID"},
+						"history_window_weeks": map[string]any{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
+						"bucket_size":          map[string]any{"type": "string", "description": "Group data by 'week' or 'month' (default: week)"},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
+			map[string]any{
 				"name": "analyze_process_stability",
 				"description": "Analyze process stability and predictability using XmR charts. \n" +
 					"PROCESS STABILITY: Measures the predictability of Lead Times (Cycle-Time). High stability means future delivery dates are more certain. It is NOT about throughput volume.\n" +

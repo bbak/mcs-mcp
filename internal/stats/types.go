@@ -55,3 +55,17 @@ type StratifiedThroughput struct {
 	ByType map[string][]int `json:"by_type"`       // Stratified by type
 	XmR    *XmRResult       `json:"xmr,omitempty"` // Stability limits calculated against pooled throughput
 }
+
+// FlowDebtResult represents the comparison between Arrival and Departure rates.
+type FlowDebtResult struct {
+	Buckets   []FlowDebtBucket `json:"buckets"`
+	TotalDebt int              `json:"totalDebt"` // Cumulative debt over the window
+}
+
+// FlowDebtBucket represents a temporal snapshot of arrivals vs departures.
+type FlowDebtBucket struct {
+	Label      string `json:"label"`
+	Arrivals   int    `json:"arrivals"`
+	Departures int    `json:"departures"`
+	Debt       int    `json:"debt"` // Arrivals - Departures
+}

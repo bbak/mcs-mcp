@@ -7328,11 +7328,10 @@
         ]
       },
       {
-        "label": "2026-02-26",
-        "average": 4.051197916666666,
+        "label": "2026-02-25",
+        "average": 117.95634259259259,
         "values": [
-          1.001064814814815,
-          7.101331018518518
+          117.95634259259259
         ]
       },
       {
@@ -7681,9 +7680,9 @@
       }
     ],
     "average_chart": {
-      "average": 45.01744169280619,
-      "average_moving_range": 49.86476108146185,
-      "upper_natural_process_limit": 177.6577061694947,
+      "average": 45.8428412919071,
+      "average_moving_range": 51.429657964789385,
+      "upper_natural_process_limit": 182.64573147824686,
       "lower_natural_process_limit": 0,
       "values": [
         9.823455687830688,
@@ -7782,7 +7781,7 @@
         48.960150462962964,
         27.838564814814816,
         10.760906084656085,
-        4.051197916666666,
+        117.95634259259259,
         0.036944444444444446,
         30.28872685185185,
         11.103078703703703,
@@ -7921,8 +7920,8 @@
         17.509597800925924,
         21.121585648148148,
         17.07765873015873,
-        6.709708167989419,
-        4.014253472222222,
+        107.1954365079365,
+        117.91939814814815,
         30.251782407407408,
         19.185648148148147,
         6.621915509259258,
@@ -8002,7 +8001,7 @@
           "description": "8 consecutive points on one side of the average identified (Process Shift)"
         },
         {
-          "index": 101,
+          "index": 104,
           "key": "",
           "type": "shift",
           "description": "8 consecutive points on one side of the average identified (Process Shift)"
@@ -8184,5 +8183,2206 @@
       "blocked_count": 4,
       "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
     }
-  ]
+  ],
+  "FlowDebt": {
+    "buckets": [
+      {
+        "label": "2025-07-14",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-16",
+        "arrivals": 3,
+        "departures": 7,
+        "debt": -4
+      },
+      {
+        "label": "2025-07-17",
+        "arrivals": 3,
+        "departures": 7,
+        "debt": -4
+      },
+      {
+        "label": "2025-07-18",
+        "arrivals": 1,
+        "departures": 3,
+        "debt": -2
+      },
+      {
+        "label": "2025-07-19",
+        "arrivals": 7,
+        "departures": 0,
+        "debt": 7
+      },
+      {
+        "label": "2025-07-20",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-24",
+        "arrivals": 0,
+        "departures": 7,
+        "debt": -7
+      },
+      {
+        "label": "2025-07-25",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2025-07-26",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-07-27",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-07-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-29",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-07-30",
+        "arrivals": 0,
+        "departures": 4,
+        "debt": -4
+      },
+      {
+        "label": "2025-07-31",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-01",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-08-02",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2025-08-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-05",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-06",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-08-07",
+        "arrivals": 0,
+        "departures": 4,
+        "debt": -4
+      },
+      {
+        "label": "2025-08-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-10",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-08-11",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-12",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-13",
+        "arrivals": 1,
+        "departures": 5,
+        "debt": -4
+      },
+      {
+        "label": "2025-08-14",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2025-08-15",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2025-08-16",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2025-08-17",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2025-08-18",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-19",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-20",
+        "arrivals": 2,
+        "departures": 6,
+        "debt": -4
+      },
+      {
+        "label": "2025-08-21",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-22",
+        "arrivals": 2,
+        "departures": 5,
+        "debt": -3
+      },
+      {
+        "label": "2025-08-23",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2025-08-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-25",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-26",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-08-27",
+        "arrivals": 0,
+        "departures": 4,
+        "debt": -4
+      },
+      {
+        "label": "2025-08-28",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2025-08-29",
+        "arrivals": 3,
+        "departures": 10,
+        "debt": -7
+      },
+      {
+        "label": "2025-08-30",
+        "arrivals": 4,
+        "departures": 1,
+        "debt": 3
+      },
+      {
+        "label": "2025-08-31",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-01",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-03",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-04",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-05",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2025-09-06",
+        "arrivals": 4,
+        "departures": 2,
+        "debt": 2
+      },
+      {
+        "label": "2025-09-07",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2025-09-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-11",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2025-09-12",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-13",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2025-09-14",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-09-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-17",
+        "arrivals": 2,
+        "departures": 4,
+        "debt": -2
+      },
+      {
+        "label": "2025-09-18",
+        "arrivals": 1,
+        "departures": 7,
+        "debt": -6
+      },
+      {
+        "label": "2025-09-19",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2025-09-20",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-21",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2025-09-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-24",
+        "arrivals": 0,
+        "departures": 3,
+        "debt": -3
+      },
+      {
+        "label": "2025-09-25",
+        "arrivals": 4,
+        "departures": 3,
+        "debt": 1
+      },
+      {
+        "label": "2025-09-26",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-27",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-09-28",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-09-29",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-09-30",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-01",
+        "arrivals": 2,
+        "departures": 6,
+        "debt": -4
+      },
+      {
+        "label": "2025-10-02",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-03",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-05",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-06",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-07",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-08",
+        "arrivals": 4,
+        "departures": 3,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-09",
+        "arrivals": 3,
+        "departures": 7,
+        "debt": -4
+      },
+      {
+        "label": "2025-10-10",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2025-10-11",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2025-10-12",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-14",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-15",
+        "arrivals": 2,
+        "departures": 4,
+        "debt": -2
+      },
+      {
+        "label": "2025-10-16",
+        "arrivals": 5,
+        "departures": 2,
+        "debt": 3
+      },
+      {
+        "label": "2025-10-17",
+        "arrivals": 5,
+        "departures": 4,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-18",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-19",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2025-10-20",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-22",
+        "arrivals": 2,
+        "departures": 4,
+        "debt": -2
+      },
+      {
+        "label": "2025-10-23",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-25",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-26",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-27",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-10-29",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-10-30",
+        "arrivals": 3,
+        "departures": 1,
+        "debt": 2
+      },
+      {
+        "label": "2025-10-31",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-01",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-02",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2025-11-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-05",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2025-11-06",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-11-07",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-11-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-09",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-11-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-11",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-12",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-13",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-11-14",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-17",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-18",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-19",
+        "arrivals": 1,
+        "departures": 3,
+        "debt": -2
+      },
+      {
+        "label": "2025-11-20",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-11-21",
+        "arrivals": 1,
+        "departures": 3,
+        "debt": -2
+      },
+      {
+        "label": "2025-11-22",
+        "arrivals": 1,
+        "departures": 3,
+        "debt": -2
+      },
+      {
+        "label": "2025-11-23",
+        "arrivals": 5,
+        "departures": 1,
+        "debt": 4
+      },
+      {
+        "label": "2025-11-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-25",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-26",
+        "arrivals": 5,
+        "departures": 2,
+        "debt": 3
+      },
+      {
+        "label": "2025-11-27",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2025-11-28",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-29",
+        "arrivals": 4,
+        "departures": 4,
+        "debt": 0
+      },
+      {
+        "label": "2025-11-30",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-01",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-03",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-04",
+        "arrivals": 6,
+        "departures": 8,
+        "debt": -2
+      },
+      {
+        "label": "2025-12-05",
+        "arrivals": 1,
+        "departures": 3,
+        "debt": -2
+      },
+      {
+        "label": "2025-12-06",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-07",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-10",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-11",
+        "arrivals": 2,
+        "departures": 3,
+        "debt": -1
+      },
+      {
+        "label": "2025-12-12",
+        "arrivals": 0,
+        "departures": 3,
+        "debt": -3
+      },
+      {
+        "label": "2025-12-13",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-14",
+        "arrivals": 3,
+        "departures": 2,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-17",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-18",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-19",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-20",
+        "arrivals": 4,
+        "departures": 3,
+        "debt": 1
+      },
+      {
+        "label": "2025-12-21",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2025-12-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-24",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-25",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-26",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-27",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-29",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-30",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2025-12-31",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-01",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-02",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-05",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-06",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-07",
+        "arrivals": 2,
+        "departures": 3,
+        "debt": -1
+      },
+      {
+        "label": "2026-01-08",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-09",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-01-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-11",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-01-12",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-14",
+        "arrivals": 1,
+        "departures": 5,
+        "debt": -4
+      },
+      {
+        "label": "2026-01-15",
+        "arrivals": 0,
+        "departures": 5,
+        "debt": -5
+      },
+      {
+        "label": "2026-01-16",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-01-17",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-18",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-19",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-20",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-21",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-01-22",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-23",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-24",
+        "arrivals": 4,
+        "departures": 3,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-25",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-26",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-27",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-28",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2026-01-29",
+        "arrivals": 4,
+        "departures": 0,
+        "debt": 4
+      },
+      {
+        "label": "2026-01-30",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-01-31",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-01",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-02-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-05",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-06",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-07",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2026-02-08",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-02-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-11",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-12",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-02-13",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-02-14",
+        "arrivals": 3,
+        "departures": 4,
+        "debt": -1
+      },
+      {
+        "label": "2026-02-15",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2026-02-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-17",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-18",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-19",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-02-20",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-02-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-22",
+        "arrivals": 0,
+        "departures": 7,
+        "debt": -7
+      },
+      {
+        "label": "2026-02-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-25",
+        "arrivals": 3,
+        "departures": 1,
+        "debt": 2
+      },
+      {
+        "label": "2026-02-26",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-02-27",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-02-28",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-01",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-03-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-04",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-03-05",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-03-06",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-03-07",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-08",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-03-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-11",
+        "arrivals": 4,
+        "departures": 0,
+        "debt": 4
+      },
+      {
+        "label": "2026-03-12",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2026-03-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-14",
+        "arrivals": 0,
+        "departures": 3,
+        "debt": -3
+      },
+      {
+        "label": "2026-03-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-17",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-18",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-19",
+        "arrivals": 3,
+        "departures": 1,
+        "debt": 2
+      },
+      {
+        "label": "2026-03-20",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-03-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-22",
+        "arrivals": 0,
+        "departures": 3,
+        "debt": -3
+      },
+      {
+        "label": "2026-03-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-25",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-03-26",
+        "arrivals": 2,
+        "departures": 8,
+        "debt": -6
+      },
+      {
+        "label": "2026-03-27",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-28",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-03-29",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-30",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-03-31",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-01",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-04-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-04",
+        "arrivals": 3,
+        "departures": 3,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-05",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-06",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-07",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-09",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-10",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-11",
+        "arrivals": 2,
+        "departures": 10,
+        "debt": -8
+      },
+      {
+        "label": "2026-04-12",
+        "arrivals": 3,
+        "departures": 1,
+        "debt": 2
+      },
+      {
+        "label": "2026-04-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-14",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-15",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-04-16",
+        "arrivals": 3,
+        "departures": 1,
+        "debt": 2
+      },
+      {
+        "label": "2026-04-17",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-04-18",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-04-19",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-20",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-23",
+        "arrivals": 6,
+        "departures": 0,
+        "debt": 6
+      },
+      {
+        "label": "2026-04-24",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-04-25",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-04-26",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-27",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-04-29",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-04-30",
+        "arrivals": 4,
+        "departures": 5,
+        "debt": -1
+      },
+      {
+        "label": "2026-05-01",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2026-05-02",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-03",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-05",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-06",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-07",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-08",
+        "arrivals": 0,
+        "departures": 1,
+        "debt": -1
+      },
+      {
+        "label": "2026-05-09",
+        "arrivals": 4,
+        "departures": 0,
+        "debt": 4
+      },
+      {
+        "label": "2026-05-10",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-11",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-12",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-13",
+        "arrivals": 8,
+        "departures": 6,
+        "debt": 2
+      },
+      {
+        "label": "2026-05-14",
+        "arrivals": 0,
+        "departures": 2,
+        "debt": -2
+      },
+      {
+        "label": "2026-05-15",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-17",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-18",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-19",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-20",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-21",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-24",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-25",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-26",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-27",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-05-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-05-29",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-30",
+        "arrivals": 3,
+        "departures": 2,
+        "debt": 1
+      },
+      {
+        "label": "2026-05-31",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-01",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-02",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-03",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-04",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-06-05",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-06",
+        "arrivals": 2,
+        "departures": 1,
+        "debt": 1
+      },
+      {
+        "label": "2026-06-07",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2026-06-08",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-09",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-10",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-11",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-06-12",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2026-06-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-14",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-06-15",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-16",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-17",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-18",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-19",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-20",
+        "arrivals": 0,
+        "departures": 5,
+        "debt": -5
+      },
+      {
+        "label": "2026-06-21",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-22",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-23",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-24",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-25",
+        "arrivals": 1,
+        "departures": 1,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-26",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-06-27",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-06-28",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-29",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-06-30",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-01",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-07-02",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-03",
+        "arrivals": 3,
+        "departures": 0,
+        "debt": 3
+      },
+      {
+        "label": "2026-07-04",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-05",
+        "arrivals": 2,
+        "departures": 0,
+        "debt": 2
+      },
+      {
+        "label": "2026-07-06",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-07",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-08",
+        "arrivals": 3,
+        "departures": 3,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-09",
+        "arrivals": 2,
+        "departures": 2,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-10",
+        "arrivals": 1,
+        "departures": 0,
+        "debt": 1
+      },
+      {
+        "label": "2026-07-11",
+        "arrivals": 4,
+        "departures": 10,
+        "debt": -6
+      },
+      {
+        "label": "2026-07-12",
+        "arrivals": 1,
+        "departures": 2,
+        "debt": -1
+      },
+      {
+        "label": "2026-07-13",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      },
+      {
+        "label": "2026-07-14",
+        "arrivals": 0,
+        "departures": 0,
+        "debt": 0
+      }
+    ],
+    "totalDebt": -15
+  }
 }

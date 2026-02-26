@@ -126,6 +126,20 @@ func TestMCSTEST_Integration(t *testing.T) {
 						t.Errorf("Mild WFA Accuracy too low: %.2f (expected > 0.70)", accuracy)
 					}
 				}
+
+				// 5. Verify Flow Debt
+				fRes, err := server.handleGetFlowDebt("MCSTEST", 0, 26, "week")
+				if err != nil {
+					t.Fatalf("Failed to get flow debt: %v", err)
+				}
+				fEnv := fRes.(ResponseEnvelope)
+				flowDebtMap := fEnv.Data.(map[string]any)
+				flowDebt := flowDebtMap["flow_debt"].(stats.FlowDebtResult)
+
+				if len(flowDebt.Buckets) == 0 {
+					t.Errorf("Expected flow debt buckets, got 0")
+				}
+				t.Logf("[%s/%s] Flow Debt: TotalDebt=%d", dist, scen, flowDebt.TotalDebt)
 			})
 		}
 	}
