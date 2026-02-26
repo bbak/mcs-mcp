@@ -51,6 +51,13 @@ archives:
       files:
           - src: conf/.env-example
             dst: .env-example
+          - README.md
+          - LICENSE
+          - NOTICE
+          - src: "docs/**/*"
+            exclude:
+                - docs/ideas.md
+                - docs/reports/**/*
 
 checksum:
     name_template: "checksums.txt"

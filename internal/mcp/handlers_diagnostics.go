@@ -555,3 +555,47 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
+
+func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks int) (any, error) {
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// 1. Hydrate
+	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+		return nil, err
+	}
+
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+
+	// 2. Prepare Window and Reconstruction Context
+	// We use Day bucketing for CFD as requested by the user
+	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), "day", time.Time{})
+
+	// IMPORTANT: To get the full status reconstruction, we need events from the beginning of time up to window.End
+	// This ensures that items already in progress at the start of the window have their correct status.
+	// GetEventsInRange(..., zero-time, ...) returns events for all issues active up to window.End.
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, window.End)
+
+	finished, downstream, upstream, demand := stats.ProjectScope(events, window, "", s.activeMapping, s.activeResolutions, nil)
+	allIssues := append(finished, append(downstream, append(upstream, demand...)...)...)
+
+	// 3. Calculate CFD Data
+	cfd := stats.CalculateCFDData(allIssues, window, s.activeMapping)
+
+	res := map[string]any{
+		"cfd_data": cfd,
+	}
+
+	guidance := []string{
+		"CFD (Cumulative Flow Diagram) provides a daily snapshot of work items by status and issue type.",
+		"High-fidelity daily granularity allows detecting mid-week WIP surges or bottlenecks.",
+		"The visualization agent should use this data to render a stacked area chart.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(allIssues), guidance), nil
+}

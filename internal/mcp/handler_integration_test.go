@@ -140,6 +140,23 @@ func TestMCSTEST_Integration(t *testing.T) {
 					t.Errorf("Expected flow debt buckets, got 0")
 				}
 				t.Logf("[%s/%s] Flow Debt: TotalDebt=%d", dist, scen, flowDebt.TotalDebt)
+
+				// 6. Verify CFD Data
+				cRes, err := server.handleGetCFDData("MCSTEST", 0, 26)
+				if err != nil {
+					t.Fatalf("Failed to get CFD data: %v", err)
+				}
+				cEnv := cRes.(ResponseEnvelope)
+				cfdMap := cEnv.Data.(map[string]any)
+				cfd := cfdMap["cfd_data"].(stats.CFDResult)
+
+				if len(cfd.Buckets) == 0 {
+					t.Errorf("Expected CFD buckets, got 0")
+				}
+				if len(cfd.Statuses) == 0 {
+					t.Errorf("Expected CFD statuses, got 0")
+				}
+				t.Logf("[%s/%s] CFD: Buckets=%d, Statuses=%d", dist, scen, len(cfd.Buckets), len(cfd.Statuses))
 			})
 		}
 	}
