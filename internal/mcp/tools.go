@@ -158,6 +158,22 @@ func (s *Server) listTools() any {
 				},
 			},
 			map[string]any{
+				"name": "generate_cfd_data",
+				"description": "Calculate daily population counts per status and issue type to generate a Cumulative Flow Diagram (CFD).\n" +
+					"CFD: This tool provides the raw time-series data needed to visualize the work-in-progress (WIP), congestion, and stability of a system over time.\n" +
+					"The output is stratified by Issue Type and Status, allowing the Agent to detect specific stage bottlenecks or bloating work types.\n" +
+					"Note: This tool produces structured data. It is primarily intended for subsequent visualization or deep structural analysis of flow dynamics.",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"project_key":          map[string]any{"type": "string", "description": "The project key"},
+						"board_id":             map[string]any{"type": "integer", "description": "The board ID"},
+						"history_window_weeks": map[string]any{"type": "integer", "description": "Number of weeks to analyze (default: 26)"},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
+			map[string]any{
 				"name": "analyze_flow_debt",
 				"description": "Analyze the systemic balance between incoming work (Arrival Rate / Commitment) and outgoing work (Departure Rate / Delivery).\n" +
 					"FLOW DEBT: This tool calculates the 'Debt' - the gap between arrivals and departures - to detect leading indicators of cycle time inflation.\n" +

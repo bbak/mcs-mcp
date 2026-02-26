@@ -3,8 +3,8 @@
 **MCS-MCP** is a sophisticated Model Context Protocol (MCP) server that empowers AI assistants with deep analytical and forecasting capabilities for software delivery projects. By leveraging historical Jira data and high-performance Monte-Carlo simulations, it transforms raw project history into actionable, probabilistic delivery insights with a strong focus on **mathematical hardening and defensive design**.
 
 > [!WARNING]
-> Currently, this must be considered _alpha_. While it works quite well,
-> the Math is just partially verified. Don't bet your bonus on the
+> Currently, this must be considered _beta_. While it works quite well,
+> the Math is not thoroughly verified. Don't bet your bonus on the
 > forecasts and analysis done by it. Concepts are subject to change, if necessary
 > to make an AI Agent behave the way I envision.
 > I run it in Claude Desktop and Antigravity Agents.
@@ -144,9 +144,15 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 ---
 
+## Skills
+
+Since v.0.11.0 the MCP-Server comes with a set of Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
+
+---
+
 ## Usage Tips:
 
-- Many Agents can create Charts right from the data that's passed from the MCP-Server. In Claude Desktop a prompt like _"Please create a Chart for WIP; use React and Recharts with a dark color scheme."_ works well.
+- Many Agents can create Charts right from the data that's passed from the MCP-Server. In Claude Desktop a prompt like _"Please create a Chart for WIP"_ works well. For some Chart types you may install a Skill that can be found in the `docs/skills/` directory of the MCP-Server release archive.
 
 ---
 

@@ -311,3 +311,19 @@ This document describes the primary interaction scenarios between the User (Proj
     4.  AI identifies a period of **Positive Flow Debt** (e.g., "In the last 4 weeks, you committed to 12 items but only delivered 8").
     5.  AI warns: "Your system is in a state of **Accumulating Debt**. If this trend continues, your Cycle Times are mathematically guaranteed to increase to accommodate the growing WIP."
     6.  AI correlates this with `analyze_wip_stability` to show the resulting WIP inflation.
+
+---
+
+## UC20: Structural Flow Analysis (CFD)
+
+**Goal:** Visualize work-in-progress, congestion, and process stability over time using daily-granularity population data.
+
+- **Primary Actor:** User (Project Manager / Scrum Master)
+- **Trigger:** Identifying long-term bottlenecks, visualizing WIP surges, or verifying process stability.
+- **Main Success Scenario:**
+    1.  User asks: "Can I see our Cumulative Flow Diagram for the last 6 months?"
+    2.  AI calls `generate_cfd_data`.
+    3.  MCP Server reconstructs the historical state of every issue daily and aggregates by Issue Type and Status.
+    4.  AI provides the raw data to the visualization agent (or describes the trends).
+    5.  AI identifies a "bloating" status (e.g. "Your 'Code Review' band is widening, indicating a growing bottleneck despite stable arrivals").
+    6.  AI suggests cross-referencing with `analyze_flow_debt` to see if the bottleneck is caused by a recent commitment surge.

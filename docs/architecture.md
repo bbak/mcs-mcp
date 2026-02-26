@@ -284,6 +284,7 @@ Every analytical tool in the server has been extended to provide both pooled (sy
 | **Stability (XmR)** | Individual & Moving Range limits per Type (Cycle-Time, WIP, Throughput). | Detects special cause variation that is masked in a pooled view.        |
 | **Yield Analysis**  | Attribution of Delivery vs. Abandonment per Type.                        | Identifies which work types suffer the most process waste.              |
 | **Throughput**      | Delivery cadence with XmR stability limits and flexible bucketing.       | Visualizes and bounds delivery "bandwidth" predictability.              |
+| **CFD**             | Provides daily population counts per status and type.                    | Visualizes flow and identifies bottlenecks over time.                   |
 | **Flow Debt**       | Arrival Rate vs. Departure Rate comparison.                              | Leading indicator of WIP inflation and future cycle time degradation.   |
 | **Residency**       | Status-level residency percentiles (P50..P95) per Type.                  | pinpoints type-specific bottlenecks at the status level.                |
 

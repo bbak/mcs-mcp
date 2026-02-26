@@ -356,6 +356,11 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 		windowWeeks := asInt(call.Arguments["history_window_weeks"])
 		bucket := asString(call.Arguments["bucket_size"])
 		data, err = s.handleGetFlowDebt(projectKey, boardID, windowWeeks, bucket)
+	case "generate_cfd_data":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		windowWeeks := asInt(call.Arguments["history_window_weeks"])
+		data, err = s.handleGetCFDData(projectKey, boardID, windowWeeks)
 	case "analyze_wip_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])

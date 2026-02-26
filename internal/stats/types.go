@@ -69,3 +69,17 @@ type FlowDebtBucket struct {
 	Departures int    `json:"departures"`
 	Debt       int    `json:"debt"` // Arrivals - Departures
 }
+
+// CFDResult represents the time-series data for a Cumulative Flow Diagram.
+type CFDResult struct {
+	Buckets             []CFDBucket `json:"buckets"`
+	Statuses            []string    `json:"statuses"`            // List of statuses in backbone order
+	AvailableIssueTypes []string    `json:"availableIssueTypes"` // List of all issue types found in the data
+}
+
+// CFDBucket represents a daily snapshot of work item population stratified by type and status.
+type CFDBucket struct {
+	Date        time.Time                 `json:"date"`
+	Label       string                    `json:"label"`
+	ByIssueType map[string]map[string]int `json:"by_issue_type"` // IssueType -> Status -> Count
+}
