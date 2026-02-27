@@ -54,10 +54,14 @@ archives:
           - README.md
           - LICENSE
           - NOTICE
-          - src: "docs/**/*"
-            exclude:
-                - docs/ideas.md
-                - docs/reports/**/*
+          - docs/architecture.md
+          - docs/charter.md
+          - docs/jira-anatomy.md
+          - docs/mockdata.md
+          - docs/skill-installation-instructions.md
+          - docs/testing.md
+          - docs/use-cases.md
+          - docs/skills/**/*
 
 checksum:
     name_template: "checksums.txt"
