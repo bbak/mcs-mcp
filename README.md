@@ -146,7 +146,7 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 ## Skills
 
-Since v.0.11.0 the MCP-Server comes with a set of Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
+Since v.0.11.0 the MCP-Server comes with Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
 
 ---
 
