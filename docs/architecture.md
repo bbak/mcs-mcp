@@ -251,6 +251,15 @@ To ensure robust data integration and cross-localization compatibility, MCS-MCP 
 - **Canonical Processing**: Internally, the analytical pipelines (e.g., Residency, CFD, Aging, and Simulations) strictly key off immutable and stable Jira Object IDs (e.g., Status IDs, Resolution IDs). This eliminates mathematical fragility caused by human-readable names changing over time or being returned in the user's native language by the Jira Cloud API.
 - **API Boundary Translation**: Human-readable strings are used exclusively at the external API boundaries. When interacting with the AI Agent or the user, the server automatically translates IDs back to their human-readable equivalents (via a bidirectional `NameRegistry`) to ensure discovery, exploration, and generated metrics remain intuitive and conversational.
 
+### 8.8 App-Wide Time Injection (Time-Travel Anchoring)
+
+To enable true deterministic testing and allow users to analyze system states as they existed on specific past dates, MCS-MCP implements **App-Wide Time Injection**:
+
+- **Centralized Clock**: The `mcp.Server` abstains from using raw `time.Now()` across its diagnostics, discovery, and forecasting handlers. Instead, it routes time requests through a centralized `Clock() time.Time` method.
+- **Runtime Dynamics**: By default, `Clock()` returns real-time `time.Now()`. However, users or AI Agents can call the `workflow_set_evaluation_date` tool to inject a specific `activeEvaluationDate`.
+- **Context Persistence**: The evaluation date is persisted in `WorkflowMetadata` (`*_workflow.json`) alongside the board's mapping and resolutions, ensuring that "time-travel" mode survives server reboots.
+- **WFA Determinism**: The Walk-Forward Analysis (`WalkForwardConfig`) accepts this injected `EvaluationDate`. In integration testing, the server and the mock-data generator are pinned to the exact same reference date, fully eliminating ISO-week boundary drift and producing 100% deterministic backtest accuracy scores.
+
 ---
 
 ## 9. Data Security & GRC Principles
