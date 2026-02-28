@@ -36,7 +36,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
+	events := s.events.GetEventsInRange(sourceID, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
 
 	issues := stats.ProjectNeutralSample(events, 200)
@@ -250,4 +250,35 @@ func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []
 	}
 
 	return WrapResponse(map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow order for source %s", sourceID)}, projectKey, boardID, nil, nil, nil), nil
+}
+
+func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr string) (any, error) {
+	// Ensure we are anchored before saving
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+	if dateStr == "" {
+		s.activeEvaluationDate = nil
+	} else {
+		t, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid evaluation date format: %w", err)
+		}
+		s.activeEvaluationDate = &t
+	}
+
+	// Save to disk
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Error().Err(err).Msg("Failed to save workflow metadata")
+		return nil, fmt.Errorf("metadata updated in memory but failed to save to disk: %w", err)
+	}
+
+	var guidance []string
+	msg := "Successfully cleared the evaluation date. Analysis will use real-time time.Now()."
+	if s.activeEvaluationDate != nil {
+		msg = fmt.Sprintf("Successfully set the evaluation date to %s. All analysis models will be evaluated relative to this date.", s.activeEvaluationDate.Format("2006-01-02"))
+		guidance = append(guidance, "If shifting significantly into the past, you may need to use `import_history_expand` to fetch more historical data.")
+	}
+
+	return WrapResponse(map[string]string{"status": "success", "message": msg}, projectKey, boardID, nil, nil, guidance), nil
 }

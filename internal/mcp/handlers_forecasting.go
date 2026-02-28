@@ -22,7 +22,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	// 1. Determine Sampling Window
-	histEnd := time.Now()
+	histEnd := s.Clock()
 	if sampleEndDate != "" {
 		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
 			histEnd = t
@@ -252,7 +252,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	s.activeRegistry = reg
 	_ = s.saveWorkflow(projectKey, boardID)
 
-	histEnd := time.Now()
+	histEnd := s.Clock()
 	if sampleEndDate != "" {
 		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
 			histEnd = t
@@ -301,6 +301,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		ItemsToForecast: itemsToForecast,
 		IssueTypes:      issueTypes,
 		Resolutions:     s.activeResolutions,
+		EvaluationDate:  s.Clock(),
 	}
 
 	res, err := wfa.Execute(cfg)
