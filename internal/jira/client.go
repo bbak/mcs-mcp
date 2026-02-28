@@ -1,6 +1,8 @@
 package jira
 
 import (
+	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -13,6 +15,7 @@ type Issue struct {
 	Updated           time.Time
 	ResolutionDate    *time.Time
 	Resolution        string
+	ResolutionID      string
 	Status            string
 	StatusID          string
 	BirthStatus       string
@@ -44,10 +47,86 @@ type StatusTransition struct {
 	Date         time.Time
 }
 
+// NameRegistry provides a mapping from Jira IDs to their stable (untranslated) names,
+// separated by entity type to ensure cohesion and avoid ID collisions.
+type NameRegistry struct {
+	Statuses    map[string]string `json:"statuses"`
+	Resolutions map[string]string `json:"resolutions"`
+}
+
+// UnmarshalJSON handles both the new structured format and the legacy prefixed map format.
+func (nr *NameRegistry) UnmarshalJSON(data []byte) error {
+	// Try new format first
+	type alias NameRegistry
+	var aux alias
+	if err := json.Unmarshal(data, &aux); err == nil && (len(aux.Statuses) > 0 || len(aux.Resolutions) > 0) {
+		*nr = NameRegistry(aux)
+		return nil
+	}
+
+	// Fallback to legacy map format
+	var legacy map[string]string
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return err
+	}
+
+	nr.Statuses = make(map[string]string)
+	nr.Resolutions = make(map[string]string)
+	for k, v := range legacy {
+		if strings.HasPrefix(k, "s:") {
+			nr.Statuses[strings.TrimPrefix(k, "s:")] = v
+		} else if strings.HasPrefix(k, "r:") {
+			nr.Resolutions[strings.TrimPrefix(k, "r:")] = v
+		}
+	}
+	return nil
+}
+
+// GetIDByName returns the ID for a given status name, or empty if not found.
+func (nr *NameRegistry) GetStatusID(name string) string {
+	if nr == nil {
+		return ""
+	}
+	for id, n := range nr.Statuses {
+		if strings.EqualFold(n, name) {
+			return id
+		}
+	}
+	return ""
+}
+
+// GetResolutionID returns the ID for a given resolution name, or empty if not found.
+func (nr *NameRegistry) GetResolutionID(name string) string {
+	if nr == nil {
+		return ""
+	}
+	for id, n := range nr.Resolutions {
+		if strings.EqualFold(n, name) {
+			return id
+		}
+	}
+	return ""
+}
+
+// GetStatusName returns the name for a status ID, or empty if not found.
+func (nr *NameRegistry) GetStatusName(id string) string {
+	if nr == nil {
+		return ""
+	}
+	return nr.Statuses[id]
+}
+
+// GetResolutionName returns the name for a resolution ID, or empty if not found.
+func (nr *NameRegistry) GetResolutionName(id string) string {
+	if nr == nil {
+		return ""
+	}
+	return nr.Resolutions[id]
+}
+
 // Client is the interface for interacting with Jira.
 type Client interface {
 	SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error)
-	SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*SearchResponse, error)
 	GetIssueWithHistory(key string) (*IssueDTO, error)
 	GetProject(key string) (any, error)
 	GetProjectStatuses(key string) (any, error)
@@ -56,6 +135,7 @@ type Client interface {
 	GetFilter(id string) (any, error)
 	FindProjects(query string) ([]any, error)
 	FindBoards(projectKey string, nameFilter string) ([]any, error)
+	GetRegistry(projectKey string) (*NameRegistry, error)
 }
 
 // Config holds the authentication and connection settings for Jira.
@@ -68,7 +148,9 @@ type Config struct {
 	RememberMe string
 
 	// Token Authentication
-	Token string
+	Token     string
+	TokenType string // "pat" or "api"
+	UserEmail string // Required for Jira Cloud (api token)
 
 	// Load Balancer Cookies
 	GCILB string

@@ -27,10 +27,13 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, err
 	}
 
 	// 3. Hydrate Protocol (Synchronous Eager Ingestion)
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 		// Proceed anyway to show board metadata
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())

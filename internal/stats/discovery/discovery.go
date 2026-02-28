@@ -89,7 +89,8 @@ func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *
 	var deliveryDates []time.Time
 
 	for _, issue := range issues {
-		if issue.ResolutionDate != nil && isFinished[issue.Status] {
+		isFin := isFinished[issue.Status] || (issue.StatusID != "" && isFinished[issue.StatusID])
+		if issue.ResolutionDate != nil && isFin {
 			deliveryDates = append(deliveryDates, *issue.ResolutionDate)
 		}
 	}
@@ -110,13 +111,14 @@ func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *
 }
 
 // ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
+// The returned map is keyed by status ID; StatusMetadata.Name is populated for display.
 func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence) (map[string]stats.StatusMetadata, string) {
 	proposal := make(map[string]stats.StatusMetadata)
 	if len(persistence) == 0 {
 		return proposal, ""
 	}
 
-	// 1. Gather facts from actual data
+	// 1. Gather facts from actual data (keyed by ID)
 	entryCounts := make(map[string]int) // Number of issues that started in this status
 	resolvedCounts := make(map[string]int)
 	reachability := make(map[string]int) // Total unique issues that visited this status
@@ -125,54 +127,62 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 
 	for _, issue := range issues {
 		// Entry point detection (Demand) using birth status
-		if issue.BirthStatus != "" {
-			entryCounts[issue.BirthStatus]++
+		birth := stats.PreferID(issue.BirthStatusID, issue.BirthStatus)
+		if birth != "" {
+			entryCounts[birth]++
 		}
 
 		// Resolution detection (Finished)
-		if issue.ResolutionDate != nil {
-			resolvedCounts[issue.Status]++
+		curr := stats.PreferID(issue.StatusID, issue.Status)
+		if issue.ResolutionDate != nil && curr != "" {
+			resolvedCounts[curr]++
 		}
 
 		visited := make(map[string]bool)
-		visited[issue.Status] = true
+		if curr != "" {
+			visited[curr] = true
+		}
 		for _, t := range issue.Transitions {
-			visited[t.ToStatus] = true
-			visited[t.FromStatus] = true
-			transitionsInto[t.ToStatus]++
-			transitionsOutOf[t.FromStatus]++
+			to := stats.PreferID(t.ToStatusID, t.ToStatus)
+			from := stats.PreferID(t.FromStatusID, t.FromStatus)
+			visited[to] = true
+			visited[from] = true
+			transitionsInto[to]++
+			transitionsOutOf[from]++
 		}
 		for s := range visited {
 			reachability[s]++
 		}
 	}
 
-	// Identify Birth Status (The source of demand)
-	birthStatus := ""
+	// Identify Birth Status ID (The source of demand)
+	birthStatusID := ""
 	maxEntry := 0
 	for s, count := range entryCounts {
 		if count > maxEntry {
 			maxEntry = count
-			birthStatus = s
+			birthStatusID = s
 		}
 	}
 
-	// Get the Path Order for biasing Upstream/Downstream
+	// Get the Path Order for biasing Upstream/Downstream (already ID-based)
 	pathOrder := DiscoverStatusOrder(issues)
 	pathIndices := make(map[string]int)
 	for i, s := range pathOrder {
 		pathIndices[s] = i
 	}
 
+	// queueCandidates is keyed by name (regex-based heuristic)
 	queueCandidates := findQueuingColumns(persistence)
 
-	// Keyword sets for tier biasing
+	// Keyword sets for tier biasing (applied to human-readable names)
 	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
 	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging", "qa", "uat", "prod", "fix"}
 	deliveredKeywords := []string{"done", "resolved", "fixed", "complete", "approved", "shipped", "delivered"}
 	abandonedKeywords := []string{"cancel", "discard", "obsolete", "reject", "decline", "won't do", "wont do", "dropped", "abort"}
 
 	for _, p := range persistence {
+		statusID := stats.PreferID(p.StatusID, p.StatusName)
 		name := p.StatusName
 		lowerName := strings.ToLower(name)
 		tier := "Downstream" // Default catch-all
@@ -182,29 +192,29 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 
 		// A. Demand (Entry) - Only if it's the primary birth status
 		// and it doesn't have a high resolution density (which would make it a sink)
-		isBirth := name == birthStatus
+		isBirth := statusID == birthStatusID
 
 		// B. Finished (Terminal)
 		// Probabilistic Fact-Based: More than 20% of reachability is resolved here.
 		resDensity := 0.0
-		if reach := reachability[name]; reach > 0 {
-			resDensity = float64(resolvedCounts[name]) / float64(reach)
+		if reach := reachability[statusID]; reach > 0 {
+			resDensity = float64(resolvedCounts[statusID]) / float64(reach)
 		}
 		isResolvedDensity := resDensity > 0.20
 
 		// Terminal Asymmetry: High entry, low exit (sinking).
-		isTerminalSink := transitionsInto[name] > 5 && transitionsInto[name] > (transitionsOutOf[name]*4)
+		isTerminalSink := transitionsInto[statusID] > 5 && transitionsInto[statusID] > (transitionsOutOf[statusID]*4)
 
 		if isResolvedDensity || isTerminalSink {
 			tier = "Finished"
 		} else if isBirth {
 			tier = "Demand"
 		} else {
-			// C. Upstream vs Downstream biasing
+			// C. Upstream vs Downstream biasing (keyword matching uses names)
 			isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
 			isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
 
-			idx, inPath := pathIndices[name]
+			idx, inPath := pathIndices[statusID]
 			isEarlyInPath := inPath && idx < (len(pathOrder)/2)
 
 			if isUpstreamKeyword {
@@ -231,7 +241,8 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 			role = "queue"
 		}
 
-		proposal[name] = stats.StatusMetadata{
+		proposal[statusID] = stats.StatusMetadata{
+			Name:    name,
 			Tier:    tier,
 			Role:    role,
 			Outcome: outcome,
@@ -269,6 +280,7 @@ func matchesAny(s string, keywords []string) bool {
 }
 
 // DiscoverStatusOrder derives the workflow backbone by analyzing temporal precedence across all issues.
+// The returned order uses status IDs when available, falling back to names for legacy data.
 func DiscoverStatusOrder(issues []jira.Issue) []string {
 	if len(issues) == 0 {
 		return nil
@@ -283,20 +295,9 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	// precedes[A][B] = count of items where A appeared before B
 	precedes := make(map[string]map[string]int)
 
-	// Canonical casing map: lower -> original
-	canonical := make(map[string]string)
-	getCanonical := func(s string) string {
-		lower := strings.ToLower(s)
-		if existing, ok := canonical[lower]; ok {
-			return existing
-		}
-		canonical[lower] = s
-		return s
-	}
-
 	// 2. Build the Precedence Matrix
 	for _, issue := range issues {
-		issueBirth := getCanonical(issue.BirthStatus)
+		issueBirth := stats.PreferID(issue.BirthStatusID, issue.BirthStatus)
 		if issueBirth != "" {
 			entryCounts[issueBirth]++
 		}
@@ -314,8 +315,8 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 
 		// Append transitions
 		for _, t := range issue.Transitions {
-			from := getCanonical(t.FromStatus)
-			to := getCanonical(t.ToStatus)
+			from := stats.PreferID(t.FromStatusID, t.FromStatus)
+			to := stats.PreferID(t.ToStatusID, t.ToStatus)
 			allStatuses[from] = true
 			allStatuses[to] = true
 
@@ -330,7 +331,7 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		}
 
 		// Track current status if not already in sequence (WIP items)
-		curr := getCanonical(issue.Status)
+		curr := stats.PreferID(issue.StatusID, issue.Status)
 		if curr != "" {
 			allStatuses[curr] = true
 			if !seenInIssue[curr] {
@@ -363,7 +364,7 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 	// A status gets a point for every other status it "globally precedes"
 	// (i.e., appears before it more often than after it).
 	type statusInfo struct {
-		name       string
+		id         string
 		score      int
 		birthCount int
 	}
@@ -382,7 +383,7 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 			}
 		}
 		infos = append(infos, statusInfo{
-			name:       s,
+			id:         s,
 			score:      score,
 			birthCount: entryCounts[s],
 		})
@@ -398,13 +399,13 @@ func DiscoverStatusOrder(issues []jira.Issue) []string {
 		if a.birthCount != b.birthCount {
 			return cmp.Compare(b.birthCount, a.birthCount)
 		}
-		// Tertiary: Alphabetical for determinism
-		return cmp.Compare(a.name, b.name)
+		// Tertiary: Alphabetical/numeric for determinism
+		return cmp.Compare(a.id, b.id)
 	})
 
 	order := make([]string, len(infos))
 	for i, info := range infos {
-		order[i] = info.name
+		order[i] = info.id
 	}
 
 	return order

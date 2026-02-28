@@ -17,8 +17,18 @@ func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mapping
 }
 
 // IsDelivered returns true if the issue has a 'delivered' outcome.
+// It implements a two-fold detection strategy:
+//  1. Primary: Jira Resolution (ID-first, then name, then hardcoded fallbacks).
+//  2. Secondary: Status Metadata — for misconfigured Jira projects where items
+//     reach a terminal workflow status without a resolution being set.
+//     Only fires for items in a "Finished" tier status.
 func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) bool {
 	// 1. Primary Signal: Jira Resolution
+	if issue.ResolutionID != "" {
+		if outcome, ok := resolutions[issue.ResolutionID]; ok {
+			return outcome == "delivered"
+		}
+	}
 	if issue.Resolution != "" {
 		if outcome, ok := resolutions[issue.Resolution]; ok {
 			return outcome == "delivered"
@@ -29,11 +39,11 @@ func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[s
 		}
 	}
 
-	// 2. Secondary Signal: Status Metadata
-	if issue.ResolutionDate != nil {
-		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
-			return m.Outcome == "delivered"
-		}
+	// 2. Secondary Signal: Status Metadata (fallback for misconfigured projects
+	//    where resolution/resolutiondate are not set on terminal statuses).
+	//    Only applies to items in the Finished tier to avoid misclassifying WIP.
+	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+		return m.Outcome == "delivered"
 	}
 
 	return false
@@ -132,10 +142,12 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 			newIssue.Transitions,
 			issue.Transitions[lastBackflowIdx].Date, // Use the backflow date as the new birth anchor
 			issue.ResolutionDate,
-			issue.Status,
+			newIssue.Status,
+			newIssue.StatusID,
 			nil, // finishedStatuses not needed if we are just rebuilding from trans
 			issue.Transitions[lastBackflowIdx].ToStatus,
-			time.Time{}, // Use Now
+			issue.Transitions[lastBackflowIdx].ToStatusID,
+			time.Now(),
 		)
 		clean = append(clean, newIssue)
 	}

@@ -66,11 +66,11 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
 // Internal shared logic
 
 func (s *Server) getStatusWeights(issues []jira.Issue) map[string]int {
-	// Discover the backbone path order and return indexed weights
+	// Discover the backbone path order (returns IDs) and return indexed weights
 	order := discovery.DiscoverStatusOrder(issues)
 	weights := make(map[string]int)
-	for i, name := range order {
-		weights[name] = i + 1
+	for i, statusID := range order {
+		weights[statusID] = i + 1
 	}
 	return weights
 }
@@ -132,7 +132,7 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 	}
 
 	for _, status := range order {
-		if m, ok := stats.GetMetadataRobust(s.activeMapping, "", status); ok && m.Tier == "Downstream" {
+		if m, ok := stats.GetMetadataRobust(s.activeMapping, status, ""); ok && m.Tier == "Downstream" {
 			return status, true
 		}
 	}
@@ -162,7 +162,7 @@ func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Iss
 		}
 
 		// Only count "delivered" work
-		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+		if !stats.IsDelivered(issue, s.activeResolutions, s.activeMapping) {
 			continue
 		}
 
@@ -197,7 +197,7 @@ func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []ji
 		}
 
 		// Only count "delivered" work
-		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+		if !stats.IsDelivered(issue, s.activeResolutions, s.activeMapping) {
 			continue
 		}
 

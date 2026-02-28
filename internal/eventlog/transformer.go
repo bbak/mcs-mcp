@@ -7,15 +7,43 @@ import (
 	"strings"
 )
 
+// resolveStatus returns the stable name for a status ID.
+func resolveStatus(r *jira.NameRegistry, id, fallback string) string {
+	if r == nil || r.Statuses == nil {
+		return fallback
+	}
+	if name, ok := r.Statuses[id]; ok && name != "" {
+		return name
+	}
+	return fallback
+}
+
+// resolveResolution returns the stable name for a resolution ID.
+func resolveResolution(r *jira.NameRegistry, id, fallback string) string {
+	if r == nil || r.Resolutions == nil {
+		return fallback
+	}
+	if name, ok := r.Resolutions[id]; ok && name != "" {
+		return name
+	}
+	return fallback
+}
+
 // TransformIssue converts a Jira Issue DTO and its changelog into a slice of IssueEvents.
-func TransformIssue(dto jira.IssueDTO) []IssueEvent {
+func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent {
 	var events []IssueEvent
 	issueKey := dto.Key
-	issueType := dto.Fields.IssueType.Name
+	issueType := dto.Fields.IssueType.UntranslatedName
+	if issueType == "" {
+		issueType = dto.Fields.IssueType.Name
+	}
 
 	// 1. Initial State from Snapshots (Fallback/Starting Point)
 	// We'll walk history BACKWARDS to find where the issue entered our scope.
-	initialStatus := dto.Fields.Status.Name
+	initialStatus := resolveStatus(registry, dto.Fields.Status.ID, dto.Fields.Status.UntranslatedName)
+	if initialStatus == "" {
+		initialStatus = dto.Fields.Status.Name
+	}
 	initialStatusID := dto.Fields.Status.ID
 	initialFlagged := extractFlaggedValue(dto.Fields.Flagged)
 
@@ -69,7 +97,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			// If we see a move into our project, this is where the item "arrived".
 			if isRelevantMove {
 				if statusItem != nil {
-					initialStatus = statusItem.ToString
+					initialStatus = resolveStatus(registry, statusItem.To, statusItem.UntranslatedToString)
+					if initialStatus == "" {
+						initialStatus = statusItem.ToString
+					}
 					initialStatusID = statusItem.To
 					suppressStatus = true
 				} else if len(events) > 0 {
@@ -97,7 +128,10 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 			} else {
 				if statusItem != nil {
 					// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
-					initialStatus = statusItem.FromString
+					initialStatus = resolveStatus(registry, statusItem.From, statusItem.UntranslatedFromString)
+					if initialStatus == "" {
+						initialStatus = statusItem.FromString
+					}
 					initialStatusID = statusItem.From
 				}
 				if flaggedItem != nil {
@@ -117,19 +151,28 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 				}
 
 				if statusItem != nil && !suppressStatus {
-					event.FromStatus = statusItem.FromString
+					event.FromStatus = resolveStatus(registry, statusItem.From, statusItem.UntranslatedFromString)
+					if event.FromStatus == "" {
+						event.FromStatus = statusItem.FromString
+					}
 					event.FromStatusID = statusItem.From
-					event.ToStatus = statusItem.ToString
+
+					event.ToStatus = resolveStatus(registry, statusItem.To, statusItem.UntranslatedToString)
+					if event.ToStatus == "" {
+						event.ToStatus = statusItem.ToString
+					}
 					event.ToStatusID = statusItem.To
 				}
 
 				if resItem != nil {
-					if resItem.ToString != "" {
+					event.Resolution = resolveResolution(registry, resItem.To, resItem.UntranslatedToString)
+					if event.Resolution == "" {
 						event.Resolution = resItem.ToString
-						event.IsUnresolved = false
-					} else {
+					}
+					event.ResolutionID = resItem.To
+
+					if resItem.To == "" || strings.EqualFold(resItem.ToString, "Unresolved") || strings.EqualFold(resItem.UntranslatedToString, "Unresolved") {
 						event.IsUnresolved = true
-						event.Resolution = ""
 					}
 				}
 				events = append(events, event)
@@ -156,30 +199,30 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 		}
 	}
 
-	// 3. Anchoring the 'Created' event
-	// This event represents the point where the clock starts, even if the issue is years old.
-	// We use the original biological 'Created' timestamp but with the status we derived from the stop-point.
+	// 3. Emit Initial State ('Created')
 	createdTime, _ := jira.ParseTime(dto.Fields.Created)
-	createdEvent := IssueEvent{
+	createdTS := createdTime.UnixMicro()
+	events = append(events, IssueEvent{
 		IssueKey:   issueKey,
 		IssueType:  issueType,
 		EventType:  Created,
-		Timestamp:  createdTime.UnixMicro(),
-		ToStatus:   initialStatus, // This is now our "Arrival" or "Biological Birth" status
+		Timestamp:  createdTS,
+		ToStatus:   initialStatus,
+		FromStatus: "",
 		ToStatusID: initialStatusID,
 		Flagged:    initialFlagged,
 		IsHealed:   stopProcessing, // Flag that we hit a boundary
-	}
-
-	// Add the created event to the list
-	events = append(events, createdEvent)
+	})
 
 	// 4. Handle Snapshot Resolution (Fallthrough/De-duplication)
 	if dto.Fields.ResolutionDate != "" {
 		resTime, err := jira.ParseTime(dto.Fields.ResolutionDate)
 		if err == nil {
 			ts := resTime.UnixMicro()
-			resName := dto.Fields.Resolution.Name
+			resName := dto.Fields.Resolution.UntranslatedName
+			if resName == "" {
+				resName = dto.Fields.Resolution.Name
+			}
 
 			// De-duplication check:
 			// If we already have a Change event for this resolution within a 2s grace period, skip fallback.
@@ -201,11 +244,12 @@ func TransformIssue(dto jira.IssueDTO) []IssueEvent {
 
 			if !duplicate {
 				events = append(events, IssueEvent{
-					IssueKey:   issueKey,
-					IssueType:  issueType,
-					EventType:  Change,
-					Timestamp:  ts,
-					Resolution: resName,
+					IssueKey:     issueKey,
+					IssueType:    issueType,
+					EventType:    Change,
+					Timestamp:    ts,
+					Resolution:   resName,
+					ResolutionID: dto.Fields.Resolution.ID,
 				})
 			}
 		}

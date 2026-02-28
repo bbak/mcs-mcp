@@ -48,7 +48,7 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 
 	pMap := make(map[string]StatusPersistence)
 	for _, p := range persistence {
-		pMap[p.StatusName] = p
+		pMap[PreferID(p.StatusID, p.StatusName)] = p
 	}
 
 	for _, issue := range wipIssues {
@@ -73,8 +73,8 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 			DaysInStatus: daysDisplay,
 		}
 
-		// Lookups in pMap are currently name-based because persistence stats are calculated by name.
-		if p, ok := pMap[issue.Status]; ok {
+		// ID-first lookup matching the pMap keying above.
+		if p, ok := pMap[PreferID(issue.StatusID, issue.Status)]; ok {
 			if daysRaw > p.P95 {
 				analysis.Percentile = 95
 				analysis.IsAgingOutlier = true

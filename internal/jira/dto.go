@@ -18,18 +18,22 @@ type IssueDTO struct {
 // FieldsDTO contains the specific fields we care about.
 type FieldsDTO struct {
 	IssueType struct {
-		Name    string `json:"name"`
-		Subtask bool   `json:"subtask"`
+		Name             string `json:"name"`
+		UntranslatedName string `json:"untranslatedName,omitempty"`
+		Subtask          bool   `json:"subtask"`
 	} `json:"issuetype"`
 	Status struct {
-		ID             string `json:"id"`
-		Name           string `json:"name"`
-		StatusCategory struct {
+		ID               string `json:"id"`
+		Name             string `json:"name"`
+		UntranslatedName string `json:"untranslatedName,omitempty"`
+		StatusCategory   struct {
 			Key string `json:"key"`
 		} `json:"statusCategory"`
 	} `json:"status"`
 	Resolution struct {
-		Name string `json:"name"`
+		ID               string `json:"id"`
+		Name             string `json:"name"`
+		UntranslatedName string `json:"untranslatedName,omitempty"`
 	} `json:"resolution"`
 	ResolutionDate string `json:"resolutiondate"`
 	Flagged        any    `json:"customfield_10014,omitempty"` // Standard Flagged field ID or common alias
@@ -50,16 +54,37 @@ type HistoryDTO struct {
 
 // ItemDTO is a single field change within a history entry.
 type ItemDTO struct {
-	Field      string `json:"field"`
-	ToString   string `json:"toString"`
-	FromString string `json:"fromString"`
-	To         string `json:"to"`   // ID
-	From       string `json:"from"` // ID
+	Field                  string `json:"field"`
+	ToString               string `json:"toString"`
+	UntranslatedToString   string `json:"untranslatedToString,omitempty"`
+	FromString             string `json:"fromString"`
+	UntranslatedFromString string `json:"untranslatedFromString,omitempty"`
+	To                     string `json:"to"`   // ID
+	From                   string `json:"from"` // ID
 }
 
 // FindBoardsResponse is used for the board search API.
 type FindBoardsResponse struct {
 	Values []any `json:"values"`
+}
+
+// ProjectStatusDTO represents the nested status structure in Jira Cloud.
+type ProjectStatusDTO struct {
+	Statuses []Status `json:"statuses"`
+}
+
+// ResolutionDTO represents a resolution metadata object.
+type ResolutionDTO struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	UntranslatedName string `json:"untranslatedName,omitempty"`
+}
+
+// Status is an embedded status object (shared by FieldsDTO and ProjectStatusDTO).
+type Status struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	UntranslatedName string `json:"untranslatedName,omitempty"`
 }
 
 // ParseTime is a helper for the strict Jira time format.

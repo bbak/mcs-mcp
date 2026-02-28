@@ -37,6 +37,7 @@ type IssueEvent struct {
 	// Resolution is populated for "Resolved" signals.
 	// IsUnresolved is true for explicit "Unresolved" signals (resolution cleared).
 	Resolution   string `json:"resolution,omitempty"`
+	ResolutionID string `json:"resolutionId,omitempty"`
 	IsUnresolved bool   `json:"isUnresolved,omitempty"`
 
 	// Flagged represents the "Blocked" state (e.g., "Impediment", "Blocked", or empty).
@@ -54,8 +55,8 @@ func (e IssueEvent) identity() string {
 		e.IssueKey,
 		e.Timestamp,
 		e.EventType,
-		e.ToStatus,
-		e.Resolution,
+		e.ToStatusID,
+		e.ResolutionID,
 		e.IsUnresolved,
 		e.Flagged,
 	)

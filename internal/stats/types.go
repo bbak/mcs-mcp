@@ -6,6 +6,7 @@ import (
 
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
 type StatusMetadata struct {
+	Name    string `json:"name,omitempty"` // For display/AI lookup
 	Role    string `json:"role"`
 	Tier    string `json:"tier"`
 	Outcome string `json:"outcome,omitempty"` // delivered, abandoned_demand, abandoned_upstream, abandoned_downstream
@@ -33,6 +34,7 @@ type SampleDatasetStats struct {
 
 // StatusPersistence provides historical residency analysis for a single status.
 type StatusPersistence struct {
+	StatusID       string  `json:"statusID,omitempty"`
 	StatusName     string  `json:"statusName"`
 	Share          float64 `json:"share"`          // % of sample that visited this status
 	Role           string  `json:"role,omitempty"` // Functional Role (active, queue, ignore)

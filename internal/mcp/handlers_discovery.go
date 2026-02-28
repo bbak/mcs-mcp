@@ -28,9 +28,12 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	}
 
 	// 2. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetEventsInRange(sourceID, time.Time{}, time.Now())
@@ -75,18 +78,18 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		mapping, recommendedCP = discovery.ProposeSemantics(sample, persistence)
 	}
 
-	// Build a map of significant statuses for quick lookup
-	significant := make(map[string]bool)
+	// Build a set of significant statuses keyed by ID for filtering
+	significantByID := make(map[string]bool)
 	for _, p := range persistence {
-		significant[p.StatusName] = true
+		significantByID[stats.PreferID(p.StatusID, p.StatusName)] = true
 	}
 
 	finalMapping := make(map[string]stats.StatusMetadata)
-	for name, meta := range mapping {
-		if !significant[name] {
+	for key, meta := range mapping {
+		if !significantByID[key] {
 			continue
 		}
-		finalMapping[name] = meta
+		finalMapping[key] = meta
 	}
 
 	rawOrder := discovery.DiscoverStatusOrder(sample)
@@ -95,7 +98,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		discoveredOrder = s.activeStatusOrder
 	} else {
 		for _, st := range rawOrder {
-			if significant[st] {
+			if significantByID[st] {
 				discoveredOrder = append(discoveredOrder, st)
 			}
 		}
@@ -134,6 +137,10 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		"data_summary": summary,
 	}
 
+	// Internal metadata: map names back to IDs for the AI to use in set_mapping if needed
+	// Actually, we want the AI to send back IDs if it can discover them
+	// BUT for now, we'll keep the AI working with names and let the server map them to IDs.
+
 	diagnostics := map[string]any{
 		"discovery_source": discoverySource,
 	}
@@ -166,13 +173,24 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 		return nil, err
 	}
 
+	// Map names to IDs for internal stability
 	m := make(map[string]stats.StatusMetadata)
 	for k, v := range mapping {
 		if vm, ok := v.(map[string]any); ok {
-			m[k] = stats.StatusMetadata{
+			sm := stats.StatusMetadata{
+				Name:    k, // Store the name for display
 				Tier:    asString(vm["tier"]),
 				Role:    asString(vm["role"]),
 				Outcome: asString(vm["outcome"]),
+			}
+
+			// Try to find the ID for this status name
+			id := s.activeRegistry.GetStatusID(k)
+			if id != "" {
+				m[id] = sm
+			} else {
+				// Fallback: use the name as key (might already be an ID or a custom name)
+				m[k] = sm
 			}
 		}
 	}
@@ -181,7 +199,13 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 	rm := make(map[string]string)
 	if len(resolutions) > 0 {
 		for k, v := range resolutions {
-			rm[k] = asString(v)
+			outcome := asString(v)
+			id := s.activeRegistry.GetResolutionID(k)
+			if id != "" {
+				rm[id] = outcome
+			} else {
+				rm[k] = outcome
+			}
 		}
 	}
 	s.activeResolutions = rm
@@ -207,7 +231,17 @@ func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []
 		return nil, err
 	}
 
-	s.activeStatusOrder = order
+	// Map incoming names to IDs for internal stability
+	var resolvedOrder []string
+	for _, entry := range order {
+		id := s.activeRegistry.GetStatusID(entry)
+		if id != "" {
+			resolvedOrder = append(resolvedOrder, id)
+		} else {
+			resolvedOrder = append(resolvedOrder, entry) // Already an ID or unknown
+		}
+	}
+	s.activeStatusOrder = resolvedOrder
 
 	// Save to disk
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {

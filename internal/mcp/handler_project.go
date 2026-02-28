@@ -31,9 +31,12 @@ func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 	}
 
 	// 3. Hydrate Protocol (Synchronous Eager Ingestion)
-	if err := s.events.Hydrate(projectKey, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(projectKey, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		log.Error().Err(err).Str("project", projectKey).Msg("Hydration failed")
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, 0)
 
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetEventsInRange(projectKey, time.Time{}, time.Now())

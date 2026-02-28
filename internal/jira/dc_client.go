@@ -124,9 +124,17 @@ func (c *dcClient) throttle(isMetadata bool) {
 }
 
 func (c *dcClient) authenticateRequest(req *http.Request) {
-	// 1. Prioritize Personal Access Token (PAT)
+	// 1. Prioritize Token Authentication
 	if c.cfg.Token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfg.Token))
+		if strings.ToLower(c.cfg.TokenType) == "api" && c.cfg.UserEmail != "" {
+			// Jira Cloud: Basic Auth (email:api_token)
+			req.SetBasicAuth(c.cfg.UserEmail, c.cfg.Token)
+			log.Trace().Msg("Authenticated via Jira Cloud API Token (Basic Auth)")
+		} else {
+			// Jira Data Center: Bearer Token (PAT)
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfg.Token))
+			log.Trace().Msg("Authenticated via Jira Personal Access Token (Bearer)")
+		}
 		return
 	}
 
@@ -156,11 +164,40 @@ func (c *dcClient) authenticateRequest(req *http.Request) {
 	}
 }
 
-func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error) {
-	return c.searchInternal(jql, startAt, maxResults, "")
+func (c *dcClient) restPath(apiVersion string, resourcePath string) string {
+	// If apiVersion is empty, we detect the appropriate default
+	if apiVersion == "" {
+		if strings.ToLower(c.cfg.TokenType) == "api" {
+			apiVersion = "3" // Jira Cloud: v3 is the current version
+		} else {
+			apiVersion = "2" // Jira Data Center: v2 is standard
+		}
+	}
+
+	return fmt.Sprintf("%s/rest/api/%s/%s", strings.TrimSuffix(c.cfg.BaseURL, "/"), apiVersion, strings.TrimPrefix(resourcePath, "/"))
 }
 
-func (c *dcClient) SearchIssuesWithHistory(jql string, startAt int, maxResults int) (*SearchResponse, error) {
+func (c *dcClient) agilePath(resourcePath string) string {
+	return fmt.Sprintf("%s/rest/agile/1.0/%s", strings.TrimSuffix(c.cfg.BaseURL, "/"), strings.TrimPrefix(resourcePath, "/"))
+}
+
+func (c *dcClient) excludeSubTasks(jql string) string {
+	if jql == "" {
+		return "issuetype not in subTaskIssueTypes()"
+	}
+
+	// Find the ORDER BY clause to inject the exclusion before it
+	orderByIdx := strings.Index(strings.ToUpper(jql), " ORDER BY ")
+	if orderByIdx != -1 {
+		originalJQL := jql[:orderByIdx]
+		orderByClause := jql[orderByIdx:]
+		return fmt.Sprintf("(%s) AND issuetype not in subTaskIssueTypes()%s", originalJQL, orderByClause)
+	}
+
+	return fmt.Sprintf("(%s) AND issuetype not in subTaskIssueTypes()", jql)
+}
+
+func (c *dcClient) SearchIssues(jql string, startAt int, maxResults int) (*SearchResponse, error) {
 	return c.searchInternal(jql, startAt, maxResults, "changelog")
 }
 
@@ -172,6 +209,9 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 
 	c.throttle(false)
 
+	// Automatically exclude sub-tasks to avoid noise in analysis
+	jql = c.excludeSubTasks(jql)
+
 	// Use url.Values for better query param handling
 	params := url.Values{}
 	params.Set("jql", jql)
@@ -182,7 +222,13 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 		params.Set("expand", expand)
 	}
 
-	searchURL := fmt.Sprintf("%s/rest/api/2/search?%s", c.cfg.BaseURL, params.Encode())
+	// Use restPath() - defaults to v2 for DC, v3 for Cloud.
+	// Jira Cloud recently migrated search to /search/jql
+	resourcePath := "search"
+	if strings.ToLower(c.cfg.TokenType) == "api" {
+		resourcePath = "search/jql"
+	}
+	searchURL := c.restPath("", resourcePath) + "?" + params.Encode()
 	log.Info().Msg("Requesting issues from Jira")
 	log.Debug().Str("url", searchURL).Str("jql", jql).Msg("Jira search details")
 	req, err := http.NewRequest("GET", searchURL, nil)
@@ -231,7 +277,7 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 
 	c.throttle(true) // Treat as metadata/lightweight
 
-	issueURL := fmt.Sprintf("%s/rest/api/2/issue/%s?expand=changelog&fields=issuetype,status,resolution,resolutiondate,created,updated,customfield_10014", c.cfg.BaseURL, key)
+	issueURL := c.restPath("", fmt.Sprintf("issue/%s", key)) + "?expand=changelog&fields=issuetype,status,resolution,resolutiondate,created,updated,customfield_10014"
 	req, err := http.NewRequest("GET", issueURL, nil)
 	if err != nil {
 		return nil, err
@@ -270,7 +316,8 @@ func (c *dcClient) GetProject(key string) (any, error) {
 
 	c.throttle(true)
 
-	url := fmt.Sprintf("%s/rest/api/2/project/%s", c.cfg.BaseURL, key)
+	// Use restPath() - defaults to v2 for DC, v3 for Cloud.
+	url := c.restPath("", fmt.Sprintf("project/%s", key))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -314,7 +361,7 @@ func (c *dcClient) GetProjectStatuses(key string) (any, error) {
 
 	c.throttle(true)
 
-	url := fmt.Sprintf("%s/rest/api/2/project/%s/statuses", c.cfg.BaseURL, key)
+	url := c.restPath("", fmt.Sprintf("project/%s/statuses", key))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -356,7 +403,7 @@ func (c *dcClient) GetBoard(id int) (any, error) {
 
 	c.throttle(true)
 
-	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d", c.cfg.BaseURL, id)
+	url := c.agilePath(fmt.Sprintf("board/%d", id))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -398,20 +445,28 @@ func (c *dcClient) FindProjects(query string) ([]any, error) {
 
 	c.throttle(true)
 
-	// Use /projects/picker for efficient server-side search
 	params := url.Values{}
 	params.Set("query", query)
 	params.Set("maxResults", "30")
 
-	// Note: /projects/picker is technically rest/api/2/projects/picker
-	searchURL := fmt.Sprintf("%s/rest/api/2/projects/picker?%s", c.cfg.BaseURL, params.Encode())
+	var searchURL string
+	isCloud := strings.ToLower(c.cfg.TokenType) == "api"
+
+	if isCloud {
+		// Jira Cloud: Uses project/search (v3 is better)
+		searchURL = c.restPath("3", "project/search") + "?" + params.Encode()
+	} else {
+		// Data Center: Uses projects/picker
+		searchURL = c.restPath("2", "projects/picker") + "?" + params.Encode()
+	}
+
+	log.Debug().Str("url", searchURL).Msg("Searching for projects")
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	c.authenticateRequest(req)
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -419,40 +474,45 @@ func (c *dcClient) FindProjects(query string) ([]any, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		switch resp.StatusCode {
-		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
-		default:
-			return nil, fmt.Errorf("Jira API returned status %d for project search", resp.StatusCode)
-		}
+		return nil, fmt.Errorf("Jira API returned status %d for project search", resp.StatusCode)
 	}
 
-	var pickerResponse struct {
-		Projects []any `json:"projects"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&pickerResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode project picker response: %w", err)
-	}
-
-	// Normalizing picker project structure to standard project structure
 	var result []any
-	for _, p := range pickerResponse.Projects {
-		pMap, ok := p.(map[string]any)
-		if !ok {
-			log.Warn().Msg("Failed to type-assert project from picker response")
-			continue
+	if isCloud {
+		var cloudResponse struct {
+			Values []any `json:"values"`
 		}
-		result = append(result, map[string]any{
-			"id":   pMap["id"],
-			"key":  pMap["key"],
-			"name": pMap["name"],
-		})
+		if err := json.NewDecoder(resp.Body).Decode(&cloudResponse); err != nil {
+			return nil, err
+		}
+		for _, v := range cloudResponse.Values {
+			vMap, _ := v.(map[string]any)
+			result = append(result, map[string]any{
+				"id":   vMap["id"],
+				"key":  vMap["key"],
+				"name": vMap["name"],
+			})
+		}
+	} else {
+		var pickerResponse struct {
+			Projects []any `json:"projects"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&pickerResponse); err != nil {
+			return nil, err
+		}
+		for _, p := range pickerResponse.Projects {
+			pMap, _ := p.(map[string]any)
+			result = append(result, map[string]any{
+				"id":   pMap["id"],
+				"key":  pMap["key"],
+				"name": pMap["name"],
+			})
+		}
 	}
 
 	c.updateInventory(&c.projectInventory, result, 1000, "key")
 	c.addToCache(cacheKey, result, 5*time.Minute)
 
-	// Recall from inventory (merged perspective)
 	return c.filterInventory(c.projectInventory, query, 30, "key", "name"), nil
 }
 
@@ -473,7 +533,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]any, erro
 	}
 	params.Set("maxResults", "30")
 
-	searchURL := fmt.Sprintf("%s/rest/agile/1.0/board?%s", c.cfg.BaseURL, params.Encode())
+	searchURL := c.agilePath("board") + "?" + params.Encode()
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, err
@@ -599,7 +659,7 @@ func (c *dcClient) GetBoardConfig(id int) (any, error) {
 
 	c.throttle(true)
 
-	url := fmt.Sprintf("%s/rest/agile/1.0/board/%d/configuration", c.cfg.BaseURL, id)
+	url := c.agilePath(fmt.Sprintf("board/%d/configuration", id))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -642,7 +702,7 @@ func (c *dcClient) GetFilter(id string) (any, error) {
 
 	c.throttle(true)
 
-	url := fmt.Sprintf("%s/rest/api/2/filter/%s", c.cfg.BaseURL, id)
+	url := c.restPath("", fmt.Sprintf("filter/%s", id))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -675,4 +735,74 @@ func (c *dcClient) GetFilter(id string) (any, error) {
 	c.addToCache(cacheKey, filter, 5*time.Minute)
 	// Filters aren't currently in a dedicated sliding window, but we could add one if they become a primary anchor.
 	return filter, nil
+}
+
+func (c *dcClient) GetRegistry(projectKey string) (*NameRegistry, error) {
+	registry := &NameRegistry{
+		Statuses:    make(map[string]string),
+		Resolutions: make(map[string]string),
+	}
+
+	// 1. Fetch Statuses
+	rawStatuses, err := c.GetProjectStatuses(projectKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch statuses for registry: %w", err)
+	}
+
+	// The status response format varies between DC and Cloud or even different project types.
+	// We'll decode it robustly by checking for the "statuses" field to avoid conflating
+	// issue types with actual workflow statuses.
+	data, err := json.Marshal(rawStatuses)
+	if err == nil {
+		var probe []map[string]any
+		if err := json.Unmarshal(data, &probe); err == nil && len(probe) > 0 {
+			if _, isNested := probe[0]["statuses"]; isNested {
+				// Cloud/Nested format: []{ "statuses": []Status }
+				var cloudStatuses []ProjectStatusDTO
+				if err := json.Unmarshal(data, &cloudStatuses); err == nil {
+					for _, it := range cloudStatuses {
+						for _, s := range it.Statuses {
+							name := s.UntranslatedName
+							if name == "" {
+								name = s.Name
+							}
+							registry.Statuses[s.ID] = name
+						}
+					}
+				}
+			} else {
+				// DC/Flat format: []Status
+				var flatStatuses []Status
+				if err := json.Unmarshal(data, &flatStatuses); err == nil {
+					for _, s := range flatStatuses {
+						name := s.UntranslatedName
+						if name == "" {
+							name = s.Name
+						}
+						registry.Statuses[s.ID] = name
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Fetch Resolutions (Global)
+	c.throttle(true)
+	resURL := c.restPath("", "resolution")
+	req, err := http.NewRequest("GET", resURL, nil)
+	if err == nil {
+		c.authenticateRequest(req)
+		resp, err := c.httpClient.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			var resolutions []ResolutionDTO
+			if err := json.NewDecoder(resp.Body).Decode(&resolutions); err == nil {
+				for _, r := range resolutions {
+					registry.Resolutions[r.ID] = r.Name
+				}
+			}
+		}
+	}
+
+	return registry, nil
 }

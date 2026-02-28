@@ -58,7 +58,7 @@ func MapIssue(item IssueDTO, finishedStatuses map[string]bool) Issue {
 
 	// Absolute Fallback for residency if no transitions found
 	if len(issue.Transitions) == 0 {
-		issue.StatusResidency, _ = CalculateResidency(nil, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, "", time.Time{})
+		issue.StatusResidency, _ = CalculateResidency(nil, issue.Created, issue.ResolutionDate, issue.Status, issue.StatusID, finishedStatuses, "", "", time.Time{})
 	}
 
 	return issue
@@ -132,14 +132,14 @@ func ProcessChangelog(changelog *ChangelogDTO, created time.Time, resolved *time
 		initialStatus = transitions[0].FromStatus
 	}
 
-	residency, _ := CalculateResidency(transitions, created, resolved, currentStatus, finishedStatuses, initialStatus, time.Time{})
+	residency, _ := CalculateResidency(transitions, created, resolved, currentStatus, "", finishedStatuses, initialStatus, "", time.Time{})
 
 	return transitions, residency, lastMoveDate != nil
 }
 
 // CalculateResidency provides a unified way to compute status durations in seconds.
 // If referenceDate is non-zero, it is used as the "Now" for open items (Time-Travel).
-func CalculateResidency(transitions []StatusTransition, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, initialStatus string, referenceDate time.Time) (map[string]int64, []StatusSegment) {
+func CalculateResidency(transitions []StatusTransition, created time.Time, resolved *time.Time, currentStatus, currentStatusID string, finished map[string]bool, initialStatus, initialStatusID string, referenceDate time.Time) (map[string]int64, []StatusSegment) {
 	residency := make(map[string]int64)
 	var segments []StatusSegment
 
@@ -148,9 +148,14 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 		now = referenceDate
 	}
 
-	isFinished := func(status string) bool {
+	isFinished := func(status, id string) bool {
 		if finished == nil {
 			return false
+		}
+		if id != "" {
+			if val, ok := finished[id]; ok {
+				return val
+			}
 		}
 		if val, ok := finished[status]; ok {
 			return val
@@ -168,7 +173,7 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 		var finalDate time.Time
 		if resolved != nil {
 			finalDate = *resolved
-		} else if isFinished(currentStatus) {
+		} else if isFinished(currentStatus, "") { // fallback for simplified call
 			finalDate = created
 		} else {
 			finalDate = now
@@ -177,7 +182,11 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 		if duration <= 0 {
 			duration = 1
 		}
-		residency[currentStatus] = duration
+		key := currentStatusID
+		if key == "" {
+			key = currentStatus
+		}
+		residency[key] = duration
 		segments = append(segments, StatusSegment{
 			Status: currentStatus,
 			Start:  created,
@@ -194,7 +203,11 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 	if firstDuration <= 0 {
 		firstDuration = 1
 	}
-	residency[initialStatus] = firstDuration
+	key := initialStatusID
+	if key == "" {
+		key = initialStatus
+	}
+	residency[key] = firstDuration
 	segments = append(segments, StatusSegment{
 		Status: initialStatus,
 		Start:  created,
@@ -207,7 +220,11 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 		if duration <= 0 {
 			duration = 1
 		}
-		residency[transitions[i].ToStatus] += duration
+		key := transitions[i].ToStatusID
+		if key == "" {
+			key = transitions[i].ToStatus
+		}
+		residency[key] += duration
 		segments = append(segments, StatusSegment{
 			Status: transitions[i].ToStatus,
 			Start:  transitions[i].Date,
@@ -219,7 +236,7 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 	var finalDate time.Time
 	if resolved != nil {
 		finalDate = *resolved
-	} else if isFinished(currentStatus) {
+	} else if isFinished(currentStatus, currentStatusID) {
 		finalDate = transitions[len(transitions)-1].Date
 	} else {
 		finalDate = now
@@ -230,7 +247,11 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 	if finalDuration <= 0 {
 		finalDuration = 1
 	}
-	residency[lastTrans.ToStatus] += finalDuration
+	resKey := lastTrans.ToStatusID
+	if resKey == "" {
+		resKey = lastTrans.ToStatus
+	}
+	residency[resKey] += finalDuration
 	segments = append(segments, StatusSegment{
 		Status: lastTrans.ToStatus,
 		Start:  lastTrans.Date,

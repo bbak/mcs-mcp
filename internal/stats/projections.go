@@ -365,9 +365,11 @@ func MapIssueFromEvents(events []eventlog.IssueEvent, finishedStatuses map[strin
 			resTS := time.UnixMicro(e.Timestamp)
 			issue.ResolutionDate = &resTS
 			issue.Resolution = e.Resolution
+			issue.ResolutionID = e.ResolutionID
 		} else if e.IsUnresolved {
 			issue.ResolutionDate = nil
 			issue.Resolution = ""
+			issue.ResolutionID = ""
 		}
 
 		if e.EventType == eventlog.Flagged {
@@ -428,24 +430,28 @@ func MapIssueFromEvents(events []eventlog.IssueEvent, finishedStatuses map[strin
 		}
 	}
 
-	issue.StatusResidency, issue.BlockedResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, finishedStatuses, referenceDate)
+	issue.StatusResidency, issue.BlockedResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, issue.StatusID, finishedStatuses, referenceDate)
 
 	return issue
 }
 
 // CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
-func CalculateResidencyFromEvents(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, currentStatus string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
+func CalculateResidencyFromEvents(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, currentStatus, currentStatusID string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
 	var transitions []jira.StatusTransition
-
-	// Track the very first "From" status if possible for the birth duration
 	var initialStatus string
+	var initialStatusID string
 
+	// Pass 1: Extract transitions and find the earliest status
 	for _, e := range events {
 		if e.EventType == eventlog.Created || e.ToStatus != "" {
-			if initialStatus == "" && e.EventType == eventlog.Created {
-				initialStatus = e.ToStatus
-			} else if initialStatus == "" && e.ToStatus != "" {
-				initialStatus = e.FromStatus
+			if initialStatus == "" {
+				if e.EventType == eventlog.Created {
+					initialStatus = e.ToStatus
+					initialStatusID = e.ToStatusID
+				} else {
+					initialStatus = e.FromStatus
+					initialStatusID = e.FromStatusID
+				}
 			}
 
 			if e.ToStatus != "" && e.EventType != eventlog.Created {
@@ -460,7 +466,7 @@ func CalculateResidencyFromEvents(events []eventlog.IssueEvent, created time.Tim
 		}
 	}
 
-	residency, segments := jira.CalculateResidency(transitions, created, resolved, currentStatus, finished, initialStatus, referenceDate)
+	residency, segments := jira.CalculateResidency(transitions, created, resolved, currentStatus, currentStatusID, finished, initialStatus, initialStatusID, referenceDate)
 
 	// Friction Mapping: Extract blocked intervals and overlay them
 	blockedIntervals := ExtractBlockedIntervals(events, created, resolved, referenceDate)

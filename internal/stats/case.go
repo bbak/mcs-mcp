@@ -2,6 +2,15 @@ package stats
 
 import "strings"
 
+// PreferID returns the ID if non-empty, otherwise falls back to the name.
+// This is the canonical ID-first resolution pattern for the migration.
+func PreferID(id, name string) string {
+	if id != "" {
+		return id
+	}
+	return name
+}
+
 // GetResidencyCaseInsensitive retrieves the residency value from the map using a case-insensitive lookup.
 func GetResidencyCaseInsensitive(residency map[string]int64, statusName string) (int64, bool) {
 	if val, ok := residency[statusName]; ok {
