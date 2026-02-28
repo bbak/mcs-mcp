@@ -9,7 +9,7 @@ import (
 	"mcs-mcp/internal/visuals"
 )
 
-func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, endStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
+func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, _ string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -47,9 +47,12 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	// 2. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 3. Project using AnalysisSession
 	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
@@ -174,9 +177,12 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		return nil, err
 	}
 
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
@@ -239,9 +245,12 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	histEnd := time.Now()
 	if sampleEndDate != "" {

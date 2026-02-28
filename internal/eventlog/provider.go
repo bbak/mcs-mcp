@@ -25,8 +25,22 @@ func NewLogProvider(client jira.Client, store *EventStore, cacheDir string) *Log
 	}
 }
 
+// getRegistryHelper fetches the name registry for a given project.
+func (p *LogProvider) getRegistryHelper(projectKey string) *jira.NameRegistry {
+	if p.client == nil || projectKey == "" {
+		return nil
+	}
+
+	reg, err := p.client.GetRegistry(projectKey)
+	if err != nil {
+		log.Warn().Err(err).Str("project", projectKey).Msg("Failed to fetch name registry, proceeding without stable labels")
+		return nil
+	}
+	return reg
+}
+
 // Hydrate ensures the event log is populated with sufficient history for analysis.
-func (p *LogProvider) Hydrate(sourceID string, jql string) error {
+func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, reg *jira.NameRegistry) (*jira.NameRegistry, error) {
 	const (
 		MinTotalItems    = 1000
 		MinResolvedItems = 200
@@ -45,7 +59,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 	// We rely purely on what was just loaded from cache.
 	if sourceID == "MCSTEST_0" || filepath.Base(sourceID) == "MCSTEST" {
 		log.Info().Str("source", sourceID).Msg("Hydrate: MCSTEST detected, skipping Jira sync")
-		return nil
+		return reg, nil
 	}
 
 	latest := p.store.GetLatestTimestamp(sourceID)
@@ -87,10 +101,15 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		hydrateJQL = fmt.Sprintf("(%s) AND updated >= startOfDay(\"-24M\") ORDER BY updated DESC", jql)
 	}
 
+	registry := reg
+	if registry == nil {
+		registry = p.getRegistryHelper(projectKey)
+	}
+
 	for {
-		resp, err := p.client.SearchIssuesWithHistory(hydrateJQL, totalFetched, BatchSize)
+		resp, err := p.client.SearchIssues(hydrateJQL, totalFetched, BatchSize)
 		if err != nil {
-			return fmt.Errorf("hydration failed at offset %d: %w", totalFetched, err)
+			return registry, fmt.Errorf("hydration failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -101,7 +120,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 		var oldestInBatch int64
 
 		for _, dto := range resp.Issues {
-			evts := TransformIssue(dto)
+			evts := TransformIssue(dto, registry)
 			batchEvents = append(batchEvents, evts...)
 
 			if dto.Fields.ResolutionDate != "" || dto.Fields.Resolution.Name != "" {
@@ -146,7 +165,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 
 		baselineOffset := 0
 		for totalFetched < HardLimit && resolvedFetched < MinResolvedItems {
-			resp, err := p.client.SearchIssuesWithHistory(baselineJQL, baselineOffset, BatchSize)
+			resp, err := p.client.SearchIssues(baselineJQL, baselineOffset, BatchSize)
 			if err != nil {
 				break
 			}
@@ -156,7 +175,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 
 			var batchEvents []IssueEvent
 			for _, dto := range resp.Issues {
-				evts := TransformIssue(dto)
+				evts := TransformIssue(dto, registry)
 				batchEvents = append(batchEvents, evts...)
 				resolvedFetched++
 			}
@@ -178,7 +197,7 @@ func (p *LogProvider) Hydrate(sourceID string, jql string) error {
 	}
 
 	log.Info().Int("total", totalFetched).Int("resolved", resolvedFetched).Msg("Hydration complete")
-	return nil
+	return registry, nil
 }
 
 func (p *LogProvider) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
@@ -211,10 +230,10 @@ func (p *LogProvider) GetMostRecentUpdates(sourceID string) (time.Time, time.Tim
 }
 
 // CatchUp fetches new items since the last sync.
-func (p *LogProvider) CatchUp(sourceID string, jql string) (int, time.Time, error) {
+func (p *LogProvider) CatchUp(sourceID string, projectKey string, jql string, reg *jira.NameRegistry) (int, time.Time, *jira.NameRegistry, error) {
 	_, nmrc := p.store.GetMostRecentUpdates(sourceID)
 	if nmrc.IsZero() {
-		return 0, time.Time{}, fmt.Errorf("cannot catch up: no existing cache for %s", sourceID)
+		return 0, time.Time{}, nil, fmt.Errorf("cannot catch up: no existing cache for %s", sourceID)
 	}
 
 	const BatchSize = 300
@@ -223,12 +242,17 @@ func (p *LogProvider) CatchUp(sourceID string, jql string) (int, time.Time, erro
 	tsStr := nmrc.Format("2006-01-02 15:04")
 	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, tsStr)
 
+	registry := reg
+	if registry == nil {
+		registry = p.getRegistryHelper(projectKey)
+	}
+
 	log.Info().Str("source", sourceID).Time("nmrc", nmrc).Msg("Starting catch-up process")
 
 	for {
-		resp, err := p.client.SearchIssuesWithHistory(catchUpJQL, totalFetched, BatchSize)
+		resp, err := p.client.SearchIssues(catchUpJQL, totalFetched, BatchSize)
 		if err != nil {
-			return totalFetched, nmrc, fmt.Errorf("catch-up failed at offset %d: %w", totalFetched, err)
+			return totalFetched, nmrc, registry, fmt.Errorf("catch-up failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -237,7 +261,7 @@ func (p *LogProvider) CatchUp(sourceID string, jql string) (int, time.Time, erro
 
 		var batchEvents []IssueEvent
 		for _, dto := range resp.Issues {
-			evts := TransformIssue(dto)
+			evts := TransformIssue(dto, registry)
 			batchEvents = append(batchEvents, evts...)
 		}
 
@@ -254,14 +278,14 @@ func (p *LogProvider) CatchUp(sourceID string, jql string) (int, time.Time, erro
 	}
 
 	log.Info().Int("fetched", totalFetched).Msg("Catch-up complete")
-	return totalFetched, nmrc, nil
+	return totalFetched, nmrc, registry, nil
 }
 
 // ExpandHistory fetches older items for a source.
-func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (int, time.Time, error) {
+func (p *LogProvider) ExpandHistory(sourceID string, projectKey string, jql string, chunks int, reg *jira.NameRegistry) (int, time.Time, *jira.NameRegistry, error) {
 	omrc, _ := p.store.GetMostRecentUpdates(sourceID)
 	if omrc.IsZero() {
-		return 0, time.Time{}, fmt.Errorf("cannot expand history: no existing cache for %s", sourceID)
+		return 0, time.Time{}, nil, fmt.Errorf("cannot expand history: no existing cache for %s", sourceID)
 	}
 
 	const BatchSize = 300
@@ -271,12 +295,17 @@ func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (in
 	tsStr := omrc.Format("2006-01-02 15:04")
 	expandJQL := fmt.Sprintf("(%s) AND updated <= \"%s\" ORDER BY updated DESC", jql, tsStr)
 
+	registry := reg
+	if registry == nil {
+		registry = p.getRegistryHelper(projectKey)
+	}
+
 	log.Info().Str("source", sourceID).Time("omrc", omrc).Int("limit", limit).Msg("Starting history expansion")
 
 	for totalFetched < limit {
-		resp, err := p.client.SearchIssuesWithHistory(expandJQL, totalFetched, BatchSize)
+		resp, err := p.client.SearchIssues(expandJQL, totalFetched, BatchSize)
 		if err != nil {
-			return totalFetched, omrc, fmt.Errorf("expansion failed at offset %d: %w", totalFetched, err)
+			return totalFetched, omrc, registry, fmt.Errorf("expansion failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -285,7 +314,7 @@ func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (in
 
 		var batchEvents []IssueEvent
 		for _, dto := range resp.Issues {
-			evts := TransformIssue(dto)
+			evts := TransformIssue(dto, registry)
 			batchEvents = append(batchEvents, evts...)
 		}
 
@@ -298,7 +327,8 @@ func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (in
 	}
 
 	// Always trigger catch-up to ensure consistency
-	_, _, err := p.CatchUp(sourceID, jql)
+	var err error
+	_, _, registry, err = p.CatchUp(sourceID, projectKey, jql, registry)
 	if err != nil {
 		log.Warn().Err(err).Msg("Expansion followed by catch-up failed")
 	}
@@ -308,5 +338,5 @@ func (p *LogProvider) ExpandHistory(sourceID string, jql string, chunks int) (in
 	}
 
 	log.Info().Int("fetched", totalFetched).Msg("History expansion complete")
-	return totalFetched, omrc, nil
+	return totalFetched, omrc, registry, nil
 }

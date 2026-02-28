@@ -144,13 +144,15 @@ func TestThroughputProjection_BoundaryResolved_Impact(t *testing.T) {
 		Key: "GEN-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -172,7 +174,7 @@ func TestThroughputProjection_BoundaryResolved_Impact(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	mappings := map[string]StatusMetadata{
 		"Done": {Tier: "Finished", Outcome: "delivered"},

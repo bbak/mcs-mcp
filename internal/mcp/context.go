@@ -26,19 +26,19 @@ func (s *Server) prepareAnalysisContext(projectKey string, boardID int, issues [
 		mappings = make(map[string]stats.StatusMetadata)
 	}
 
-	// Apply known mappings to weights
-	for name, metadata := range mappings {
+	// Apply known mappings to weights (keys are status IDs since Phase 2)
+	for key, metadata := range mappings {
 		switch metadata.Tier {
 		case "Demand":
-			statusWeights[name] = 1
+			statusWeights[key] = 1
 		case "Downstream", "Finished":
-			if statusWeights[name] < 2 {
-				statusWeights[name] = 2
+			if statusWeights[key] < 2 {
+				statusWeights[key] = 2
 			}
 		}
 	}
 
-	finished := s.getFinishedStatuses(issues, nil)
+	finished := s.getFinishedStatuses()
 
 	// Determine commitment point
 	var commitment string

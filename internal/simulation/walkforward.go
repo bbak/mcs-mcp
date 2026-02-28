@@ -300,19 +300,7 @@ func (w *WalkForwardEngine) countFinishedInWindow(allIssues []jira.Issue, start,
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil {
 			if !i.ResolutionDate.Before(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
-				// Semantic Outcome check: only count "delivered" items for scope validation
-				isDelivered := true
-				if outcome, ok := w.resolutions[i.Resolution]; ok {
-					if outcome != "delivered" {
-						isDelivered = false
-					}
-				} else if m, ok := w.mappings[i.Status]; ok && m.Tier == "Finished" {
-					if m.Outcome != "" && m.Outcome != "delivered" {
-						isDelivered = false
-					}
-				}
-
-				if isDelivered {
+				if stats.IsDelivered(i, w.resolutions, w.mappings) {
 					count++
 				}
 			}
@@ -326,18 +314,7 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 	resolvedAfter := make([]time.Time, 0)
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil && i.ResolutionDate.After(start) {
-			// Semantic Outcome check: only count "delivered" items for duration validation
-			isDelivered := true
-			if outcome, ok := w.resolutions[i.Resolution]; ok {
-				if outcome != "delivered" {
-					isDelivered = false
-				}
-			} else if m, ok := w.mappings[i.Status]; ok && m.Tier == "Finished" {
-				if m.Outcome != "" && m.Outcome != "delivered" {
-					isDelivered = false
-				}
-			}
-			if isDelivered {
+			if stats.IsDelivered(i, w.resolutions, w.mappings) {
 				resolvedAfter = append(resolvedAfter, *i.ResolutionDate)
 			}
 		}

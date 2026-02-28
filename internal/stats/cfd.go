@@ -16,9 +16,9 @@ func CalculateCFDData(issues []jira.Issue, window AnalysisWindow, mappings map[s
 	typeSet := make(map[string]bool)
 	for _, issue := range issues {
 		typeSet[issue.IssueType] = true
-		statusSet[issue.BirthStatus] = true
+		statusSet[PreferID(issue.BirthStatusID, issue.BirthStatus)] = true
 		for _, tr := range issue.Transitions {
-			statusSet[tr.ToStatus] = true
+			statusSet[PreferID(tr.ToStatusID, tr.ToStatus)] = true
 		}
 	}
 
@@ -89,10 +89,10 @@ func getStatusAt(issue jira.Issue, ts int64) string {
 	}
 
 	// 2. Find the latest transition on or before ts
-	currentStatus := issue.BirthStatus
+	currentStatus := PreferID(issue.BirthStatusID, issue.BirthStatus)
 	for _, tr := range issue.Transitions {
 		if tr.Date.UnixMicro() <= ts {
-			currentStatus = tr.ToStatus
+			currentStatus = PreferID(tr.ToStatusID, tr.ToStatus)
 		} else {
 			// Transitions are sorted chronologically
 			break

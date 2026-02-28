@@ -18,9 +18,12 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 2. Project on Demand (6-month historical window for persistence)
 	cutoff := time.Time{}
@@ -69,9 +72,12 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -132,9 +138,12 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -196,9 +205,12 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any,
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -256,9 +268,12 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	if windowMonths <= 0 {
 		windowMonths = 12
@@ -303,9 +318,12 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -349,9 +367,12 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	// 2. Fallback to context-locked hydration if not found
 	if len(events) == 0 {
 		lockedJQL := fmt.Sprintf("(%s) AND key = %s", ctx.JQL, issueKey)
-		if err := s.events.Hydrate(sourceID, lockedJQL); err != nil {
+		reg, err := s.events.Hydrate(sourceID, projectKey, lockedJQL, s.activeRegistry)
+		if err != nil {
 			return nil, err
 		}
+		s.activeRegistry = reg
+		_ = s.saveWorkflow(projectKey, boardID)
 		events = s.events.GetEventsForIssue(sourceID, issueKey)
 	}
 
@@ -470,9 +491,12 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -519,9 +543,12 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -564,9 +591,12 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 	sourceID := getCombinedID(projectKey, boardID)
 
 	// 1. Hydrate
-	if err := s.events.Hydrate(sourceID, ctx.JQL); err != nil {
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26

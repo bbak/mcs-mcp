@@ -43,6 +43,7 @@ type Server struct {
 	activeStatusOrder     []string
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
+	activeRegistry        *jira.NameRegistry
 	enableMermaidCharts   bool
 }
 
@@ -464,6 +465,7 @@ type WorkflowMetadata struct {
 	StatusOrder     []string                        `json:"status_order,omitempty"`
 	CommitmentPoint string                          `json:"commitment_point,omitempty"`
 	DiscoveryCutoff *time.Time                      `json:"discovery_cutoff,omitempty"`
+	NameRegistry    *jira.NameRegistry              `json:"name_registry,omitempty"`
 }
 
 func (s *Server) saveWorkflow(projectKey string, boardID int) error {
@@ -475,6 +477,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		StatusOrder:     s.activeStatusOrder,
 		CommitmentPoint: s.activeCommitmentPoint,
 		DiscoveryCutoff: s.activeDiscoveryCutoff,
+		NameRegistry:    s.activeRegistry,
 	}
 
 	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
@@ -508,10 +511,50 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	s.activeStatusOrder = meta.StatusOrder
 	s.activeCommitmentPoint = meta.CommitmentPoint
 	s.activeDiscoveryCutoff = meta.DiscoveryCutoff
-	s.activeMapping = meta.Mapping
-	s.activeResolutions = meta.Resolutions
+	s.activeRegistry = meta.NameRegistry
 
-	log.Info().Str("path", path).Msg("Loaded workflow metadata from disk")
+	// Migration: Resolve StatusOrder names to IDs for internal stability
+	var resolvedOrder []string
+	for _, entry := range s.activeStatusOrder {
+		id := s.activeRegistry.GetStatusID(entry)
+		if id != "" {
+			resolvedOrder = append(resolvedOrder, id)
+		} else {
+			resolvedOrder = append(resolvedOrder, entry) // Already an ID or unknown
+		}
+	}
+	s.activeStatusOrder = resolvedOrder
+
+	// Migration: Resolve CommitmentPoint name to ID
+	if cp := s.activeRegistry.GetStatusID(s.activeCommitmentPoint); cp != "" {
+		s.activeCommitmentPoint = cp
+	}
+
+	// Migration: If mappings/resolutions are name-based, try to convert them to IDs
+	// for internal stability (Analytical Guardrail).
+	s.activeMapping = make(map[string]stats.StatusMetadata)
+	for k, m := range meta.Mapping {
+		id := s.activeRegistry.GetStatusID(k)
+		if id != "" {
+			m.Name = k // Preserve the name for display
+			s.activeMapping[id] = m
+		} else {
+			// Fallback: keep as is (might be ID already or a name without registry entry)
+			s.activeMapping[k] = m
+		}
+	}
+
+	s.activeResolutions = make(map[string]string)
+	for k, outcome := range meta.Resolutions {
+		id := s.activeRegistry.GetResolutionID(k)
+		if id != "" {
+			s.activeResolutions[id] = outcome
+		} else {
+			s.activeResolutions[k] = outcome
+		}
+	}
+
+	log.Info().Str("path", path).Msg("Loaded and harmonized workflow metadata from disk")
 	return true, nil
 }
 
@@ -531,6 +574,7 @@ func (s *Server) anchorContext(projectKey string, boardID int) error {
 	s.activeResolutions = nil
 	s.activeStatusOrder = nil
 	s.activeCommitmentPoint = ""
+	s.activeRegistry = nil
 
 	// 2. Prune EventStore RAM
 	s.events.PruneExcept(sourceID)

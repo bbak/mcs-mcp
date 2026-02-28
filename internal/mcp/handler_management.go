@@ -19,10 +19,11 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error)
 	}
 
 	// 3. CatchUp
-	fetched, nmrc, err := s.events.CatchUp(sourceID, ctx.JQL)
+	fetched, nmrc, reg, err := s.events.CatchUp(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
 
 	// 4. Re-calculate DiscoveryCutoff (just in case)
 	s.recalculateDiscoveryCutoff(sourceID)
@@ -55,10 +56,11 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 	}
 
 	// 3. Expand History
-	fetched, omrc, err := s.events.ExpandHistory(sourceID, ctx.JQL, chunks)
+	fetched, omrc, reg, err := s.events.ExpandHistory(sourceID, projectKey, ctx.JQL, chunks, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
+	s.activeRegistry = reg
 
 	// 4. Re-calculate DiscoveryCutoff
 	s.recalculateDiscoveryCutoff(sourceID)

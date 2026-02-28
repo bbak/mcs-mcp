@@ -35,34 +35,45 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 	blockedDurations := make(map[string][]float64)
 	totalIssues := float64(len(issues))
 
+	// Track the most recent name seen for each ID as a fallback for display
+	idToName := make(map[string]string)
+
 	for _, issue := range issues {
-		for status, seconds := range issue.StatusResidency {
-			if seconds >= 60 { // Ignore automated touch-and-go transitions < 1m
+		for statusID, seconds := range issue.StatusResidency {
+			// Signal-Aware: Preserve terminal statuses even if residency is < 1m.
+			isTerminal := (issue.ResolutionDate != nil || issue.Resolution != "") && (issue.StatusID == statusID || issue.Status == statusID)
+
+			if seconds >= 60 || isTerminal {
 				days := float64(seconds) / 86400.0
-				statusDurations[status] = append(statusDurations[status], days)
+				statusDurations[statusID] = append(statusDurations[statusID], days)
+			}
+
+			// Capture name if this key is an ID
+			if issue.StatusID == statusID {
+				idToName[statusID] = issue.Status
 			}
 		}
-		for status, seconds := range issue.BlockedResidency {
+		for statusID, seconds := range issue.BlockedResidency {
 			if seconds >= 60 {
 				days := float64(seconds) / 86400.0
-				blockedDurations[status] = append(blockedDurations[status], days)
+				blockedDurations[statusID] = append(blockedDurations[statusID], days)
 			}
 		}
 	}
 
 	var results []StatusPersistence
-	for status, durations := range statusDurations {
+	for statusID, durations := range statusDurations {
 		n := len(durations)
 		share := float64(n) / totalIssues
 
-		// Filter noise: skip statuses visited by < 1% of work items
 		if share < 0.01 {
 			continue
 		}
 
 		slices.Sort(durations)
 		sp := StatusPersistence{
-			StatusName: status,
+			StatusID:   statusID,
+			StatusName: idToName[statusID],
 			Share:      math.Round(share*1000) / 1000,
 			P50:        math.Round(durations[int(float64(n)*0.50)]*10) / 10,
 			P70:        math.Round(durations[int(float64(n)*0.70)]*10) / 10,
@@ -72,8 +83,11 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			Inner80:    math.Round((durations[int(float64(n)*0.90)]-durations[int(float64(n)*0.10)])*10) / 10,
 		}
 
-		// Blocked Metrics (Friction Mapping)
-		if bd, ok := blockedDurations[status]; ok && len(bd) > 0 {
+		if sp.StatusName == "" {
+			sp.StatusName = statusID // Fallback
+		}
+
+		if bd, ok := blockedDurations[statusID]; ok && len(bd) > 0 {
 			slices.Sort(bd)
 			bn := len(bd)
 			sp.BlockedCount = bn
@@ -84,7 +98,6 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 		results = append(results, sp)
 	}
 
-	// Sort results by status name for stability
 	slices.SortFunc(results, func(a, b StatusPersistence) int {
 		return cmp.Compare(a.StatusName, b.StatusName)
 	})
@@ -97,9 +110,13 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 	for i := range results {
 		s := &results[i]
 
-		if m, ok := mappings[s.StatusName]; ok {
+		if m, ok := GetMetadataRobust(mappings, s.StatusID, s.StatusName); ok {
 			s.Role = m.Role
 			s.Tier = m.Tier
+			// Restore name from metadata if it's currently an ID or empty
+			if m.Name != "" && (s.StatusName == "" || s.StatusName == s.StatusID) {
+				s.StatusName = m.Name
+			}
 		}
 
 		// Interpretation Hint (Emphasize INTERNAL residency, not completion)
@@ -135,7 +152,7 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 
 			// Resolve Tier
 			tier := "Unknown"
-			if m, ok := mappings[status]; ok {
+			if m, ok := GetMetadataRobust(mappings, "", status); ok {
 				tier = m.Tier
 			}
 

@@ -3,6 +3,7 @@ package stats
 import (
 	"mcs-mcp/internal/jira"
 	"testing"
+	"time"
 )
 
 func TestCalculateStratifiedStatusPersistence(t *testing.T) {
@@ -141,5 +142,41 @@ func TestCalculateTierSummary(t *testing.T) {
 	// So 15.0 proves aggregation is working.
 	if downstream.P85 != 15.0 {
 		t.Errorf("Expected Downstream P85 to be 15.0 (summed), got %f", downstream.P85)
+	}
+}
+func TestCalculateStatusPersistence_TerminalPreservation(t *testing.T) {
+	now := time.Now()
+	issues := []jira.Issue{
+		{
+			Key:            "KAN-4",
+			Status:         "Done",
+			ResolutionDate: &now,
+			StatusResidency: map[string]int64{
+				"To Do":       86400, // 1 day
+				"In Progress": 86400, // 1 day
+				"In Review":   5,     // 5 seconds (Noise)
+				"Done":        2,     // 2 seconds (Terminal - should be preserved)
+			},
+		},
+	}
+
+	res := CalculateStatusPersistence(issues)
+
+	foundDone := false
+	foundReview := false
+	for _, p := range res {
+		if p.StatusName == "Done" {
+			foundDone = true
+		}
+		if p.StatusName == "In Review" {
+			foundReview = true
+		}
+	}
+
+	if !foundDone {
+		t.Error("Expected terminal status 'Done' to be preserved despite low residency")
+	}
+	if foundReview {
+		t.Error("Expected intermediate status 'In Review' to be filtered out as noise (< 60s)")
 	}
 }

@@ -12,19 +12,23 @@ func TestTransformIssue_DuplicateResolved(t *testing.T) {
 		Key: "TEST-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
 			Resolution: struct {
-				Name string `json:"name"`
-			}{Name: "Done"},
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+			}{Name: "Done", ID: "1"},
 			ResolutionDate: "2024-03-20T14:30:00.000+0000",
 			Created:        "2024-03-20T10:00:00.000+0000",
 			Updated:        "2024-03-20T14:30:00.000+0000",
@@ -54,7 +58,7 @@ func TestTransformIssue_DuplicateResolved(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	resolvedCount := 0
 	for _, e := range events {
@@ -76,19 +80,23 @@ func TestTransformIssue_ResolutionGracePeriod(t *testing.T) {
 		Key: "TEST-2",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
 			Resolution: struct {
-				Name string `json:"name"`
-			}{Name: "Done"},
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+			}{Name: "Done", ID: "1"},
 			ResolutionDate: "2024-03-20T14:30:01.000+0000", // 1s offset
 			Created:        "2024-03-20T10:00:00.000+0000",
 			Updated:        "2024-03-20T14:30:01.000+0000",
@@ -109,7 +117,7 @@ func TestTransformIssue_ResolutionGracePeriod(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 	resolvedCount := 0
 	for _, e := range events {
 		if e.Resolution != "" {
@@ -128,13 +136,15 @@ func TestTransformIssue_MisconfiguredWorkflow(t *testing.T) {
 		Key: "TEST-3",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -158,7 +168,7 @@ func TestTransformIssue_MisconfiguredWorkflow(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 	resolvedCount := 0
 	for _, e := range events {
 		if e.Resolution != "" {
@@ -178,13 +188,15 @@ func TestTransformIssue_ExplicitUnresolved(t *testing.T) {
 		Key: "TEST-4",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "In Progress", ID: "3"},
@@ -207,7 +219,7 @@ func TestTransformIssue_ExplicitUnresolved(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 	unresolvedCount := 0
 	for _, e := range events {
 		if e.IsUnresolved {
@@ -227,13 +239,15 @@ func TestTransformIssue_Case1_Preserve(t *testing.T) {
 		Key: "NEW-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Doing", ID: "4"},
@@ -278,7 +292,7 @@ func TestTransformIssue_Case1_Preserve(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// In Case 1, we expect all transitions (Pass 2 doesn't skip).
 	// 1. Created
@@ -300,13 +314,15 @@ func TestTransformIssue_Case2_Heal(t *testing.T) {
 		Key: "NEW-2",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Doing", ID: "4"},
@@ -355,7 +371,7 @@ func TestTransformIssue_Case2_Heal(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// In Case 2, we expect:
 	// 1. Created (Synthetic) @ 2024-01-01, ToStatus="To Do" (derived from T=14:00 transition)
@@ -386,13 +402,15 @@ func TestTransformIssue_ExternalMove_NoHeal(t *testing.T) {
 		Key: "OURPROJ-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -431,7 +449,7 @@ func TestTransformIssue_ExternalMove_NoHeal(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// Since the move was EXT1 -> EXT2, and our project is OURPROJ,
 	// healing should NOT have been triggered.
@@ -452,13 +470,15 @@ func TestTransformIssue_BoundaryWithLaterEvent(t *testing.T) {
 		Key: "NEW-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -502,7 +522,7 @@ func TestTransformIssue_BoundaryWithLaterEvent(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// Expecting:
 	// 1. Created (Synthetic) @ 2024-01-01 (ToStatus: DEPLOY)
@@ -531,13 +551,15 @@ func TestTransformIssue_LostTerminalEvent_UserReproduction(t *testing.T) {
 		Key: "NEW-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -565,7 +587,7 @@ func TestTransformIssue_LostTerminalEvent_UserReproduction(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// User says they get ONE event (the Created one).
 	// We expect 2: Created + Change.
@@ -598,13 +620,15 @@ func TestTransformIssue_LostTerminalEvent_SameTimestamp(t *testing.T) {
 		Key: "NEW-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -635,7 +659,7 @@ func TestTransformIssue_LostTerminalEvent_SameTimestamp(t *testing.T) {
 	// NOTE: We don't sort in this test setup because we want to force the order
 	// Or even if we did sort, t1.Before(t2) is false, so swap won't happen.
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	if len(events) != 2 {
 		t.Fatalf("Expected 2 events, got %d. Events: %+v", len(events), events)
@@ -653,13 +677,15 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 		Key: "GENPROJ-87",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Feature"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Done", ID: "10003"},
@@ -687,7 +713,7 @@ func TestTransformIssue_GlitchReproduction(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// Expected Events:
 	// 1. Created (Synthetic @ 2023-08-17) - Status: Analysis (ToString of boundary)
@@ -732,13 +758,15 @@ func TestTransformIssue_FlaggedHistory(t *testing.T) {
 		Key: "TEST-1",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "InProgress", ID: "3"},
@@ -784,7 +812,7 @@ func TestTransformIssue_FlaggedHistory(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// Expected:
 	// 1. Created (Flagged: "") @ 10:00
@@ -820,13 +848,15 @@ func TestTransformIssue_MoveBoundaryWithFlagged(t *testing.T) {
 		Key: "IESFSCPL-153",
 		Fields: jira.FieldsDTO{
 			IssueType: struct {
-				Name    string `json:"name"`
-				Subtask bool   `json:"subtask"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
 			}{Name: "Story"},
 			Status: struct {
-				ID             string `json:"id"`
-				Name           string `json:"name"`
-				StatusCategory struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			}{Name: "Closed", ID: "6"},
@@ -895,7 +925,7 @@ func TestTransformIssue_MoveBoundaryWithFlagged(t *testing.T) {
 		},
 	}
 
-	events := eventlog.TransformIssue(dto)
+	events := eventlog.TransformIssue(dto, nil)
 
 	// Expected 'Created' event to have ToStatus: "Open"
 	var createdEvent *eventlog.IssueEvent
@@ -911,5 +941,84 @@ func TestTransformIssue_MoveBoundaryWithFlagged(t *testing.T) {
 
 	if createdEvent.ToStatus != "Open" {
 		t.Errorf("Expected arrival status 'Open', got '%s'", createdEvent.ToStatus)
+	}
+}
+func TestTransformIssue_RegistryHealing(t *testing.T) {
+	// Setup a DTO with localized names in changelog
+	dto := jira.IssueDTO{
+		Key: "TEST-1",
+		Fields: jira.FieldsDTO{
+			IssueType: struct {
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				Subtask          bool   `json:"subtask"`
+			}{Name: "Bug"},
+			Status: struct {
+				ID               string `json:"id"`
+				Name             string `json:"name"`
+				UntranslatedName string `json:"untranslatedName,omitempty"`
+				StatusCategory   struct {
+					Key string `json:"key"`
+				} `json:"statusCategory"`
+			}{Name: "Terminé", ID: "10003"}, // Localized snap
+			Created: "2024-03-20T10:00:00.000+0000",
+			Updated: "2024-03-20T14:30:00.000+0000",
+		},
+		Changelog: &jira.ChangelogDTO{
+			Histories: []jira.HistoryDTO{
+				{
+					Created: "2024-03-20T11:00:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "À faire", // Localized
+							From:       "10001",
+							ToString:   "En cours", // Localized
+							To:         "10002",
+						},
+					},
+				},
+				{
+					Created: "2024-03-20T14:30:00.000+0000",
+					Items: []jira.ItemDTO{
+						{
+							Field:      "status",
+							FromString: "En cours",
+							From:       "10002",
+							ToString:   "Terminé",
+							To:         "10003",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Setup Registry
+	registry := &jira.NameRegistry{
+		Statuses: map[string]string{
+			"10001": "To Do",
+			"10002": "In Progress",
+			"10003": "Done",
+		},
+	}
+
+	events := eventlog.TransformIssue(dto, registry)
+
+	// Verify transitions use registry names
+	for _, e := range events {
+		if e.EventType == eventlog.Change {
+			if e.ToStatusID == "10002" && e.ToStatus != "In Progress" {
+				t.Errorf("Expected 'In Progress', got '%s'", e.ToStatus)
+			}
+			if e.ToStatusID == "10003" && e.ToStatus != "Done" {
+				t.Errorf("Expected 'Done', got '%s'", e.ToStatus)
+			}
+		}
+		if e.EventType == eventlog.Created {
+			if e.ToStatus != "To Do" {
+				t.Errorf("Expected Created status 'To Do', got '%s'", e.ToStatus)
+			}
+		}
 	}
 }

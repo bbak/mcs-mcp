@@ -199,93 +199,99 @@ func TestProposeSemantics(t *testing.T) {
 	now := time.Now()
 	issues := []jira.Issue{
 		{
-			Key:    "PROJ-1",
-			Status: "In Dev",
+			Key:      "PROJ-1",
+			Status:   "In Dev",
+			StatusID: "4",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "Backlog", ToStatus: "Refinement", Date: now.AddDate(0, 0, -5)},
-				{FromStatus: "Refinement", ToStatus: "Ready for Dev", Date: now.AddDate(0, 0, -3)},
-				{FromStatus: "Ready for Dev", ToStatus: "In Dev", Date: now.AddDate(0, 0, -2)},
+				{FromStatus: "Backlog", FromStatusID: "1", ToStatus: "Refinement", ToStatusID: "2", Date: now.AddDate(0, 0, -5)},
+				{FromStatus: "Refinement", FromStatusID: "2", ToStatus: "Ready for Dev", ToStatusID: "3", Date: now.AddDate(0, 0, -3)},
+				{FromStatus: "Ready for Dev", FromStatusID: "3", ToStatus: "In Dev", ToStatusID: "4", Date: now.AddDate(0, 0, -2)},
 			},
-			BirthStatus: "Backlog",
+			BirthStatus:   "Backlog",
+			BirthStatusID: "1",
 		},
 	}
 
 	persistence := []stats.StatusPersistence{
-		{StatusName: "Backlog", P50: 10.0},
-		{StatusName: "Refinement", P50: 2.0},
-		{StatusName: "Ready for Dev", P50: 1.0},
-		{StatusName: "In Dev", P50: 5.0},
-		{StatusName: "Done", P50: 0.0},
+		{StatusID: "1", StatusName: "Backlog", P50: 10.0},
+		{StatusID: "2", StatusName: "Refinement", P50: 2.0},
+		{StatusID: "3", StatusName: "Ready for Dev", P50: 1.0},
+		{StatusID: "4", StatusName: "In Dev", P50: 5.0},
+		{StatusID: "5", StatusName: "Done", P50: 0.0},
 	}
 	// Add transitions to Backlog to make it the birth status
 	for i := 0; i < 20; i++ {
 		issues = append(issues, jira.Issue{
-			Key: "B", Status: "Backlog", BirthStatus: "Backlog",
-			Transitions: []jira.StatusTransition{{FromStatus: "Backlog", ToStatus: "Refinement"}},
+			Key: "B", Status: "Backlog", StatusID: "1", BirthStatus: "Backlog", BirthStatusID: "1",
+			Transitions: []jira.StatusTransition{{FromStatus: "Backlog", FromStatusID: "1", ToStatus: "Refinement", ToStatusID: "2"}},
 		})
 	}
 	// Add transitions to Done to make it a terminal sink
 	for i := 0; i < 10; i++ {
 		issues = append(issues, jira.Issue{
-			Key: "S", Status: "Done",
-			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", ToStatus: "Done"}},
+			Key: "S", Status: "Done", StatusID: "5",
+			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "5"}},
 		})
 	}
 	mapping, commitmentPoint := discovery.ProposeSemantics(issues, persistence)
 
-	// Verify "Backlog" is Demand (detected as first entry point)
-	if mapping["Backlog"].Tier != "Demand" {
-		t.Errorf("Expected Backlog to be 'Demand', got %s", mapping["Backlog"].Tier)
+	// Verify Backlog (ID "1") is Demand (detected as first entry point)
+	if mapping["1"].Tier != "Demand" {
+		t.Errorf("Expected Backlog (1) to be 'Demand', got %s", mapping["1"].Tier)
 	}
 
-	// Verify "Ready for Dev" is a queue (detected by pattern)
-	if mapping["Ready for Dev"].Role != "queue" {
-		t.Errorf("Expected 'Ready for Dev' to have role 'queue', got %s", mapping["Ready for Dev"].Role)
+	// Verify Ready for Dev (ID "3") is a queue (detected by pattern)
+	if mapping["3"].Role != "queue" {
+		t.Errorf("Expected 'Ready for Dev' (3) to have role 'queue', got %s", mapping["3"].Role)
 	}
 
-	// Verify "In Dev" is Downstream
-	if mapping["In Dev"].Tier != "Downstream" {
-		t.Errorf("Expected 'In Dev' to be 'Downstream', got %s", mapping["In Dev"].Tier)
+	// Verify In Dev (ID "4") is Downstream
+	if mapping["4"].Tier != "Downstream" {
+		t.Errorf("Expected 'In Dev' (4) to be 'Downstream', got %s", mapping["4"].Tier)
 	}
 
 	// Verify User-specified role constraints: Demand must be 'queue'
-	if mapping["Backlog"].Role != "queue" {
-		t.Errorf("Expected 'Backlog' (Demand) to have role 'queue', got %s", mapping["Backlog"].Role)
+	if mapping["1"].Role != "queue" {
+		t.Errorf("Expected 'Backlog' (1) (Demand) to have role 'queue', got %s", mapping["1"].Role)
 	}
 
-	if commitmentPoint != "In Dev" {
-		t.Errorf("Expected commitment point 'In Dev', got %s", commitmentPoint)
+	if commitmentPoint != "4" {
+		t.Errorf("Expected commitment point '4' (In Dev), got %s", commitmentPoint)
 	}
 
-	// Verify "Done" has heuristic outcome "delivered"
-	if mapping["Done"].Outcome != "delivered" {
-		t.Errorf("Expected Done to have outcome 'delivered', got %s", mapping["Done"].Outcome)
+	// Verify Done (ID "5") has heuristic outcome "delivered"
+	if mapping["5"].Outcome != "delivered" {
+		t.Errorf("Expected Done (5) to have outcome 'delivered', got %s", mapping["5"].Outcome)
 	}
 }
 
 func TestDiscoverStatusOrder_PathBased(t *testing.T) {
 	issues := []jira.Issue{
 		{
-			Key:         "I-1",
-			BirthStatus: "To Do",
-			Status:      "Done",
+			Key:           "I-1",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
+			Status:        "Done",
+			StatusID:      "3",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "In Progress"},
-				{FromStatus: "In Progress", ToStatus: "Done"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "In Progress", ToStatusID: "2"},
+				{FromStatus: "In Progress", FromStatusID: "2", ToStatus: "Done", ToStatusID: "3"},
 			},
 		},
 		{
-			Key:         "I-2",
-			BirthStatus: "To Do",
-			Status:      "In Progress",
+			Key:           "I-2",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
+			Status:        "In Progress",
+			StatusID:      "2",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "In Progress"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "In Progress", ToStatusID: "2"},
 			},
 		},
 	}
 
 	order := discovery.DiscoverStatusOrder(issues)
-	expected := []string{"To Do", "In Progress", "Done"}
+	expected := []string{"1", "2", "3"}
 
 	if !reflect.DeepEqual(order, expected) {
 		t.Errorf("Expected %v, got %v", expected, order)
@@ -297,25 +303,28 @@ func TestDiscoverStatusOrder_Shortcuts(t *testing.T) {
 	// But "Analysis" still happens before "Development" for some, and never after.
 	issues := []jira.Issue{
 		{
-			Key:         "I-1",
-			BirthStatus: "To Do",
+			Key:           "I-1",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Development"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Development", ToStatusID: "3"},
 			},
 		},
 		{
-			Key:         "I-2",
-			BirthStatus: "To Do",
+			Key:           "I-2",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Development"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Development", ToStatusID: "3"},
 			},
 		},
 		{
-			Key:         "I-3",
-			BirthStatus: "To Do",
+			Key:           "I-3",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Analysis"},
-				{FromStatus: "Analysis", ToStatus: "Development"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Analysis", ToStatusID: "2"},
+				{FromStatus: "Analysis", FromStatusID: "2", ToStatus: "Development", ToStatusID: "3"},
 			},
 		},
 	}
@@ -324,7 +333,7 @@ func TestDiscoverStatusOrder_Shortcuts(t *testing.T) {
 	// Even though To Do -> Development is more frequent than To Do -> Analysis,
 	// Analysis globally precedes Development (it never happens after it).
 	// So Analysis should be between To Do and Development.
-	expected := []string{"To Do", "Analysis", "Development"}
+	expected := []string{"1", "2", "3"}
 
 	if !reflect.DeepEqual(order, expected) {
 		t.Errorf("Expected %v, got %v", expected, order)
@@ -333,44 +342,44 @@ func TestDiscoverStatusOrder_Shortcuts(t *testing.T) {
 
 func TestDiscoverStatusOrder_ComplexPath_Scenario(t *testing.T) {
 	// Mimics the user's reported "hijacked" path
-	// Expected: To Do, Analysis, Architecture Design, Refinement, Ready for Development, In Development, Validation, Ready to Deploy, In Releasing, Done
+	// Expected IDs: 1(To Do), 2(Analysis), 3(Arch Design), 4(Refinement), 5(Ready for Dev), 6(In Dev), 7(Validation), 8(Ready to Deploy), 9(In Releasing), 10(Done)
 	issues := []jira.Issue{
 		// Item 1: Perfect happy path
 		{
-			BirthStatus: "To Do",
+			BirthStatus: "To Do", BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Analysis"},
-				{FromStatus: "Analysis", ToStatus: "Architecture Design"},
-				{FromStatus: "Architecture Design", ToStatus: "Refinement"},
-				{FromStatus: "Refinement", ToStatus: "Ready for Development"},
-				{FromStatus: "Ready for Development", ToStatus: "In Development"},
-				{FromStatus: "In Development", ToStatus: "Validation"},
-				{FromStatus: "Validation", ToStatus: "Ready to Deploy"},
-				{FromStatus: "Ready to Deploy", ToStatus: "In Releasing"},
-				{FromStatus: "In Releasing", ToStatus: "Done"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Analysis", ToStatusID: "2"},
+				{FromStatus: "Analysis", FromStatusID: "2", ToStatus: "Architecture Design", ToStatusID: "3"},
+				{FromStatus: "Architecture Design", FromStatusID: "3", ToStatus: "Refinement", ToStatusID: "4"},
+				{FromStatus: "Refinement", FromStatusID: "4", ToStatus: "Ready for Development", ToStatusID: "5"},
+				{FromStatus: "Ready for Development", FromStatusID: "5", ToStatus: "In Development", ToStatusID: "6"},
+				{FromStatus: "In Development", FromStatusID: "6", ToStatus: "Validation", ToStatusID: "7"},
+				{FromStatus: "Validation", FromStatusID: "7", ToStatus: "Ready to Deploy", ToStatusID: "8"},
+				{FromStatus: "Ready to Deploy", FromStatusID: "8", ToStatus: "In Releasing", ToStatusID: "9"},
+				{FromStatus: "In Releasing", FromStatusID: "9", ToStatus: "Done", ToStatusID: "10"},
 			},
 		},
 		// Item 2: Shortcut "To Do -> Validation" (The Hijacker)
 		{
-			BirthStatus: "To Do",
+			BirthStatus: "To Do", BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Validation"},
-				{FromStatus: "Validation", ToStatus: "Done"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Validation", ToStatusID: "7"},
+				{FromStatus: "Validation", FromStatusID: "7", ToStatus: "Done", ToStatusID: "10"},
 			},
 		},
 		// Item 3: Another shortcut "To Do -> Ready for Development"
 		{
-			BirthStatus: "To Do",
+			BirthStatus: "To Do", BirthStatusID: "1",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "To Do", ToStatus: "Ready for Development"},
-				{FromStatus: "Ready for Development", ToStatus: "Done"},
+				{FromStatus: "To Do", FromStatusID: "1", ToStatus: "Ready for Development", ToStatusID: "5"},
+				{FromStatus: "Ready for Development", FromStatusID: "5", ToStatus: "Done", ToStatusID: "10"},
 			},
 		},
 	}
 
 	order := discovery.DiscoverStatusOrder(issues)
 
-	// Check specific critical orderings
+	// Check specific critical orderings (by ID)
 	indexOf := func(s string) int {
 		for i, v := range order {
 			if v == s {
@@ -381,19 +390,19 @@ func TestDiscoverStatusOrder_ComplexPath_Scenario(t *testing.T) {
 	}
 
 	checks := [][]string{
-		{"To Do", "Analysis"},
-		{"Analysis", "Architecture Design"},
-		{"Architecture Design", "Refinement"},
-		{"Refinement", "Ready for Development"},
-		{"Ready for Development", "Validation"},
-		{"Validation", "Done"},
+		{"1", "2"},  // To Do before Analysis
+		{"2", "3"},  // Analysis before Architecture Design
+		{"3", "4"},  // Architecture Design before Refinement
+		{"4", "5"},  // Refinement before Ready for Development
+		{"5", "7"},  // Ready for Development before Validation
+		{"7", "10"}, // Validation before Done
 	}
 
 	for _, pair := range checks {
 		i1 := indexOf(pair[0])
 		i2 := indexOf(pair[1])
 		if i1 == -1 || i2 == -1 || i1 >= i2 {
-			t.Errorf("Ordering failure: Expected %s before %s. Full order: %v", pair[0], pair[1], order)
+			t.Errorf("Ordering failure: Expected ID %s before ID %s. Full order: %v", pair[0], pair[1], order)
 		}
 	}
 }
@@ -403,52 +412,50 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 	// User Scenario: Open (Birth) -> refining -> awaiting development -> developing -> Done
 	issues := []jira.Issue{
 		{
-			Key:            "I-1",
-			Status:         "Done",
-			StatusCategory: "done",
+			Key: "I-1", Status: "Done", StatusID: "5", StatusCategory: "done",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "Open", ToStatus: "refining", Date: now.Add(-4 * time.Hour)},
-				{FromStatus: "refining", ToStatus: "awaiting development", Date: now.Add(-3 * time.Hour)},
-				{FromStatus: "awaiting development", ToStatus: "developing", Date: now.Add(-2 * time.Hour)},
-				{FromStatus: "developing", ToStatus: "Done", Date: now.Add(-1 * time.Hour)},
+				{FromStatus: "Open", FromStatusID: "1", ToStatus: "refining", ToStatusID: "2", Date: now.Add(-4 * time.Hour)},
+				{FromStatus: "refining", FromStatusID: "2", ToStatus: "awaiting development", ToStatusID: "3", Date: now.Add(-3 * time.Hour)},
+				{FromStatus: "awaiting development", FromStatusID: "3", ToStatus: "developing", ToStatusID: "4", Date: now.Add(-2 * time.Hour)},
+				{FromStatus: "developing", FromStatusID: "4", ToStatus: "Done", ToStatusID: "5", Date: now.Add(-1 * time.Hour)},
 			},
-			BirthStatus: "Open",
+			BirthStatus: "Open", BirthStatusID: "1",
 		},
-		{Key: "M-1", Status: "Open", StatusCategory: "to-do", BirthStatus: "Open"},
-		{Key: "M-2", Status: "refining", StatusCategory: "to-do", BirthStatus: "refining"},
-		{Key: "M-3", Status: "awaiting development", StatusCategory: "indeterminate", BirthStatus: "awaiting development"},
-		{Key: "M-4", Status: "developing", StatusCategory: "indeterminate", BirthStatus: "developing"},
+		{Key: "M-1", Status: "Open", StatusID: "1", StatusCategory: "to-do", BirthStatus: "Open", BirthStatusID: "1"},
+		{Key: "M-2", Status: "refining", StatusID: "2", StatusCategory: "to-do", BirthStatus: "refining", BirthStatusID: "2"},
+		{Key: "M-3", Status: "awaiting development", StatusID: "3", StatusCategory: "indeterminate", BirthStatus: "awaiting development", BirthStatusID: "3"},
+		{Key: "M-4", Status: "developing", StatusID: "4", StatusCategory: "indeterminate", BirthStatus: "developing", BirthStatusID: "4"},
 	}
 
 	persistence := []stats.StatusPersistence{
-		{StatusName: "Open"},
-		{StatusName: "refining"},
-		{StatusName: "awaiting development"},
-		{StatusName: "developing"},
-		{StatusName: "Done"},
+		{StatusID: "1", StatusName: "Open"},
+		{StatusID: "2", StatusName: "refining"},
+		{StatusID: "3", StatusName: "awaiting development"},
+		{StatusID: "4", StatusName: "developing"},
+		{StatusID: "5", StatusName: "Done"},
 	}
 
 	proposal, _ := discovery.ProposeSemantics(issues, persistence)
 	order := discovery.DiscoverStatusOrder(issues)
 
-	// Verify Tiers
-	if proposal["Open"].Tier != "Demand" {
-		t.Errorf("Open should be Demand, got %s", proposal["Open"].Tier)
+	// Verify Tiers (keyed by ID)
+	if proposal["1"].Tier != "Demand" {
+		t.Errorf("Open (1) should be Demand, got %s", proposal["1"].Tier)
 	}
-	if proposal["refining"].Tier != "Upstream" {
-		t.Errorf("refining should be Upstream (category to-do), got %s", proposal["refining"].Tier)
+	if proposal["2"].Tier != "Upstream" {
+		t.Errorf("refining (2) should be Upstream, got %s", proposal["2"].Tier)
 	}
-	if proposal["developing"].Tier != "Downstream" {
-		t.Errorf("developing should be Downstream (category indeterminate), got %s", proposal["developing"].Tier)
-	}
-
-	// Verify Roles
-	if proposal["awaiting development"].Role != "queue" {
-		t.Errorf("awaiting development should be queue, got %s", proposal["awaiting development"].Role)
+	if proposal["4"].Tier != "Downstream" {
+		t.Errorf("developing (4) should be Downstream, got %s", proposal["4"].Tier)
 	}
 
-	// Verify Order (Backbone path)
-	expectedOrder := []string{"Open", "refining", "awaiting development", "developing", "Done"}
+	// Verify Roles (keyed by ID)
+	if proposal["3"].Role != "queue" {
+		t.Errorf("awaiting development (3) should be queue, got %s", proposal["3"].Role)
+	}
+
+	// Verify Order (Backbone path by ID)
+	expectedOrder := []string{"1", "2", "3", "4", "5"}
 	for i, s := range expectedOrder {
 		if order[i] != s {
 			t.Errorf("At index %d expected %s, got %s", i, s, order[i])
@@ -467,38 +474,36 @@ func TestDiscoverStatusOrder_ShortcutAvoidance(t *testing.T) {
 	// 10 Shortcutters
 	for i := 0; i < 10; i++ {
 		issues = append(issues, jira.Issue{
-			Key:            "S",
-			Status:         "Done",
+			Key: "S", Status: "Done", StatusID: "3",
 			ResolutionDate: &now,
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "Refining", ToStatus: "Done", Date: now},
+				{FromStatus: "Refining", FromStatusID: "1", ToStatus: "Done", ToStatusID: "3", Date: now},
 			},
-			BirthStatus: "Refining",
+			BirthStatus: "Refining", BirthStatusID: "1",
 		})
 	}
 	// 8 Active pathers
 	for i := 0; i < 8; i++ {
 		issues = append(issues, jira.Issue{
-			Key:    "A",
-			Status: "Developing",
+			Key: "A", Status: "Developing", StatusID: "2",
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "Refining", ToStatus: "Developing", Date: now},
+				{FromStatus: "Refining", FromStatusID: "1", ToStatus: "Developing", ToStatusID: "2", Date: now},
 			},
-			BirthStatus: "Refining",
+			BirthStatus: "Refining", BirthStatusID: "1",
 		})
 	}
 
 	order := discovery.DiscoverStatusOrder(issues)
 
-	// We expect Refining -> Developing -> Done (orphaned appended last)
+	// We expect 1(Refining) -> 2(Developing) -> 3(Done)
 	if len(order) < 2 {
 		t.Fatalf("Expected at least 2 statuses, got %d", len(order))
 	}
-	if order[0] != "Refining" {
-		t.Errorf("Expected Refining first, got %s", order[0])
+	if order[0] != "1" {
+		t.Errorf("Expected 1 (Refining) first, got %s", order[0])
 	}
-	if order[1] != "Developing" {
-		t.Errorf("Expected Developing second (avoided Done shortcut), got %s", order[1])
+	if order[1] != "2" {
+		t.Errorf("Expected 2 (Developing) second (avoided Done shortcut), got %s", order[1])
 	}
 }
 
@@ -513,35 +518,33 @@ func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
 	// 18 items pass through UAT to Prod
 	for i := 0; i < 18; i++ {
 		issues = append(issues, jira.Issue{
-			Key:            "P",
-			Status:         "Prod",
+			Key: "P", Status: "Prod", StatusID: "2",
 			ResolutionDate: &now,
 			Transitions: []jira.StatusTransition{
-				{FromStatus: "UAT", ToStatus: "Prod", Date: now},
+				{FromStatus: "UAT", FromStatusID: "1", ToStatus: "Prod", ToStatusID: "2", Date: now},
 			},
 		})
 	}
 	// 2 items stop in UAT
 	for i := 0; i < 2; i++ {
 		issues = append(issues, jira.Issue{
-			Key:            "C",
-			Status:         "UAT",
+			Key: "C", Status: "UAT", StatusID: "1",
 			ResolutionDate: &now,
 		})
 	}
 
 	persistence := []stats.StatusPersistence{
-		{StatusName: "UAT"},
-		{StatusName: "Prod"},
+		{StatusID: "1", StatusName: "UAT"},
+		{StatusID: "2", StatusName: "Prod"},
 	}
 
 	proposal, _ := discovery.ProposeSemantics(issues, persistence)
 
-	if proposal["UAT"].Tier == "Finished" {
-		t.Errorf("UAT should be Downstream (10%% density), not Finished")
+	if proposal["1"].Tier == "Finished" {
+		t.Errorf("UAT (1) should be Downstream (10%% density), not Finished")
 	}
-	if proposal["Prod"].Tier != "Finished" {
-		t.Errorf("Prod should be Finished, got %s", proposal["Prod"].Tier)
+	if proposal["2"].Tier != "Finished" {
+		t.Errorf("Prod (2) should be Finished, got %s", proposal["2"].Tier)
 	}
 }
 
@@ -611,32 +614,32 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 	now := time.Now()
 	// Provide issues where these statuses are terminal sinks
 	issues := []jira.Issue{
-		{Key: "I-1", Status: "Done", ResolutionDate: &now},
-		{Key: "I-2", Status: "Cancelled", ResolutionDate: &now},
-		{Key: "I-3", Status: "Rejected", ResolutionDate: &now},
+		{Key: "I-1", Status: "Done", StatusID: "1", ResolutionDate: &now},
+		{Key: "I-2", Status: "Cancelled", StatusID: "2", ResolutionDate: &now},
+		{Key: "I-3", Status: "Rejected", StatusID: "3", ResolutionDate: &now},
 	}
 	// Add more transitions to satisfy "isTerminalSink" (into > 5 and into > out*4)
 	for i := 0; i < 10; i++ {
 		issues = append(issues, jira.Issue{
-			Key: "S", Status: "Done",
-			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", ToStatus: "Done"}},
+			Key: "S", Status: "Done", StatusID: "1",
+			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "1"}},
 		})
 	}
 
 	persistence := []stats.StatusPersistence{
-		{StatusName: "Done"},
-		{StatusName: "Cancelled"},
-		{StatusName: "Rejected"},
+		{StatusID: "1", StatusName: "Done"},
+		{StatusID: "2", StatusName: "Cancelled"},
+		{StatusID: "3", StatusName: "Rejected"},
 	}
 	mapping, _ := discovery.ProposeSemantics(issues, persistence)
 
-	// Done -> Delivered (Default or Keyword)
-	if mapping["Done"].Outcome != "delivered" {
-		t.Errorf("Expected Done -> delivered, got %s", mapping["Done"].Outcome)
+	// Done (1) -> Delivered (Default or Keyword)
+	if mapping["1"].Outcome != "delivered" {
+		t.Errorf("Expected Done (1) -> delivered, got %s", mapping["1"].Outcome)
 	}
-	// Cancelled -> Abandoned (Keyword)
-	if mapping["Cancelled"].Outcome != "abandoned" {
-		t.Errorf("Expected Cancelled -> abandoned, got %s", mapping["Cancelled"].Outcome)
+	// Cancelled (2) -> Abandoned (Keyword)
+	if mapping["2"].Outcome != "abandoned" {
+		t.Errorf("Expected Cancelled (2) -> abandoned, got %s", mapping["2"].Outcome)
 	}
 }
 

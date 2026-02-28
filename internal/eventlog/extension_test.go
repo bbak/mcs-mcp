@@ -23,11 +23,9 @@ func (m *MockJiraClient) GetProjectStatuses(key string) (any, error)            
 func (m *MockJiraClient) GetBoardConfig(id int) (any, error)                     { return nil, nil }
 func (m *MockJiraClient) GetFilter(id string) (any, error)                       { return nil, nil }
 func (m *MockJiraClient) SearchIssues(jql string, startAt int, maxResults int) (*jira.SearchResponse, error) {
-	return nil, nil
-}
-func (m *MockJiraClient) SearchIssuesWithHistory(jql string, startAt, maxResults int) (*jira.SearchResponse, error) {
 	return m.SearchIssuesFunc(jql, startAt, maxResults)
 }
+func (m *MockJiraClient) GetRegistry(projectKey string) (*jira.NameRegistry, error) { return nil, nil }
 
 func TestLogProvider_HistoryExpansion(t *testing.T) {
 	store := NewEventStore()
@@ -76,7 +74,7 @@ func TestLogProvider_HistoryExpansion(t *testing.T) {
 	}
 
 	// Execute Expansion
-	fetched, usedOMRC, err := p.ExpandHistory(sourceID, jql, 1)
+	fetched, usedOMRC, _, err := p.ExpandHistory(sourceID, "PROJ", jql, 1, nil)
 	if err != nil {
 		t.Fatalf("ExpandHistory failed: %v", err)
 	}
