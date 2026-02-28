@@ -35,11 +35,18 @@ func TestMCSTEST_Integration(t *testing.T) {
 			t.Run(fmt.Sprintf("%s_%s", dist, scen), func(t *testing.T) {
 				cacheDir := t.TempDir()
 				sourceID := "MCSTEST_0"
-				generateMockData(scen, dist, 300, cacheDir, sourceID)
+
+				// Pin the date for consistent week/month boundaries
+				referenceTime := time.Date(2026, 2, 28, 12, 0, 0, 0, time.UTC)
+
+				generateMockData(scen, dist, 300, cacheDir, sourceID, referenceTime)
 
 				server := NewServer(&config.AppConfig{
 					CacheDir: cacheDir,
 				}, &DummyClient{})
+
+				// Inject the date to guarantee deterministic outputs across all handlers
+				server.activeEvaluationDate = &referenceTime
 
 				// 1. Verify Board Details
 				res, err := server.handleGetBoardDetails("MCSTEST", 0)
@@ -120,11 +127,11 @@ func TestMCSTEST_Integration(t *testing.T) {
 					accuracy := res.AccuracyScore
 					t.Logf("[%s/%s] WFA Accuracy: %.2f", dist, scen, accuracy)
 
-					// Threshold lowered from 0.65 to 0.50 to accommodate daily variance
-					// from time.Now()-based mock generation. The WFA engine also uses
-					// time.Now() internally (walkforward.go) making full pinning impractical.
-					if accuracy < 0.50 {
-						t.Errorf("Mild WFA Accuracy too low: %.2f (expected > 0.50)", accuracy)
+					// Deterministic pin locked the output to 0.58.
+					// We leave a tiny bit of buffer for numeric variations, but
+					// we expect it to be stable.
+					if accuracy < 0.55 {
+						t.Errorf("Mild WFA Accuracy too low: %.2f (expected > 0.55)", accuracy)
 					}
 				}
 
@@ -163,12 +170,12 @@ func TestMCSTEST_Integration(t *testing.T) {
 	}
 }
 
-func generateMockData(scenario, distribution string, count int, outDir, sourceID string) {
+func generateMockData(scenario, distribution string, count int, outDir, sourceID string, referenceTime time.Time) {
 	cfg := engine.GeneratorConfig{
 		Scenario:     scenario,
 		Distribution: distribution,
 		Count:        count,
-		Now:          time.Now(),
+		Now:          referenceTime,
 	}
 
 	events, mapping := engine.Generate(cfg)

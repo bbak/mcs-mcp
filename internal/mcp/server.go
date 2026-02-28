@@ -43,8 +43,16 @@ type Server struct {
 	activeStatusOrder     []string
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
+	activeEvaluationDate  *time.Time
 	activeRegistry        *jira.NameRegistry
 	enableMermaidCharts   bool
+}
+
+func (s *Server) Clock() time.Time {
+	if s.activeEvaluationDate != nil {
+		return *s.activeEvaluationDate
+	}
+	return time.Now()
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
@@ -437,6 +445,11 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
 		data, err = s.handleCacheCatchUp(projectKey, boardID)
+	case "workflow_set_evaluation_date":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		dateStr := asString(call.Arguments["date"])
+		data, err = s.handleSetEvaluationDate(projectKey, boardID, dateStr)
 	default:
 		return nil, map[string]any{"code": -32601, "message": "Tool not found"}
 	}
@@ -465,6 +478,7 @@ type WorkflowMetadata struct {
 	StatusOrder     []string                        `json:"status_order,omitempty"`
 	CommitmentPoint string                          `json:"commitment_point,omitempty"`
 	DiscoveryCutoff *time.Time                      `json:"discovery_cutoff,omitempty"`
+	EvaluationDate  *time.Time                      `json:"evaluation_date,omitempty"`
 	NameRegistry    *jira.NameRegistry              `json:"name_registry,omitempty"`
 }
 
@@ -477,6 +491,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		StatusOrder:     s.activeStatusOrder,
 		CommitmentPoint: s.activeCommitmentPoint,
 		DiscoveryCutoff: s.activeDiscoveryCutoff,
+		EvaluationDate:  s.activeEvaluationDate,
 		NameRegistry:    s.activeRegistry,
 	}
 
@@ -511,6 +526,7 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	s.activeStatusOrder = meta.StatusOrder
 	s.activeCommitmentPoint = meta.CommitmentPoint
 	s.activeDiscoveryCutoff = meta.DiscoveryCutoff
+	s.activeEvaluationDate = meta.EvaluationDate
 	s.activeRegistry = meta.NameRegistry
 
 	// Migration: Resolve StatusOrder names to IDs for internal stability
@@ -574,6 +590,7 @@ func (s *Server) anchorContext(projectKey string, boardID int) error {
 	s.activeResolutions = nil
 	s.activeStatusOrder = nil
 	s.activeCommitmentPoint = ""
+	s.activeEvaluationDate = nil
 	s.activeRegistry = nil
 
 	// 2. Prune EventStore RAM
@@ -601,7 +618,7 @@ func (s *Server) recalculateDiscoveryCutoff(sourceID string) {
 		return
 	}
 
-	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", time.Time{})
+	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", time.Time{})
 	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
 	domainIssues, _, _, _ := stats.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
 

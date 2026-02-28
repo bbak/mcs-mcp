@@ -20,6 +20,7 @@ type WalkForwardConfig struct {
 	ItemsToForecast int      // Number of items (only for Duration mode)
 	IssueTypes      []string // Optional: Filter by issue types
 	Resolutions     map[string]string
+	EvaluationDate  time.Time
 }
 
 // ValidationCheckpoint represents a single point in the past where we ran a simulation.

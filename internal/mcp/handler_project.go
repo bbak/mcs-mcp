@@ -39,7 +39,7 @@ func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 	_ = s.saveWorkflow(projectKey, 0)
 
 	// 4. Data Probe (Tier-Neutral Discovery)
-	events := s.events.GetEventsInRange(projectKey, time.Time{}, time.Now())
+	events := s.events.GetEventsInRange(projectKey, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
 	sample := stats.ProjectNeutralSample(events, 200)
 
