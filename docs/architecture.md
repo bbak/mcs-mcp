@@ -244,6 +244,13 @@ To ensure analytical integrity when issues move between projects or change workf
 - **Touch-and-Go Automation Filter**: Any status residency under 60 seconds is automatically discarded during persistence analytics. This prevents high-speed Jira automation rules or bulk-transitions from artificially dragging down stage medians with unrepresentative 0-day flow debt.
 - **Zero-Day Safeguard**: Current aging metrics are rounded up to the nearest 0.1 to avoid misleading "0.0 days" results.
 
+### 8.7 The ID-First Canonical Key Strategy
+
+To ensure robust data integration and cross-localization compatibility, MCS-MCP implements an "ID-First" architecture for all internal state and processing.
+
+- **Canonical Processing**: Internally, the analytical pipelines (e.g., Residency, CFD, Aging, and Simulations) strictly key off immutable and stable Jira Object IDs (e.g., Status IDs, Resolution IDs). This eliminates mathematical fragility caused by human-readable names changing over time or being returned in the user's native language by the Jira Cloud API.
+- **API Boundary Translation**: Human-readable strings are used exclusively at the external API boundaries. When interacting with the AI Agent or the user, the server automatically translates IDs back to their human-readable equivalents (via a bidirectional `NameRegistry`) to ensure discovery, exploration, and generated metrics remain intuitive and conversational.
+
 ---
 
 ## 9. Data Security & GRC Principles
