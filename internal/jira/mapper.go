@@ -13,6 +13,12 @@ type StatusSegment struct {
 	End    time.Time
 }
 
+// Interval represents a time range, typically used for blocked periods.
+type Interval struct {
+	Start time.Time
+	End   time.Time
+}
+
 // MapIssue transforms a Jira DTO into a Domain Issue and calculates residency.
 func MapIssue(item IssueDTO, finishedStatuses map[string]bool) Issue {
 	issue := Issue{
@@ -259,4 +265,34 @@ func CalculateResidency(transitions []StatusTransition, created time.Time, resol
 	})
 
 	return residency, segments
+}
+
+// CalculateBlockedResidency computes the overlapping time between status segments and blocked intervals.
+func CalculateBlockedResidency(statusSegments []StatusSegment, blockedIntervals []Interval) map[string]int64 {
+	blockedResidency := make(map[string]int64)
+
+	for _, status := range statusSegments {
+		var totalBlockedSeconds int64
+		for _, blocked := range blockedIntervals {
+			// Find overlap between [status.Start, status.End] and [blocked.Start, blocked.End]
+			overlapStart := status.Start
+			if blocked.Start.After(overlapStart) {
+				overlapStart = blocked.Start
+			}
+
+			overlapEnd := status.End
+			if blocked.End.Before(overlapEnd) {
+				overlapEnd = blocked.End
+			}
+
+			if overlapStart.Before(overlapEnd) {
+				totalBlockedSeconds += int64(overlapEnd.Sub(overlapStart).Seconds())
+			}
+		}
+		if totalBlockedSeconds > 0 {
+			blockedResidency[status.Status] += totalBlockedSeconds
+		}
+	}
+
+	return blockedResidency
 }

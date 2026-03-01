@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/visuals"
@@ -158,7 +159,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
-	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions, s.activeMapping)
+	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions)
 	throughput.XmR = stats.AnalyzeThroughputStability(throughput)
 
 	// Build bucket metadata
@@ -388,7 +389,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		}
 	}
 
-	issue := stats.MapIssueFromEvents(events, finishedMap, time.Now())
+	issue := eventlog.ReconstructIssue(events, time.Now())
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -615,7 +616,7 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 	allIssues := append(finished, append(downstream, append(upstream, demand...)...)...)
 
 	// 3. Calculate CFD Data
-	cfd := stats.CalculateCFDData(allIssues, window, s.activeMapping)
+	cfd := stats.CalculateCFDData(allIssues, window)
 
 	res := map[string]any{
 		"cfd_data": cfd,

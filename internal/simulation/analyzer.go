@@ -28,7 +28,7 @@ func AssessStratificationNeeds(issues []jira.Issue, resolutions map[string]strin
 	var allCycleTimes []float64
 
 	for _, iss := range issues {
-		if !stats.IsDelivered(iss, resolutions, mappings) {
+		if !stats.IsDelivered(iss, resolutions) {
 			continue
 		}
 

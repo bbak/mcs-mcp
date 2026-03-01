@@ -34,11 +34,16 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 	lossMap := make(map[string][]float64) // Tier -> Ages before abandonment
 
 	for _, issue := range issues {
+		issue = DetermineOutcome(issue, mappings)
+
 		// 1. Determine Outcome
-		outcome := resolutions[issue.Resolution]
-		if outcome == "" {
-			if m, ok := mappings[issue.StatusID]; ok {
-				outcome = m.Outcome
+		var outcome string
+		if strings.HasPrefix(issue.Resolution, "Synthetic-") {
+			outcome = strings.TrimPrefix(issue.Resolution, "Synthetic-")
+		} else if issue.Resolution != "" {
+			outcome = resolutions[issue.Resolution]
+			if outcome == "" {
+				outcome = resolutions[issue.ResolutionID]
 			}
 		}
 
@@ -57,11 +62,14 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 					tier = strings.ToUpper(parts[1][:1]) + strings.ToLower(parts[1][1:])
 				}
 			} else {
-				// Heuristic-based Attribution: use the tier of the status BEFORE it reached Finished
-				if len(issue.Transitions) > 0 {
-					lastStatus := issue.Transitions[len(issue.Transitions)-1].ToStatus
-					if m, ok := mappings[lastStatus]; ok {
-						tier = m.Tier
+				// Heuristic-based Attribution: find the last status BEFORE the item entered Finished.
+				// We walk backwards and skip Finished-tier statuses.
+				for i := len(issue.Transitions) - 1; i >= 0; i-- {
+					tr := issue.Transitions[i]
+					t := DetermineTier(jira.Issue{Status: tr.ToStatus, StatusID: tr.ToStatusID}, "", mappings)
+					if t != "Finished" && t != "Unknown" {
+						tier = t
+						break
 					}
 				}
 			}

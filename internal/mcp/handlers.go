@@ -162,7 +162,7 @@ func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Iss
 		}
 
 		// Only count "delivered" work
-		if !stats.IsDelivered(issue, s.activeResolutions, s.activeMapping) {
+		if !stats.IsDelivered(issue, s.activeResolutions) {
 			continue
 		}
 
@@ -197,7 +197,7 @@ func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []ji
 		}
 
 		// Only count "delivered" work
-		if !stats.IsDelivered(issue, s.activeResolutions, s.activeMapping) {
+		if !stats.IsDelivered(issue, s.activeResolutions) {
 			continue
 		}
 

@@ -39,7 +39,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	// 1. First pass: Collect delivered items and their types
 	deliveredIssues := make([]jira.Issue, 0)
 	for _, issue := range issues {
-		if !stats.IsDelivered(issue, resolutionMappings, mappings) {
+		if !stats.IsDelivered(issue, resolutionMappings) {
 			continue
 		}
 		deliveredIssues = append(deliveredIssues, issue)

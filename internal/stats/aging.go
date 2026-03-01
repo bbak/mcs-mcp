@@ -124,13 +124,10 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 
 	for _, issue := range wipIssues {
 		// 0. Determine Tier Context
-		currentTier := "Demand"
+		currentTier := DetermineTier(issue, startStatus, mappings)
 		isFinished := false
-		if m, ok := mappings[issue.StatusID]; ok {
-			currentTier = m.Tier
-			if m.Tier == "Finished" || m.Role == "terminal" {
-				isFinished = true
-			}
+		if currentTier == "Finished" {
+			isFinished = true
 		}
 
 		// 1. Current Step Age (Stopped for Finished)
@@ -162,13 +159,12 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			// Try to find if this status name corresponds to an ID in our current mapping
 			// Since StatusResidency ONLY has name, we must use Name-based lookup or a Name->ID map.
 			// But mappings map can contain Names too.
-			if m, ok := mappings[status]; ok {
-				switch m.Tier {
-				case "Upstream", "Demand":
-					upstreamDays += days
-				case "Downstream":
-					downstreamDays += days
-				}
+			t := DetermineTier(jira.Issue{Status: status}, startStatus, mappings)
+			switch t {
+			case "Upstream", "Demand":
+				upstreamDays += days
+			case "Downstream":
+				downstreamDays += days
 			}
 		}
 

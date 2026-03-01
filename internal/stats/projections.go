@@ -5,7 +5,6 @@ import (
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -45,45 +44,29 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 	var demand []jira.Issue
 
 	for _, issueEvents := range grouped {
-		issue := MapIssueFromEvents(issueEvents, finishedMap, window.End)
+		issue := eventlog.ReconstructIssue(issueEvents, window.End)
 		if issue.IsSubtask {
 			continue
 		}
 
+		issue = DetermineOutcome(issue, mappings)
+
 		// 1. Was it resolved WITHIN the window?
-		isResolved := false
-		var resDate time.Time
-
 		if issue.ResolutionDate != nil {
-			isResolved = true
-			resDate = *issue.ResolutionDate
-		} else if m, ok := mappings[issue.StatusID]; ok && m.Tier == "Finished" {
-			isResolved = true
-			resDate = issue.Updated
-		}
-
-		if isResolved {
-			if !resDate.Before(window.Start) && !resDate.After(window.End) {
+			if !issue.ResolutionDate.Before(window.Start) && !issue.ResolutionDate.After(window.End) {
 				finished = append(finished, issue)
 			}
 			continue
 		}
 
 		// 2. Classify by Tier at the end of the window
-		if m, ok := mappings[issue.StatusID]; ok {
-			switch m.Tier {
-			case "Downstream":
-				downstream = append(downstream, issue)
-			case "Upstream":
-				upstream = append(upstream, issue)
-			case "Demand":
-				demand = append(demand, issue)
-			default:
-				// Fallback or items without tiers
-				demand = append(demand, issue)
-			}
-		} else {
-			// Fallback: Default to Demand if mapping is missing
+		tier := DetermineTier(issue, commitmentPoint, mappings)
+		switch tier {
+		case "Downstream":
+			downstream = append(downstream, issue)
+		case "Upstream":
+			upstream = append(upstream, issue)
+		case "Demand", "Unknown":
 			demand = append(demand, issue)
 		}
 	}
@@ -173,7 +156,7 @@ func ProjectNeutralSample(events []eventlog.IssueEvent, targetSize int) []jira.I
 		key := sortedKeys[i].key
 		issueEvents := grouped[key]
 		// Reconstruct without mappings or tier filters
-		issue := MapIssueFromEvents(issueEvents, nil, time.Time{})
+		issue := eventlog.ReconstructIssue(issueEvents, time.Time{})
 		if !issue.IsSubtask {
 			sample = append(sample, issue)
 		}
@@ -287,12 +270,23 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 
 		// Signal-Aware detection
 		if e.EventType != eventlog.Created {
-			if e.Resolution != "" {
-				nowDelivered = true
-			} else if e.ToStatus != "" {
-				if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+			if e.ToStatus != "" || e.ToStatusID != "" {
+				// Use PreferID logic inline
+				statusKey := e.ToStatusID
+				if statusKey == "" {
+					statusKey = e.ToStatus
+				}
+
+				if m, ok := mappings[statusKey]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+					nowDelivered = true
+				} else if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
 					nowDelivered = true
 				}
+			}
+
+			// Fallback: If it has a resolution but we didn't map the status, count it if it's not explicitly missing
+			if !nowDelivered && (e.Resolution != "" || e.ResolutionID != "") {
+				nowDelivered = true
 			}
 		}
 
@@ -320,210 +314,14 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 	return result
 }
 
-// MapIssueFromEvents builds a Domain Issue from a chronological stream of events.
-// If referenceDate is non-zero, it is used as the "Now" for open items.
-func MapIssueFromEvents(events []eventlog.IssueEvent, finishedStatuses map[string]bool, referenceDate time.Time) jira.Issue {
-	if len(events) == 0 {
-		return jira.Issue{}
-	}
-
-	first := events[0]
-	issue := jira.Issue{
-		Key:               first.IssueKey,
-		IssueType:         first.IssueType,
-		StatusResidency:   make(map[string]int64),
-		Created:           time.UnixMicro(first.Timestamp), // Defensive default in case birth event is missing
-		HasSyntheticBirth: true,                            // Assume synthetic until proven otherwise
-	}
-	issue.ProjectKey = ExtractProjectKey(first.IssueKey)
-
-	// simplified loop: events are now packed atomic change-sets
-	for _, e := range events {
-		issue.Updated = time.UnixMicro(e.Timestamp)
-
-		// Signal-Aware application
-		if e.EventType == eventlog.Created || e.ToStatus != "" {
-			if e.EventType == eventlog.Created {
-				issue.Created = time.UnixMicro(e.Timestamp)
-				issue.HasSyntheticBirth = false // We have a real birth event!
-				issue.BirthStatus = e.ToStatus
-				issue.BirthStatusID = e.ToStatusID
-			} else {
-				issue.Transitions = append(issue.Transitions, jira.StatusTransition{
-					FromStatus:   e.FromStatus,
-					FromStatusID: e.FromStatusID,
-					ToStatus:     e.ToStatus,
-					ToStatusID:   e.ToStatusID,
-					Date:         time.UnixMicro(e.Timestamp),
-				})
-			}
-			issue.Status = e.ToStatus
-			issue.StatusID = e.ToStatusID
-		}
-
-		if e.Resolution != "" {
-			resTS := time.UnixMicro(e.Timestamp)
-			issue.ResolutionDate = &resTS
-			issue.Resolution = e.Resolution
-			issue.ResolutionID = e.ResolutionID
-		} else if e.IsUnresolved {
-			issue.ResolutionDate = nil
-			issue.Resolution = ""
-			issue.ResolutionID = ""
-		}
-
-		if e.EventType == eventlog.Flagged {
-			issue.Flagged = e.Flagged
-		}
-
-		if e.EventType == eventlog.Created {
-			issue.Flagged = e.Flagged
-		}
-
-		if e.EventType == eventlog.Created && e.IsHealed {
-			issue.IsMoved = true
-		}
-
-		// Final evaluation after applying all signals in this event
-		if len(finishedStatuses) > 0 && e.Resolution == "" {
-			isFin := finishedStatuses[issue.Status] || (issue.StatusID != "" && finishedStatuses[issue.StatusID])
-			if !isFin {
-				// Case-insensitive fallback for Name
-				lowerStatus := strings.ToLower(issue.Status)
-				for name, ok := range finishedStatuses {
-					if ok && strings.ToLower(name) == lowerStatus {
-						isFin = true
-						break
-					}
-				}
-			}
-
-			if !isFin {
-				issue.ResolutionDate = nil
-				issue.Resolution = ""
-			} else if issue.ResolutionDate == nil {
-				// Synthetic Fallback
-				var streakStart int64
-				for i := len(events) - 1; i >= 0; i-- {
-					evt := events[i]
-					isPreviousFin := finishedStatuses[evt.ToStatus] || (evt.ToStatusID != "" && finishedStatuses[evt.ToStatusID])
-					if !isPreviousFin {
-						lowerS := strings.ToLower(evt.ToStatus)
-						for name, ok := range finishedStatuses {
-							if ok && strings.ToLower(name) == lowerS {
-								isPreviousFin = true
-								break
-							}
-						}
-					}
-
-					if !isPreviousFin {
-						break
-					}
-					streakStart = evt.Timestamp
-				}
-				if streakStart != 0 {
-					resDate := time.UnixMicro(streakStart)
-					issue.ResolutionDate = &resDate
-				}
-			}
-		}
-	}
-
-	issue.StatusResidency, issue.BlockedResidency = CalculateResidencyFromEvents(events, issue.Created, issue.ResolutionDate, issue.Status, issue.StatusID, finishedStatuses, referenceDate)
-
-	return issue
-}
-
-// CalculateResidencyFromEvents computes residency times from an event stream by converting to domain transitions.
-func CalculateResidencyFromEvents(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, currentStatus, currentStatusID string, finished map[string]bool, referenceDate time.Time) (map[string]int64, map[string]int64) {
-	var transitions []jira.StatusTransition
-	var initialStatus string
-	var initialStatusID string
-
-	// Pass 1: Extract transitions and find the earliest status
-	for _, e := range events {
-		if e.EventType == eventlog.Created || e.ToStatus != "" {
-			if initialStatus == "" {
-				if e.EventType == eventlog.Created {
-					initialStatus = e.ToStatus
-					initialStatusID = e.ToStatusID
-				} else {
-					initialStatus = e.FromStatus
-					initialStatusID = e.FromStatusID
-				}
-			}
-
-			if e.ToStatus != "" && e.EventType != eventlog.Created {
-				transitions = append(transitions, jira.StatusTransition{
-					FromStatus:   e.FromStatus,
-					FromStatusID: e.FromStatusID,
-					ToStatus:     e.ToStatus,
-					ToStatusID:   e.ToStatusID,
-					Date:         time.UnixMicro(e.Timestamp),
-				})
-			}
-		}
-	}
-
-	residency, segments := jira.CalculateResidency(transitions, created, resolved, currentStatus, currentStatusID, finished, initialStatus, initialStatusID, referenceDate)
-
-	// Friction Mapping: Extract blocked intervals and overlay them
-	blockedIntervals := ExtractBlockedIntervals(events, created, resolved, referenceDate)
-	blockedResidency := CalculateBlockedResidency(segments, blockedIntervals)
-
-	return residency, blockedResidency
-}
-
-// ExtractBlockedIntervals identifies periods where an item was flagged as impeded.
-func ExtractBlockedIntervals(events []eventlog.IssueEvent, created time.Time, resolved *time.Time, referenceDate time.Time) []Interval {
-	var intervals []Interval
-	var currentStart *time.Time
-
-	for _, e := range events {
-		if e.Timestamp > referenceDate.UnixMicro() {
-			break
-		}
-		if resolved != nil && e.Timestamp > resolved.UnixMicro() {
-			break
-		}
-
-		if e.EventType == eventlog.Flagged {
-			if e.Flagged != "" && currentStart == nil {
-				ts := time.UnixMicro(e.Timestamp)
-				currentStart = &ts
-			} else if e.Flagged == "" && currentStart != nil {
-				intervals = append(intervals, Interval{
-					Start: *currentStart,
-					End:   time.UnixMicro(e.Timestamp),
-				})
-				currentStart = nil
-			}
-		}
-	}
-
-	if currentStart != nil {
-		end := referenceDate
-		if resolved != nil {
-			end = *resolved
-		}
-		intervals = append(intervals, Interval{
-			Start: *currentStart,
-			End:   end,
-		})
-	}
-
-	return intervals
-}
-
 // GetStratifiedThroughput aggregates resolved items into time buckets, both pooled and stratified by type.
-func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutions map[string]string, mappings map[string]StatusMetadata) StratifiedThroughput {
+func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutions map[string]string) StratifiedThroughput {
 	buckets := window.Subdivide()
 	pooled := make([]int, len(buckets))
 	byType := make(map[string][]int)
 
 	for _, issue := range issues {
-		if !IsDelivered(issue, resolutions, mappings) {
+		if !IsDelivered(issue, resolutions) {
 			continue
 		}
 

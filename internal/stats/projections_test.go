@@ -103,8 +103,7 @@ func TestMapIssueFromEvents_MoveHealing(t *testing.T) {
 		},
 	}
 
-	finished := map[string]bool{"Done": true}
-	issue := MapIssueFromEvents(events, finished, now)
+	issue := eventlog.ReconstructIssue(events, now)
 
 	// Verification 1: Age should be 10 days (from T0), status residency should be split correctly
 	// T0 to T2 (8 days) in 'Open'

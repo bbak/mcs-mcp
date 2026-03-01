@@ -35,7 +35,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	workflowPath := filepath.Join(testingDir, "simulated_workflow.json")
 
 	// 2. Load the Adversarial Event Log
-	store := eventlog.NewEventStore()
+	store := eventlog.NewEventStore(nil)
 	err := store.Load(testingDir, eventsFile)
 	if err != nil {
 		t.Fatalf("Failed to load simulated events: %v", err)
@@ -113,7 +113,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	)
 
 	// 4. Execute the Pipeline
-	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, wf.Resolutions, idMapping)
+	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, wf.Resolutions)
 	cadence.XmR = stats.AnalyzeThroughputStability(cadence)
 
 	yield := stats.CalculateProcessYield(session.GetAllIssues(), idMapping, wf.Resolutions)
@@ -168,7 +168,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, commitmentID, flatWeights, wf.Resolutions, idMapping)
 
-	cfd := stats.CalculateCFDData(session.GetAllIssues(), window, idMapping)
+	cfd := stats.CalculateCFDData(session.GetAllIssues(), window)
 
 	// 5. Gather Results
 	result := PipelineGoldenResult{

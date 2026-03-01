@@ -281,9 +281,8 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 	for _, evts := range groups {
 
 		// For the purpose of "Finished Map" in MapIssueFromEvents,
-		// we can probably assume the standard Reconstruct logic handles explicit resolution events.
 		// Passing empty map means it relies on explicit events, which is fine.
-		issue := stats.MapIssueFromEvents(evts, finishedMap, refDate)
+		issue := eventlog.ReconstructIssue(evts, refDate)
 
 		// Force Resolution Date to nil if it happened after refDate?
 		// (Already handled by event slicing, but explicit check is good)
@@ -301,7 +300,7 @@ func (w *WalkForwardEngine) countFinishedInWindow(allIssues []jira.Issue, start,
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil {
 			if !i.ResolutionDate.Before(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
-				if stats.IsDelivered(i, w.resolutions, w.mappings) {
+				if stats.IsDelivered(i, w.resolutions) {
 					count++
 				}
 			}
@@ -315,7 +314,7 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 	resolvedAfter := make([]time.Time, 0)
 	for _, i := range allIssues {
 		if i.ResolutionDate != nil && i.ResolutionDate.After(start) {
-			if stats.IsDelivered(i, w.resolutions, w.mappings) {
+			if stats.IsDelivered(i, w.resolutions) {
 				resolvedAfter = append(resolvedAfter, *i.ResolutionDate)
 			}
 		}

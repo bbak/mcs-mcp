@@ -19,13 +19,18 @@ type EventStore struct {
 	mu       sync.RWMutex
 	logs     map[string][]IssueEvent // Partitioned by SourceID (Board ID)
 	latestTs map[string]time.Time    // In-memory cache of latest event per source
+	clock    func() time.Time        // Time-travel boundary
 }
 
 // NewEventStore creates a new empty EventStore.
-func NewEventStore() *EventStore {
+func NewEventStore(clock func() time.Time) *EventStore {
+	if clock == nil {
+		clock = time.Now
+	}
 	return &EventStore{
 		logs:     make(map[string][]IssueEvent),
 		latestTs: make(map[string]time.Time),
+		clock:    clock,
 	}
 }
 
@@ -293,10 +298,14 @@ func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []I
 		}
 	}
 
-	// 2. Collect all events for relevant keys up to 'end'
+	// 2. Collect all events for relevant keys up to 'end' (respecting clock)
+	clockLimit := s.clock().UnixMicro()
 	var result []IssueEvent
 	for _, e := range logData {
 		if relevantKeys[e.IssueKey] {
+			if e.Timestamp > clockLimit {
+				continue
+			}
 			if end.IsZero() || e.Timestamp <= endTs {
 				result = append(result, e)
 			}
@@ -316,8 +325,12 @@ func (s *EventStore) GetEventsForIssue(sourceID string, issueKey string) []Issue
 	}
 
 	var result []IssueEvent
+	clockLimit := s.clock().UnixMicro()
 	for _, e := range logData {
 		if e.IssueKey == issueKey {
+			if e.Timestamp > clockLimit {
+				continue
+			}
 			result = append(result, e)
 		}
 	}
@@ -329,10 +342,14 @@ func (s *EventStore) FindIssueInAllSources(issueKey string) (string, []IssueEven
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	clockLimit := s.clock().UnixMicro()
 	for sourceID, logData := range s.logs {
 		var result []IssueEvent
 		for _, e := range logData {
 			if e.IssueKey == issueKey {
+				if e.Timestamp > clockLimit {
+					continue
+				}
 				result = append(result, e)
 			}
 		}

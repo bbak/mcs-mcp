@@ -14,7 +14,7 @@ func TestEventStore_Persistence(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store1 := NewEventStore()
+	store1 := NewEventStore(nil)
 	sourceID := "test-board"
 
 	now := time.Now().UnixMicro()
@@ -46,7 +46,7 @@ func TestEventStore_Persistence(t *testing.T) {
 	}
 
 	// Load into new store
-	store2 := NewEventStore()
+	store2 := NewEventStore(nil)
 	err = store2.Load(tmpDir, sourceID)
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)

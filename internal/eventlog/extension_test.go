@@ -28,7 +28,7 @@ func (m *MockJiraClient) SearchIssues(jql string, startAt int, maxResults int) (
 func (m *MockJiraClient) GetRegistry(projectKey string) (*jira.NameRegistry, error) { return nil, nil }
 
 func TestLogProvider_HistoryExpansion(t *testing.T) {
-	store := NewEventStore()
+	store := NewEventStore(nil)
 	mockJira := &MockJiraClient{}
 	p := NewLogProvider(mockJira, store, "")
 
@@ -97,9 +97,12 @@ func TestLogProvider_HistoryExpansion(t *testing.T) {
 }
 
 func TestLogProvider_MergeStrategy(t *testing.T) {
-	store := NewEventStore()
-	sourceID := "PROJ-1"
 	now := time.Now().Truncate(time.Minute)
+	later := now.Add(1 * time.Hour)
+	endOfTime := later.Add(1 * time.Hour)
+
+	store := NewEventStore(func() time.Time { return endOfTime })
+	sourceID := "PROJ-1"
 
 	// 1. Initial event for PROJ-1
 	store.Append(sourceID, []IssueEvent{
@@ -107,7 +110,6 @@ func TestLogProvider_MergeStrategy(t *testing.T) {
 	})
 
 	// 2. Merge fresh history for PROJ-1
-	later := now.Add(1 * time.Hour)
 	freshEvents := []IssueEvent{
 		{IssueKey: "PROJ-1", Timestamp: now.UnixMicro(), EventType: "Created"},
 		{IssueKey: "PROJ-1", Timestamp: later.UnixMicro(), EventType: "Change", ToStatus: "In Progress"},

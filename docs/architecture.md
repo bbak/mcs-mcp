@@ -203,7 +203,42 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
     - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-### 8.2 Analytical Orchestration (`AnalysisSession`)
+### 8.2 The 3-Layer History Reconstruction Model
+
+To ensure conceptual integrity and clear separation of concerns, MCS-MCP utilizes a 3-layered architectural approach for rebuilding the state of work items at any given point in time.
+
+```mermaid
+graph TD
+    subgraph "Layer 1: The Event Log (internal/eventlog)"
+        L1["<b>Raw Atomic Events</b><br/>Chronological facts (Change, Flagged, etc.)<br/>strictly bound by Clock()"]
+    end
+    subgraph "Layer 2: The Snapshot (internal/eventlog.ReconstructIssue)"
+        L2["<b>Mechanical Flattening</b><br/>Cumulative residency & factual attributes<br/>Point-in-time DTO (jira.Issue)"]
+    end
+    subgraph "Layer 3: The Interpreter (internal/stats)"
+        L3["<b>Semantic Policy</b><br/>Outcome Inference (DetermineOutcome)<br/>Process Tiering (DetermineTier)"]
+    end
+    L1 -->|Fact Stream| L2
+    L2 -->|Issue Snapshot| L3
+    L3 -->|Analytical Context| Analytics[Stability / Cycle Time / Simulations]
+```
+
+1.  **Layer 1: The Event Log (`internal/eventlog`)**:
+    - **Responsibility**: Chronological extraction of atomic facts from the Jira change history.
+    - **Temporal Guard**: The log is strictly masked by the app-wide `Clock()`. Events occurring after the evaluation date are physically invisible to the rest of the application, ensuring 100% deterministic time-travel analysis.
+    - **Smartness**: "Dumb". It only knows how to retrieve and sort facts.
+
+2.  **Layer 2: Mechanical Snapshot (`internal/eventlog.ReconstructIssue`)**:
+    - **Responsibility**: Flattens the Layer 1 event stream into a single `jira.Issue` structure describing the item's state at the requested point in time.
+    - **Smartness**: Mechanical. It aggregates history—calculating total residency in statuses and building transition arrays—but lacks any concept of workflow meaning (e.g., it does not know if a status is "Finished").
+    - **Output**: Purely factual. It computes the "What" and "When" without the "Why".
+
+3.  **Layer 3: Semantic Interpreter (`internal/stats`)**:
+    - **Responsibility**: Applies the project's meta-workflow configuration (Mappings, Resolutions, Commitment Point) to the Layer 2 snapshot.
+    - **Smartness**: "Smart". This layer performs outcome inference (synthesizing missing Resolution Dates), tier classification (Demand vs. Downstream), and delivery validation.
+    - **Analytical Decoupling**: Algorithms (like Cadence or Yield) only consume Layer 3 interpreted data, protecting them from the noise of inconsistent raw Jira data.
+
+### 8.3 Analytical Orchestration (`AnalysisSession`)
 
 To reduce boilerplate and ensure consistency across tools, the system utilizes a centralized **AnalysisSession** (Orchestrator).
 
@@ -211,7 +246,7 @@ To reduce boilerplate and ensure consistency across tools, the system utilizes a
 - **Consolidated Projections**: All analytical projections (Scope, WIP, Throughput) are anchored to the session's temporal window, ensuring that different tools (e.g., Simulation and Aging) ALWAYS operate on the same data snapshot.
 - **Windowed Context**: The session maintains the **AnalysisWindow**, providing a single point of truth for "Now" vs "Then" during historical reconstructions.
 
-### 8.3 Strategic Decoupling (Package Boundaries)
+### 8.4 Strategic Decoupling (Package Boundaries)
 
 The codebase follows a strict acyclic dependency model designed for stability during rapid refactoring:
 
@@ -220,7 +255,7 @@ The codebase follows a strict acyclic dependency model designed for stability du
 - **`internal/jira`**: The DTO and Mapping layer. Houses the objective Jira domain models and transformation logic.
 - **`internal/stats/discovery`**: A specialized sub-package for non-deterministic "Best Guess" workflow heuristics, keeping the core `stats` package focused on pure mathematics.
 
-### 8.4 Discovery Sampling Rules
+### 8.5 Discovery Sampling Rules
 
 To ensures discovery reflect the **active process**, the system applies recency bias:
 

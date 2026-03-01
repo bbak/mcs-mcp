@@ -56,13 +56,16 @@ func (s *Server) Clock() time.Time {
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
-	store := eventlog.NewEventStore()
-	return &Server{
+	s := &Server{
 		jira:                jiraClient,
-		events:              eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir),
 		cacheDir:            cfg.CacheDir,
 		enableMermaidCharts: cfg.EnableMermaidCharts,
 	}
+
+	store := eventlog.NewEventStore(s.Clock)
+	s.events = eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir)
+
+	return s
 }
 
 func (s *Server) Start() {
