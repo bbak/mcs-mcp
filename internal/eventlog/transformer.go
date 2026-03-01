@@ -42,6 +42,12 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 	// We'll walk history BACKWARDS to find where the issue entered our scope.
 	initialStatus := resolveStatus(registry, dto.Fields.Status.ID, dto.Fields.Status.UntranslatedName)
 	if initialStatus == "" {
+		initialStatus = resolveStatus(registry, dto.Fields.Status.ID, dto.Fields.Status.Name)
+	}
+	if initialStatus == "" {
+		initialStatus = dto.Fields.Status.UntranslatedName
+	}
+	if initialStatus == "" {
 		initialStatus = dto.Fields.Status.Name
 	}
 	initialStatusID := dto.Fields.Status.ID
@@ -97,7 +103,7 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 			// If we see a move into our project, this is where the item "arrived".
 			if isRelevantMove {
 				if statusItem != nil {
-					initialStatus = resolveStatus(registry, statusItem.To, statusItem.UntranslatedToString)
+					initialStatus = resolveStatus(registry, statusItem.To, statusItem.ToString)
 					if initialStatus == "" {
 						initialStatus = statusItem.ToString
 					}
@@ -108,11 +114,8 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 					// We must walk back through already extracted events because 'Flagged' events
 					// do not contain status information and might have been emitted later.
 					for j := len(events) - 1; j >= 0; j-- {
-						if events[j].FromStatus != "" || events[j].ToStatus != "" {
-							// We use FromStatus because we are looking at the state *before* that change.
-							// For a resolution-only change, FromStatus might be empty if only resolution changed,
-							// but usually it's populated for status transitions.
-							initialStatus = events[j].FromStatus
+						if events[j].FromStatusID != "" || events[j].ToStatusID != "" {
+							// We use FromStatusID because we are looking at the state *before* that change.
 							initialStatusID = events[j].FromStatusID
 							break
 						}
@@ -128,10 +131,6 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 			} else {
 				if statusItem != nil {
 					// Condition 2: Normal Transition - trace back the "From" state for non-moved issues
-					initialStatus = resolveStatus(registry, statusItem.From, statusItem.UntranslatedFromString)
-					if initialStatus == "" {
-						initialStatus = statusItem.FromString
-					}
 					initialStatusID = statusItem.From
 				}
 				if flaggedItem != nil {
@@ -151,13 +150,13 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 				}
 
 				if statusItem != nil && !suppressStatus {
-					event.FromStatus = resolveStatus(registry, statusItem.From, statusItem.UntranslatedFromString)
+					event.FromStatus = resolveStatus(registry, statusItem.From, statusItem.FromString)
 					if event.FromStatus == "" {
 						event.FromStatus = statusItem.FromString
 					}
 					event.FromStatusID = statusItem.From
 
-					event.ToStatus = resolveStatus(registry, statusItem.To, statusItem.UntranslatedToString)
+					event.ToStatus = resolveStatus(registry, statusItem.To, statusItem.ToString)
 					if event.ToStatus == "" {
 						event.ToStatus = statusItem.ToString
 					}
@@ -165,13 +164,9 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 				}
 
 				if resItem != nil {
-					event.Resolution = resolveResolution(registry, resItem.To, resItem.UntranslatedToString)
-					if event.Resolution == "" {
-						event.Resolution = resItem.ToString
-					}
 					event.ResolutionID = resItem.To
 
-					if resItem.To == "" || strings.EqualFold(resItem.ToString, "Unresolved") || strings.EqualFold(resItem.UntranslatedToString, "Unresolved") {
+					if resItem.To == "" || strings.EqualFold(resItem.ToString, "Unresolved") {
 						event.IsUnresolved = true
 					}
 				}
@@ -207,8 +202,6 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 		IssueType:  issueType,
 		EventType:  Created,
 		Timestamp:  createdTS,
-		ToStatus:   initialStatus,
-		FromStatus: "",
 		ToStatusID: initialStatusID,
 		Flagged:    initialFlagged,
 		IsHealed:   stopProcessing, // Flag that we hit a boundary
@@ -230,7 +223,7 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 			const gracePeriod = 2000000 // 2 seconds in microseconds
 
 			for _, e := range events {
-				if e.Resolution == resName {
+				if e.ResolutionID == dto.Fields.Resolution.ID {
 					diff := ts - e.Timestamp
 					if diff < 0 {
 						diff = -diff
@@ -248,7 +241,6 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 					IssueType:    issueType,
 					EventType:    Change,
 					Timestamp:    ts,
-					Resolution:   resName,
 					ResolutionID: dto.Fields.Resolution.ID,
 				})
 			}

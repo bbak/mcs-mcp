@@ -53,6 +53,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	var wf struct {
 		Mapping         map[string]stats.StatusMetadata `json:"mapping"`
+		Resolutions     map[string]string               `json:"resolutions"`
 		CommitmentPoint string                          `json:"commitment_point"`
 		DiscoveryCutoff string                          `json:"discovery_cutoff"`
 	}
@@ -82,36 +83,61 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	// We use a dummy provider since no Jira/Hydrate calls are made
 	provider := eventlog.NewLogProvider(nil, store, "")
 
+	events := provider.GetEventsInRange(eventsFile, time.Time{}, time.Time{})
+	nameToID := make(map[string]string)
+	for _, e := range events {
+		if e.ToStatus != "" && e.ToStatusID != "" {
+			nameToID[e.ToStatus] = e.ToStatusID
+		}
+		if e.FromStatus != "" && e.FromStatusID != "" {
+			nameToID[e.FromStatus] = e.FromStatusID
+		}
+	}
+
+	idMapping := make(map[string]stats.StatusMetadata)
+	for name, m := range wf.Mapping {
+		if id, ok := nameToID[name]; ok && id != "" {
+			idMapping[id] = m
+		} else {
+			idMapping[name] = m
+		}
+	}
+
 	session := stats.NewAnalysisSession(
 		provider,
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
-		wf.Mapping,
-		map[string]string{"Done": "delivered"},
+		idMapping,
+		wf.Resolutions,
 		window,
 	)
 
 	// 4. Execute the Pipeline
-	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, map[string]string{"Done": "delivered"}, wf.Mapping)
+	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, wf.Resolutions, idMapping)
 	cadence.XmR = stats.AnalyzeThroughputStability(cadence)
 
-	yield := stats.CalculateProcessYield(session.GetAllIssues(), wf.Mapping, map[string]string{"Done": "delivered"})
+	yield := stats.CalculateProcessYield(session.GetAllIssues(), idMapping, wf.Resolutions)
 
-	// We need some mock history for aging, let's use [5.0, 10.0, 15.0]
 	// Weights are usually derived dynamically, but we'll supply a flat weight for stability.
 	flatWeights := make(map[string]int)
-	for k := range wf.Mapping {
-		flatWeights[k] = 1
+	for id := range idMapping {
+		flatWeights[id] = 1
 	}
-	flatWeights[wf.CommitmentPoint] = 2
 
-	aging := stats.CalculateInventoryAge(session.GetWIP(), wf.CommitmentPoint, flatWeights, wf.Mapping, []float64{10.0, 20.0, 30.0}, "wip", window.End)
+	// Resolve Commitment Point to ID
+	commitmentID := wf.CommitmentPoint
+	if id, ok := nameToID[wf.CommitmentPoint]; ok && id != "" {
+		commitmentID = id
+	}
+	flatWeights[commitmentID] = 2
+
+	aging := stats.CalculateInventoryAge(session.GetWIP(), commitmentID, flatWeights, idMapping, []float64{10.0, 20.0, 30.0}, "wip", window.End)
 
 	var cycleTimes []float64
 	for _, issue := range session.GetDelivered() {
 		var sumSeconds int64
 		for st, secs := range issue.StatusResidency {
-			if m, ok := stats.GetMetadataRobust(wf.Mapping, "", st); ok && m.Tier == "Downstream" {
+			if m, ok := idMapping[st]; ok && m.Tier == "Downstream" {
 				sumSeconds += secs
 			}
 		}
@@ -135,14 +161,14 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	persistence := stats.EnrichStatusPersistence(
 		stats.CalculateStatusPersistence(session.GetDelivered()),
-		wf.Mapping,
+		idMapping,
 	)
 
-	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, wf.Mapping)
+	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, commitmentID, flatWeights, idMapping)
 
-	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, map[string]string{"Done": "delivered"}, wf.Mapping)
+	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, commitmentID, flatWeights, wf.Resolutions, idMapping)
 
-	cfd := stats.CalculateCFDData(session.GetAllIssues(), window, wf.Mapping)
+	cfd := stats.CalculateCFDData(session.GetAllIssues(), window, idMapping)
 
 	// 5. Gather Results
 	result := PipelineGoldenResult{

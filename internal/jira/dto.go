@@ -26,7 +26,8 @@ type FieldsDTO struct {
 		ID               string `json:"id"`
 		Name             string `json:"name"`
 		UntranslatedName string `json:"untranslatedName,omitempty"`
-		StatusCategory   struct {
+
+		StatusCategory struct {
 			Key string `json:"key"`
 		} `json:"statusCategory"`
 	} `json:"status"`
@@ -54,13 +55,11 @@ type HistoryDTO struct {
 
 // ItemDTO is a single field change within a history entry.
 type ItemDTO struct {
-	Field                  string `json:"field"`
-	ToString               string `json:"toString"`
-	UntranslatedToString   string `json:"untranslatedToString,omitempty"`
-	FromString             string `json:"fromString"`
-	UntranslatedFromString string `json:"untranslatedFromString,omitempty"`
-	To                     string `json:"to"`   // ID
-	From                   string `json:"from"` // ID
+	Field      string `json:"field"`
+	FromString string `json:"fromString"`
+	ToString   string `json:"toString"`
+	To         string `json:"to"`   // ID
+	From       string `json:"from"` // ID
 }
 
 // FindBoardsResponse is used for the board search API.

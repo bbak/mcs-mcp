@@ -12,35 +12,39 @@ func TestCalculateFlowDebt(t *testing.T) {
 	monday := SnapToStart(now, "week")
 
 	weights := map[string]int{
-		"To Do":       1,
-		"In Progress": 2, // Commitment Point
-		"Done":        3,
+		"1": 1,
+		"2": 2, // Commitment Point
+		"3": 3,
 	}
 
 	issues := []jira.Issue{
 		{
-			Key:         "I1",
-			BirthStatus: "To Do",
-			Created:     monday.AddDate(0, 0, -2), // Saturday last week
+			Key:           "I1",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
+			Created:       monday.AddDate(0, 0, -2), // Saturday last week
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "In Progress", Date: monday.AddDate(0, 0, 1)}, // Tuesday this week (Arrival)
-				{ToStatus: "Done", Date: monday.AddDate(0, 0, 2)},        // Wednesday this week (Departure)
+				{ToStatus: "In Progress", ToStatusID: "2", Date: monday.AddDate(0, 0, 1)}, // Tuesday this week (Arrival)
+				{ToStatus: "Done", ToStatusID: "3", Date: monday.AddDate(0, 0, 2)},        // Wednesday this week (Departure)
 			},
 			ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, 2); return &tt }(),
 			Resolution:     "Fixed",
 			Status:         "Done",
+			StatusID:       "3",
 		},
 		{
-			Key:         "I2",
-			BirthStatus: "In Progress",            // Arrives at birth
-			Created:     monday.AddDate(0, 0, -1), // Sunday last week (Arrival)
-			Resolution:  "",                       // Not resolved yet
-			Status:      "In Progress",
+			Key:           "I2",
+			BirthStatus:   "In Progress", // Arrives at birth
+			BirthStatusID: "2",
+			Created:       monday.AddDate(0, 0, -1), // Sunday last week (Arrival)
+			Resolution:    "",                       // Not resolved yet
+			Status:        "In Progress",
+			StatusID:      "2",
 		},
 	}
 
 	mappings := map[string]StatusMetadata{
-		"Done": {Tier: "Finished", Outcome: "delivered"},
+		"3": {Tier: "Finished", Outcome: "delivered", Name: "Done"},
 	}
 	resolutions := map[string]string{
 		"Fixed": "delivered",
@@ -49,7 +53,7 @@ func TestCalculateFlowDebt(t *testing.T) {
 	// 2-week window ending now
 	window := NewAnalysisWindow(monday.AddDate(0, 0, -7), now, "week", time.Time{})
 
-	res := CalculateFlowDebt(issues, window, "In Progress", weights, resolutions, mappings)
+	res := CalculateFlowDebt(issues, window, "2", weights, resolutions, mappings)
 
 	// Buckets:
 	// Index 0: Last Week (Monday to Sunday)

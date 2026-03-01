@@ -85,7 +85,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		if includeExistingBacklog {
 			// Backlog items (Demand + Upstream)
 			for _, issue := range all {
-				if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); ok && (m.Tier == "Demand" || m.Tier == "Upstream") {
+				if m, ok := s.activeMapping[issue.StatusID]; ok && (m.Tier == "Demand" || m.Tier == "Upstream") {
 					actualTargets[issue.IssueType]++
 				}
 			}

@@ -126,7 +126,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 0. Determine Tier Context
 		currentTier := "Demand"
 		isFinished := false
-		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+		if m, ok := mappings[issue.StatusID]; ok {
 			currentTier = m.Tier
 			if m.Tier == "Finished" || m.Role == "terminal" {
 				isFinished = true
@@ -162,7 +162,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			// Try to find if this status name corresponds to an ID in our current mapping
 			// Since StatusResidency ONLY has name, we must use Name-based lookup or a Name->ID map.
 			// But mappings map can contain Names too.
-			if m, ok := GetMetadataRobust(mappings, "", status); ok {
+			if m, ok := mappings[status]; ok {
 				switch m.Tier {
 				case "Upstream", "Demand":
 					upstreamDays += days
@@ -191,8 +191,8 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			if currentTier == "Downstream" || currentTier == "Finished" {
 				isStarted = true
 			} else if startStatus != "" {
-				commitmentWeight, okC := GetWeightRobust(statusWeights, "", startStatus)
-				currentWeight, okW := GetWeightRobust(statusWeights, issue.StatusID, issue.Status)
+				commitmentWeight, okC := statusWeights[startStatus]
+				currentWeight, okW := statusWeights[issue.StatusID]
 				if okC && okW && currentWeight >= commitmentWeight {
 					isStarted = true
 				}

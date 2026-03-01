@@ -132,7 +132,7 @@ func (s *Server) getEarliestCommitment(projectKey string, boardID int, issues []
 	}
 
 	for _, status := range order {
-		if m, ok := stats.GetMetadataRobust(s.activeMapping, status, ""); ok && m.Tier == "Downstream" {
+		if m, ok := s.activeMapping[status]; ok && m.Tier == "Downstream" {
 			return status, true
 		}
 	}
