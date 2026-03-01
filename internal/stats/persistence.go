@@ -39,6 +39,22 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 	idToName := make(map[string]string)
 
 	for _, issue := range issues {
+		// Populate names from current, birth and all transitions
+		if issue.StatusID != "" && issue.Status != "" {
+			idToName[issue.StatusID] = issue.Status
+		}
+		if issue.BirthStatusID != "" && issue.BirthStatus != "" {
+			idToName[issue.BirthStatusID] = issue.BirthStatus
+		}
+		for _, t := range issue.Transitions {
+			if t.FromStatusID != "" && t.FromStatus != "" {
+				idToName[t.FromStatusID] = t.FromStatus
+			}
+			if t.ToStatusID != "" && t.ToStatus != "" {
+				idToName[t.ToStatusID] = t.ToStatus
+			}
+		}
+
 		for statusID, seconds := range issue.StatusResidency {
 			// Signal-Aware: Preserve terminal statuses even if residency is < 1m.
 			isTerminal := (issue.ResolutionDate != nil || issue.Resolution != "") && (issue.StatusID == statusID || issue.Status == statusID)
@@ -46,11 +62,6 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			if seconds >= 60 || isTerminal {
 				days := float64(seconds) / 86400.0
 				statusDurations[statusID] = append(statusDurations[statusID], days)
-			}
-
-			// Capture name if this key is an ID
-			if issue.StatusID == statusID {
-				idToName[statusID] = issue.Status
 			}
 		}
 		for statusID, seconds := range issue.BlockedResidency {
@@ -110,7 +121,7 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 	for i := range results {
 		s := &results[i]
 
-		if m, ok := GetMetadataRobust(mappings, s.StatusID, s.StatusName); ok {
+		if m, ok := mappings[s.StatusID]; ok {
 			s.Role = m.Role
 			s.Tier = m.Tier
 			// Restore name from metadata if it's currently an ID or empty
@@ -152,7 +163,7 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 
 			// Resolve Tier
 			tier := "Unknown"
-			if m, ok := GetMetadataRobust(mappings, "", status); ok {
+			if m, ok := mappings[status]; ok {
 				tier = m.Tier
 			}
 

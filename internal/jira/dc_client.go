@@ -798,7 +798,11 @@ func (c *dcClient) GetRegistry(projectKey string) (*NameRegistry, error) {
 			var resolutions []ResolutionDTO
 			if err := json.NewDecoder(resp.Body).Decode(&resolutions); err == nil {
 				for _, r := range resolutions {
-					registry.Resolutions[r.ID] = r.Name
+					name := r.UntranslatedName
+					if name == "" {
+						name = r.Name
+					}
+					registry.Resolutions[r.ID] = name
 				}
 			}
 		}

@@ -1,9 +1,7 @@
 package mcp
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"time"
 
 	"mcs-mcp/internal/jira"
@@ -72,10 +70,11 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 
 	var mapping map[string]stats.StatusMetadata
 	var recommendedCP string
+	var refinedOrder []string
 	if discoverySource == "LOADED_FROM_CACHE" {
 		mapping = s.activeMapping
 	} else {
-		mapping, recommendedCP = discovery.ProposeSemantics(sample, persistence)
+		mapping, recommendedCP, refinedOrder = discovery.ProposeSemantics(sample, persistence)
 	}
 
 	// Build a set of significant statuses keyed by ID for filtering
@@ -86,36 +85,31 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 
 	finalMapping := make(map[string]stats.StatusMetadata)
 	for key, meta := range mapping {
-		if !significantByID[key] {
+		// When persistence is empty, significantByID is empty too — accept everything.
+		if len(significantByID) > 0 && !significantByID[key] {
 			continue
 		}
 		finalMapping[key] = meta
 	}
 
-	rawOrder := discovery.DiscoverStatusOrder(sample)
+	// Use the refined order (Terminal-Last) from ProposeSemantics if available;
+	// fall back to raw DiscoverStatusOrder when ProposeSemantics returned nothing.
 	var discoveredOrder []string
 	if discoverySource == "LOADED_FROM_CACHE" && len(s.activeStatusOrder) > 0 {
 		discoveredOrder = s.activeStatusOrder
 	} else {
-		for _, st := range rawOrder {
-			if significantByID[st] {
-				discoveredOrder = append(discoveredOrder, st)
+		sourceOrder := refinedOrder
+		if len(sourceOrder) == 0 {
+			sourceOrder = discovery.DiscoverStatusOrder(sample)
+		}
+		for _, st := range sourceOrder {
+			// Filter to significant statuses only when persistence data exists.
+			if len(significantByID) > 0 && !significantByID[st] {
+				continue
 			}
+			discoveredOrder = append(discoveredOrder, st)
 		}
-
-		// Sort by Tier: Demand < Upstream < Downstream < Finished
-		tierWeights := map[string]int{
-			"Demand":     1,
-			"Upstream":   2,
-			"Downstream": 3,
-			"Finished":   4,
-		}
-
-		slices.SortStableFunc(discoveredOrder, func(a, b string) int {
-			ta := finalMapping[a].Tier
-			tb := finalMapping[b].Tier
-			return cmp.Compare(tierWeights[ta], tierWeights[tb])
-		})
+		// Note: no extra Tier sort needed — ProposeSemantics already guarantees Terminal-Last.
 	}
 
 	summary := discovery.AnalyzeProbe(sample, totalCount)

@@ -55,11 +55,11 @@ func TestCalculateStatusPersistence(t *testing.T) {
 
 func TestEnrichStatusPersistence(t *testing.T) {
 	results := []stats.StatusPersistence{
-		{StatusName: "Open"},
-		{StatusName: "In Dev"},
+		{StatusID: "1", StatusName: "Open"},
+		{StatusID: "2", StatusName: "In Dev"},
 	}
 	mappings := map[string]stats.StatusMetadata{
-		"Open": {Tier: "Demand", Role: "active"},
+		"1": {Tier: "Demand", Role: "active"},
 	}
 
 	enriched := stats.EnrichStatusPersistence(results, mappings)
@@ -141,34 +141,36 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 		{
 			Key:             "COM-1",
 			Status:          "In Dev",
+			StatusID:        "3",
 			Created:         now.AddDate(0, 0, -10),
-			StatusResidency: map[string]int64{"In Dev": 5 * 86400, "Refinement": 3 * 86400, "Created": 2 * 86400},
+			StatusResidency: map[string]int64{"3": 5 * 86400, "2": 3 * 86400, "1": 2 * 86400},
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "Refinement", Date: now.AddDate(0, 0, -8)},
-				{ToStatus: "In Dev", Date: now.AddDate(0, 0, -5)}, // Commitment point!
+				{ToStatus: "Refinement", ToStatusID: "2", Date: now.AddDate(0, 0, -8)},
+				{ToStatus: "In Dev", ToStatusID: "3", Date: now.AddDate(0, 0, -5)}, // Commitment point!
 			},
 		},
 		{
 			Key:             "DEM-1",
 			Status:          "Backlog",
+			StatusID:        "1",
 			Created:         now.AddDate(0, 0, -10),
-			StatusResidency: map[string]int64{"Backlog": 10 * 86400},
+			StatusResidency: map[string]int64{"1": 10 * 86400},
 			// Not yet started
 		},
 	}
 
 	statusWeights := map[string]int{
-		"Backlog":    1,
-		"Refinement": 1,
-		"In Dev":     3, // Commitment
+		"1": 1,
+		"2": 1,
+		"3": 3, // Commitment
 	}
 	history := []float64{2.0, 5.0, 10.0}
 	mappings := map[string]stats.StatusMetadata{
-		"In Dev": {Tier: "Downstream", Role: "active"},
+		"3": {Tier: "Downstream", Role: "active"},
 	}
 
 	// Test WIP Age
-	results := stats.CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "wip", time.Now())
+	results := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "wip", time.Now())
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result in WIP mode, got %d", len(results))
@@ -185,7 +187,7 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	}
 
 	// Test Total Age
-	resultsTotal := stats.CalculateInventoryAge(wipIssues, "In Dev", statusWeights, mappings, history, "total", time.Now())
+	resultsTotal := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "total", time.Now())
 	for _, r := range resultsTotal {
 		if r.Key == "DEM-1" {
 			if r.TotalAgeSinceCreation < 9.9 { // ~10 days
@@ -233,7 +235,7 @@ func TestProposeSemantics(t *testing.T) {
 			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "5"}},
 		})
 	}
-	mapping, commitmentPoint := discovery.ProposeSemantics(issues, persistence)
+	mapping, commitmentPoint, _ := discovery.ProposeSemantics(issues, persistence)
 
 	// Verify Backlog (ID "1") is Demand (detected as first entry point)
 	if mapping["1"].Tier != "Demand" {
@@ -435,7 +437,7 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{StatusID: "5", StatusName: "Done"},
 	}
 
-	proposal, _ := discovery.ProposeSemantics(issues, persistence)
+	proposal, _, _ := discovery.ProposeSemantics(issues, persistence)
 	order := discovery.DiscoverStatusOrder(issues)
 
 	// Verify Tiers (keyed by ID)
@@ -538,7 +540,7 @@ func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
 		{StatusID: "2", StatusName: "Prod"},
 	}
 
-	proposal, _ := discovery.ProposeSemantics(issues, persistence)
+	proposal, _, _ := discovery.ProposeSemantics(issues, persistence)
 
 	if proposal["1"].Tier == "Finished" {
 		t.Errorf("UAT (1) should be Downstream (10%% density), not Finished")
@@ -612,17 +614,17 @@ func TestAnalyzeProbe_ResolutionDensity(t *testing.T) {
 
 func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 	now := time.Now()
-	// Provide issues where these statuses are terminal sinks
+	// Create mock issues where the resolution name matters
 	issues := []jira.Issue{
-		{Key: "I-1", Status: "Done", StatusID: "1", ResolutionDate: &now},
-		{Key: "I-2", Status: "Cancelled", StatusID: "2", ResolutionDate: &now},
-		{Key: "I-3", Status: "Rejected", StatusID: "3", ResolutionDate: &now},
+		{Key: "I-1", Status: "Done", StatusID: "1", ResolutionDate: &now, Resolution: "Done"},
+		{Key: "I-2", Status: "Cancelled", StatusID: "2", ResolutionDate: &now, Resolution: "Won't Do"},
+		{Key: "I-3", Status: "Rejected", StatusID: "3", ResolutionDate: &now, Resolution: "Declined"},
 	}
 	// Add more transitions to satisfy "isTerminalSink" (into > 5 and into > out*4)
 	for i := 0; i < 10; i++ {
 		issues = append(issues, jira.Issue{
-			Key: "S", Status: "Done", StatusID: "1",
-			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "1"}},
+			Key: "S", Status: "Done", StatusID: "1", ResolutionDate: &now, Resolution: "Fixed",
+			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "1", Date: now}},
 		})
 	}
 
@@ -631,7 +633,7 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		{StatusID: "2", StatusName: "Cancelled"},
 		{StatusID: "3", StatusName: "Rejected"},
 	}
-	mapping, _ := discovery.ProposeSemantics(issues, persistence)
+	mapping, _, _ := discovery.ProposeSemantics(issues, persistence)
 
 	// Done (1) -> Delivered (Default or Keyword)
 	if mapping["1"].Outcome != "delivered" {
