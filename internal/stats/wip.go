@@ -151,7 +151,7 @@ func CalculateWIPRunChart(issues []jira.Issue, window AnalysisWindow, commitment
 	}
 
 	evaluateWipState := func(statusID, status string, currentIsWip bool) bool {
-		m, hasMeta := GetMetadataRobust(mappings, statusID, status)
+		m, hasMeta := mappings[statusID]
 
 		if hasMeta {
 			if m.Tier == "Finished" {

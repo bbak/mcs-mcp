@@ -57,7 +57,7 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 		if issue.ResolutionDate != nil {
 			isResolved = true
 			resDate = *issue.ResolutionDate
-		} else if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+		} else if m, ok := mappings[issue.StatusID]; ok && m.Tier == "Finished" {
 			isResolved = true
 			resDate = issue.Updated
 		}
@@ -70,7 +70,7 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 		}
 
 		// 2. Classify by Tier at the end of the window
-		if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+		if m, ok := mappings[issue.StatusID]; ok {
 			switch m.Tier {
 			case "Downstream":
 				downstream = append(downstream, issue)

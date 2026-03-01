@@ -17,30 +17,30 @@ func TestCalculateWIPRunChart_Day1Rule(t *testing.T) {
 		{
 			Key: "PROJ-1",
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "In Progress", Date: time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC)}, // Starts Day 2
-				{ToStatus: "Done", Date: time.Date(2024, 1, 2, 16, 0, 0, 0, time.UTC)},        // Finishes Day 2
+				{ToStatus: "In Progress", ToStatusID: "3", Date: time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC)}, // Starts Day 2
+				{ToStatus: "Done", ToStatusID: "10003", Date: time.Date(2024, 1, 2, 16, 0, 0, 0, time.UTC)},    // Finishes Day 2
 			},
 		},
 		{
 			Key: "PROJ-2",
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "In Progress", Date: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC)}, // Starts Day 1
-				{ToStatus: "Done", Date: time.Date(2024, 1, 3, 10, 0, 0, 0, time.UTC)},        // Finishes Day 3
+				{ToStatus: "In Progress", ToStatusID: "3", Date: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC)}, // Starts Day 1
+				{ToStatus: "Done", ToStatusID: "10003", Date: time.Date(2024, 1, 3, 10, 0, 0, 0, time.UTC)},    // Finishes Day 3
 			},
 		},
 	}
 
 	mappings := map[string]StatusMetadata{
-		"In Progress": {Tier: "Downstream"},
-		"Done":        {Tier: "Finished"},
+		"3":     {Tier: "Downstream", Name: "In Progress"},
+		"10003": {Tier: "Finished", Name: "Done"},
 	}
 
 	weights := map[string]int{
-		"In Progress": 1,
-		"Done":        2,
+		"3":     1,
+		"10003": 2,
 	}
 
-	chart := CalculateWIPRunChart(issues, window, "In Progress", weights, mappings)
+	chart := CalculateWIPRunChart(issues, window, "3", weights, mappings)
 
 	if len(chart) != 3 {
 		t.Fatalf("Expected 3 days in chart, got %d", len(chart))
@@ -78,7 +78,7 @@ func TestAnalyzeHistoricalWIP(t *testing.T) {
 		issues = append(issues, jira.Issue{
 			Key: "PROJ-Stable",
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "In Progress", Date: time.Date(2023, 12, 1, 0, 0, 0, 0, time.UTC)}, // Started way before
+				{ToStatus: "In Progress", ToStatusID: "3", Date: time.Date(2023, 12, 1, 0, 0, 0, 0, time.UTC)}, // Started way before
 			},
 		})
 	}
@@ -88,22 +88,22 @@ func TestAnalyzeHistoricalWIP(t *testing.T) {
 		issues = append(issues, jira.Issue{
 			Key: "PROJ-Spike",
 			Transitions: []jira.StatusTransition{
-				{ToStatus: "In Progress", Date: time.Date(2024, 2, 28, 10, 0, 0, 0, time.UTC)}, // Wednesday Week 9
+				{ToStatus: "In Progress", ToStatusID: "3", Date: time.Date(2024, 2, 28, 10, 0, 0, 0, time.UTC)}, // Wednesday Week 9
 			},
 		})
 	}
 
 	mappings := map[string]StatusMetadata{
-		"In Progress": {Tier: "Downstream"},
-		"Done":        {Tier: "Finished"},
+		"3":     {Tier: "Downstream", Name: "In Progress"},
+		"10003": {Tier: "Finished", Name: "Done"},
 	}
 
 	weights := map[string]int{
-		"In Progress": 1,
-		"Done":        2,
+		"3":     1,
+		"10003": 2,
 	}
 
-	result := AnalyzeHistoricalWIP(issues, window, "In Progress", weights, mappings)
+	result := AnalyzeHistoricalWIP(issues, window, "3", weights, mappings)
 
 	if len(result.RunChart) != 63 {
 		t.Fatalf("Expected 63 days in run chart, got %d", len(result.RunChart))

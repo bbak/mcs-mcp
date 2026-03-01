@@ -62,7 +62,7 @@ func CalculateFlowDebt(issues []jira.Issue, window AnalysisWindow, commitmentPoi
 		}
 	}
 
-	targetWeight, hasCommitment := GetWeightRobust(weights, "", commitmentPoint)
+	targetWeight, hasCommitment := weights[commitmentPoint]
 
 	for _, issue := range issues {
 		// 1. Calculate Arrivals
@@ -70,12 +70,12 @@ func CalculateFlowDebt(issues []jira.Issue, window AnalysisWindow, commitmentPoi
 			var arrivalDate *time.Time
 
 			// check birth
-			if bw, ok := GetWeightRobust(weights, issue.BirthStatusID, issue.BirthStatus); ok && bw >= targetWeight {
+			if bw, ok := weights[issue.BirthStatusID]; ok && bw >= targetWeight {
 				arrivalDate = &issue.Created
 			} else {
 				// check transitions
 				for _, t := range issue.Transitions {
-					if tw, ok := GetWeightRobust(weights, t.ToStatusID, t.ToStatus); ok && tw >= targetWeight {
+					if tw, ok := weights[t.ToStatusID]; ok && tw >= targetWeight {
 						arrivalDate = &t.Date
 						break
 					}

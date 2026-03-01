@@ -42,7 +42,7 @@ func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[s
 	// 2. Secondary Signal: Status Metadata (fallback for misconfigured projects
 	//    where resolution/resolutiondate are not set on terminal statuses).
 	//    Only applies to items in the Finished tier to avoid misclassifying WIP.
-	if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok && m.Tier == "Finished" {
+	if m, ok := mappings[issue.StatusID]; ok && m.Tier == "Finished" {
 		return m.Outcome == "delivered"
 	}
 
@@ -109,7 +109,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 			if statusID == "" {
 				statusID = t.ToStatus
 			}
-			if w, ok := GetWeightRobust(weights, t.ToStatusID, t.ToStatus); ok && w < commitmentWeight {
+			if w, ok := weights[statusID]; ok && w < commitmentWeight {
 				lastBackflowIdx = j
 			}
 		}
@@ -127,7 +127,7 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		// (i.e., the resolution happened BEFORE the backflow or we are now in a non-terminal status)
 		isTerminal := false
 		if weights != nil {
-			if w, ok := GetWeightRobust(weights, newIssue.StatusID, newIssue.Status); ok && w >= commitmentWeight {
+			if w, ok := weights[newIssue.StatusID]; ok && w >= commitmentWeight {
 				isTerminal = true // Status is still downstream/finished
 			}
 		}

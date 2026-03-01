@@ -172,7 +172,7 @@ func (s *Server) getTotalAges(issues []jira.Issue) []float64 {
 		}
 
 		// Only count "delivered" work
-		if m, ok := stats.GetMetadataRobust(s.activeMapping, issue.StatusID, issue.Status); !ok || m.Outcome != "delivered" {
+		if m, ok := s.activeMapping[issue.StatusID]; !ok || m.Outcome != "delivered" {
 			continue
 		}
 

@@ -24,15 +24,14 @@ type DiscoveryResult struct {
 // DiscoverWorkflow orchestrates the discovery process.
 func DiscoverWorkflow(events []eventlog.IssueEvent, sample []jira.Issue, resolutions map[string]string) DiscoveryResult {
 	persistence := stats.CalculateStatusPersistence(sample)
-	proposal, cp := ProposeSemantics(sample, persistence)
-	order := DiscoverStatusOrder(sample)
+	proposal, cp, refinedOrder := ProposeSemantics(sample, persistence)
 	summary := AnalyzeProbe(sample, len(sample)) // simplified for now
 
 	return DiscoveryResult{
 		Summary:         summary,
 		Proposal:        proposal,
 		CommitmentPoint: cp,
-		StatusOrder:     order,
+		StatusOrder:     refinedOrder,
 		Sample:          sample,
 	}
 }
@@ -110,12 +109,12 @@ func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *
 	return &cutoff
 }
 
-// ProposeSemantics applies heuristics to suggest tiers and roles for a set of statuses.
-// The returned map is keyed by status ID; StatusMetadata.Name is populated for display.
-func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence) (map[string]stats.StatusMetadata, string) {
+// ProposeSemantics infers missing workflow semantics based on heuristics.
+// It returns a mapping of status IDs to semantics, the recommended commitment point, and the refined sequential order.
+func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence) (map[string]stats.StatusMetadata, string, []string) {
 	proposal := make(map[string]stats.StatusMetadata)
 	if len(persistence) == 0 {
-		return proposal, ""
+		return proposal, "", nil
 	}
 
 	// 1. Gather facts from actual data (keyed by ID)
@@ -155,16 +154,6 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 		}
 	}
 
-	// Identify Birth Status ID (The source of demand)
-	birthStatusID := ""
-	maxEntry := 0
-	for s, count := range entryCounts {
-		if count > maxEntry {
-			maxEntry = count
-			birthStatusID = s
-		}
-	}
-
 	// Get the Path Order for biasing Upstream/Downstream (already ID-based)
 	pathOrder := DiscoverStatusOrder(issues)
 	pathIndices := make(map[string]int)
@@ -178,11 +167,30 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 	// Keyword sets for tier biasing (applied to human-readable names)
 	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
 	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging", "qa", "uat", "prod", "fix"}
-	deliveredKeywords := []string{"done", "resolved", "fixed", "complete", "approved", "shipped", "delivered"}
 	abandonedKeywords := []string{"cancel", "discard", "obsolete", "reject", "decline", "won't do", "wont do", "dropped", "abort"}
+	deliveredKeywords := []string{"done", "resolved", "fixed", "complete", "approved", "shipped", "delivered"}
 
-	for _, p := range persistence {
-		statusID := stats.PreferID(p.StatusID, p.StatusName)
+	// Regex for detecting delivered vs abandoned resolutions
+	deliveredResolutionRegex := regexp.MustCompile(`(?i)(?:(?:fix|deliver|resolve|release|complete|shipp?|approve|deploy)(?:e?d)?)|done`)
+
+	// Track workflow state to prevent Upstream from appearing after Downstream
+	seenDownstream := false
+
+	// Iterate over the discovered path order to ensure sequential logic applies
+	for i, statusID := range pathOrder {
+		var p *stats.StatusPersistence
+		for j := range persistence {
+			pid := stats.PreferID(persistence[j].StatusID, persistence[j].StatusName)
+			if pid == statusID {
+				p = &persistence[j]
+				break
+			}
+		}
+
+		if p == nil {
+			continue // Should not happen, but defensive
+		}
+
 		name := p.StatusName
 		lowerName := strings.ToLower(name)
 		tier := "Downstream" // Default catch-all
@@ -190,52 +198,60 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 
 		// --- TIER HEURISTICS ---
 
-		// A. Demand (Entry) - Only if it's the primary birth status
-		// and it doesn't have a high resolution density (which would make it a sink)
-		isBirth := statusID == birthStatusID
-
-		// B. Finished (Terminal)
-		// Probabilistic Fact-Based: More than 20% of reachability is resolved here.
-		resDensity := 0.0
-		if reach := reachability[statusID]; reach > 0 {
-			resDensity = float64(resolvedCounts[statusID]) / float64(reach)
-		}
-		isResolvedDensity := resDensity > 0.20
-
-		// Terminal Asymmetry: High entry, low exit (sinking).
-		isTerminalSink := transitionsInto[statusID] > 5 && transitionsInto[statusID] > (transitionsOutOf[statusID]*4)
-
-		if isResolvedDensity || isTerminalSink {
-			tier = "Finished"
-		} else if isBirth {
+		// 1. Demand (Entry) - Strictly the first status in the path order
+		if i == 0 {
 			tier = "Demand"
 		} else {
-			// C. Upstream vs Downstream biasing (keyword matching uses names)
-			isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
-			isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
+			// 2. Finished (Terminal)
 
-			idx, inPath := pathIndices[statusID]
-			isEarlyInPath := inPath && idx < (len(pathOrder)/2)
+			// Probabilistic Fact-Based: More than 20% of reachability is resolved here.
+			resDensity := 0.0
+			if reach := reachability[statusID]; reach > 0 {
+				resDensity = float64(resolvedCounts[statusID]) / float64(reach)
+			}
+			isResolvedDensity := resDensity > 0.20
 
-			if isUpstreamKeyword {
-				tier = "Upstream"
-			} else if isDownstreamKeyword {
-				tier = "Downstream"
-			} else if isEarlyInPath {
-				tier = "Upstream"
+			// Terminal Asymmetry: High entry, low exit (sinking).
+			isTerminalSink := transitionsInto[statusID] > 5 && transitionsInto[statusID] > (transitionsOutOf[statusID]*4)
+
+			// Keyword Fallbacks
+			isAbandonedKeyword := matchesAny(lowerName, abandonedKeywords)
+			isDeliveredKeyword := matchesAny(lowerName, deliveredKeywords)
+
+			if isResolvedDensity || isTerminalSink || isAbandonedKeyword || isDeliveredKeyword {
+				tier = "Finished"
+			} else {
+				// 3. Upstream vs Downstream biasing
+				isUpstreamKeyword := matchesAny(lowerName, upstreamKeywords)
+				isDownstreamKeyword := matchesAny(lowerName, downstreamKeywords)
+
+				if isDownstreamKeyword {
+					tier = "Downstream"
+					seenDownstream = true
+				} else if isUpstreamKeyword && !seenDownstream {
+					// Only allow Upstream if we haven't crossed into Downstream territory
+					tier = "Upstream"
+				} else if !seenDownstream && i < (len(pathOrder)/2) {
+					// Fallback for early unknown statuses before the midpoint
+					tier = "Upstream"
+				} else {
+					// Default to Downstream or forced Downstream because we already passed the point of no return
+					tier = "Downstream"
+					seenDownstream = true
+				}
 			}
 		}
 
-		// --- ROLE HEURISTICS ---
+		// --- ROLE & OUTCOME HEURISTICS ---
 		outcome := ""
 		if tier == "Finished" {
 			role = "terminal"
+
+			// Final fallback logic if resolution checking down below doesn't trigger
 			if matchesAny(lowerName, abandonedKeywords) {
 				outcome = "abandoned"
-			} else if matchesAny(lowerName, deliveredKeywords) {
-				outcome = "delivered"
 			} else {
-				outcome = "delivered" // Default terminal outcome
+				outcome = "delivered"
 			}
 		} else if tier == "Demand" || queueCandidates[name] {
 			role = "queue"
@@ -249,25 +265,56 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 		}
 	}
 
-	// 4. Identify Recommended Commitment Point: First Downstream status in path order
+	// Refine Outcomes based on actual Resolutions
+	for _, issue := range issues {
+		curr := stats.PreferID(issue.StatusID, issue.Status)
+		if issue.ResolutionDate != nil && curr != "" && issue.Resolution != "" {
+			if m, ok := proposal[curr]; ok && m.Tier == "Finished" {
+				if deliveredResolutionRegex.MatchString(issue.Resolution) {
+					m.Outcome = "delivered"
+				} else {
+					// If a state has BOTH delivered and abandoned resolutions, we bias towards delivered.
+					// So only set to abandoned if it hasn't already been confirmed delivered.
+					if m.Outcome != "delivered" {
+						m.Outcome = "abandoned"
+					}
+				}
+				proposal[curr] = m
+			}
+		}
+	}
+
+	// Post-processing rule: Terminal States are ALWAYS last!
+	var activeOrder []string
+	var terminalOrder []string
+	for _, statusID := range pathOrder {
+		if m, ok := proposal[statusID]; ok && m.Tier == "Finished" {
+			terminalOrder = append(terminalOrder, statusID)
+		} else {
+			activeOrder = append(activeOrder, statusID)
+		}
+	}
+	refinedOrder := append(activeOrder, terminalOrder...)
+
+	// 5. Deduce the Primary Commitment Point
 	commitmentPoint := ""
-	for _, s := range pathOrder {
-		if m, ok := proposal[s]; ok && m.Tier == "Downstream" {
-			commitmentPoint = s
+	for _, statusID := range refinedOrder {
+		if m, ok := proposal[statusID]; ok && m.Tier == "Downstream" {
+			commitmentPoint = stats.PreferID(statusID, proposal[statusID].Name) // Fallback to name if ID is missing
 			break
 		}
 	}
 	// Fallback to first Upstream if no Downstream
 	if commitmentPoint == "" {
-		for _, s := range pathOrder {
-			if m, ok := proposal[s]; ok && m.Tier == "Upstream" {
-				commitmentPoint = s
+		for _, statusID := range refinedOrder {
+			if m, ok := proposal[statusID]; ok && m.Tier == "Upstream" {
+				commitmentPoint = stats.PreferID(statusID, proposal[statusID].Name)
 				break
 			}
 		}
 	}
 
-	return proposal, commitmentPoint
+	return proposal, commitmentPoint, refinedOrder
 }
 
 func matchesAny(s string, keywords []string) bool {

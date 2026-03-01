@@ -37,7 +37,7 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 		// 1. Determine Outcome
 		outcome := resolutions[issue.Resolution]
 		if outcome == "" {
-			if m, ok := GetMetadataRobust(mappings, issue.StatusID, issue.Status); ok {
+			if m, ok := mappings[issue.StatusID]; ok {
 				outcome = m.Outcome
 			}
 		}
@@ -60,7 +60,7 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 				// Heuristic-based Attribution: use the tier of the status BEFORE it reached Finished
 				if len(issue.Transitions) > 0 {
 					lastStatus := issue.Transitions[len(issue.Transitions)-1].ToStatus
-					if m, ok := GetMetadataRobust(mappings, "", lastStatus); ok {
+					if m, ok := mappings[lastStatus]; ok {
 						tier = m.Tier
 					}
 				}
