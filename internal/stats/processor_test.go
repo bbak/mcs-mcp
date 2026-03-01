@@ -20,12 +20,12 @@ func TestCalculateBlockedResidency(t *testing.T) {
 	// Blocked Intervals:
 	// B1: [5h, 15h] - Spans both statuses
 	// B2: [18h, 19h] - Within S2
-	intervals := []Interval{
+	intervals := []jira.Interval{
 		{Start: now.Add(5 * time.Hour), End: now.Add(15 * time.Hour)},
 		{Start: now.Add(18 * time.Hour), End: now.Add(19 * time.Hour)},
 	}
 
-	res := CalculateBlockedResidency(segments, intervals)
+	res := jira.CalculateBlockedResidency(segments, intervals)
 
 	// S1 should have 5h blocked (from 5h to 10h)
 	if res["S1"] != 5*3600 {
@@ -49,36 +49,36 @@ func TestCalculateBlockedResidency_EdgeCases(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		blocked  []Interval
+		blocked  []jira.Interval
 		expected int64
 	}{
 		{
 			name:     "starts_before_status",
-			blocked:  []Interval{{Start: s(-5), End: s(5)}},
+			blocked:  []jira.Interval{{Start: s(-5), End: s(5)}},
 			expected: 5 * 3600,
 		},
 		{
 			name:     "ends_after_status",
-			blocked:  []Interval{{Start: s(5), End: s(15)}},
+			blocked:  []jira.Interval{{Start: s(5), End: s(15)}},
 			expected: 5 * 3600,
 		},
 		{
 			name:     "encompasses_status",
-			blocked:  []Interval{{Start: s(-5), End: s(15)}},
+			blocked:  []jira.Interval{{Start: s(-5), End: s(15)}},
 			expected: 10 * 3600,
 		},
 		{
 			name:     "multiple_intervals_in_status",
-			blocked:  []Interval{{Start: s(1), End: s(2)}, {Start: s(4), End: s(6)}},
+			blocked:  []jira.Interval{{Start: s(1), End: s(2)}, {Start: s(4), End: s(6)}},
 			expected: 3 * 3600,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := CalculateBlockedResidency(segments, tt.blocked)
-			if res["S1"] != tt.expected {
-				t.Errorf("Expected %d, got %d", tt.expected, res["S1"])
+			got := jira.CalculateBlockedResidency(segments, tt.blocked)
+			if got["S1"] != tt.expected {
+				t.Errorf("Expected %d, got %d", tt.expected, got["S1"])
 			}
 		})
 	}

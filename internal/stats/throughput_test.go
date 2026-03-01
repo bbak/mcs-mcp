@@ -17,9 +17,6 @@ func TestGetStratifiedThroughput(t *testing.T) {
 		{Key: "S2", IssueType: "Story", ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, -2); return &tt }(), Resolution: "Fixed", Status: "Done"}, // Last week (Saturday)
 	}
 
-	mappings := map[string]StatusMetadata{
-		"Done": {Tier: "Finished", Outcome: "delivered"},
-	}
 	resolutions := map[string]string{
 		"Fixed": "delivered",
 	}
@@ -27,7 +24,7 @@ func TestGetStratifiedThroughput(t *testing.T) {
 	// 2-week window ending now
 	window := NewAnalysisWindow(monday.AddDate(0, 0, -7), now, "week", time.Time{})
 
-	res := GetStratifiedThroughput(issues, window, resolutions, mappings)
+	res := GetStratifiedThroughput(issues, window, resolutions)
 
 	// Since window starts at monday-7 and ends at now, it should have 2 buckets: Last Week and This Week.
 	if len(res.Pooled) != 2 {
@@ -61,7 +58,7 @@ func TestGetStratifiedThroughput_DayBucket(t *testing.T) {
 	}
 
 	window := NewAnalysisWindow(today, now, "day", time.Time{})
-	res := GetStratifiedThroughput(issues, window, nil, nil)
+	res := GetStratifiedThroughput(issues, window, nil)
 
 	if len(res.Pooled) != 1 {
 		t.Fatalf("Expected 1 bucket, got %d", len(res.Pooled))

@@ -30,7 +30,7 @@ func TestSimulationPipeline_Golden(t *testing.T) {
 	workflowPath := filepath.Join(testingDir, "simulated_workflow.json")
 
 	// 2. Load the Adversarial Event Log
-	store := eventlog.NewEventStore()
+	store := eventlog.NewEventStore(nil)
 	err := store.Load(testingDir, eventsFile)
 	if err != nil {
 		t.Fatalf("Failed to load simulated events: %v", err)

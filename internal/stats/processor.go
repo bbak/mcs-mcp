@@ -9,7 +9,7 @@ import (
 func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) []jira.Issue {
 	var delivered []jira.Issue
 	for _, issue := range issues {
-		if IsDelivered(issue, resolutions, mappings) {
+		if IsDelivered(issue, resolutions) {
 			delivered = append(delivered, issue)
 		}
 	}
@@ -17,12 +17,8 @@ func FilterDelivered(issues []jira.Issue, resolutions map[string]string, mapping
 }
 
 // IsDelivered returns true if the issue has a 'delivered' outcome.
-// It implements a two-fold detection strategy:
-//  1. Primary: Jira Resolution (ID-first, then name, then hardcoded fallbacks).
-//  2. Secondary: Status Metadata — for misconfigured Jira projects where items
-//     reach a terminal workflow status without a resolution being set.
-//     Only fires for items in a "Finished" tier status.
-func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[string]StatusMetadata) bool {
+// It relies on explicit Jira resolutions or the synthesized resolution from Layer 3.
+func IsDelivered(issue jira.Issue, resolutions map[string]string) bool {
 	// 1. Primary Signal: Jira Resolution
 	if issue.ResolutionID != "" {
 		if outcome, ok := resolutions[issue.ResolutionID]; ok {
@@ -30,6 +26,12 @@ func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[s
 		}
 	}
 	if issue.Resolution != "" {
+		if issue.Resolution == "Synthetic-delivered" {
+			return true
+		}
+		if issue.Resolution == "Synthetic-abandoned" {
+			return false
+		}
 		if outcome, ok := resolutions[issue.Resolution]; ok {
 			return outcome == "delivered"
 		}
@@ -39,14 +41,94 @@ func IsDelivered(issue jira.Issue, resolutions map[string]string, mappings map[s
 		}
 	}
 
-	// 2. Secondary Signal: Status Metadata (fallback for misconfigured projects
-	//    where resolution/resolutiondate are not set on terminal statuses).
-	//    Only applies to items in the Finished tier to avoid misclassifying WIP.
-	if m, ok := mappings[issue.StatusID]; ok && m.Tier == "Finished" {
-		return m.Outcome == "delivered"
+	return false
+}
+
+// DetermineOutcome interprets the item's state based on metadata mappings to finalize
+// its terminal properties. Specifically, if the item is 'Finished' but lacks a Jira ResolutionDate,
+// it falls back to synthesizing the date based on when it entered the continuous finished streak.
+func DetermineOutcome(issue jira.Issue, mappings map[string]StatusMetadata) jira.Issue {
+	isFinished := false
+
+	// Check if already formally resolved
+	if issue.ResolutionDate != nil {
+		isFinished = true
+	} else if m, ok := mappings[issue.StatusID]; ok && m.Tier == "Finished" {
+		isFinished = true
+	} else {
+		// Fallback for name
+		for name, m := range mappings {
+			if m.Tier == "Finished" && name == issue.Status {
+				isFinished = true
+				break
+			}
+		}
 	}
 
-	return false
+	if isFinished && issue.ResolutionDate == nil {
+		// Synthesize ResolutionDate (streak start)
+		var streakStart *time.Time
+		for i := len(issue.Transitions) - 1; i >= 0; i-- {
+			evt := issue.Transitions[i]
+			isPreviousFin := false
+			if m, ok := mappings[evt.ToStatusID]; ok && m.Tier == "Finished" {
+				isPreviousFin = true
+			} else {
+				for name, m := range mappings {
+					if m.Tier == "Finished" && name == evt.ToStatus {
+						isPreviousFin = true
+						break
+					}
+				}
+			}
+
+			if !isPreviousFin {
+				break
+			}
+			streakStart = &evt.Date
+		}
+
+		if streakStart != nil {
+			issue.ResolutionDate = streakStart
+		} else if mappings[issue.BirthStatusID].Tier == "Finished" || mappings[issue.BirthStatus].Tier == "Finished" {
+			issue.ResolutionDate = &issue.Created
+		} else {
+			issue.ResolutionDate = &issue.Updated
+		}
+
+		// Inject Outcome so downstream IsDelivered doesn't need to consult mappings
+		if m, ok := mappings[issue.StatusID]; ok && m.Outcome != "" {
+			issue.Resolution = "Synthetic-" + m.Outcome
+		} else {
+			for name, m := range mappings {
+				if name == issue.Status && m.Outcome != "" {
+					issue.Resolution = "Synthetic-" + m.Outcome
+					break
+				}
+			}
+		}
+		if issue.Resolution == "" {
+			issue.Resolution = "Synthetic-delivered" // Default optimistic
+		}
+	}
+
+	return issue
+}
+
+// DetermineTier identifies whether an issue is in Demand, Upstream, Downstream, or Finished
+// based on the provided commitment point and mappings.
+func DetermineTier(issue jira.Issue, commitmentPoint string, mappings map[string]StatusMetadata) string {
+	if mappings[issue.StatusID].Tier == "Finished" || mappings[issue.Status].Tier == "Finished" {
+		return "Finished"
+	}
+	// Simplified active tier logic based on metadata (the UI specifies the tier for each status)
+	if m, ok := mappings[issue.StatusID]; ok && m.Tier != "" {
+		return m.Tier
+	}
+	if m, ok := mappings[issue.Status]; ok && m.Tier != "" {
+		return m.Tier
+	}
+	return "Unknown"
 }
 
 // Dataset binds a SourceContext with its fetched and processed issues.
@@ -54,12 +136,6 @@ type Dataset struct {
 	Context   jira.SourceContext `json:"context"`
 	Issues    []jira.Issue       `json:"issues"`
 	FetchedAt time.Time          `json:"fetchedAt"`
-}
-
-// Interval represents a time range.
-type Interval struct {
-	Start time.Time
-	End   time.Time
 }
 
 // FilterTransitions returns only transitions that occurred after a specific date.
@@ -152,34 +228,4 @@ func ApplyBackflowPolicy(issues []jira.Issue, weights map[string]int, commitment
 		clean = append(clean, newIssue)
 	}
 	return clean
-}
-
-// CalculateBlockedResidency computes the overlapping time between status segments and blocked intervals.
-func CalculateBlockedResidency(statusSegments []jira.StatusSegment, blockedIntervals []Interval) map[string]int64 {
-	blockedResidency := make(map[string]int64)
-
-	for _, status := range statusSegments {
-		var totalBlockedSeconds int64
-		for _, blocked := range blockedIntervals {
-			// Find overlap between [status.Start, status.End] and [blocked.Start, blocked.End]
-			overlapStart := status.Start
-			if blocked.Start.After(overlapStart) {
-				overlapStart = blocked.Start
-			}
-
-			overlapEnd := status.End
-			if blocked.End.Before(overlapEnd) {
-				overlapEnd = blocked.End
-			}
-
-			if overlapStart.Before(overlapEnd) {
-				totalBlockedSeconds += int64(overlapEnd.Sub(overlapStart).Seconds())
-			}
-		}
-		if totalBlockedSeconds > 0 {
-			blockedResidency[status.Status] += totalBlockedSeconds
-		}
-	}
-
-	return blockedResidency
 }

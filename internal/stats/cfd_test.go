@@ -37,7 +37,7 @@ func TestCalculateCFDData(t *testing.T) {
 	// 1 week window
 	window := NewAnalysisWindow(monday, monday.AddDate(0, 0, 6), "day", time.Time{})
 
-	res := CalculateCFDData(issues, window, nil)
+	res := CalculateCFDData(issues, window)
 
 	if len(res.Buckets) != 7 {
 		t.Fatalf("Expected 7 buckets, got %d", len(res.Buckets))

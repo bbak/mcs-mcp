@@ -6,7 +6,7 @@ import (
 )
 
 // CalculateCFDData reconstructions the status population for every day in the window.
-func CalculateCFDData(issues []jira.Issue, window AnalysisWindow, mappings map[string]StatusMetadata) CFDResult {
+func CalculateCFDData(issues []jira.Issue, window AnalysisWindow) CFDResult {
 	if len(issues) == 0 {
 		return CFDResult{}
 	}

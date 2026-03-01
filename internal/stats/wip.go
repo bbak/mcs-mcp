@@ -151,15 +151,10 @@ func CalculateWIPRunChart(issues []jira.Issue, window AnalysisWindow, commitment
 	}
 
 	evaluateWipState := func(statusID, status string, currentIsWip bool) bool {
-		m, hasMeta := mappings[statusID]
+		t := DetermineTier(jira.Issue{StatusID: statusID, Status: status}, "", mappings)
 
-		if hasMeta {
-			if m.Tier == "Finished" {
-				return false
-			}
-			if m.Tier == "Demand" {
-				return false
-			}
+		if t == "Finished" || t == "Demand" {
+			return false
 		}
 
 		w, hasWeight := weights[status]
@@ -168,10 +163,8 @@ func CalculateWIPRunChart(issues []jira.Issue, window AnalysisWindow, commitment
 		}
 
 		// Fallback for branching/parallel statuses not in the explicit backbone
-		if hasMeta {
-			if m.Tier == "Downstream" {
-				return true
-			}
+		if t == "Downstream" {
+			return true
 		}
 
 		// Unknown mapped status, or entirely unmapped. Maintain current WIP state.

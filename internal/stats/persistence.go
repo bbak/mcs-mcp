@@ -162,10 +162,7 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 			days := float64(seconds) / 86400.0
 
 			// Resolve Tier
-			tier := "Unknown"
-			if m, ok := mappings[status]; ok {
-				tier = m.Tier
-			}
+			tier := DetermineTier(jira.Issue{Status: status}, "", mappings)
 
 			// Skip terminal tier analysis in persistence overview
 			if tier == "Finished" {
