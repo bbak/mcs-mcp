@@ -47,25 +47,11 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
 ---
 
-## 🛠️ How it Works
+## 🛠️ How it Works (high-level)
 
-MCS-MCP operates on the principle of **Data-Driven Probabilism**. It avoids single-point averages, which often mask risk, and instead provides **Percentile-based outcomes** (e.g., P85 "Likely" confidence).
-
-1. **Ingestion**: The server fetches full Jira changelogs via a centralized ingestion layer, using **Backward Boundary Scanning** to reconstruct project-local history while calculating exact residency time (in seconds) for every item across every status.
-2. **Context Resolution**: Statuses are mapped to a meta-workflow (Demand → Upstream → Downstream → Finished) to ensure the simulation "clock" reflects actual value consumption.
-
-3. **Simulation & Validation**: The engine simulates potential futures and optionally validates them via walk-forward backtesting to ensure historical reliability.
-4. **Diagnostic Guidance**: An AI-orchestrated **Roadmap** tool guides agents through a sequence of diagnostic steps.
-
----
-
-## ⚠️ Probabilistic Nature & Disclaimer
-
-MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on historical performance, not guarantees.
-
-- **No Direct Answer**: A forecast saying "85% confidence by Oct 12" means there is a 15% chance it will take longer.
-- **Garbage In, Garbage Out**: Results are strictly dependent on the quality and consistency of your Jira data.
-- **No Liability**: This tool is provided "AS IS". The authors and contributors are not responsible for any project delays, financial losses, or business decisions made based on its output.
+1. **Ingestion**: The Server fetches Jira items from a Board within a Project and extracts all it needs into a event-sourced log, by reading the history of the work items.
+2. **Context Resolution**: From that it infers the flow of work items and proposes a mapping to a meta-workflow (Demand → Upstream → Downstream → Finished), what _done_ means, and similar, giving you the option to change it. This mapping is cached so you don't have to do that every time.
+3. **Flow diagnostics & forecasting**: Given that it now has the data and _understands_ the flow of work, you can start asking the AI various questions. Given that most flows are not in _statistical control_ you might want to dive into diagnostics first. The AI Agent can also suggest an analytical roadmap.
 
 ---
 
@@ -74,39 +60,54 @@ MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on
 ### Prerequisites
 
 - Access to Atlassian Jira (Data Center or Cloud)
-- A MCP-capable AI Agent to chat with
+- A MCP-capable AI Agent to chat with (Claude Desktop is mine)
 - Recent Version of Go if you want to build yourself
 
-### Mini-How-To
+### How-To
 
-- Build or download a release
-- Configure the server via `.env`
-- Configure a AI Agent to use it as an MCP tool
-- Chat:
-    - Ask the Agent to look a Project and then a Board
-    - Ask the Agent to discover the workflow
-    - Ask the Agent for what the MCP-Server can do or the analytical roadmap
+1. Build from sources (see [Building from Sources](#building-from-sources)) or download a release.
+2. Copy `mcs-mcp.exe` and `.env-example`to a location of your choice (for builders, look into `dist/`).
+3. Rename `.env-example` to `.env` and modify it accordingly. At a minimum, you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)).
+4. Configure a AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
+5. Chat:
+    - Tell the AI Agent which Project and which Board you want to look at.
+    - Tell the Agent to discover the workflow. Throughly check whether the proposal matches your expectations. You should be clear about the "Tiers" (Demand, Upstream, Downstream, Finished), which resolution or terminal status means _delivered_, and which means _abandoned_ (affects _throughput_). Also, what your _commitment point_ is (affects _cycle time_ and what _WIP_ means). Note, that any changes you make are cached, so you don't have to do this every time.
+    - Ask the Agent for what the MCP-Server can do or the analytical roadmap. You can also ask to list all available tools of the MCP-Server.
 
 ### Authentication
 
-The server supports both Personal Access Tokens (PAT) and session-based (cookie) authentication.
+The server supports 3 ways of Authentication through setting variables in the `.env` file.
 
-**Option A: Personal Access Token (PAT) - Preferred**
-Configure your Jira PAT in the `.env` file (example file included):
+Note: Please make sure that those auth-related variables, that don't apply, are commented out.
+
+**Option A: Personal Access Token (PAT) for Jira Datacenter**
 
 ```env
+JIRA_TOKEN_TYPE=pat
 JIRA_TOKEN=your-personal-access-token
 ```
 
-**Option B: Session Cookies - Fallback**
-If PAT is not available, provide session cookies extracted from an active browser:
+**Option B: API Token for Jira Cloud**
 
-- `JIRA_SESSION_ID`: Your Jira session ID.
-- `JIRA_XSRF_TOKEN`: Your XSRF token.
-- `JIRA_REMEMBERME_COOKIE`: Your Jira RememberMe cookie. (Optional, but recommended for long-running sessions)
-- (optional) `JIRA_GCILB`, `JIRA_GCLB`: Actually these are Google-Cloud Load Balancer Cookies.
+```env
+JIRA_TOKEN_TYPE=api
+JIRA_TOKEN=your-api-token
+JIRA_USER_EMAIL=your-jira-account-email
+```
+
+**Option C: Session Cookies - Fallback**
+If neither is available, provide session cookies extracted from an active browser session:
+
+- `JIRA_SESSION_ID`: Your Jira session ID
+- `JIRA_XSRF_TOKEN`: Your XSRF token
+- `JIRA_REMEMBERME_COOKIE`: Your Jira RememberMe cookie
+- (optional) `JIRA_GCILB`, `JIRA_GCLB`: Actually these are Google-Cloud Load Balancer Cookies
+
+Note that these a) might expire from time to time and b) Atlassian may take measures to prevent the use of session cookies this way.
 
 ### Building from Sources
+
+Download Sources or clone the repository.
 
 **On Windows (PowerShell):**
 
@@ -122,10 +123,9 @@ Untested, but should work.
 make build
 ```
 
-The resulting binary will be located in the `dist/` folder (e.g., `dist/mcs-mcp.exe`)
-along with a exemplary `.env` file.
+The resulting binary will be located in the `dist/` folder along with a exemplary `.env` file.
 
-### Configuring as an MCP Tool
+### Agent Configuration
 
 To use as a server for an AI Agent (like Claude or Gemini), point your MCP client configuration to the compiled binary:
 
@@ -133,7 +133,7 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 {
 	"mcpServers": {
 		"mcs-mcp": {
-			"command": "C:/path/to/mcs-mcp/dist/mcs-mcp.exe",
+			"command": "/path/to/mcs-mcp/dist/mcs-mcp.exe",
 			"args": []
 		}
 	}
@@ -160,9 +160,19 @@ Since v.0.11.0 the MCP-Server comes with Skills that can be used by AI Agents to
 
 If you do not have a live Jira connection (or simply want to test the server's analytical capabilities without using sensitive corporate data), MCS-MCP includes a built-in mock data generator called `mockgen`.
 
-This tool produces a standardized, simulated dataset inside your `cache` folder that you can analyze using the `"MCSTEST"` project key. The server ships with this synthetic dataset configured, enabling immediate out-of-the-box evaluation.
+This tool produces a standardized, simulated dataset that you can analyze using `MCSTEST` as project key and board name. The MCP-Server then operates based on the files `MCSTEST_0.jsonl` and `MCSTEST_0_workflow.json` which are expected to be in the `cache/` directory.
 
 For comprehensive details on how to use `mockgen`, configure data distributions (mild, chaotic, drifted), and rebuild the cached simulation, please check the **[Mock Data Generator Guide](docs/mockdata.md)**.
+
+---
+
+## ⚠️ Probabilistic Nature & Disclaimer
+
+MCS-MCP is a statistical tool. It generates **probabilistic forecasts** based on historical performance, not guarantees.
+
+- **No Direct Answer**: A forecast saying "85% confidence by Oct 12" means there is a 15% chance it will take longer.
+- **Garbage In, Garbage Out**: Results are strictly dependent on the quality and consistency of your Jira data.
+- **No Liability**: This tool is provided "AS IS". The authors and contributors are not responsible for any project delays, financial losses, or business decisions made based on its output.
 
 ---
 
@@ -174,6 +184,16 @@ MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detai
 - **[Interaction Use Cases](docs/use-cases.md)**: Detailed scenarios for PMs and AI Agents (When, Scope, Bottlenecks, Backtesting, etc.).
 - **[Architecture Deep-Dive](docs/architecture.md)**: Aging math, backflow policies, and the status-granular flow model.
 - **[Mock Data Generator](docs/mockdata.md)**: Instructions for using `mockgen` and manipulating the `MCSTEST` synthetic sandbox.
+
+---
+
+## Developing & Contributing
+
+To be honest, I havent thought that through.
+
+If you want to contribute, get in touch. I welcome any feedback, because tools like this get better by being exposed to many different projects. If any diagnosis or forecast feels off, let me know.
+
+If you want to develop, make sure your Coding Agent reads `.agent/rules/preferences.md` - especially since this points to further relevant files.
 
 ---
 
