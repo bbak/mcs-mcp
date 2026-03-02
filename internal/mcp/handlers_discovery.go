@@ -49,7 +49,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 		discoverySource = "LOADED_FROM_CACHE"
 	}
 
-	res := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource)
+	res := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource, s.getResolutionMap(sourceID))
 
 	// Add is_cached signal to _metadata
 	if m, ok := res.(map[string]any); ok {
@@ -65,16 +65,17 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	return res, nil
 }
 
-func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string) any {
+func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string, resolutions map[string]string) any {
 	persistence := stats.CalculateStatusPersistence(sample)
 
 	var mapping map[string]stats.StatusMetadata
 	var recommendedCP string
 	var refinedOrder []string
+	var proposedResolutions map[string]string
 	if discoverySource == "LOADED_FROM_CACHE" {
 		mapping = s.activeMapping
 	} else {
-		mapping, recommendedCP, refinedOrder = discovery.ProposeSemantics(sample, persistence)
+		mapping, recommendedCP, refinedOrder, proposedResolutions = discovery.ProposeSemantics(sample, persistence, resolutions)
 	}
 
 	// Build a set of significant statuses keyed by ID for filtering
@@ -121,13 +122,18 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		summary.RecommendedCommitmentPoint = recommendedCP
 	}
 
+	workflowBlock := map[string]any{
+		"status_mapping":    finalMapping,
+		"status_order":      discoveredOrder,
+		"persistence_stats": persistence,
+	}
+	if discoverySource != "LOADED_FROM_CACHE" && len(proposedResolutions) > 0 {
+		workflowBlock["proposed_resolutions"] = proposedResolutions
+	}
+
 	res := map[string]any{
-		"source_id": sourceID,
-		"workflow": map[string]any{
-			"status_mapping":    finalMapping,
-			"status_order":      discoveredOrder,
-			"persistence_stats": persistence,
-		},
+		"source_id":    sourceID,
+		"workflow":     workflowBlock,
 		"data_summary": summary,
 	}
 

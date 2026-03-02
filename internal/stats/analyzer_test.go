@@ -235,7 +235,7 @@ func TestProposeSemantics(t *testing.T) {
 			Transitions: []jira.StatusTransition{{FromStatus: "In Dev", FromStatusID: "4", ToStatus: "Done", ToStatusID: "5"}},
 		})
 	}
-	mapping, commitmentPoint, _ := discovery.ProposeSemantics(issues, persistence)
+	mapping, commitmentPoint, _, _ := discovery.ProposeSemantics(issues, persistence, nil)
 
 	// Verify Backlog (ID "1") is Demand (detected as first entry point)
 	if mapping["1"].Tier != "Demand" {
@@ -437,7 +437,7 @@ func TestTierDiscovery_RefiningScenario(t *testing.T) {
 		{StatusID: "5", StatusName: "Done"},
 	}
 
-	proposal, _, _ := discovery.ProposeSemantics(issues, persistence)
+	proposal, _, _, _ := discovery.ProposeSemantics(issues, persistence, nil)
 	order := discovery.DiscoverStatusOrder(issues)
 
 	// Verify Tiers (keyed by ID)
@@ -540,7 +540,7 @@ func TestProposeSemantics_ProbabilisticFinished(t *testing.T) {
 		{StatusID: "2", StatusName: "Prod"},
 	}
 
-	proposal, _, _ := discovery.ProposeSemantics(issues, persistence)
+	proposal, _, _, _ := discovery.ProposeSemantics(issues, persistence, nil)
 
 	if proposal["1"].Tier == "Finished" {
 		t.Errorf("UAT (1) should be Downstream (10%% density), not Finished")
@@ -633,7 +633,7 @@ func TestProposeSemantics_OutcomeHeuristics(t *testing.T) {
 		{StatusID: "2", StatusName: "Cancelled"},
 		{StatusID: "3", StatusName: "Rejected"},
 	}
-	mapping, _, _ := discovery.ProposeSemantics(issues, persistence)
+	mapping, _, _, _ := discovery.ProposeSemantics(issues, persistence, nil)
 
 	// Done (1) -> Delivered (Default or Keyword)
 	if mapping["1"].Outcome != "delivered" {
