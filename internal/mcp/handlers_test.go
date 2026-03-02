@@ -33,31 +33,31 @@ func TestAnalyticalIntegrity_TemporalOrdering(t *testing.T) {
 	// If the order is correct (temporal), we will see Story (T1), Bug (T2), Story (T3)
 	issues := []jira.Issue{
 		{
-			Key:            "PROJ-1",
-			IssueType:      "Story",
-			Status:         "Done",
-			Resolution:     "Done",
-			ResolutionDate: &t1,
+			Key:         "PROJ-1",
+			IssueType:   "Story",
+			Status:      "Done",
+			Outcome:     "delivered",
+			OutcomeDate: &t1,
 			StatusResidency: map[string]int64{
 				"In Progress": 86400 * 2, // 2 days
 			},
 		},
 		{
-			Key:            "PROJ-2",
-			IssueType:      "Bug",
-			Status:         "Done",
-			Resolution:     "Done",
-			ResolutionDate: &t2,
+			Key:         "PROJ-2",
+			IssueType:   "Bug",
+			Status:      "Done",
+			Outcome:     "delivered",
+			OutcomeDate: &t2,
 			StatusResidency: map[string]int64{
 				"In Progress": 86400 * 1, // 1 day
 			},
 		},
 		{
-			Key:            "PROJ-3",
-			IssueType:      "Story",
-			Status:         "Done",
-			Resolution:     "Done",
-			ResolutionDate: &t3,
+			Key:         "PROJ-3",
+			IssueType:   "Story",
+			Status:      "Done",
+			Outcome:     "delivered",
+			OutcomeDate: &t3,
 			StatusResidency: map[string]int64{
 				"In Progress": 86400 * 3, // 3 days
 			},

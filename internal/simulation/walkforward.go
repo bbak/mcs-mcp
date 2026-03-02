@@ -146,7 +146,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		pastEvents := w.sliceEvents(d)
 
 		// Reconstruct issues as they looked at 'd'
-		pastIssues := w.reconstructAllIssues(pastEvents, d, finishedMap)
+		pastIssues := w.reconstructAllIssues(pastEvents, d)
 
 		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
 		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
@@ -247,26 +247,10 @@ func (w *WalkForwardEngine) sliceEvents(cutoff time.Time) []eventlog.IssueEvent 
 // reconstructAllIssuesAt reconstructs the state of ALL issues at a specific time.
 // This duplicates some logic from LogProvider/Server but is necessary for the isolated engine.
 func (w *WalkForwardEngine) reconstructAllIssuesAt(refDate time.Time) []jira.Issue {
-	// Group events by key
-	// This is expensive to do in a loop.
-	// Optimization: The engine should probably be initialized with already-grouped events?
-	// Or we just accept the hit for the Proof of Concept.
-
-	// Better: The valid full set of issues is ALREADY passed to us?
-	// The problem is we need to know the state *At Time T*.
-	// `ReconstructIssue` in eventlog takes a list of events.
-
-	// We'll reuse the `reconstructAllIssues` helper below.
-	finishedMap := make(map[string]bool)
-	for name, m := range w.mappings {
-		if m.Tier == "Finished" {
-			finishedMap[name] = true
-		}
-	}
-	return w.reconstructAllIssues(w.events, refDate, finishedMap)
+	return w.reconstructAllIssues(w.events, refDate)
 }
 
-func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, refDate time.Time, finishedMap map[string]bool) []jira.Issue {
+func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, refDate time.Time) []jira.Issue {
 	groups := make(map[string][]eventlog.IssueEvent)
 	for _, e := range events {
 		if e.Timestamp <= refDate.UnixMicro() {
@@ -290,6 +274,9 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 			issue.ResolutionDate = nil
 			issue.Resolution = ""
 		}
+
+		// NEW: Determine Outcome centrally using the engine's active mappings
+		stats.DetermineOutcome(&issue, w.resolutions, w.mappings)
 		issues = append(issues, issue)
 	}
 	return issues
@@ -298,9 +285,9 @@ func (w *WalkForwardEngine) reconstructAllIssues(events []eventlog.IssueEvent, r
 func (w *WalkForwardEngine) countFinishedInWindow(allIssues []jira.Issue, start, end time.Time) int {
 	count := 0
 	for _, i := range allIssues {
-		if i.ResolutionDate != nil {
-			if !i.ResolutionDate.Before(start) && (i.ResolutionDate.Before(end) || i.ResolutionDate.Equal(end)) {
-				if stats.IsDelivered(i, w.resolutions) {
+		if i.OutcomeDate != nil {
+			if !i.OutcomeDate.Before(start) && (i.OutcomeDate.Before(end) || i.OutcomeDate.Equal(end)) {
+				if stats.IsDelivered(i) {
 					count++
 				}
 			}
@@ -313,9 +300,9 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 	// Find all items resolved AFTER start
 	resolvedAfter := make([]time.Time, 0)
 	for _, i := range allIssues {
-		if i.ResolutionDate != nil && i.ResolutionDate.After(start) {
-			if stats.IsDelivered(i, w.resolutions) {
-				resolvedAfter = append(resolvedAfter, *i.ResolutionDate)
+		if i.OutcomeDate != nil && i.OutcomeDate.After(start) {
+			if stats.IsDelivered(i) {
+				resolvedAfter = append(resolvedAfter, *i.OutcomeDate)
 			}
 		}
 	}

@@ -83,9 +83,9 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	// We use a dummy provider since no Jira/Hydrate calls are made
 	provider := eventlog.NewLogProvider(nil, store, "")
 
-	events := provider.GetEventsInRange(eventsFile, time.Time{}, time.Time{})
+	allEvents := provider.GetIssuesInRange(eventsFile, time.Time{}, latestTS)
 	nameToID := make(map[string]string)
-	for _, e := range events {
+	for _, e := range allEvents {
 		if e.ToStatus != "" && e.ToStatusID != "" {
 			nameToID[e.ToStatus] = e.ToStatusID
 		}
@@ -103,8 +103,10 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 		}
 	}
 
+	// For the session, we filter events relevant to the window
+	sessionEvents := provider.GetIssuesInRange(eventsFile, window.Start, window.End)
 	session := stats.NewAnalysisSession(
-		provider,
+		sessionEvents,
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
 		idMapping,
@@ -113,7 +115,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	)
 
 	// 4. Execute the Pipeline
-	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window, wf.Resolutions)
+	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window)
 	cadence.XmR = stats.AnalyzeThroughputStability(cadence)
 
 	yield := stats.CalculateProcessYield(session.GetAllIssues(), idMapping, wf.Resolutions)

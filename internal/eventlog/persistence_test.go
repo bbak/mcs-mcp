@@ -52,7 +52,7 @@ func TestEventStore_Persistence(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	loadedEvents := store2.GetEventsForIssue(sourceID, "PROJ-1")
+	loadedEvents := store2.GetIssuesInRange(sourceID, time.Time{}, time.Now().Add(1*time.Hour))
 	if len(loadedEvents) != 2 {
 		t.Fatalf("Expected 2 events, got %d", len(loadedEvents))
 	}

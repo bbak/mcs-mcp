@@ -18,7 +18,7 @@ type StratificationDecision struct {
 }
 
 // AssessStratificationNeeds analyzes a set of delivered issues to decide which types should be stratified.
-func AssessStratificationNeeds(issues []jira.Issue, resolutions map[string]string, mappings map[string]stats.StatusMetadata) []StratificationDecision {
+func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 	if len(issues) == 0 {
 		return nil
 	}
@@ -28,14 +28,14 @@ func AssessStratificationNeeds(issues []jira.Issue, resolutions map[string]strin
 	var allCycleTimes []float64
 
 	for _, iss := range issues {
-		if !stats.IsDelivered(iss, resolutions) {
+		if !stats.IsDelivered(iss) {
 			continue
 		}
 
-		// Calculate Cycle Time (Resolution - Created as current best heuristic for eligibility)
+		// Calculate Cycle Time (Outcome - Created as current best heuristic for eligibility)
 		resDate := iss.Updated
-		if iss.ResolutionDate != nil {
-			resDate = *iss.ResolutionDate
+		if iss.OutcomeDate != nil {
+			resDate = *iss.OutcomeDate
 		}
 		ct := resDate.Sub(iss.Created).Hours() / 24.0
 

@@ -34,7 +34,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, s.Clock())
+	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
 
 	issues := stats.ProjectNeutralSample(events, 200)

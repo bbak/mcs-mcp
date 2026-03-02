@@ -57,8 +57,9 @@ func TestSimulationPipeline_Golden(t *testing.T) {
 
 	window := stats.NewAnalysisWindow(windowStart, latestTS, "day", cutoff)
 	provider := eventlog.NewLogProvider(nil, store, "")
+	events := provider.GetIssuesInRange(eventsFile, window.Start, window.End)
 	session := stats.NewAnalysisSession(
-		provider,
+		events,
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
 		wf.Mapping,

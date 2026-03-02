@@ -151,10 +151,10 @@ func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Iss
 	var matchedIssues []jira.Issue
 
 	for _, issue := range issues {
-		if issue.ResolutionDate == nil {
+		if issue.OutcomeDate == nil {
 			continue
 		}
-		if s.activeDiscoveryCutoff != nil && issue.ResolutionDate.Before(*s.activeDiscoveryCutoff) {
+		if s.activeDiscoveryCutoff != nil && issue.OutcomeDate.Before(*s.activeDiscoveryCutoff) {
 			continue
 		}
 		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
@@ -162,7 +162,7 @@ func (s *Server) getCycleTimes(projectKey string, boardID int, issues []jira.Iss
 		}
 
 		// Only count "delivered" work
-		if !stats.IsDelivered(issue, s.activeResolutions) {
+		if !stats.IsDelivered(issue) {
 			continue
 		}
 
@@ -186,10 +186,10 @@ func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []ji
 
 	cycleTimes := make(map[string][]float64)
 	for _, issue := range issues {
-		if issue.ResolutionDate == nil {
+		if issue.OutcomeDate == nil {
 			continue
 		}
-		if s.activeDiscoveryCutoff != nil && issue.ResolutionDate.Before(*s.activeDiscoveryCutoff) {
+		if s.activeDiscoveryCutoff != nil && issue.OutcomeDate.Before(*s.activeDiscoveryCutoff) {
 			continue
 		}
 		if len(issueTypes) > 0 && !typeMap[issue.IssueType] {
@@ -197,7 +197,7 @@ func (s *Server) getCycleTimesByType(projectKey string, boardID int, issues []ji
 		}
 
 		// Only count "delivered" work
-		if !stats.IsDelivered(issue, s.activeResolutions) {
+		if !stats.IsDelivered(issue) {
 			continue
 		}
 

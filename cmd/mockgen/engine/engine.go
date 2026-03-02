@@ -139,16 +139,18 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 			resolution := "Fixed"
 			toStatus := "Done"
 			toStatusID := "4"
+			resolutionID := "1"
 
 			// 20% of finished items are abandoned
 			if rnd.Float64() < 0.2 {
 				resolution = "Won't Do"
 				toStatus = "Closed"
 				toStatusID = "5"
+				resolutionID = "2"
 			}
 
 			events = append(events, eventlog.IssueEvent{
-				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "In Progress", FromStatusID: "3", ToStatus: toStatus, ToStatusID: toStatusID, Resolution: resolution, Timestamp: tDone.UnixMicro(),
+				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "In Progress", FromStatusID: "3", ToStatus: toStatus, ToStatusID: toStatusID, Resolution: resolution, ResolutionID: resolutionID, Timestamp: tDone.UnixMicro(),
 			})
 		}
 	}

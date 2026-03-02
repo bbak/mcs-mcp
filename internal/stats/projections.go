@@ -49,11 +49,11 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 			continue
 		}
 
-		issue = DetermineOutcome(issue, mappings)
+		DetermineOutcome(&issue, resolutions, mappings)
 
 		// 1. Was it resolved WITHIN the window?
-		if issue.ResolutionDate != nil {
-			if !issue.ResolutionDate.Before(window.Start) && !issue.ResolutionDate.After(window.End) {
+		if issue.OutcomeDate != nil {
+			if !issue.OutcomeDate.Before(window.Start) && !issue.OutcomeDate.After(window.End) {
 				finished = append(finished, issue)
 			}
 			continue
@@ -75,12 +75,12 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 	sortByDate := func(issues []jira.Issue) {
 		slices.SortFunc(issues, func(a, b jira.Issue) int {
 			dateA := a.Updated
-			if a.ResolutionDate != nil {
-				dateA = *a.ResolutionDate
+			if a.OutcomeDate != nil {
+				dateA = *a.OutcomeDate
 			}
 			dateB := b.Updated
-			if b.ResolutionDate != nil {
-				dateB = *b.ResolutionDate
+			if b.OutcomeDate != nil {
+				dateB = *b.OutcomeDate
 			}
 			return dateA.Compare(dateB)
 		})
@@ -315,21 +315,21 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 }
 
 // GetStratifiedThroughput aggregates resolved items into time buckets, both pooled and stratified by type.
-func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow, resolutions map[string]string) StratifiedThroughput {
+func GetStratifiedThroughput(issues []jira.Issue, window AnalysisWindow) StratifiedThroughput {
 	buckets := window.Subdivide()
 	pooled := make([]int, len(buckets))
 	byType := make(map[string][]int)
 
 	for _, issue := range issues {
-		if !IsDelivered(issue, resolutions) {
+		if !IsDelivered(issue) {
 			continue
 		}
 
-		if issue.ResolutionDate == nil {
+		if issue.OutcomeDate == nil {
 			continue
 		}
 
-		idx := window.FindBucketIndex(*issue.ResolutionDate)
+		idx := window.FindBucketIndex(*issue.OutcomeDate)
 		if idx < 0 || idx >= len(buckets) {
 			continue
 		}

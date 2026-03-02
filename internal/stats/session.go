@@ -9,7 +9,7 @@ import (
 // It manages data hydration, projection, and applying meta-workflow policies
 // to provide a consistent set of items for various analytical tools.
 type AnalysisSession struct {
-	provider    *eventlog.LogProvider
+	events      []eventlog.IssueEvent
 	sourceID    string
 	ctx         jira.SourceContext
 	mappings    map[string]StatusMetadata
@@ -25,9 +25,9 @@ type AnalysisSession struct {
 }
 
 // NewAnalysisSession creates a new orchestration session.
-func NewAnalysisSession(provider *eventlog.LogProvider, sourceID string, ctx jira.SourceContext, mapping map[string]StatusMetadata, resolutions map[string]string, window AnalysisWindow) *AnalysisSession {
+func NewAnalysisSession(events []eventlog.IssueEvent, sourceID string, ctx jira.SourceContext, mapping map[string]StatusMetadata, resolutions map[string]string, window AnalysisWindow) *AnalysisSession {
 	return &AnalysisSession{
-		provider:    provider,
+		events:      events,
 		sourceID:    sourceID,
 		ctx:         ctx,
 		mappings:    mapping,
@@ -42,16 +42,13 @@ func (s *AnalysisSession) Project() error {
 		return nil
 	}
 
-	// 1. Get raw events in window
-	events := s.provider.GetEventsInRange(s.sourceID, s.window.Start, s.window.End)
-
-	// 2. Project into basic domain issues
-	finished, downstream, upstream, demand := ProjectScope(events, s.window, "", s.mappings, s.resolutions, nil)
+	// 1. Process events into basic domain issues
+	finished, downstream, upstream, demand := ProjectScope(s.events, s.window, "", s.mappings, s.resolutions, nil)
 
 	// We'll store all un-filtered items first
 	s.allIssues = append(finished, append(downstream, append(upstream, demand...)...)...)
 	s.wip = downstream
-	s.delivered = FilterDelivered(finished, s.resolutions, s.mappings)
+	s.delivered = FilterDelivered(finished)
 
 	_ = upstream
 	_ = demand

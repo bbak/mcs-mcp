@@ -23,8 +23,10 @@ func TestCalculateProcessYield(t *testing.T) {
 	issues := []jira.Issue{
 		{Key: "ISS-1", Resolution: "Fixed", IssueType: "Story"},
 		{Key: "ISS-2", Resolution: "Fixed", IssueType: "Story"},
-		{Key: "ISS-3", Resolution: "Duplicate", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400}},
-		{Key: "ISS-4", Resolution: "Won't Do", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800}},
+		{Key: "ISS-3", Resolution: "Duplicate", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400},
+			Transitions: []jira.StatusTransition{{ToStatus: "Refined"}}}, // Reached Upstream
+		{Key: "ISS-4", Resolution: "Won't Do", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800},
+			Transitions: []jira.StatusTransition{{ToStatus: "In Flight"}}}, // Reached Downstream
 	}
 
 	yield := CalculateProcessYield(issues, mappings, resolutions)

@@ -1,40 +1,93 @@
 {
   "ScopeForecast": {
     "percentiles": {
-      "aggressive": 0,
-      "unlikely": 0,
-      "coin_toss": 0,
-      "probable": 0,
-      "likely": 0,
-      "conservative": 0,
-      "safe": 0,
-      "almost_certain": 0
+      "aggressive": 21,
+      "unlikely": 15,
+      "coin_toss": 12,
+      "probable": 8,
+      "likely": 6,
+      "conservative": 4,
+      "safe": 3,
+      "almost_certain": 2
     },
     "spread": {
-      "iqr": 0,
-      "inner_80": 0
+      "iqr": 9,
+      "inner_80": 17
     },
-    "fat_tail_ratio": 0,
-    "tail_to_median_ratio": 0,
-    "predictability": "Unknown",
+    "fat_tail_ratio": 0.17,
+    "tail_to_median_ratio": 0.5,
+    "predictability": "Stable",
     "context": {
       "days_in_sample": 367,
       "dropped_by_resolution": 0,
       "dropped_by_window": 0,
-      "issues_analyzed": 0,
-      "issues_total": 0,
-      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
-      "stratification_decisions": null,
+      "issues_analyzed": 322,
+      "issues_total": 322,
+      "modeling_insight": "Stratified: Modeling 4 distinct delivery streams independently to capture capacity clashes and variance.",
+      "stratification_decisions": [
+        {
+          "type": "Activity",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 128,
+          "p85_cycle_time": 129.9979050925926,
+          "distance_to_pool": -0.19205950083458212
+        },
+        {
+          "type": "Bug",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 54,
+          "p85_cycle_time": 56.269178240740736,
+          "distance_to_pool": -0.6502855340394065
+        },
+        {
+          "type": "Story",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 125,
+          "p85_cycle_time": 263.8611689814815,
+          "distance_to_pool": 0.6399043078842376
+        },
+        {
+          "type": "Defect",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 15,
+          "p85_cycle_time": 16.95334490740741,
+          "distance_to_pool": -0.8946345024771117
+        }
+      ],
       "stratification_dependencies": {},
-      "stratification_eligible": {},
-      "throughput_overall": 0,
+      "stratification_eligible": {
+        "Activity": true,
+        "Bug": true,
+        "Defect": true,
+        "Story": true
+      },
+      "throughput_overall": 0.8821917808219178,
       "throughput_recent": 0,
-      "type_counts": {},
-      "type_distribution": {},
-      "type_volatility": {}
+      "type_counts": {
+        "Activity": 128,
+        "Bug": 54,
+        "Defect": 15,
+        "Story": 125
+      },
+      "type_distribution": {
+        "Activity": 0.39751552795031053,
+        "Bug": 0.16770186335403728,
+        "Defect": 0.046583850931677016,
+        "Story": 0.38819875776397517
+      },
+      "type_volatility": {
+        "Activity": 10,
+        "Bug": 10,
+        "Defect": 10,
+        "Story": 10
+      }
     },
     "warnings": [
-      "Simulation based on a small sample size (0 items); results may have limited statistical significance."
+      "Significant throughput drop recently (100% below average). WIP may have increased or capacity dropped."
     ],
     "composition": {
       "existing_backlog": 0,
@@ -43,8 +96,8 @@
       "total": 0
     },
     "throughput_trend": {
-      "direction": "Stable",
-      "percentage_change": 0
+      "direction": "Declining",
+      "percentage_change": -100
     },
     "percentile_labels": {
       "aggressive": "P10 (10% probability to deliver at least this much)",
@@ -59,41 +112,93 @@
   },
   "DurationForecast": {
     "percentiles": {
-      "aggressive": 3650,
-      "unlikely": 3650,
-      "coin_toss": 3650,
-      "probable": 3650,
-      "likely": 3650,
-      "conservative": 3650,
-      "safe": 3650,
-      "almost_certain": 3650
+      "aggressive": 61,
+      "unlikely": 73,
+      "coin_toss": 84,
+      "probable": 97,
+      "likely": 117,
+      "conservative": 130,
+      "safe": 160,
+      "almost_certain": 200
     },
     "spread": {
-      "iqr": 0,
-      "inner_80": 0
+      "iqr": 32,
+      "inner_80": 69
     },
-    "fat_tail_ratio": 1,
-    "tail_to_median_ratio": 1,
+    "fat_tail_ratio": 2.38,
+    "tail_to_median_ratio": 1.39,
     "predictability": "Stable",
     "context": {
       "days_in_sample": 367,
       "dropped_by_resolution": 0,
       "dropped_by_window": 0,
-      "issues_analyzed": 0,
-      "issues_total": 0,
-      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
-      "stratification_decisions": null,
+      "issues_analyzed": 322,
+      "issues_total": 322,
+      "modeling_insight": "Stratified: Modeling 4 distinct delivery streams independently to capture capacity clashes and variance.",
+      "stratification_decisions": [
+        {
+          "type": "Activity",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 128,
+          "p85_cycle_time": 129.9979050925926,
+          "distance_to_pool": -0.19205950083458212
+        },
+        {
+          "type": "Bug",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 54,
+          "p85_cycle_time": 56.269178240740736,
+          "distance_to_pool": -0.6502855340394065
+        },
+        {
+          "type": "Story",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 125,
+          "p85_cycle_time": 263.8611689814815,
+          "distance_to_pool": 0.6399043078842376
+        },
+        {
+          "type": "Defect",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 15,
+          "p85_cycle_time": 16.95334490740741,
+          "distance_to_pool": -0.8946345024771117
+        }
+      ],
       "stratification_dependencies": {},
-      "stratification_eligible": {},
-      "throughput_overall": 0,
+      "stratification_eligible": {
+        "Activity": true,
+        "Bug": true,
+        "Defect": true,
+        "Story": true
+      },
+      "throughput_overall": 0.8821917808219178,
       "throughput_recent": 0,
-      "type_counts": {},
-      "type_distribution": {},
-      "type_volatility": {}
+      "type_counts": {
+        "Activity": 128,
+        "Bug": 54,
+        "Defect": 15,
+        "Story": 125
+      },
+      "type_distribution": {
+        "Activity": 0.39751552795031053,
+        "Bug": 0.16770186335403728,
+        "Defect": 0.046583850931677016,
+        "Story": 0.38819875776397517
+      },
+      "type_volatility": {
+        "Activity": 10,
+        "Bug": 10,
+        "Defect": 10,
+        "Story": 10
+      }
     },
     "warnings": [
-      "Simulation based on a small sample size (0 items); results may have limited statistical significance.",
-      "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data."
+      "Significant throughput drop recently (100% below average). WIP may have increased or capacity dropped."
     ],
     "composition": {
       "existing_backlog": 0,
@@ -102,9 +207,15 @@
       "total": 0
     },
     "throughput_trend": {
-      "direction": "Stable",
-      "percentage_change": 0
+      "direction": "Declining",
+      "percentage_change": -100
     },
+    "insights": [
+      "Volatility Alert: Item Type 'Story' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Defect' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Activity' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Bug' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty."
+    ],
     "percentile_labels": {
       "aggressive": "P10 (Aggressive / Best Case)",
       "almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
@@ -116,9 +227,18 @@
       "unlikely": "P30 (Unlikely / High Risk)"
     },
     "background_items_predicted": {
-      "Unknown": 0
+      "Activity": 7,
+      "Bug": 3,
+      "Defect": 1,
+      "Story": 7
     },
-    "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling."
+    "modeling_insight": "Stratified: Modeling 4 distinct delivery streams independently to capture capacity clashes and variance.",
+    "volatility_attribution": {
+      "Activity": "Fat-Tail High-Risk (10.00)",
+      "Bug": "Fat-Tail High-Risk (10.00)",
+      "Defect": "Fat-Tail High-Risk (10.00)",
+      "Story": "Fat-Tail High-Risk (10.00)"
+    }
   },
   "MultiForecast": {
     "percentiles": {
@@ -142,21 +262,74 @@
       "days_in_sample": 367,
       "dropped_by_resolution": 0,
       "dropped_by_window": 0,
-      "issues_analyzed": 0,
-      "issues_total": 0,
-      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
-      "stratification_decisions": null,
+      "issues_analyzed": 322,
+      "issues_total": 322,
+      "modeling_insight": "Stratified: Modeling 4 distinct delivery streams independently to capture capacity clashes and variance.",
+      "stratification_decisions": [
+        {
+          "type": "Activity",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 128,
+          "p85_cycle_time": 129.9979050925926,
+          "distance_to_pool": -0.19205950083458212
+        },
+        {
+          "type": "Bug",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 54,
+          "p85_cycle_time": 56.269178240740736,
+          "distance_to_pool": -0.6502855340394065
+        },
+        {
+          "type": "Story",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 125,
+          "p85_cycle_time": 263.8611689814815,
+          "distance_to_pool": 0.6399043078842376
+        },
+        {
+          "type": "Defect",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 15,
+          "p85_cycle_time": 16.95334490740741,
+          "distance_to_pool": -0.8946345024771117
+        }
+      ],
       "stratification_dependencies": {},
-      "stratification_eligible": {},
-      "throughput_overall": 0,
+      "stratification_eligible": {
+        "Activity": true,
+        "Bug": true,
+        "Defect": true,
+        "Story": true
+      },
+      "throughput_overall": 0.8821917808219178,
       "throughput_recent": 0,
-      "type_counts": {},
-      "type_distribution": {},
-      "type_volatility": {}
+      "type_counts": {
+        "Activity": 128,
+        "Bug": 54,
+        "Defect": 15,
+        "Story": 125
+      },
+      "type_distribution": {
+        "Activity": 0.39751552795031053,
+        "Bug": 0.16770186335403728,
+        "Defect": 0.046583850931677016,
+        "Story": 0.38819875776397517
+      },
+      "type_volatility": {
+        "Activity": 10,
+        "Bug": 10,
+        "Defect": 10,
+        "Story": 10
+      }
     },
     "warnings": [
-      "Simulation based on a small sample size (0 items); results may have limited statistical significance.",
-      "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data."
+      "Significant throughput drop recently (100% below average). WIP may have increased or capacity dropped.",
+      "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions)."
     ],
     "composition": {
       "existing_backlog": 0,
@@ -165,9 +338,15 @@
       "total": 0
     },
     "throughput_trend": {
-      "direction": "Stable",
-      "percentage_change": 0
+      "direction": "Declining",
+      "percentage_change": -100
     },
+    "insights": [
+      "Volatility Alert: Item Type 'Bug' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Story' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Defect' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Activity' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty."
+    ],
     "percentile_labels": {
       "aggressive": "P10 (Aggressive / Best Case)",
       "almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
@@ -179,10 +358,17 @@
       "unlikely": "P30 (Unlikely / High Risk)"
     },
     "background_items_predicted": {
-      "Bug": 0,
-      "Story": 0,
-      "Task": 0
+      "Activity": 1242,
+      "Bug": 512,
+      "Defect": 145,
+      "Story": 1150
     },
-    "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling."
+    "modeling_insight": "Stratified: Modeling 4 distinct delivery streams independently to capture capacity clashes and variance.",
+    "volatility_attribution": {
+      "Activity": "Fat-Tail High-Risk (10.00)",
+      "Bug": "Fat-Tail High-Risk (10.00)",
+      "Defect": "Fat-Tail High-Risk (10.00)",
+      "Story": "Fat-Tail High-Risk (10.00)"
+    }
   }
 }

@@ -28,6 +28,8 @@ type Issue struct {
 	IsMoved           bool
 	Flagged           string
 	HasSyntheticBirth bool // True if birth date was inferred from earliest event
+	Outcome           string
+	OutcomeDate       *time.Time
 }
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.

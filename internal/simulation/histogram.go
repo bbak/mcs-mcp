@@ -39,14 +39,15 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	// 1. First pass: Collect delivered items and their types
 	deliveredIssues := make([]jira.Issue, 0)
 	for _, issue := range issues {
-		if !stats.IsDelivered(issue, resolutionMappings) {
+		if !stats.IsDelivered(issue) {
+			droppedByResolution++
 			continue
 		}
 		deliveredIssues = append(deliveredIssues, issue)
 	}
 
 	// 2. Assess stratification eligibility
-	decisions := AssessStratificationNeeds(deliveredIssues, resolutionMappings, mappings)
+	decisions := AssessStratificationNeeds(deliveredIssues)
 
 	// 3. Second pass: Fill buckets
 	for _, issue := range deliveredIssues {

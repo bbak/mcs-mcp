@@ -12,19 +12,15 @@ func TestGetStratifiedThroughput(t *testing.T) {
 	monday := SnapToStart(now, "week")
 
 	issues := []jira.Issue{
-		{Key: "S1", IssueType: "Story", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},                                                               // This week
-		{Key: "B1", IssueType: "Bug", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},                                                                 // This week
-		{Key: "S2", IssueType: "Story", ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, -2); return &tt }(), Resolution: "Fixed", Status: "Done"}, // Last week (Saturday)
-	}
-
-	resolutions := map[string]string{
-		"Fixed": "delivered",
+		{Key: "S1", IssueType: "Story", OutcomeDate: &now, Outcome: "delivered", Status: "Done"},                                                               // This week
+		{Key: "B1", IssueType: "Bug", OutcomeDate: &now, Outcome: "delivered", Status: "Done"},                                                                 // This week
+		{Key: "S2", IssueType: "Story", OutcomeDate: func() *time.Time { tt := monday.AddDate(0, 0, -2); return &tt }(), Outcome: "delivered", Status: "Done"}, // Last week (Saturday)
 	}
 
 	// 2-week window ending now
 	window := NewAnalysisWindow(monday.AddDate(0, 0, -7), now, "week", time.Time{})
 
-	res := GetStratifiedThroughput(issues, window, resolutions)
+	res := GetStratifiedThroughput(issues, window)
 
 	// Since window starts at monday-7 and ends at now, it should have 2 buckets: Last Week and This Week.
 	if len(res.Pooled) != 2 {
@@ -54,11 +50,11 @@ func TestGetStratifiedThroughput_DayBucket(t *testing.T) {
 	today := SnapToStart(now, "day")
 
 	issues := []jira.Issue{
-		{Key: "I1", IssueType: "Story", ResolutionDate: &now, Resolution: "Fixed", Status: "Done"},
+		{Key: "I1", IssueType: "Story", OutcomeDate: &now, Outcome: "delivered", Status: "Done"},
 	}
 
 	window := NewAnalysisWindow(today, now, "day", time.Time{})
-	res := GetStratifiedThroughput(issues, window, nil)
+	res := GetStratifiedThroughput(issues, window)
 
 	if len(res.Pooled) != 1 {
 		t.Fatalf("Expected 1 bucket, got %d", len(res.Pooled))

@@ -56,7 +56,8 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	// 3. Project using AnalysisSession
 	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
@@ -136,6 +137,16 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+
+		// Populate Composition breakdown
+		resObj.Composition.ExistingBacklog = 0 // Existing backlog handled via Targets
+		resObj.Composition.WIP = 0
+		resObj.Composition.AdditionalItems = additionalItems
+		resObj.Composition.Total = 0
+		for _, v := range actualTargets {
+			resObj.Composition.Total += v
+		}
+
 		res = resObj
 
 	case "duration":
@@ -189,7 +200,8 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -26*7), time.Now(), "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
 	all := session.GetAllIssues()
@@ -274,7 +286,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 
 	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 
 	wfa := simulation.NewWalkForwardEngine(events, s.activeMapping, s.activeResolutions)
 
@@ -283,7 +295,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 
 	if itemsToForecast <= 0 {
-		session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+		session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 		delivered := session.GetDelivered()
 		// Simple adaptive heuristic
 		itemsToForecast = int(float64(len(delivered)) / 10.0 * 2.0)
