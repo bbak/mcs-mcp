@@ -63,14 +63,24 @@ func TestSimulationPipeline_Golden(t *testing.T) {
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
 		wf.Mapping,
-		map[string]string{"Done": "Done"},
+		map[string]string{
+			"Done":       "delivered",
+			"10000":      "delivered",
+			"Fixed":      "delivered",
+			"Won't Do":   "abandoned_upstream",
+			"10100":      "abandoned_upstream",
+			"Duplicate":  "abandoned_upstream",
+			"Stop doing": "abandoned_upstream",
+			"10401":      "abandoned_upstream",
+			"Unresolved": "abandoned_downstream",
+		},
 		window,
 	)
 
-	delivered := session.GetDelivered()
+	finished := session.GetFinished()
 
 	// 4. Build Histogram
-	h := simulation.NewHistogram(delivered, window.Start, window.End, []string{"Story", "Bug", "Task", "Activity"}, wf.Mapping, map[string]string{"Done": "Done"})
+	h := simulation.NewHistogram(finished, window.Start, window.End, []string{"Story", "Bug", "Task", "Activity"}, wf.Mapping, map[string]string{"Done": "Done"})
 
 	// 5. Guarantee Determinism via Seed
 	engine := simulation.NewEngine(h)

@@ -21,11 +21,11 @@ func TestCalculateProcessYield(t *testing.T) {
 	}
 
 	issues := []jira.Issue{
-		{Key: "ISS-1", Resolution: "Fixed", IssueType: "Story"},
-		{Key: "ISS-2", Resolution: "Fixed", IssueType: "Story"},
-		{Key: "ISS-3", Resolution: "Duplicate", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400},
+		{Key: "ISS-1", Outcome: "delivered", IssueType: "Story"},
+		{Key: "ISS-2", Outcome: "delivered", IssueType: "Story"},
+		{Key: "ISS-3", Outcome: "abandoned_upstream", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400},
 			Transitions: []jira.StatusTransition{{ToStatus: "Refined"}}}, // Reached Upstream
-		{Key: "ISS-4", Resolution: "Won't Do", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800},
+		{Key: "ISS-4", Outcome: "abandoned_downstream", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800},
 			Transitions: []jira.StatusTransition{{ToStatus: "In Flight"}}}, // Reached Downstream
 	}
 
@@ -68,9 +68,9 @@ func TestCalculateStratifiedYield(t *testing.T) {
 	}
 
 	issues := []jira.Issue{
-		{Key: "STORY-1", Resolution: "Fixed", IssueType: "Story"},
-		{Key: "STORY-2", Resolution: "Fixed", IssueType: "Story"},
-		{Key: "BUG-1", Resolution: "Won't Do", IssueType: "Bug"},
+		{Key: "STORY-1", Outcome: "delivered", IssueType: "Story"},
+		{Key: "STORY-2", Outcome: "delivered", IssueType: "Story"},
+		{Key: "BUG-1", Outcome: "abandoned_demand", IssueType: "Bug"},
 	}
 
 	strat := CalculateStratifiedYield(issues, mappings, resolutions)

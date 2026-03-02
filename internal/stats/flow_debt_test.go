@@ -28,7 +28,9 @@ func TestCalculateFlowDebt(t *testing.T) {
 				{ToStatus: "Done", ToStatusID: "3", Date: monday.AddDate(0, 0, 2)},        // Wednesday this week (Departure)
 			},
 			ResolutionDate: func() *time.Time { tt := monday.AddDate(0, 0, 2); return &tt }(),
+			OutcomeDate:    func() *time.Time { tt := monday.AddDate(0, 0, 2); return &tt }(),
 			Resolution:     "Fixed",
+			Outcome:        "delivered",
 			Status:         "Done",
 			StatusID:       "3",
 		},

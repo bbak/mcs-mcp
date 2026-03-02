@@ -46,3 +46,6 @@ docs/reports/*
 
 # Testing artifacts
 *.actual
+
+# Symlink to .agent/rules/preferences.md
+CLAUDE.md

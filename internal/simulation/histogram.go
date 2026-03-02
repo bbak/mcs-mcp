@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
+	"slices"
 	"time"
 )
 
@@ -33,14 +34,14 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	typeCounts := make(map[string]int)
 	totalDelivered := 0
 
-	droppedByResolution := 0
+	droppedByOutcome := 0
 	droppedByWindow := 0
 
 	// 1. First pass: Collect delivered items and their types
 	deliveredIssues := make([]jira.Issue, 0)
 	for _, issue := range issues {
 		if !stats.IsDelivered(issue) {
-			droppedByResolution++
+			droppedByOutcome++
 			continue
 		}
 		deliveredIssues = append(deliveredIssues, issue)
@@ -88,7 +89,14 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	// Calculate normalized distribution
 	typeDist := make(map[string]float64)
 	if totalDelivered > 0 {
-		for t, c := range typeCounts {
+		types := make([]string, 0, len(typeCounts))
+		for t := range typeCounts {
+			types = append(types, t)
+		}
+		slices.Sort(types)
+
+		for _, t := range types {
+			c := typeCounts[t]
 			typeDist[t] = float64(c) / float64(totalDelivered)
 		}
 	}
@@ -126,7 +134,14 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	// Calculate dependencies and volatility for stratified types
 	dependencies := DetectDependencies(stratified)
 	volatility := make(map[string]float64)
-	for t, counts := range stratified {
+	stratTypes := make([]string, 0, len(stratified))
+	for t := range stratified {
+		stratTypes = append(stratTypes, t)
+	}
+	slices.Sort(stratTypes)
+
+	for _, t := range stratTypes {
+		counts := stratified[t]
 		volatility[t] = CalculateFatTail(counts)
 	}
 
@@ -145,7 +160,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 	meta := map[string]any{
 		"issues_total":                len(issues),
 		"issues_analyzed":             totalDelivered,
-		"dropped_by_resolution":       droppedByResolution,
+		"dropped_by_outcome":          droppedByOutcome,
 		"dropped_by_window":           droppedByWindow,
 		"days_in_sample":              days,
 		"throughput_overall":          avgAcross,
