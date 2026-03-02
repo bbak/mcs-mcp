@@ -9,7 +9,7 @@ type StatusMetadata struct {
 	Name    string `json:"name,omitempty"` // For display/AI lookup
 	Role    string `json:"role"`
 	Tier    string `json:"tier"`
-	Outcome string `json:"outcome,omitempty"` // delivered, abandoned_demand, abandoned_upstream, abandoned_downstream
+	Outcome string `json:"outcome,omitempty"` // delivered, abandoned or empty if not yet finished
 }
 
 type MetadataSummary struct {

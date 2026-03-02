@@ -74,8 +74,7 @@ Functions that calculate Throughput, Flow Cadence, Cycle-Time, Monte-Carlo simul
 
 The server calculates the "Yield Rate" by attributing abandonment to specific tiers:
 
-- **Explicit Attribution**: Uses outcome suffixes (e.g., `abandoned_upstream`).
-- **Heuristic Attribution**: Backtracks through the item's `Transitions` to the last active status if the outcome is generically `abandoned`.
+- **Heuristic Attribution**: Backtracks through the item's `Transitions` to the last active status if the outcome is `abandoned`.
 
 ---
 
