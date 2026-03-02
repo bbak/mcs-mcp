@@ -555,10 +555,15 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	for k, m := range meta.Mapping {
 		id := s.activeRegistry.GetStatusID(k)
 		if id != "" {
-			m.Name = k // Preserve the name for display
+			// k was a human-readable name; store it and re-key by ID
+			m.Name = k
 			s.activeMapping[id] = m
+		} else if name := s.activeRegistry.GetStatusName(k); name != "" {
+			// k was already an ID; heal any corrupted Name field
+			m.Name = name
+			s.activeMapping[k] = m
 		} else {
-			// Fallback: keep as is (might be ID already or a name without registry entry)
+			// Unknown key — keep as-is
 			s.activeMapping[k] = m
 		}
 	}
