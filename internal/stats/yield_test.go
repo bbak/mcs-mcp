@@ -11,21 +11,21 @@ func TestCalculateProcessYield(t *testing.T) {
 		"Refined":   {Tier: "Upstream"},
 		"In Flight": {Tier: "Downstream"},
 		"Done":      {Tier: "Finished", Outcome: "delivered"},
-		"Discarded": {Tier: "Finished", Outcome: "abandoned_upstream"},
-		"Cancelled": {Tier: "Finished", Outcome: "abandoned_downstream"},
+		"Discarded": {Tier: "Finished", Outcome: "abandoned"},
+		"Cancelled": {Tier: "Finished", Outcome: "abandoned"},
 	}
 	resolutions := map[string]string{
 		"Fixed":     "delivered",
-		"Duplicate": "abandoned_upstream",
-		"Won't Do":  "abandoned_downstream",
+		"Duplicate": "abandoned",
+		"Won't Do":  "abandoned",
 	}
 
 	issues := []jira.Issue{
 		{Key: "ISS-1", Outcome: "delivered", IssueType: "Story"},
 		{Key: "ISS-2", Outcome: "delivered", IssueType: "Story"},
-		{Key: "ISS-3", Outcome: "abandoned_upstream", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400},
+		{Key: "ISS-3", Outcome: "abandoned", IssueType: "Story", StatusResidency: map[string]int64{"Open": 86400},
 			Transitions: []jira.StatusTransition{{ToStatus: "Refined"}}}, // Reached Upstream
-		{Key: "ISS-4", Outcome: "abandoned_downstream", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800},
+		{Key: "ISS-4", Outcome: "abandoned", IssueType: "Bug", StatusResidency: map[string]int64{"In Flight": 172800},
 			Transitions: []jira.StatusTransition{{ToStatus: "In Flight"}}}, // Reached Downstream
 	}
 
@@ -64,13 +64,13 @@ func TestCalculateStratifiedYield(t *testing.T) {
 	}
 	resolutions := map[string]string{
 		"Fixed":    "delivered",
-		"Won't Do": "abandoned_demand",
+		"Won't Do": "abandoned",
 	}
 
 	issues := []jira.Issue{
 		{Key: "STORY-1", Outcome: "delivered", IssueType: "Story"},
 		{Key: "STORY-2", Outcome: "delivered", IssueType: "Story"},
-		{Key: "BUG-1", Outcome: "abandoned_demand", IssueType: "Bug"},
+		{Key: "BUG-1", Outcome: "abandoned", IssueType: "Bug"},
 	}
 
 	strat := CalculateStratifiedYield(issues, mappings, resolutions)

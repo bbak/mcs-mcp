@@ -2,7 +2,6 @@ package stats
 
 import (
 	"math"
-	"strings"
 
 	"mcs-mcp/internal/jira"
 )
@@ -37,7 +36,7 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 		// 2. Handle Outcome
 		if issue.Outcome == "delivered" {
 			yield.DeliveredCount++
-		} else if strings.HasPrefix(issue.Outcome, "abandoned") {
+		} else if issue.Outcome == "abandoned" {
 			yield.AbandonedCount++
 
 			// 3. Attribute to Tier (Heuristic-based Attribution)
