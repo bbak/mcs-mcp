@@ -187,9 +187,14 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 			// Try to find the ID for this status name
 			id := s.activeRegistry.GetStatusID(k)
 			if id != "" {
+				// k was a human-readable name; ID resolved successfully
 				m[id] = sm
+			} else if name := s.activeRegistry.GetStatusName(k); name != "" {
+				// k was already an ID; resolve the correct human-readable name
+				sm.Name = name
+				m[k] = sm
 			} else {
-				// Fallback: use the name as key (might already be an ID or a custom name)
+				// Unknown key — keep as-is
 				m[k] = sm
 			}
 		}
