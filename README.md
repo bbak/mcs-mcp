@@ -1,6 +1,8 @@
 # MCS-MCP: Monte-Carlo Simulation for Model Context Protocol
 
-**MCS-MCP** is a sophisticated Model Context Protocol (MCP) server that empowers AI assistants with deep analytical and forecasting capabilities for software delivery projects. By leveraging historical Jira data and high-performance Monte-Carlo simulations, it transforms raw project history into actionable, probabilistic delivery insights with a strong focus on **mathematical hardening and defensive design**.
+**MCS-MCP** is a Model Context Protocol (MCP) server that connects AI assistants like Claude to your Jira project history, enabling natural-language delivery analytics and probabilistic forecasting. Ask questions like _"When will we finish these 20 items?"_, _"Is our process getting more predictable?"_, or _"Where are items getting stuck?"_ — and get answers grounded in your team's actual historical performance, not estimates or gut feel.
+
+Rather than relying on Jira's often-misconfigured built-in reports, MCS-MCP infers the true shape of your delivery process from raw transition logs, with a strong focus on **mathematical hardening and defensive design**.
 
 > [!WARNING]
 > Currently, this must be considered _beta_. While it works quite well,
@@ -13,15 +15,16 @@
 
 ## 🚀 Key Capabilities
 
-- **Stratified Analytics Baseline**: Type-stratification is pervasive across the suite. Detect "Capacity Clashes" (Bug-Tax) in simulations, identify type-specific bottlenecks in **Status Residency**, and assess **WIP Age** using type-aware benchmarks.
-- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Automatically coordinates sampling across multiple work types to ensure realistic theoretical capacity.
-- **Forecast Backtesting**: Perform **Walk-Forward Analysis** to empirically validate forecast accuracy by "time-travelling" into historical data.
-- **Predictability Guardrails**: Use **XmR Control Charts** and **Stability Indices** (stratifiable by type) to detect "Special Cause" variation and assess process stability for **Cycle Time**, **Active WIP Populations**, and **Delivery Cadence (Throughput)**.
-- **Workflow Semantic Discovery**: Automatically infer the roles of workflow statuses (Active, Queue, Demand, Finished) to identify true bottlenecks instead of administrative delays.
-- **Process Yield & Abandonment**: Quantify "waste" by identifying exactly where work (broken down by type) is discarded in the discovery or execution pipeline.
-- **High-Fidelity Aging Analysis**: Track **WIP Age** and status-level persistence to identify "neglected" inventory before it impacts delivery.
-- **Strategic Evolution Tracking**: Perform longitudinal audits using **Three-Way Control Charts** (Weekly/Monthly) to detect systemic improvements or process drift over time.
-- **Guided Analytical Roadmaps**: Proactively guide AI agents through the correct sequence of diagnostic steps (Stability -> Discovery -> Analysis) based on specific goals.
+- **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Uses your team's actual historical throughput, not estimates.
+- **Forecast Backtesting**: Empirically validate how accurate the forecasts would have been by replaying them against your own historical data (Walk-Forward Analysis).
+- **Predictability Guardrails**: Detect "Special Cause" variation using XmR Control Charts — assesses process stability for Cycle Time, WIP populations, and Delivery Cadence.
+- **Workflow Semantic Discovery**: Automatically infer the purpose of each workflow status (active work, waiting queues, entry funnel, terminal exit) to identify true bottlenecks rather than administrative overhead.
+- **Process Yield & Abandonment**: Quantify waste by identifying exactly where work is discarded — broken down by work type and workflow stage.
+- **High-Fidelity Aging Analysis**: Identify "neglected" inventory by comparing current WIP age against historical norms at the individual status level.
+- **Stratified Analytics**: Work item type stratification is pervasive across the suite. Separate Bugs from Stories in simulations, throughput, cycle time, and stability to surface capacity conflicts (the "Bug-Tax").
+- **Strategic Evolution Tracking**: Longitudinal audits using Three-Way Control Charts (weekly/monthly) detect systemic improvements or process drift over time.
+- **Historical Time-Travel**: Set a specific past date as the analytical reference point to recreate the state of your process at that moment. Useful for retrospectives, post-mortems, or before/after comparisons following a process change.
+- **Guided Analytical Roadmaps**: The server proactively suggests the right sequence of diagnostic steps for a given goal (forecasting, bottleneck analysis, capacity planning), preventing AI agents from guessing at the right path.
 
 ---
 
@@ -33,7 +36,7 @@ Work-Management Systems like Atlassian Jira often contain sensitive project and 
 
 To protect intellectual property and privacy, the server strictly minimizes the data it ingests and persists.
 
-- **What we ingest & persist**: Analytical metadata only—**Issue Keys, Issue Types, Status Transitions, Timestamps**, and **Resolution names**. This is the minimum set required for high-fidelity flow analysis.
+- **What we ingest & persist**: Analytical metadata only — **Issue Keys, Issue Types, Status Transitions, Timestamps**, and **Resolution names**. This is the minimum set required for high-fidelity flow analysis.
 - **What we DROP**: While the Jira API might return comprehensive issue objects, the system is designed to **immediately drop** sensitive content such as **Titles, Descriptions, Acceptance Criteria, or Assignees**.
 
 This ensures that even if the server's cache were compromised, it contains no human-readable content that could leak project secrets or PII. Furthermore, because this data is never processed by the analytical engine or stored in memory, **it is impossible for sensitive content to leak to the AI Agent** during interaction.
@@ -49,9 +52,17 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
 ## 🛠️ How it Works (high-level)
 
-1. **Ingestion**: The Server fetches Jira items from a Board within a Project and extracts all it needs into a event-sourced log, by reading the history of the work items.
-2. **Context Resolution**: From that it infers the flow of work items and proposes a mapping to a meta-workflow (Demand → Upstream → Downstream → Finished), what _done_ means, and similar, giving you the option to change it. This mapping is cached so you don't have to do that every time.
-3. **Flow diagnostics & forecasting**: Given that it now has the data and _understands_ the flow of work, you can start asking the AI various questions. Given that most flows are not in _statistical control_ you might want to dive into diagnostics first. The AI Agent can also suggest an analytical roadmap.
+1. **Ingestion**: The server fetches Jira items from a Board within a Project and reconstructs a complete, event-sourced history from their transition logs.
+
+2. **Workflow Mapping**: Every Jira workflow is unique. Before analysis can begin, the server needs to understand the _purpose_ of each status. It proposes a mapping to a four-tier meta-workflow:
+   - **Demand**: The entry funnel — ideas and backlog items not yet committed to.
+   - **Upstream**: Analysis and refinement — work that has been picked up but not yet committed to delivery.
+   - **Downstream**: Active execution — coding, testing, review. This is the "commitment zone."
+   - **Finished**: Terminal states — done, cancelled, discarded.
+
+   This mapping, along with what "done" means (delivered vs. abandoned) and where the **Commitment Point** is (the status where work is officially started — this defines Cycle Time and WIP), is proposed automatically and confirmed by you. It is cached so you only need to do this once per board.
+
+3. **Diagnostics & Forecasting**: With the data and a clear understanding of what each status _means_, you can ask the AI a wide range of questions about your delivery system's health, predictability, and future throughput.
 
 ---
 
@@ -66,13 +77,14 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 ### How-To
 
 1. Build from sources (see [Building from Sources](#building-from-sources)) or download a release.
-2. Copy `mcs-mcp.exe` and `.env-example`to a location of your choice (for builders, look into `dist/`).
+2. Copy `mcs-mcp.exe` and `.env-example` to a location of your choice (for builders, look into `dist/`).
 3. Rename `.env-example` to `.env` and modify it accordingly. At a minimum, you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)).
-4. Configure a AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
+4. Configure an AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
 5. Chat:
-    - Tell the AI Agent which Project and which Board you want to look at.
-    - Tell the Agent to discover the workflow. Throughly check whether the proposal matches your expectations. You should be clear about the "Tiers" (Demand, Upstream, Downstream, Finished), which resolution or terminal status means _delivered_, and which means _abandoned_ (affects _throughput_). Also, what your _commitment point_ is (affects _cycle time_ and what _WIP_ means). Note, that any changes you make are cached, so you don't have to do this every time.
-    - Ask the Agent for what the MCP-Server can do or the analytical roadmap. You can also ask to list all available tools of the MCP-Server.
+   - Tell the AI Agent which Project and which Board you want to look at.
+   - Tell the Agent to **discover the workflow**. Carefully review whether the proposal matches your actual process. You should confirm the **Tiers** (Demand, Upstream, Downstream, Finished), which resolutions or terminal statuses mean _delivered_ vs. _abandoned_ (this determines what counts as throughput), and what your **Commitment Point** is (the status where work officially starts — this defines Cycle Time and WIP). These choices are cached, so you only need to confirm them once.
+   - Ask the Agent for the **diagnostic roadmap** to get a goal-oriented sequence of tools (e.g., _"I want to forecast 15 items"_ or _"I want to understand what's slowing us down"_).
+   - Optionally, ask the Agent to set an **evaluation date** if you want to analyze the system as it existed at a point in the past (e.g., for a retrospective or post-mortem).
 
 ### Authentication
 
@@ -146,13 +158,16 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 ## Skills
 
-Since v.0.11.0 the MCP-Server comes with Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
+MCS-MCP comes with Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
 
 ---
 
-## Usage Tips:
+## Usage Tips
 
-- Many Agents can create Charts right from the data that's passed from the MCP-Server. In Claude Desktop a prompt like _"Please create a Chart for WIP"_ works well. For some Chart types you may install a Skill that can be found in the `docs/skills/` directory of the MCP-Server release archive.
+- Many Agents can create Charts directly from the data returned by the MCP-Server. In Claude Desktop, a prompt like _"Please create a Chart for WIP"_ works well. For specific chart types, install the relevant Skill from the `docs/skills/` directory.
+- Ask the Agent for the **diagnostic roadmap** at the start of a session. It returns a goal-oriented sequence of tools so you always have a clear path of analysis rather than guessing what to run next.
+- After a significant process change (team restructure, workflow overhaul), tell the Agent to re-run workflow discovery with a force-refresh to re-evaluate the semantic mapping against current patterns.
+- The server caches all event history locally. After the initial ingestion, most queries run entirely offline — no Jira connection needed.
 
 ---
 
@@ -182,7 +197,7 @@ MCS-MCP is designed to be used by AI Agents as a "Technical Co-Pilot". For detai
 
 - **[Project Charter](docs/charter.md)**: Conceptual foundations and architectural principles.
 - **[Interaction Use Cases](docs/use-cases.md)**: Detailed scenarios for PMs and AI Agents (When, Scope, Bottlenecks, Backtesting, etc.).
-- **[Architecture Deep-Dive](docs/architecture.md)**: Aging math, backflow policies, and the status-granular flow model.
+- **[Architecture Deep-Dive](docs/architecture.md)**: Internal mechanics, tool directory, analytical pipeline, and data flow. The primary reference for AI Agents interacting with this server.
 - **[Mock Data Generator](docs/mockdata.md)**: Instructions for using `mockgen` and manipulating the `MCSTEST` synthetic sandbox.
 
 ---
