@@ -16,7 +16,8 @@ description: General user preferences and coding guidelines for the agent to fol
 
 - I prefer to use Unix-style line endings in my source files, as stated in my `.editorconfig` file in the root folder. Given that we are on Windows, some tools you use might use Windows-style line endings. Please convert them to Unix-style line endings.
 
-- Given that we are on Windows and the Terminal is Powershell, we don't have Unix tools like `grep` and others available. Use their Powershell counterparts.
+- Given that we are on Windows and the Terminal is Powershell, we don't have Unix tools like `grep` and others available. Use their Powershell counterparts, except for:
+    - `rg` - alias for `ripgrep`
 
 - Refer to `docs\charter.md` for the Project Charter.
 

@@ -118,7 +118,7 @@ func TestLogProvider_MergeStrategy(t *testing.T) {
 	store.Merge(sourceID, freshEvents)
 
 	// 3. Verify
-	events := store.GetEventsInRange(sourceID, time.Time{}, time.Now().Add(2*time.Hour))
+	events := store.GetIssuesInRange(sourceID, time.Time{}, time.Now().Add(2*time.Hour))
 	if len(events) != 2 {
 		t.Errorf("Expected 2 events, got %d", len(events))
 	}

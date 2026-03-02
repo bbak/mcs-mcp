@@ -228,15 +228,15 @@ func TestAssessStratificationNeeds(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		resDate := now.AddDate(0, 0, -i)
 		issues[i] = jira.Issue{
-			IssueType:      "Story",
-			Created:        resDate.AddDate(0, 0, -10),
-			ResolutionDate: &resDate,
-			Resolution:     "Fixed",
-			Status:         "Done",
+			IssueType:   "Story",
+			Created:     resDate.AddDate(0, 0, -10),
+			OutcomeDate: &resDate,
+			Outcome:     "delivered",
+			Status:      "Done",
 		}
 	}
 
-	decisions := AssessStratificationNeeds(issues, nil, nil)
+	decisions := AssessStratificationNeeds(issues)
 	if len(decisions) != 1 || decisions[0].Eligible {
 		t.Errorf("Expected Story to be ineligible due to low volume, got %+v", decisions)
 	}
@@ -246,14 +246,14 @@ func TestAssessStratificationNeeds(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		resDate := now.AddDate(0, 0, -i)
 		issues[i] = jira.Issue{
-			IssueType:      "Story",
-			Created:        resDate.AddDate(0, 0, -10),
-			ResolutionDate: &resDate,
-			Resolution:     "Fixed",
-			Status:         "Done",
+			IssueType:   "Story",
+			Created:     resDate.AddDate(0, 0, -10),
+			OutcomeDate: &resDate,
+			Outcome:     "delivered",
+			Status:      "Done",
 		}
 	}
-	decisions = AssessStratificationNeeds(issues, nil, nil)
+	decisions = AssessStratificationNeeds(issues)
 	if len(decisions) != 1 || decisions[0].Eligible {
 		t.Errorf("Expected Story to be ineligible due to low variance, got %+v", decisions)
 	}
@@ -263,27 +263,29 @@ func TestAssessStratificationNeeds(t *testing.T) {
 	// 20 Stories taking 40 days
 	for i := 0; i < 20; i++ {
 		resDate := now.AddDate(0, 0, -i)
+		d := resDate
 		issues = append(issues, jira.Issue{
-			IssueType:      "Story",
-			Created:        resDate.AddDate(0, 0, -40),
-			ResolutionDate: &resDate,
-			Resolution:     "Fixed",
-			Status:         "Done",
+			IssueType:   "Story",
+			Created:     resDate.AddDate(0, 0, -40),
+			OutcomeDate: &d,
+			Outcome:     "delivered",
+			Status:      "Done",
 		})
 	}
 	// 20 Bugs taking 2 days
 	for i := 0; i < 20; i++ {
 		resDate := now.AddDate(0, 0, -i)
+		d := resDate
 		issues = append(issues, jira.Issue{
-			IssueType:      "Bug",
-			Created:        resDate.AddDate(0, 0, -2),
-			ResolutionDate: &resDate,
-			Resolution:     "Fixed",
-			Status:         "Done",
+			IssueType:   "Bug",
+			Created:     resDate.AddDate(0, 0, -2),
+			OutcomeDate: &d,
+			Outcome:     "delivered",
+			Status:      "Done",
 		})
 	}
 
-	decisions = AssessStratificationNeeds(issues, nil, nil)
+	decisions = AssessStratificationNeeds(issues)
 	eligibleCount := 0
 	for _, d := range decisions {
 		if d.Eligible {

@@ -200,8 +200,8 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 	return registry, nil
 }
 
-func (p *LogProvider) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
-	return p.store.GetEventsInRange(sourceID, start, end)
+func (p *LogProvider) GetIssuesInRange(sourceID string, start, end time.Time) []IssueEvent {
+	return p.store.GetIssuesInRange(sourceID, start, end)
 }
 
 func (p *LogProvider) GetEventsForIssue(sourceID, issueKey string) []IssueEvent {

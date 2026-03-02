@@ -32,7 +32,8 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -180), time.Now(), "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	issues := session.GetDelivered()
 	if len(issues) == 0 {
@@ -86,7 +87,8 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
@@ -156,10 +158,11 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
-	throughput := stats.GetStratifiedThroughput(delivered, window, s.activeResolutions)
+	throughput := stats.GetStratifiedThroughput(delivered, window)
 	throughput.XmR = stats.AnalyzeThroughputStability(throughput)
 
 	// Build bucket metadata
@@ -219,7 +222,8 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any,
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -26*7), time.Now(), "week", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
@@ -286,7 +290,8 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Now().AddDate(0, -windowMonths, 0), time.Now(), "month", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, session.GetAllIssues())
@@ -332,7 +337,8 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
@@ -422,7 +428,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		if issue.ResolutionDate != nil {
 			finalDate = *issue.ResolutionDate
 		} else {
-			finalDate = time.Now()
+			finalDate = s.Clock()
 		}
 		lastTrans := issue.Transitions[len(issue.Transitions)-1]
 		finalDuration := finalDate.Sub(lastTrans.Date).Seconds()
@@ -509,8 +515,9 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 		cutoff = *s.activeDiscoveryCutoff
 	}
 
-	fullWindow := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
+	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
@@ -563,8 +570,10 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
-	session := stats.NewAnalysisSession(s.events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	now := s.Clock()
+	window := stats.NewAnalysisWindow(now.AddDate(0, 0, -windowWeeks*7), now, bucket, cutoff)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
@@ -604,13 +613,11 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 	}
 
 	// 2. Prepare Window and Reconstruction Context
-	// We use Day bucketing for CFD as requested by the user
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), "day", time.Time{})
+	now := s.Clock()
+	window := stats.NewAnalysisWindow(now.AddDate(0, 0, -windowWeeks*7), now, "day", time.Time{})
 
-	// IMPORTANT: To get the full status reconstruction, we need events from the beginning of time up to window.End
-	// This ensures that items already in progress at the start of the window have their correct status.
-	// GetEventsInRange(..., zero-time, ...) returns events for all issues active up to window.End.
-	events := s.events.GetEventsInRange(sourceID, time.Time{}, window.End)
+	// GetIssuesInRange returns events for all issues active in the window, including full history.
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 
 	finished, downstream, upstream, demand := stats.ProjectScope(events, window, "", s.activeMapping, s.activeResolutions, nil)
 	allIssues := append(finished, append(downstream, append(upstream, demand...)...)...)

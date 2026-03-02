@@ -91,8 +91,8 @@ func CalculateFlowDebt(issues []jira.Issue, window AnalysisWindow, commitmentPoi
 		}
 
 		// 2. Calculate Departures
-		if IsDelivered(issue, resolutions) && issue.ResolutionDate != nil {
-			idx := window.FindBucketIndex(*issue.ResolutionDate)
+		if IsDelivered(issue) && issue.OutcomeDate != nil {
+			idx := window.FindBucketIndex(*issue.OutcomeDate)
 			if idx >= 0 && idx < len(results) {
 				results[idx].Departures++
 			}

@@ -34,43 +34,21 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 	lossMap := make(map[string][]float64) // Tier -> Ages before abandonment
 
 	for _, issue := range issues {
-		issue = DetermineOutcome(issue, mappings)
-
-		// 1. Determine Outcome
-		var outcome string
-		if strings.HasPrefix(issue.Resolution, "Synthetic-") {
-			outcome = strings.TrimPrefix(issue.Resolution, "Synthetic-")
-		} else if issue.Resolution != "" {
-			outcome = resolutions[issue.Resolution]
-			if outcome == "" {
-				outcome = resolutions[issue.ResolutionID]
-			}
-		}
-
 		// 2. Handle Outcome
-		if outcome == "delivered" {
+		if issue.Outcome == "delivered" {
 			yield.DeliveredCount++
-		} else if strings.HasPrefix(outcome, "abandoned") {
+		} else if strings.HasPrefix(issue.Outcome, "abandoned") {
 			yield.AbandonedCount++
 
-			// 3. Attribute to Tier (Explicit vs Heuristic)
+			// 3. Attribute to Tier (Heuristic-based Attribution)
+			// We walk backwards and skip Finished-tier statuses to find where the item was abandoned.
 			tier := "Demand"
-			if strings.Contains(outcome, "_") {
-				// Calibration-based Attribution (e.g., 'abandoned_upstream')
-				parts := strings.Split(outcome, "_")
-				if len(parts[1]) > 0 {
-					tier = strings.ToUpper(parts[1][:1]) + strings.ToLower(parts[1][1:])
-				}
-			} else {
-				// Heuristic-based Attribution: find the last status BEFORE the item entered Finished.
-				// We walk backwards and skip Finished-tier statuses.
-				for i := len(issue.Transitions) - 1; i >= 0; i-- {
-					tr := issue.Transitions[i]
-					t := DetermineTier(jira.Issue{Status: tr.ToStatus, StatusID: tr.ToStatusID}, "", mappings)
-					if t != "Finished" && t != "Unknown" {
-						tier = t
-						break
-					}
+			for i := len(issue.Transitions) - 1; i >= 0; i-- {
+				tr := issue.Transitions[i]
+				t := DetermineTier(jira.Issue{Status: tr.ToStatus, StatusID: tr.ToStatusID}, "", mappings)
+				if t != "Finished" && t != "Unknown" {
+					tier = t
+					break
 				}
 			}
 

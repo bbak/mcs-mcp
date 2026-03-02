@@ -276,9 +276,10 @@ func DeleteCache(cacheDir, sourceID string) error {
 	return nil
 }
 
-// GetEventsInRange returns all events for any issue that has activity within the specified window.
-// It ensures that birth events (Created) are included for accurate reconstruction.
-func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []IssueEvent {
+// GetIssuesInRange returns all history for any issue that was "alive" during the specified window.
+// An issue is alive if it has ANY events BEFORE OR AT 'end', and its LAST event is AT OR AFTER 'start'.
+// This ensures that stale WIP (no transitions in window) and full birth events/commitment points are preserved.
+func (s *EventStore) GetIssuesInRange(sourceID string, start, end time.Time) []IssueEvent {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -290,11 +291,26 @@ func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []I
 	startTs := start.UnixMicro()
 	endTs := end.UnixMicro()
 
-	// 1. Identify keys that have ANY activity in the window
+	// 1. Identify issues that were alive during the window
+	// Alive = (First Event <= end) AND (Last Event >= start)
 	relevantKeys := make(map[string]bool)
+	issueMaxTs := make(map[string]int64)
+	issueMinTs := make(map[string]int64)
+
 	for _, e := range logData {
-		if e.Timestamp >= startTs && (end.IsZero() || e.Timestamp <= endTs) {
-			relevantKeys[e.IssueKey] = true
+		if issueMinTs[e.IssueKey] == 0 || e.Timestamp < issueMinTs[e.IssueKey] {
+			issueMinTs[e.IssueKey] = e.Timestamp
+		}
+		if e.Timestamp > issueMaxTs[e.IssueKey] {
+			issueMaxTs[e.IssueKey] = e.Timestamp
+		}
+	}
+
+	for key, min := range issueMinTs {
+		max := issueMaxTs[key]
+		// Condition: First event is before window end AND Last event is after window start
+		if min <= endTs && (start.IsZero() || max >= startTs) {
+			relevantKeys[key] = true
 		}
 	}
 
@@ -303,10 +319,13 @@ func (s *EventStore) GetEventsInRange(sourceID string, start, end time.Time) []I
 	var result []IssueEvent
 	for _, e := range logData {
 		if relevantKeys[e.IssueKey] {
-			if e.Timestamp > clockLimit {
-				continue
+			// Respect both the requested window end and the hard clock limit
+			upperBound := clockLimit
+			if !end.IsZero() && endTs < upperBound {
+				upperBound = endTs
 			}
-			if end.IsZero() || e.Timestamp <= endTs {
+
+			if e.Timestamp <= upperBound {
 				result = append(result, e)
 			}
 		}

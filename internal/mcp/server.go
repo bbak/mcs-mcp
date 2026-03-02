@@ -622,7 +622,7 @@ func (s *Server) recalculateDiscoveryCutoff(sourceID string) {
 	}
 
 	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", time.Time{})
-	events := s.events.GetEventsInRange(sourceID, window.Start, window.End)
+	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	domainIssues, _, _, _ := stats.ProjectScope(events, window, s.activeCommitmentPoint, s.activeMapping, s.activeResolutions, nil)
 
 	finishedMap := make(map[string]bool)

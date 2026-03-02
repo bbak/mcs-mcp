@@ -50,27 +50,32 @@ Every status is mapped to a logical process layer to ensure specialized clock be
 
 ## 3. Workflow Outcome Alignment (Throughput Integrity)
 
-The server distinguishes **how** and **where** work exits the process to ensure throughput accurately reflects value-providing capacity.
+The server distinguishes **how**, **when**, and **where** work exits the process to ensure throughput accurately reflects value-providing capacity and cycle times are deterministic.
 
-### 3.1 Outcome Classification
+### 3.1 The 2-Step Outcome Protocol (ID-First)
 
-Once an item reaches the **Finished** tier, it is classified into semantic outcomes:
+Jira's raw state representation is often too chaotic to be used directly by analytical functions. To protect these functions from signature bloat and recalculation inconsistencies, the core `jira.Issue` struct is explicitly augmented with an `Outcome` (`"delivered"` or `"abandoned"`) and an `OutcomeDate` during the historical reconstruction phase.
 
-- **Outcome: Delivered**: Items with a resolution or status outcome mapped as value-providing (e.g., "Fixed", "Done"). **Only these are used for Throughput and Simulation.**
-- **Outcome: Abandoned**: Items mapped as waste (e.g., "Won't Do", "Discarded"). These are excluded from delivery metrics but vital for **Yield Analysis**.
+This is performed using a strict **ID-First** evaluation (`stats.DetermineOutcome`):
 
-### 3.2 Detection Methodology
+1. **Primary Signal (Explicit ResolutionID):** The system first checks the Jira `ResolutionID`. It must be mapped to an outcome via the `activeResolutions` configuration. If found, the `OutcomeDate` is bound to the issue's `ResolutionDate`.
+2. **Fallback Signal (Workflow Mapping):** If no `ResolutionID` exists, the system checks if the item's current `StatusID` belongs to the `"Finished"` tier. If true, it assigns the Outcome mapped to that Status. The `OutcomeDate` is synthesized by walking backwards through the item's transition history to find the beginning of the current uninterrupted streak in the Finished tier.
 
-- **Resolution Mapping (Primary)**: The system prioritizes the explicit Jira `resolution` field.
-- **Status Mapping (Fallback)**: If resolution data is missing, it falls back to the status-level outcome mapping.
-- **Gold Standard Benchmark**: This precedence is verified against industry benchmarks and must be maintained for statistical integrity.
+### 3.2 Downstream Isolation (The "Outcome" Guardrail)
 
-### 3.3 Yield Analysis
+**Crucially, all downstream analytical functions are decoupled from raw Jira metadata.**
+
+Functions that calculate Throughput, Flow Cadence, Cycle-Time, Monte-Carlo simulations, and Stability (XmR) **must solely rely** on `issue.Outcome` and `issue.OutcomeDate`. They do not check `ResolutionDate`, `StatusCategory`, or `Tier` themselves.
+
+- **Throughput & Simulation**: Only aggregates items where `issue.Outcome == "delivered"`. Items mapped as `"abandoned"` (e.g., "Won't Do", "Discarded") are excluded from capacity forecasting but remain vital for Yield Analysis.
+- **Cycle Time**: Chronological subtraction is performed against `issue.OutcomeDate` to ensure that items moving silently into "Done" columns are still assigned accurate terminal dates.
+
+### 3.3 Yield Analysis Attribution
 
 The server calculates the "Yield Rate" by attributing abandonment to specific tiers:
 
 - **Explicit Attribution**: Uses outcome suffixes (e.g., `abandoned_upstream`).
-- **Heuristic Attribution**: Backtracks to the last active status if the outcome is generically `abandoned`.
+- **Heuristic Attribution**: Backtracks through the item's `Transitions` to the last active status if the outcome is generically `abandoned`.
 
 ---
 
@@ -203,40 +208,29 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
     - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis.
 
-### 8.2 The 3-Layer History Reconstruction Model
+### 8.2 The Unified Outcome Protocol
 
-To ensure conceptual integrity and clear separation of concerns, MCS-MCP utilizes a 3-layered architectural approach for rebuilding the state of work items at any given point in time.
+To ensure conceptual integrity and clear separation of concerns, MCS-MCP utilizes a streamlined pipeline for rebuilding the state of work items.
 
 ```mermaid
 graph TD
-    subgraph "Layer 1: The Event Log (internal/eventlog)"
-        L1["<b>Raw Atomic Events</b><br/>Chronological facts (Change, Flagged, etc.)<br/>strictly bound by Clock()"]
+    subgraph "1. Event Stream (internal/eventlog)"
+        L1["<b>Sequence of Facts</b><br/>Chronological atoms (Change, Flagged, etc.)<br/>strictly masked by Clock()"]
     end
-    subgraph "Layer 2: The Snapshot (internal/eventlog.ReconstructIssue)"
-        L2["<b>Mechanical Flattening</b><br/>Cumulative residency & factual attributes<br/>Point-in-time DTO (jira.Issue)"]
+    subgraph "2. Point-in-Time DTO (internal/eventlog.ReconstructIssue)"
+        L2["<b>Mechanical Flattening</b><br/>Aggregated residency & factual state<br/>jira.Issue structure"]
     end
-    subgraph "Layer 3: The Interpreter (internal/stats)"
-        L3["<b>Semantic Policy</b><br/>Outcome Inference (DetermineOutcome)<br/>Process Tiering (DetermineTier)"]
+    subgraph "3. Outcome Augmentation (stats.DetermineOutcome)"
+        L3["<b>Semantic Overlay</b><br/>Protocol: ResolutionID -> StatusID<br/>Sets Outcome & OutcomeDate"]
     end
-    L1 -->|Fact Stream| L2
-    L2 -->|Issue Snapshot| L3
-    L3 -->|Analytical Context| Analytics[Stability / Cycle Time / Simulations]
+    L1 -->|Events| L2
+    L2 -->|Base Issue| L3
+    L3 -->|Augmented Issue| Analytics[Stability / Cycle Time / Simulations]
 ```
 
-1.  **Layer 1: The Event Log (`internal/eventlog`)**:
-    - **Responsibility**: Chronological extraction of atomic facts from the Jira change history.
-    - **Temporal Guard**: The log is strictly masked by the app-wide `Clock()`. Events occurring after the evaluation date are physically invisible to the rest of the application, ensuring 100% deterministic time-travel analysis.
-    - **Smartness**: "Dumb". It only knows how to retrieve and sort facts.
-
-2.  **Layer 2: Mechanical Snapshot (`internal/eventlog.ReconstructIssue`)**:
-    - **Responsibility**: Flattens the Layer 1 event stream into a single `jira.Issue` structure describing the item's state at the requested point in time.
-    - **Smartness**: Mechanical. It aggregates history—calculating total residency in statuses and building transition arrays—but lacks any concept of workflow meaning (e.g., it does not know if a status is "Finished").
-    - **Output**: Purely factual. It computes the "What" and "When" without the "Why".
-
-3.  **Layer 3: Semantic Interpreter (`internal/stats`)**:
-    - **Responsibility**: Applies the project's meta-workflow configuration (Mappings, Resolutions, Commitment Point) to the Layer 2 snapshot.
-    - **Smartness**: "Smart". This layer performs outcome inference (synthesizing missing Resolution Dates), tier classification (Demand vs. Downstream), and delivery validation.
-    - **Analytical Decoupling**: Algorithms (like Cadence or Yield) only consume Layer 3 interpreted data, protecting them from the noise of inconsistent raw Jira data.
+1.  **Event Stream**: Chronological extraction of atomic facts. The stream is strictly masked by the app-wide `Clock()`, ensuring 100% deterministic time-travel analysis.
+2.  **Mechanical Flattening**: Aggregates the event stream into a `jira.Issue` DTO. It calculates raw status residency but ignores workflow meaning.
+3.  **Outcome Augmentation**: The "Smart" layer. It applies the confirmed project config (Mappings, Resolutions) to determine **how** and **when** the item reached a terminal state. This ensures that downstream algorithms (like Cadence or Monte-Carlo) are decoupled from the noise of inconsistent raw Jira metadata.
 
 ### 8.3 Analytical Orchestration (`AnalysisSession`)
 
