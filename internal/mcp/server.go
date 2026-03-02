@@ -574,7 +574,7 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	}
 
 	log.Info().Str("path", path).Msg("Loaded and harmonized workflow metadata from disk")
-	return true, nil
+	return len(s.activeMapping) > 0, nil
 }
 
 func (s *Server) anchorContext(projectKey string, boardID int) error {
