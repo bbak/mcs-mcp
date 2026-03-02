@@ -61,7 +61,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
-	delivered := session.GetDelivered()
+	finished := session.GetFinished()
 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 	if startStatus == "" {
@@ -108,7 +108,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 	}
 
-	h := simulation.NewHistogram(delivered, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
 
 	// Distribution handling
@@ -204,6 +204,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
+	finished := session.GetFinished()
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
 
@@ -221,7 +222,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 		return nil, fmt.Errorf("no cycle times found for criteria")
 	}
 
-	h := simulation.NewHistogram(delivered, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
 
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)

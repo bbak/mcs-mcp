@@ -179,8 +179,9 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	log.Info().Int("trials", trials).Interface("targets", targets).Bool("stratified", useStratification).Msg("Starting multi-type duration simulation")
 
 	for g := 0; g < numGo; g++ {
-		go func(count int, seed int64) {
-			rng := rand.New(rand.NewPCG(uint64(seed), 0))
+		workerSeed := e.rng.Uint64()
+		go func(count int, seed uint64) {
+			rng := rand.New(rand.NewPCG(seed, 0))
 			res := trialResult{
 				durations: make([]int, count),
 				bgCounts:  make(map[string][]int),
@@ -203,7 +204,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 				}
 			}
 			resultsChan <- res
-		}(trialsPerGo, time.Now().UnixNano()+int64(g))
+		}(trialsPerGo, workerSeed)
 	}
 
 	// Aggregate Results
@@ -284,12 +285,12 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		res.Warnings = append(res.Warnings, "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions).")
 	}
 
-	// Resolution Density Warning
-	if dropped, ok := e.histogram.Meta["dropped_by_resolution"].(int); ok && dropped > 0 {
+	// Outcome Density Warning
+	if dropped, ok := e.histogram.Meta["dropped_by_outcome"].(int); ok && dropped > 0 {
 		analyzed := e.histogram.Meta["issues_analyzed"].(int)
 		total := analyzed + dropped
 		if total > 0 && float64(analyzed)/float64(total) < 0.2 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("CAUTION: Low Resolution Density. %.1f%% of resolved items were excluded by your resolution filter. This may skew results if 'delivered' items are missing. Check your 'resolutions' parameter.", float64(analyzed)/float64(total)*100))
+			res.Warnings = append(res.Warnings, fmt.Sprintf("CAUTION: Low Outcome Density. %.1f%% of resolved items were excluded because they were not 'delivered' (e.g. abandoned). This may skew results if 'delivered' items are missing. Check your 'resolutions' parameter.", float64(analyzed)/float64(total)*100))
 		}
 	}
 
@@ -302,6 +303,8 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		}
 	}
 
+	slices.Sort(res.Insights)
+	slices.Sort(res.Warnings)
 	return res
 }
 
@@ -321,14 +324,15 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	resultsChan := make(chan []int, numGo)
 
 	for g := 0; g < numGo; g++ {
-		go func(count int, seed int64) {
-			rng := rand.New(rand.NewPCG(uint64(seed), 0))
+		workerSeed := e.rng.Uint64()
+		go func(count int, seed uint64) {
+			rng := rand.New(rand.NewPCG(seed, 0))
 			res := make([]int, count)
 			for i := range count {
 				res[i] = e.simulateScopeTrialLocal(days, rng)
 			}
 			resultsChan <- res
-		}(trialsPerGo, time.Now().UnixNano()+int64(g))
+		}(trialsPerGo, workerSeed)
 	}
 
 	scopes := make([]int, 0, trials)
@@ -475,8 +479,9 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 	log.Info().Int("days", targetDays).Int("trials", trials).Interface("filter", filterTypes).Bool("stratified", useStratification).Msg("Starting multi-type scope simulation")
 
 	for g := 0; g < numGo; g++ {
-		go func(count int, seed int64) {
-			rng := rand.New(rand.NewPCG(uint64(seed), 0))
+		workerSeed := e.rng.Uint64()
+		go func(count int, seed uint64) {
+			rng := rand.New(rand.NewPCG(seed, 0))
 			res := scopeTrialResult{
 				scopes:   make([]int, count),
 				bgCounts: make(map[string][]int),
@@ -499,7 +504,7 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 				}
 			}
 			resultsChan <- res
-		}(trialsPerGo, time.Now().UnixNano()+int64(g))
+		}(trialsPerGo, workerSeed)
 	}
 
 	scopes := make([]int, 0, trials)
@@ -552,14 +557,29 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[string]bool, capacityCap int, rng *rand.Rand) (int, map[string]int) {
 	totalScope := 0
 	bgItems := make(map[string]int)
+	deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
+
+	// Pre-sort keys for determinism and performance
+	types := make([]string, 0, len(e.histogram.StratifiedCounts))
+	for t := range e.histogram.StratifiedCounts {
+		types = append(types, t)
+	}
+	slices.Sort(types)
+
+	taxers := make([]string, 0, len(deps))
+	for taxer := range deps {
+		taxers = append(taxers, taxer)
+	}
+	slices.Sort(taxers)
 
 	for range targetDays {
 		// 1. Independent Stratified Sampling (with Blending and Dependency Awareness)
 		sampled := make(map[string]int)
 		totalSampled := 0
-		deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
 
-		for t, counts := range e.histogram.StratifiedCounts {
+		// Keys are pre-sorted for determinism outside the loop
+		for _, t := range types {
+			counts := e.histogram.StratifiedCounts[t]
 			h := 0
 			if len(counts) < 30 && rng.Float64() < 0.3 {
 				if overall, ok := e.histogram.Meta["throughput_overall"].(float64); ok {
@@ -576,7 +596,9 @@ func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[stri
 		}
 
 		// Dependency Awareness
-		for taxer, taxed := range deps {
+		// Keys are pre-sorted for determinism outside the loop
+		for _, taxer := range taxers { // Use pre-sorted taxers
+			taxed := deps[taxer]
 			if hT, ok := sampled[taxer]; ok && hT > 0 {
 				if hD, ok := sampled[taxed]; ok && hD > 0 {
 					reduction := int(math.Floor(float64(hT) * 0.5))
@@ -598,7 +620,15 @@ func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[stri
 		// 2. Capacity Coordination (Cap)
 		if totalSampled > capacityCap {
 			factor := float64(capacityCap) / float64(totalSampled)
-			for t, h := range sampled {
+			// Sort keys for deterministic RNG check
+			typesCap := make([]string, 0, len(sampled))
+			for t := range sampled {
+				typesCap = append(typesCap, t)
+			}
+			slices.Sort(typesCap)
+
+			for _, t := range typesCap {
+				h := sampled[t]
 				newH := int(math.Floor(float64(h) * factor))
 				if newH == 0 && h > 0 && rng.Float64() < factor {
 					newH = 1
@@ -608,7 +638,8 @@ func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[stri
 		}
 
 		// 3. Count Scope
-		for t, h := range sampled {
+		for _, t := range types {
+			h := sampled[t]
 			if filterMap[t] || len(filterMap) == 0 {
 				totalScope += h
 			} else {
@@ -665,7 +696,16 @@ func (e *Engine) simulateMultiTypeScopeTrialLocal(targetDays int, filterMap map[
 			r := rng.Float64()
 			var sampledType string
 			acc := 0.0
-			for t, p := range distribution {
+
+			// Deterministic iteration over distribution
+			distTypes := make([]string, 0, len(distribution))
+			for t := range distribution {
+				distTypes = append(distTypes, t)
+			}
+			slices.Sort(distTypes)
+
+			for _, t := range distTypes {
+				p := distribution[t]
 				acc += p
 				if r <= acc {
 					sampledType = t
@@ -673,11 +713,8 @@ func (e *Engine) simulateMultiTypeScopeTrialLocal(targetDays int, filterMap map[
 				}
 			}
 
-			if sampledType == "" {
-				for t := range distribution {
-					sampledType = t
-					break
-				}
+			if sampledType == "" && len(distTypes) > 0 {
+				sampledType = distTypes[0]
 			}
 
 			if filterMap[sampledType] || len(filterMap) == 0 {
@@ -754,7 +791,14 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 
 	// 1. Calculate Pooled Fallback
 	allCycleTimes := make([]float64, 0)
-	for _, cts := range cycleTimes {
+	ctTypes := make([]string, 0, len(cycleTimes))
+	for t := range cycleTimes {
+		ctTypes = append(ctTypes, t)
+	}
+	slices.Sort(ctTypes)
+
+	for _, t := range ctTypes {
+		cts := cycleTimes[t]
 		allCycleTimes = append(allCycleTimes, cts...)
 	}
 	slices.Sort(allCycleTimes)
@@ -768,7 +812,14 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 	totalWIPCount := 0
 
 	// 2. Stratified Analysis
-	for t, ages := range wipAges {
+	types := make([]string, 0, len(wipAges))
+	for t := range wipAges {
+		types = append(types, t)
+	}
+	slices.Sort(types)
+
+	for _, t := range types {
+		ages := wipAges[t]
 		res.WIPAgeDistribution[t] = map[string]int{
 			"Inconspicuous (within P50)": 0,
 			"Aging (P50-P85)":            0,
@@ -815,7 +866,9 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 		// Find extreme outliers
 		extremeCount := 0
 		maxAge := 0.0
-		for t, dist := range res.WIPAgeDistribution {
+		// Sorted types for deterministic maxAge check
+		for _, t := range types {
+			dist := res.WIPAgeDistribution[t]
 			extremeCount += dist["Extreme (>P95)"]
 			for _, age := range wipAges[t] {
 				if age > maxAge {
@@ -865,6 +918,20 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 	originalRemaining := totalRemaining
 
 	background := make(map[string]int)
+	deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
+
+	// Pre-sort keys for determinism and performance
+	types := make([]string, 0, len(e.histogram.StratifiedCounts))
+	for t := range e.histogram.StratifiedCounts {
+		types = append(types, t)
+	}
+	slices.Sort(types)
+
+	taxers := make([]string, 0, len(deps))
+	for taxer := range deps {
+		taxers = append(taxers, taxer)
+	}
+	slices.Sort(taxers)
 
 	for totalRemaining > 0 {
 		days++
@@ -872,9 +939,9 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 		// 1. Independent Stratified Sampling (with Bayesian Blending and Dependency Awareness)
 		sampled := make(map[string]int)
 		totalSampled := 0
-		deps, _ := e.histogram.Meta["stratification_dependencies"].(map[string]string)
 
-		for t, counts := range e.histogram.StratifiedCounts {
+		for _, t := range types {
+			counts := e.histogram.StratifiedCounts[t]
 			// Bayesian Blending: If sparse data, we blend with pooled behavior
 			h := 0
 			if len(counts) < 30 && rng.Float64() < 0.3 {
@@ -894,7 +961,8 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 		}
 
 		// Dependency Awareness (Statistical Bug-Tax)
-		for taxer, taxed := range deps {
+		for _, taxer := range taxers {
+			taxed := deps[taxer]
 			if hT, ok := sampled[taxer]; ok && hT > 0 {
 				if hD, ok := sampled[taxed]; ok && hD > 0 {
 					// If taxer is active, we apply a pressure based on its impact
@@ -923,7 +991,16 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 		if totalSampled > capacityCap {
 			factor := float64(capacityCap) / float64(totalSampled)
 			totalSampled = 0
-			for t, h := range sampled {
+
+			// Deterministic iteration over sampled keys
+			sampledTypes := make([]string, 0, len(sampled))
+			for t := range sampled {
+				sampledTypes = append(sampledTypes, t)
+			}
+			slices.Sort(sampledTypes)
+
+			for _, t := range sampledTypes {
+				h := sampled[t]
 				// We use Floor to be defensive/conservative
 				newH := int(math.Floor(float64(h) * factor))
 				if newH == 0 && h > 0 && rng.Float64() < factor {
@@ -936,7 +1013,8 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 		}
 
 		// 3. Consume Targets
-		for t, h := range sampled {
+		for _, t := range types {
+			h := sampled[t]
 			if count, ok := remaining[t]; ok && count > 0 {
 				delivered := min(h, count)
 				remaining[t] -= delivered
@@ -976,6 +1054,13 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 
 	background := make(map[string]int)
 
+	// Pre-sort keys for determinism and performance
+	distTypes := make([]string, 0, len(distribution))
+	for t := range distribution {
+		distTypes = append(distTypes, t)
+	}
+	slices.Sort(distTypes)
+
 	// Early check for infinite loop
 	totalProb := 0.0
 	for t := range distribution {
@@ -994,7 +1079,16 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 			r := rng.Float64()
 			var sampledType string
 			acc := 0.0
-			for t, p := range distribution {
+
+			// Deterministic iteration over distribution
+			distTypes := make([]string, 0, len(distribution))
+			for t := range distribution {
+				distTypes = append(distTypes, t)
+			}
+			slices.Sort(distTypes)
+
+			for _, t := range distTypes {
+				p := distribution[t]
 				acc += p
 				if r <= acc {
 					sampledType = t
@@ -1002,11 +1096,8 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 				}
 			}
 
-			if sampledType == "" {
-				for t := range distribution {
-					sampledType = t
-					break
-				}
+			if sampledType == "" && len(distTypes) > 0 {
+				sampledType = distTypes[0]
 			}
 
 			if count, ok := remaining[sampledType]; ok && count > 0 {

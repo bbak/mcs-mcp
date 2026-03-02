@@ -51,7 +51,14 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 	decisions := make([]StratificationDecision, 0)
 
 	// 2. Evaluate each type
-	for t, cts := range typeGroups {
+	types := make([]string, 0, len(typeGroups))
+	for t := range typeGroups {
+		types = append(types, t)
+	}
+	slices.Sort(types)
+
+	for _, t := range types {
+		cts := typeGroups[t]
 		decision := StratificationDecision{
 			Type:   t,
 			Volume: len(cts),
@@ -136,6 +143,7 @@ func DetectDependencies(stratified map[string][]int) map[string]string {
 	for t := range stratified {
 		types = append(types, t)
 	}
+	slices.Sort(types)
 
 	for i := 0; i < len(types); i++ {
 		for j := i + 1; j < len(types); j++ {

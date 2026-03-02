@@ -8,28 +8,30 @@ import (
 
 // Issue represents a subset of Jira issue data needed for forecasting.
 type Issue struct {
-	Key               string
-	ProjectKey        string
-	IssueType         string
-	Created           time.Time
-	Updated           time.Time
-	ResolutionDate    *time.Time
-	Resolution        string
-	ResolutionID      string
-	Status            string
-	StatusID          string
-	BirthStatus       string
-	BirthStatusID     string
-	StatusCategory    string
+	Key            string     // The unique identifier of the issue
+	ProjectKey     string     // The unique identifier of the project
+	IssueType      string     // The type of the issue
+	Created        time.Time  // The time when the issue was created
+	Updated        time.Time  // The time when the issue was last updated; IMPORTANT: when sorting, use this field.
+	ResolutionDate *time.Time // The time when the issue was resolved
+	Resolution     string     // Name of the resolution, empty if not resolved
+	ResolutionID   string     // ID of the resolution Name, empty if not resolved
+	// Note: a non-empty ResolutionID (or Resolution) implies the issue is finished, but if can also be
+	// finished without a resolution being set; therefore loot at Outcome.
+	Status            string           // Name of the status
+	StatusID          string           // ID of the status Name
+	BirthStatus       string           // Name of the birth status
+	BirthStatusID     string           // ID of the birth status Name
+	StatusCategory    string           // Name of the status category
 	StatusResidency   map[string]int64 // Seconds spent in each status
 	BlockedResidency  map[string]int64 // Total seconds spent in 'Blocked' state per status
 	Transitions       []StatusTransition
 	IsSubtask         bool
 	IsMoved           bool
 	Flagged           string
-	HasSyntheticBirth bool // True if birth date was inferred from earliest event
-	Outcome           string
-	OutcomeDate       *time.Time
+	HasSyntheticBirth bool       // True if birth date was inferred from earliest event
+	Outcome           string     // Empty if not finished, else it's 'delivered' or 'abandoned'
+	OutcomeDate       *time.Time // The time when the issue was delivered or abandoned
 }
 
 // SourceContext formalizes the analytical "Center of Gravity" for a tool call.

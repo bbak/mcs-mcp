@@ -19,6 +19,7 @@ type AnalysisSession struct {
 	// Cached projections
 	allIssues []jira.Issue
 	delivered []jira.Issue
+	finished  []jira.Issue
 	wip       []jira.Issue
 
 	isProjected bool
@@ -48,6 +49,7 @@ func (s *AnalysisSession) Project() error {
 	// We'll store all un-filtered items first
 	s.allIssues = append(finished, append(downstream, append(upstream, demand...)...)...)
 	s.wip = downstream
+	s.finished = finished
 	s.delivered = FilterDelivered(finished)
 
 	_ = upstream
@@ -61,6 +63,12 @@ func (s *AnalysisSession) Project() error {
 func (s *AnalysisSession) GetDelivered() []jira.Issue {
 	_ = s.Project()
 	return s.delivered
+}
+
+// GetFinished returns all items that reached a terminal state in the window.
+func (s *AnalysisSession) GetFinished() []jira.Issue {
+	_ = s.Project()
+	return s.finished
 }
 
 // GetWIP returns the set of items currently in progress.

@@ -72,17 +72,19 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 	}
 
 	// Chronological Sort: All analytical consumers expect deterministic time-ordered data.
+	// WE MUST strictly sort by Issue.Updated and then use Issue.Key as a tie-breaker, if necessary.
 	sortByDate := func(issues []jira.Issue) {
 		slices.SortFunc(issues, func(a, b jira.Issue) int {
-			dateA := a.Updated
-			if a.OutcomeDate != nil {
-				dateA = *a.OutcomeDate
+			if cmp := a.Updated.Compare(b.Updated); cmp != 0 {
+				return cmp
 			}
-			dateB := b.Updated
-			if b.OutcomeDate != nil {
-				dateB = *b.OutcomeDate
+			// Tie-breaker for deterministic order in tests
+			if a.Key < b.Key {
+				return -1
+			} else if a.Key > b.Key {
+				return 1
 			}
-			return dateA.Compare(dateB)
+			return 0
 		})
 	}
 
