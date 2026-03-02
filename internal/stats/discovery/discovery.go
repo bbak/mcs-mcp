@@ -24,7 +24,7 @@ type DiscoveryResult struct {
 // DiscoverWorkflow orchestrates the discovery process.
 func DiscoverWorkflow(events []eventlog.IssueEvent, sample []jira.Issue, resolutions map[string]string) DiscoveryResult {
 	persistence := stats.CalculateStatusPersistence(sample)
-	proposal, cp, refinedOrder := ProposeSemantics(sample, persistence)
+	proposal, cp, refinedOrder, _ := ProposeSemantics(sample, persistence, resolutions)
 	summary := AnalyzeProbe(sample, len(sample)) // simplified for now
 
 	return DiscoveryResult{
@@ -110,11 +110,14 @@ func CalculateDiscoveryCutoff(issues []jira.Issue, isFinished map[string]bool) *
 }
 
 // ProposeSemantics infers missing workflow semantics based on heuristics.
-// It returns a mapping of status IDs to semantics, the recommended commitment point, and the refined sequential order.
-func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence) (map[string]stats.StatusMetadata, string, []string) {
+// It returns a mapping of status IDs to semantics, the recommended commitment point,
+// the refined sequential order, and a proposed resolution → outcome mapping.
+// The resolutions parameter (name-keyed, may be nil) is used for direct outcome lookups
+// before falling back to regex matching.
+func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence, resolutions map[string]string) (map[string]stats.StatusMetadata, string, []string, map[string]string) {
 	proposal := make(map[string]stats.StatusMetadata)
 	if len(persistence) == 0 {
-		return proposal, "", nil
+		return proposal, "", nil, nil
 	}
 
 	// 1. Gather facts from actual data (keyed by ID)
@@ -167,7 +170,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 	// Keyword sets for tier biasing (applied to human-readable names)
 	upstreamKeywords := []string{"refine", "analyze", "prioritize", "architect", "groom", "backlog", "triage", "discovery", "upstream", "ready"}
 	downstreamKeywords := []string{"develop", "implement", "do", "test", "verification", "review", "deployment", "integration", "downstream", "building", "staging", "qa", "uat", "prod", "fix"}
-	abandonedKeywords := []string{"cancel", "discard", "obsolete", "reject", "decline", "won't do", "wont do", "dropped", "abort"}
+	abandonedKeywords := []string{"cancel", "discard", "obsolete", "reject", "decline", "won't do", "wont do", "dropped", "abort", "closed"}
 	deliveredKeywords := []string{"done", "resolved", "fixed", "complete", "approved", "shipped", "delivered"}
 
 	// Regex for detecting delivered vs abandoned resolutions
@@ -265,22 +268,46 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 		}
 	}
 
-	// Refine Outcomes based on actual Resolutions
+	// Refine Outcomes based on actual Resolutions.
+	// Direct map lookup takes precedence over regex; delivered-bias is preserved throughout.
 	for _, issue := range issues {
 		curr := stats.PreferID(issue.StatusID, issue.Status)
 		if issue.ResolutionDate != nil && curr != "" && issue.Resolution != "" {
 			if m, ok := proposal[curr]; ok && m.Tier == "Finished" {
-				if deliveredResolutionRegex.MatchString(issue.Resolution) {
-					m.Outcome = "delivered"
+				var outcome string
+				if direct, found := resolutions[issue.Resolution]; found {
+					outcome = direct
+				} else if deliveredResolutionRegex.MatchString(issue.Resolution) {
+					outcome = "delivered"
 				} else {
-					// If a state has BOTH delivered and abandoned resolutions, we bias towards delivered.
-					// So only set to abandoned if it hasn't already been confirmed delivered.
-					if m.Outcome != "delivered" {
-						m.Outcome = "abandoned"
-					}
+					outcome = "abandoned"
+				}
+				// Bias towards delivered: once confirmed delivered, do not downgrade.
+				if outcome == "delivered" {
+					m.Outcome = "delivered"
+				} else if m.Outcome != "delivered" {
+					m.Outcome = outcome
 				}
 				proposal[curr] = m
 			}
+		}
+	}
+
+	// Build the proposed resolution → outcome mapping from all resolutions seen in the sample.
+	proposedResolutions := make(map[string]string)
+	for _, issue := range issues {
+		if issue.Resolution == "" {
+			continue
+		}
+		if _, exists := proposedResolutions[issue.Resolution]; exists {
+			continue
+		}
+		if direct, found := resolutions[issue.Resolution]; found {
+			proposedResolutions[issue.Resolution] = direct
+		} else if deliveredResolutionRegex.MatchString(issue.Resolution) {
+			proposedResolutions[issue.Resolution] = "delivered"
+		} else {
+			proposedResolutions[issue.Resolution] = "abandoned"
 		}
 	}
 
@@ -314,7 +341,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 		}
 	}
 
-	return proposal, commitmentPoint, refinedOrder
+	return proposal, commitmentPoint, refinedOrder, proposedResolutions
 }
 
 func matchesAny(s string, keywords []string) bool {
