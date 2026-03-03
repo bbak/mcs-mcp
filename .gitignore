@@ -48,4 +48,4 @@ docs/reports/*
 *.actual
 
 # Symlink to .agent/rules/preferences.md
-CLAUDE.md
+# CLAUDE.md

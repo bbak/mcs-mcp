@@ -2,12 +2,22 @@
 	"experimentalTernaries": true,
 	"printWidth": 120,
 	"quoteProps": "consistent",
+	"tabs": true,
+	"tabWidth": 4,
 	"trailingComma": "none",
 	"useEditorConfig": true,
 	"overrides": [
 		{
 			"files": ["*.json", "*.jsonc"],
 			"options": {
+				"tabWidth": 2,
+				"trailingComma": "none"
+			}
+		},
+		{
+			"files": ["*.md"],
+			"options": {
+				"tabs": false,
 				"tabWidth": 2,
 				"trailingComma": "none"
 			}
