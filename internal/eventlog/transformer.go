@@ -165,10 +165,6 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 						event.ToStatus = statusItem.ToString
 					}
 					event.ToStatusID = statusItem.To
-				} else if statusItem != nil && suppressStatus {
-					// Even if suppressed, ensure the IDs are at least logged if debugging later?
-					// No, intentional suppression means we don't emit status at all for this event,
-					// BUT we still emit the event if there's a resolution.
 				}
 
 				if resItem != nil {
@@ -244,7 +240,6 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 			// De-duplication check:
 			// If we already have a Change event for this resolution within a 2s grace period, skip fallback.
 			duplicate := false
-			const gracePeriod = 2000000 // 2 seconds in microseconds
 
 			for _, e := range events {
 				// Match on ID if present, otherwise on Name
@@ -256,7 +251,7 @@ func TransformIssue(dto jira.IssueDTO, registry *jira.NameRegistry) []IssueEvent
 					if diff < 0 {
 						diff = -diff
 					}
-					if diff <= gracePeriod {
+					if diff <= ResolutionGracePeriod.Microseconds() {
 						duplicate = true
 						break
 					}

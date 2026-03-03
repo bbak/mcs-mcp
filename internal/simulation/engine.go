@@ -260,7 +260,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	if vol, ok := e.histogram.Meta["type_volatility"].(map[string]float64); ok {
 		res.VolatilityAttribution = make(map[string]string)
 		for t, v := range vol {
-			if v >= 5.6 {
+			if v >= FatTailThreshold {
 				res.VolatilityAttribution[t] = fmt.Sprintf("Fat-Tail High-Risk (%.2f)", v)
 				res.Insights = append(res.Insights, fmt.Sprintf("Volatility Alert: Item Type '%s' shows chaotic delivery patterns (Ratio %.2f). This type is the primary driver of forecast uncertainty.", t, v))
 			}
@@ -281,7 +281,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	if isInfinite {
 		log.Warn().Msg("Simulation resulted in infinite duration due to zero throughput")
 		res.Warnings = append(res.Warnings, "No historical throughput found for the selected criteria. The duration forecast is theoretically infinite based on current data.")
-	} else if durations[int(float64(trials)*0.50)] >= 3650 { // > 10 years
+	} else if durations[int(float64(trials)*0.50)] >= MaxForecastDays { // > 10 years
 		res.Warnings = append(res.Warnings, "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions).")
 	}
 
@@ -298,7 +298,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	if droppedWindow, ok := e.histogram.Meta["dropped_by_window"].(int); ok && droppedWindow > 0 {
 		analyzed := e.histogram.Meta["issues_analyzed"].(int)
 		total := analyzed + droppedWindow
-		if total > 0 && float64(droppedWindow)/float64(total) > 0.5 {
+		if total > 0 && float64(droppedWindow)/float64(total) > DroppedWindowWarnThreshold {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("WARNING: %d items (%d%%) were excluded because they fall outside the analysis time window. This suggests your time window is too narrow or the project is less active recently.", droppedWindow, int(float64(droppedWindow)/float64(total)*100)))
 		}
 	}
@@ -365,7 +365,7 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 	if droppedWindow, ok := e.histogram.Meta["dropped_by_window"].(int); ok && droppedWindow > 0 {
 		analyzed := e.histogram.Meta["issues_analyzed"].(int)
 		total := analyzed + droppedWindow
-		if total > 0 && float64(droppedWindow)/float64(total) > 0.5 {
+		if total > 0 && float64(droppedWindow)/float64(total) > DroppedWindowWarnThreshold {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("WARNING: %d items (%d%%) were excluded because they fall outside the analysis time window. This suggests your time window is too narrow or the project is less active recently.", droppedWindow, int(float64(droppedWindow)/float64(total)*100)))
 		}
 	}
@@ -601,7 +601,7 @@ func (e *Engine) simulateScopeTrialStratified(targetDays int, filterMap map[stri
 			taxed := deps[taxer]
 			if hT, ok := sampled[taxer]; ok && hT > 0 {
 				if hD, ok := sampled[taxed]; ok && hD > 0 {
-					reduction := int(math.Floor(float64(hT) * 0.5))
+					reduction := int(math.Floor(float64(hT) * CapacityTaxRate))
 					if hD > reduction {
 						sampled[taxed] -= reduction
 					} else {
@@ -734,11 +734,11 @@ func (e *Engine) assessPredictability(res *Result) {
 		res.TailToMedianRatio = math.Round(res.Percentiles.Likely/res.Percentiles.CoinToss*100) / 100
 
 		predictability := "Stable"
-		if res.FatTailRatio >= 5.6 {
+		if res.FatTailRatio >= FatTailThreshold {
 			predictability = "Unstable"
 			res.Insights = append(res.Insights, fmt.Sprintf("Fat-Tail Warning (Ratio %.2f): Extreme outliers are in control of this process (Kanban heuristic >= 5.6). Your forecasts are high-risk.", res.FatTailRatio))
 		}
-		if res.TailToMedianRatio > 3.0 {
+		if res.TailToMedianRatio > HeavyTailThreshold {
 			if predictability == "Stable" {
 				predictability = "Highly Volatile"
 			} else {
@@ -764,14 +764,14 @@ func (e *Engine) assessPredictability(res *Result) {
 			diff := (recent - overall) / overall
 			res.ThroughputTrend.PercentageChange = math.Round(diff*1000) / 10
 
-			if diff < -0.1 {
+			if diff < -ThroughputChangeThreshold {
 				res.ThroughputTrend.Direction = "Declining"
-				if diff < -0.3 {
+				if diff < -ThroughputSevereDeclineThreshold {
 					res.Warnings = append(res.Warnings, fmt.Sprintf("Significant throughput drop recently (%.0f%% below average). WIP may have increased or capacity dropped.", math.Abs(diff)*100))
 				}
-			} else if diff > 0.1 {
+			} else if diff > ThroughputChangeThreshold {
 				res.ThroughputTrend.Direction = "Increasing"
-				if diff > 0.3 {
+				if diff > ThroughputSevereDeclineThreshold {
 					res.Warnings = append(res.Warnings, fmt.Sprintf("Throughput is significantly higher recently (%.0f%% above average). Monitor if this is sustainable.", diff*100))
 				}
 			}
@@ -969,7 +969,7 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 					// High taxer volume squeezes the taxed volume further than just the global cap
 					if hT > 0 {
 						// Simple heuristic: reduce taxed by a fraction of taxer
-						reduction := int(math.Floor(float64(hT) * 0.5))
+						reduction := int(math.Floor(float64(hT) * CapacityTaxRate))
 						if hD > reduction {
 							sampled[taxed] -= reduction
 						} else {
@@ -1029,13 +1029,13 @@ func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacit
 			}
 		}
 
-		if days >= 3650 {
+		if days >= MaxForecastDays {
 			break
 		}
 
-		if days%1000 == 0 {
+		if days%StallCheckInterval == 0 {
 			if totalRemaining == originalRemaining {
-				return 3650, background
+				return MaxForecastDays, background
 			}
 		}
 	}
@@ -1112,7 +1112,7 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 			}
 		}
 
-		if days >= 3650 {
+		if days >= MaxForecastDays {
 			break
 		}
 
@@ -1124,10 +1124,6 @@ func (e *Engine) simulateDurationTrialWithTypeMixLocal(targets map[string]int, d
 		}
 	}
 	return days, background
-}
-
-func (e *Engine) simulateScopeTrial(targetDays int) int {
-	return e.simulateScopeTrialLocal(targetDays, e.rng)
 }
 
 func (e *Engine) simulateScopeTrialLocal(targetDays int, rng *rand.Rand) int {

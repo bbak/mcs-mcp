@@ -12,6 +12,10 @@ import (
 )
 
 func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -67,6 +71,10 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 }
 
 func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -134,6 +142,10 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 }
 
 func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -202,6 +214,10 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 }
 
 func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -266,6 +282,10 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any,
 }
 
 func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -317,6 +337,10 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 }
 
 func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -362,6 +386,10 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 }
 
 func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey string) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -491,6 +519,10 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 }
 
 func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windowWeeks int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -544,6 +576,10 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 }
 
 func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks int, bucket string) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -594,6 +630,10 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 }
 
 func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err

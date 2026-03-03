@@ -138,7 +138,8 @@ func TestSimulationPipeline_Golden(t *testing.T) {
 	if !bytes.Equal(expectedJSON, actualJSON) {
 		t.Errorf("Mismatch between actual results and golden file.")
 		tmpPath := goldenPath + ".actual"
-		os.WriteFile(tmpPath, actualJSON, 0644)
-		t.Errorf("Wrote actual output to %s for comparison. If the mathematical change was intentional, re-run with 'go test ./... -update'", tmpPath)
+		if wErr := os.WriteFile(tmpPath, actualJSON, 0644); wErr == nil {
+			t.Errorf("Wrote actual output to %s for comparison. If the mathematical change was intentional, re-run with 'go test ./... -update'", tmpPath)
+		}
 	}
 }

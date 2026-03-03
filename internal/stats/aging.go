@@ -223,7 +223,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		} else if ageSinceCommitment != nil {
 			analysis.Percentile = getP(ageRaw)
 			if len(sortedPersistence) > 0 && !isFinished {
-				p85 := sortedPersistence[int(float64(len(sortedPersistence))*0.85)]
+				p85 := CalculatePercentile(sortedPersistence, 0.85)
 				if ageRaw > p85 {
 					analysis.IsAgingOutlier = true
 				}

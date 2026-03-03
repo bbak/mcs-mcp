@@ -209,9 +209,7 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 		if strings.ToUpper(query) != "MCSTEST" {
 			jiraProjects, jErr := s.jira.FindProjects(query)
 			if jErr == nil {
-				for _, p := range jiraProjects {
-					projects = append(projects, p)
-				}
+				projects = append(projects, jiraProjects...)
 			} else if !isMockQuery {
 				findErr = jErr
 			}
@@ -244,9 +242,7 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 		if strings.ToUpper(pKey) != "MCSTEST" {
 			jiraBoards, jErr := s.jira.FindBoards(pKey, nFilter)
 			if jErr == nil {
-				for _, b := range jiraBoards {
-					boards = append(boards, b)
-				}
+				boards = append(boards, jiraBoards...)
 			} else if !isMockKey {
 				findErr = jErr
 			}
@@ -357,10 +353,6 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 	case "analyze_process_stability":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])
-		window := asInt(call.Arguments["history_window_weeks"])
-		if window == 0 {
-			window = 26
-		}
 		data, err = s.handleGetProcessStability(projectKey, boardID)
 	case "analyze_flow_debt":
 		projectKey := asString(call.Arguments["project_key"])

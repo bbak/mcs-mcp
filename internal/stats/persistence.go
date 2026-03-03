@@ -86,12 +86,12 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			StatusID:   statusID,
 			StatusName: idToName[statusID],
 			Share:      math.Round(share*1000) / 1000,
-			P50:        math.Round(durations[int(float64(n)*0.50)]*10) / 10,
-			P70:        math.Round(durations[int(float64(n)*0.70)]*10) / 10,
-			P85:        math.Round(durations[int(float64(n)*0.85)]*10) / 10,
-			P95:        math.Round(durations[int(float64(n)*0.95)]*10) / 10,
-			IQR:        math.Round((durations[int(float64(n)*0.75)]-durations[int(float64(n)*0.25)])*10) / 10,
-			Inner80:    math.Round((durations[int(float64(n)*0.90)]-durations[int(float64(n)*0.10)])*10) / 10,
+			P50:        math.Round(CalculatePercentile(durations, 0.50)*10) / 10,
+			P70:        math.Round(CalculatePercentile(durations, 0.70)*10) / 10,
+			P85:        math.Round(CalculatePercentile(durations, 0.85)*10) / 10,
+			P95:        math.Round(CalculatePercentile(durations, 0.95)*10) / 10,
+			IQR:        math.Round((CalculatePercentile(durations, 0.75)-CalculatePercentile(durations, 0.25))*10) / 10,
+			Inner80:    math.Round((CalculatePercentile(durations, 0.90)-CalculatePercentile(durations, 0.10))*10) / 10,
 		}
 
 		if sp.StatusName == "" {
@@ -213,8 +213,8 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 
 		summary[tier] = TierSummary{
 			Count:          n,
-			Median:         math.Round(durations[int(float64(n)*0.50)]*10) / 10,
-			P85:            math.Round(durations[int(float64(n)*0.85)]*10) / 10,
+			Median:         math.Round(CalculatePercentile(durations, 0.50)*10) / 10,
+			P85:            math.Round(CalculatePercentile(durations, 0.85)*10) / 10,
 			Statuses:       statuses,
 			Interpretation: interpretation,
 		}

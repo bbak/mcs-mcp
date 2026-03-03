@@ -164,27 +164,6 @@ func WrapResponse(data any, proj string, board int, diagnostics map[string]any, 
 	}
 }
 
-func (s *Server) getTotalAges(issues []jira.Issue) []float64 {
-	var ages []float64
-	for _, issue := range issues {
-		if issue.ResolutionDate == nil {
-			continue
-		}
-
-		// Only count "delivered" work
-		if m, ok := s.activeMapping[issue.StatusID]; !ok || m.Outcome != "delivered" {
-			continue
-		}
-
-		duration := issue.ResolutionDate.Sub(issue.Created).Hours() / 24.0
-		if duration > 0 {
-			ages = append(ages, duration)
-		}
-	}
-
-	return ages
-}
-
 func (s *Server) getResolutionMap(sourceID string) map[string]string {
 	if s.activeSourceID == sourceID && len(s.activeResolutions) > 0 {
 		return s.activeResolutions
@@ -248,20 +227,10 @@ func (s *Server) getFinishedStatuses() map[string]bool {
 	return finished
 }
 
-func (s *Server) getActiveStatuses() []string {
-	var active []string
-	for status, meta := range s.activeMapping {
-		if meta.Tier != "Finished" && meta.Tier != "Demand" {
-			active = append(active, status)
-		}
-	}
-	return active
-}
-
 func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) map[string][]float64 {
 	ages := make(map[string][]float64)
 	// Note: CalculateInventoryAge inside aging.go already handles IDs if we passed them correctly.
-	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip", time.Now())
+	results := stats.CalculateInventoryAge(issues, startStatus, statusWeights, mappings, cycleTimes, "wip", s.Clock())
 	for _, res := range results {
 		if res.AgeSinceCommitment != nil {
 			t := res.Type
@@ -274,29 +243,3 @@ func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statu
 	return ages
 }
 
-func (s *Server) filterWIPIssues(issues []jira.Issue, startStatus string, finishedStatuses map[string]bool) []jira.Issue {
-	var wip []jira.Issue
-	for _, issue := range issues {
-		// An issue is WIP if it's not finished AND has passed the commitment point (or startStatus)
-		if finishedStatuses[issue.Status] {
-			continue
-		}
-
-		isCommitted := false
-		if issue.Status == startStatus || issue.StatusID == startStatus {
-			isCommitted = true
-		} else {
-			for _, t := range issue.Transitions {
-				if t.ToStatus == startStatus || t.ToStatusID == startStatus {
-					isCommitted = true
-					break
-				}
-			}
-		}
-
-		if isCommitted {
-			wip = append(wip, issue)
-		}
-	}
-	return wip
-}

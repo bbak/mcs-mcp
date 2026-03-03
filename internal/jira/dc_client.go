@@ -247,15 +247,15 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	if resp.StatusCode != http.StatusOK {
 		switch resp.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		case http.StatusTooManyRequests:
 			retryAfter := resp.Header.Get("Retry-After")
 			if retryAfter != "" {
-				return nil, fmt.Errorf("Jira rate limit exceeded (429). Retry after %s seconds.", retryAfter)
+				return nil, fmt.Errorf("jira rate limit exceeded (429); retry after %s seconds", retryAfter)
 			}
-			return nil, fmt.Errorf("Jira rate limit exceeded (429).")
+			return nil, fmt.Errorf("jira rate limit exceeded (429)")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d. Please check Jira availability.", resp.StatusCode)
+			return nil, fmt.Errorf("jira API returned status %d; check jira availability", resp.StatusCode)
 		}
 	}
 
@@ -295,7 +295,7 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("issue %s not found", key)
 		}
-		return nil, fmt.Errorf("Jira API returned status %d for issue %s", resp.StatusCode, key)
+		return nil, fmt.Errorf("jira API returned status %d for issue %s", resp.StatusCode, key)
 	}
 
 	var result IssueDTO
@@ -336,9 +336,9 @@ func (c *dcClient) GetProject(key string) (any, error) {
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("project %s not found", key)
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for project %s", resp.StatusCode, key)
+			return nil, fmt.Errorf("jira API returned status %d for project %s", resp.StatusCode, key)
 		}
 	}
 
@@ -380,9 +380,9 @@ func (c *dcClient) GetProjectStatuses(key string) (any, error) {
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("project %s statuses not found", key)
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for project %s statuses", resp.StatusCode, key)
+			return nil, fmt.Errorf("jira API returned status %d for project %s statuses", resp.StatusCode, key)
 		}
 	}
 
@@ -422,9 +422,9 @@ func (c *dcClient) GetBoard(id int) (any, error) {
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("board %d not found", id)
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for board %d", resp.StatusCode, id)
+			return nil, fmt.Errorf("jira API returned status %d for board %d", resp.StatusCode, id)
 		}
 	}
 
@@ -474,7 +474,7 @@ func (c *dcClient) FindProjects(query string) ([]any, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Jira API returned status %d for project search", resp.StatusCode)
+		return nil, fmt.Errorf("jira API returned status %d for project search", resp.StatusCode)
 	}
 
 	var result []any
@@ -550,9 +550,9 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]any, erro
 	if resp.StatusCode != http.StatusOK {
 		switch resp.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for board search", resp.StatusCode)
+			return nil, fmt.Errorf("jira API returned status %d for board search", resp.StatusCode)
 		}
 	}
 
@@ -678,9 +678,9 @@ func (c *dcClient) GetBoardConfig(id int) (any, error) {
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("board configuration %d not found", id)
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for board configuration %d", resp.StatusCode, id)
+			return nil, fmt.Errorf("jira API returned status %d for board configuration %d", resp.StatusCode, id)
 		}
 	}
 
@@ -721,9 +721,9 @@ func (c *dcClient) GetFilter(id string) (any, error) {
 		case http.StatusNotFound:
 			return nil, fmt.Errorf("filter %s not found", id)
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, fmt.Errorf("Jira authentication failed (401/403). Please check your session cookies.")
+			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("Jira API returned status %d for filter %s", resp.StatusCode, id)
+			return nil, fmt.Errorf("jira API returned status %d for filter %s", resp.StatusCode, id)
 		}
 	}
 

@@ -2,7 +2,6 @@ package eventlog
 
 import (
 	"mcs-mcp/internal/jira"
-	"strings"
 	"time"
 )
 
@@ -22,7 +21,7 @@ func ReconstructIssue(events []IssueEvent, referenceDate time.Time) jira.Issue {
 		Created:           time.UnixMicro(first.Timestamp), // Defensive default in case birth event is missing
 		HasSyntheticBirth: true,                            // Assume synthetic until proven otherwise
 	}
-	issue.ProjectKey = ExtractProjectKey(first.IssueKey)
+	issue.ProjectKey = jira.ExtractProjectKey(first.IssueKey)
 
 	for _, e := range events {
 		issue.Updated = time.UnixMicro(e.Timestamp)
@@ -159,10 +158,3 @@ func ExtractBlockedIntervals(events []IssueEvent, created time.Time, resolved *t
 	return intervals
 }
 
-// ExtractProjectKey gets the PROJ from PROJ-123
-func ExtractProjectKey(issueKey string) string {
-	if idx := strings.Index(issueKey, "-"); idx > 0 {
-		return issueKey[:idx]
-	}
-	return issueKey
-}
