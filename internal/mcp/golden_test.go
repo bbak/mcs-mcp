@@ -254,7 +254,7 @@ func newGoldenServer(t *testing.T) *Server {
 	registry := &jira.NameRegistry{Statuses: idToName}
 
 	// 9. Create server and pre-anchor state to bypass loadWorkflow
-	srv := NewServer(&config.AppConfig{CacheDir: cacheDir}, &DummyClient{})
+	srv := NewServer(&config.AppConfig{CacheDir: cacheDir, CommitmentBackflowReset: true}, &DummyClient{})
 	srv.activeSourceID       = testSourceID
 	srv.activeMapping        = idMapping
 	srv.activeResolutions    = wf.Resolutions // name-keyed; matches resolution fields in events

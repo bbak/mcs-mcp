@@ -100,8 +100,67 @@ func CalculateStatusAging(wipIssues []jira.Issue, persistence []StatusPersistenc
 	return results
 }
 
+// downstreamSince computes time spent in Downstream-tier statuses from a given date forward,
+// by walking the issue's transitions chronologically. Used for backflow-aware WIP age.
+func downstreamSince(issue jira.Issue, since time.Time, mappings map[string]StatusMetadata, startStatus string, now time.Time) float64 {
+	var totalSeconds float64
+
+	// Determine the status at the backflow point (the transition's ToStatus)
+	// and walk forward from there.
+	type segment struct {
+		statusID string
+		status   string
+		start    time.Time
+	}
+
+	var segments []segment
+
+	// Build segments from the backflow point onward
+	for _, t := range issue.Transitions {
+		if t.Date.Before(since) {
+			continue
+		}
+		segments = append(segments, segment{
+			statusID: t.ToStatusID,
+			status:   t.ToStatus,
+			start:    t.Date,
+		})
+	}
+
+	if len(segments) == 0 {
+		return 0
+	}
+
+	// Sum downstream time between consecutive segments
+	for i := 0; i < len(segments)-1; i++ {
+		seg := segments[i]
+		dur := segments[i+1].start.Sub(seg.start).Seconds()
+		t := DetermineTier(jira.Issue{StatusID: seg.statusID, Status: seg.status}, startStatus, mappings)
+		if t == "Downstream" {
+			totalSeconds += dur
+		}
+	}
+
+	// Last segment: from last transition to now (or resolution)
+	last := segments[len(segments)-1]
+	endTime := now
+	if issue.ResolutionDate != nil && issue.ResolutionDate.Before(now) {
+		endTime = *issue.ResolutionDate
+	}
+	dur := endTime.Sub(last.start).Seconds()
+	t := DetermineTier(jira.Issue{StatusID: last.statusID, Status: last.status}, startStatus, mappings)
+	if t == "Downstream" {
+		totalSeconds += dur
+	}
+
+	return totalSeconds / 86400.0
+}
+
 // CalculateInventoryAge identifies active items and calculates age (WIP or Total) and percentile.
-func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string, evaluationTime time.Time) []InventoryAge {
+// When commitmentBackflowReset is true and agingType is "wip", downstream residency is computed
+// only from the last backflow date forward (backflow = transition to a status with weight < commitment weight).
+// Total age and upstream days always reflect the full history.
+func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]StatusMetadata, persistence []float64, agingType string, commitmentBackflowReset bool, evaluationTime time.Time) []InventoryAge {
 	var results []InventoryAge
 
 	// 1. Copy and Sort historical values for percentile calculation
@@ -165,6 +224,33 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 				upstreamDays += days
 			case "Downstream":
 				downstreamDays += days
+			}
+		}
+
+		// 2b. Backflow-aware downstream residency override
+		// When enabled, only count downstream time from the last backflow forward.
+		// Total age and upstream days remain based on full history.
+		if commitmentBackflowReset && agingType == "wip" {
+			commitmentWeight := 0
+			if startStatus != "" {
+				if w, ok := statusWeights[startStatus]; ok {
+					commitmentWeight = w
+				}
+			}
+			if commitmentWeight > 0 {
+				lastBackflowIdx := -1
+				for j, t := range issue.Transitions {
+					sid := t.ToStatusID
+					if sid == "" {
+						sid = t.ToStatus
+					}
+					if w, ok := statusWeights[sid]; ok && w < commitmentWeight {
+						lastBackflowIdx = j
+					}
+				}
+				if lastBackflowIdx >= 0 {
+					downstreamDays = downstreamSince(issue, issue.Transitions[lastBackflowIdx].Date, mappings, startStatus, evaluationTime)
+				}
 			}
 		}
 

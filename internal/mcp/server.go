@@ -45,8 +45,9 @@ type Server struct {
 	activeDiscoveryCutoff *time.Time
 	activeEvaluationDate  *time.Time
 	activeRegistry        *jira.NameRegistry
-	enableMermaidCharts   bool
-	simulationSeed        int64 // 0 = random (production); non-zero = fixed seed (tests)
+	enableMermaidCharts     bool
+	commitmentBackflowReset bool
+	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)
 }
 
 func (s *Server) Clock() time.Time {
@@ -58,9 +59,10 @@ func (s *Server) Clock() time.Time {
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	s := &Server{
-		jira:                jiraClient,
-		cacheDir:            cfg.CacheDir,
-		enableMermaidCharts: cfg.EnableMermaidCharts,
+		jira:                    jiraClient,
+		cacheDir:                cfg.CacheDir,
+		enableMermaidCharts:     cfg.EnableMermaidCharts,
+		commitmentBackflowReset: cfg.CommitmentBackflowReset,
 	}
 
 	store := eventlog.NewEventStore(s.Clock)

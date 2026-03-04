@@ -85,7 +85,7 @@
       }
     },
     "stability_ratio": 0.88,
-    "stale_wip_count": 8,
+    "stale_wip_count": 6,
     "composition": {
       "existing_backlog": 0,
       "wip": 0,
@@ -94,10 +94,10 @@
     },
     "wip_age_distribution": {
       "Activity": {
-        "Aging (P50-P85)": 10,
+        "Aging (P50-P85)": 12,
         "Extreme (\u003eP95)": 0,
         "Inconspicuous (within P50)": 9,
-        "Warning (P85-P95)": 4
+        "Warning (P85-P95)": 2
       },
       "Bug": {
         "Aging (P50-P85)": 1,

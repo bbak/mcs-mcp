@@ -133,7 +133,7 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	}
 	flatWeights[commitmentID] = 2
 
-	aging := stats.CalculateInventoryAge(session.GetWIP(), commitmentID, flatWeights, idMapping, []float64{10.0, 20.0, 30.0}, "wip", window.End)
+	aging := stats.CalculateInventoryAge(session.GetWIP(), commitmentID, flatWeights, idMapping, []float64{10.0, 20.0, 30.0}, "wip", true, window.End)
 
 	var cycleTimes []float64
 	for _, issue := range session.GetDelivered() {

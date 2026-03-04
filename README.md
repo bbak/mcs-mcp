@@ -154,6 +154,18 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 
 Make sure that the Server can write to this directory to create `cache` and `logs` folders - or reconfigure using `DATA_PATH`.
 
+### Optional Settings
+
+These optional variables can be set in the `.env` file:
+
+| Variable                                | Default      | Description                                                           |
+| :-------------------------------------- | :----------- | :-------------------------------------------------------------------- |
+| `DATA_PATH`                             | (binary dir) | Base folder for logs and cache.                                       |
+| `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                     |
+| `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.      |
+| `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point. |
+| `JIRA_REQUEST_DELAY_SECONDS`            | `10`         | Enforced delay (in seconds) between requests to the Jira REST API.    |
+
 ---
 
 ## Skills

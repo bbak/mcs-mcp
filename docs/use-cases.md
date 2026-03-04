@@ -12,15 +12,15 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Secondary Actors:** AI (Intermediary), MCP Server (Forecasting Engine), Jira (Data Source)
 - **Trigger:** User asks a "When?" question regarding a specific number of items.
 - **Main Success Scenario:**
-    1.  User asks: "How long will it take to finish 50 Story items in Project X?"
-    2.  AI calls `import_projects` and identifies "PROJX".
-    3.  AI automatically calls `import_board_context` which anchors on the data shape and confirms volume (e.g., "500 totalIngestedIssues found").
-    4.  AI calls `workflow_discover_mapping` to establish the semantic mapping.
-    5.  AI identifies the goal and calls `guide_diagnostic_roadmap` (Forecasting).
-    6.  AI calls `forecast_monte_carlo` with `mode: "duration"`.
-    7.  MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
-    8.  AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
-    9.  **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Discovery Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse** warning (detected by >10 year duration).
+    1. User asks: "How long will it take to finish 50 Story items in Project X?"
+    2. AI calls `import_projects` and identifies "PROJX".
+    3. AI automatically calls `import_board_context` which anchors on the data shape and confirms volume (e.g., "500 totalIngestedIssues found").
+    4. AI calls `workflow_discover_mapping` to establish the semantic mapping.
+    5. AI identifies the goal and calls `guide_diagnostic_roadmap` (Forecasting).
+    6. AI calls `forecast_monte_carlo` with `mode: "duration"`.
+    7. MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
+    8. AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
+    9. **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Discovery Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse** warning (detected by >10 year duration).
 
 ---
 
@@ -31,10 +31,10 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager)
 - **Trigger:** User asks: "How many items can we complete by March 31st?"
 - **Main Success Scenario:**
-    1.  User asks about scope for a fixed date.
-    2.  AI validates process stability using `analyze_process_stability`.
-    3.  AI calculates `target_days` and calls `forecast_monte_carlo` in `scope` mode.
-    4.  AI presents the results (e.g., "With **Probable (70%)** confidence, you can deliver 45 items").
+    1. User asks about scope for a fixed date.
+    2. AI validates process stability using `analyze_process_stability`.
+    3. AI calculates `target_days` and calls `forecast_monte_carlo` in `scope` mode.
+    4. AI presents the results (e.g., "With **Probable (70%)** confidence, you can deliver 45 items").
 
 ---
 
@@ -45,10 +45,10 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager)
 - **Trigger:** User asks: "When will issue PROJ-123 be done?"
 - **Main Success Scenario:**
-    1.  AI calls `analyze_cycle_time` (potentially filtered by issue type).
-    2.  MCP Server utilizes the **Status-Granular Flow Model** to calculate historical lead times.
-    3.  AI presents the Service Level Expectation (e.g., "85% of similar items are resolved within 5 days").
-    4.  **Post-Resolution Logic**: If the item is already finished, the AI uses `analyze_work_item_age` with `tier_filter: "Finished"` to report its actual, fixed Cycle Time. If an item was previously finished but has recently backflowed into an active state, the system automatically detects this and reports its new, running **Status Age** and **WIP Age**.
+    1. AI calls `analyze_cycle_time` (potentially filtered by issue type).
+    2. MCP Server utilizes the **Status-Granular Flow Model** to calculate historical lead times.
+    3. AI presents the Service Level Expectation (e.g., "85% of similar items are resolved within 5 days").
+    4. **Post-Resolution Logic**: If the item is already finished, the AI uses `analyze_work_item_age` with `tier_filter: "Finished"` to report its actual, fixed Cycle Time. If an item was previously finished but has recently backflowed to before the commitment point, the system detects this and resets the WIP Age clock (same policy as Cycle Time). The item's WIP Age is recalculated from the backflow date forward, not from its original commitment. This behavior is controlled by `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` (default: `true`).
 
 ---
 
@@ -59,11 +59,11 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Proactive) or User
 - **Trigger:** AI is about to run a simulation or User asks "Is our process stable?"
 - **Main Success Scenario:**
-    1.  AI calls `analyze_process_stability` for Cycle-Time predictability.
-    2.  AI calls `analyze_throughput` for Delivery Cadence stability.
-    3.  MCP Server performs **XmR analysis** (Individuals and Moving Range) on the selected metric.
-    4.  AI identifies **Special Cause** signals (Outliers beyond UNPL or Process Shifts).
-    5.  AI reports: "Your delivery cadence is currently **Unstable**. We detected 2 weeks with zero throughput which are statistical outliers. Any forecast run now will have a higher margin of error until the process is brought back into control."
+    1. AI calls `analyze_process_stability` for Cycle-Time predictability.
+    2. AI calls `analyze_throughput` for Delivery Cadence stability.
+    3. MCP Server performs **XmR analysis** (Individuals and Moving Range) on the selected metric.
+    4. AI identifies **Special Cause** signals (Outliers beyond UNPL or Process Shifts).
+    5. AI reports: "Your delivery cadence is currently **Unstable**. We detected 2 weeks with zero throughput which are statistical outliers. Any forecast run now will have a higher margin of error until the process is brought back into control."
 
 ---
 
@@ -74,10 +74,10 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Proactive) or User
 - **Trigger:** AI is confirming prerequisites for forecasting, or User asks "Is our WIP under control?"
 - **Main Success Scenario:**
-    1.  AI calls `analyze_wip_stability`.
-    2.  MCP Server calculates a daily run chart of active WIP and computes Natural Process Limits derived strictly from weekly samples.
-    3.  AI identifies periods where daily WIP breached the Upper Limit.
-    4.  AI reports: "Your WIP is historically **Unstable**. There was an unmanaged WIP spike in October that violated Little's Law. Cycle times established during this period are mathematically unreliable for forward-looking forecasts."
+    1. AI calls `analyze_wip_stability`.
+    2. MCP Server calculates a daily run chart of active WIP and computes Natural Process Limits derived strictly from weekly samples.
+    3. AI identifies periods where daily WIP breached the Upper Limit.
+    4. AI reports: "Your WIP is historically **Unstable**. There was an unmanaged WIP spike in October that violated Little's Law. Cycle times established during this period are mathematically unreliable for forward-looking forecasts."
 
 ---
 
@@ -88,12 +88,12 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Operations Lead / Coach)
 - **Trigger:** Quarterly review or after a major "Way of Working" change.
 - **Main Success Scenario:**
-    1.  User asks: "How has our delivery performance evolved over the last 12 months?"
-    2.  AI calls `analyze_process_evolution` with `window_months: 12`.
-    3.  MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
-    4.  AI detects a systemic "Migration" signal.
-    5.  AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
-    6.  **Rational Subgrouping**: The analysis defaults to **Monthly Subgrouping** for strategic audits and automatically **excludes the current calendar month** from the Natural Process Limits calculation, ensuring that partial data doesn't skew the long-term capability baseline.
+    1. User asks: "How has our delivery performance evolved over the last 12 months?"
+    2. AI calls `analyze_process_evolution` with `window_months: 12`.
+    3. MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
+    4. AI detects a systemic "Migration" signal.
+    5. AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."
+    6. **Rational Subgrouping**: The analysis defaults to **Monthly Subgrouping** for strategic audits and automatically **excludes the current calendar month** from the Natural Process Limits calculation, ensuring that partial data doesn't skew the long-term capability baseline.
 
 ---
 
@@ -104,11 +104,11 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Autonomous)
 - **Trigger:** AI monitors active WIP health.
 - **Main Success Scenario:**
-    1.  AI calls `analyze_process_stability`.
-    2.  MCP Server calculates the **Stability Index** (WIP / Throughput / Avg Cycle Time).
-    3.  AI identifies that the index is > 1.3, indicating the system is "clogged" (WIP is aging relative to delivery capacity).
-    4.  AI uses `analyze_work_item_age` or `analyze_cycle_time` to identify specific items that have exceeded the 85% or 95% probability limits.
-    5.  AI warns: "Your system is becoming **Clogged** (Stability Index 1.4). PROJ-456 is a notable outlier, exceeding the 98% probability limit of your historical process."
+    1. AI calls `analyze_process_stability`.
+    2. MCP Server calculates the **Stability Index** (WIP / Throughput / Avg Cycle Time).
+    3. AI identifies that the index is > 1.3, indicating the system is "clogged" (WIP is aging relative to delivery capacity).
+    4. AI uses `analyze_work_item_age` or `analyze_cycle_time` to identify specific items that have exceeded the 85% or 95% probability limits.
+    5. AI warns: "Your system is becoming **Clogged** (Stability Index 1.4). PROJ-456 is a notable outlier, exceeding the 98% probability limit of your historical process."
 
 ---
 
@@ -207,13 +207,13 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Orchestrator)
 - **Trigger:** User asks a broad goal-oriented question (e.g., "Analyze our bottlenecks").
 - **Main Success Scenario:**
-    1.  AI identifies the goal and calls `guide_diagnostic_roadmap` with `goal: "bottlenecks"`.
-    2.  MCP Server returns a prioritized sequence of tools:
+    1. AI identifies the goal and calls `guide_diagnostic_roadmap` with `goal: "bottlenecks"`.
+    2. MCP Server returns a prioritized sequence of tools:
         - `workflow_discover_mapping` (Verify semantics)
         - `analyze_status_persistence` (Identify local queues)
         - `analyze_work_item_age` (Identify current WIP risk)
-    3.  AI follows the sequence, explaining each step to the user.
-    4.  AI synthesizes the results into a cohesive diagnostic report.
+    3. AI follows the sequence, explaining each step to the user.
+    4. AI synthesizes the results into a cohesive diagnostic report.
 
 ---
 
@@ -243,11 +243,11 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** AI (Proactive) or User
 - **Trigger:** AI wants to verify if MCS is reliable for a specific board before presenting a high-stakes forecast.
 - **Main Success Scenario:**
-    1.  AI calls `forecast_backtest` with `simulation_mode: "scope"`.
-    2.  MCP Server utilizes **Time-Travel Logic** to reconstruct the state of the system at several past checkpoints (e.g., every 14 days for the last 6 months).
-    3.  For each checkpoint, the server runs a simulation and compares it to the **actual** completion history that followed.
-    4.  AI detects if the accuracy score is below the **70% threshold**.
-    5.  AI reports: "I've backtested my forecasting model against your last 6 months of data. It achieved **67% accuracy**. While helpful, you should treat these dates with caution due to the high volatility detected in late 2025."
+    1. AI calls `forecast_backtest` with `simulation_mode: "scope"`.
+    2. MCP Server utilizes **Time-Travel Logic** to reconstruct the state of the system at several past checkpoints (e.g., every 14 days for the last 6 months).
+    3. For each checkpoint, the server runs a simulation and compares it to the **actual** completion history that followed.
+    4. AI detects if the accuracy score is below the **70% threshold**.
+    5. AI reports: "I've backtested my forecasting model against your last 6 months of data. It achieved **67% accuracy**. While helpful, you should treat these dates with caution due to the high volatility detected in late 2025."
 
 ---
 
@@ -289,12 +289,12 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** Project Manager / Operations Lead
 - **Trigger:** User asks "Where are we getting blocked most often?" or "Which stage has the most friction?"
 - **Main Success Scenario:**
-    1.  User asks for a friction analysis.
-    2.  AI calls `analyze_status_persistence`.
-    3.  MCP Server calculates the **Impediment Count** and **Impediment Depth** using geometric intersection of blocked intervals.
-    4.  AI identifies the stage with the highest friction (e.g., "Peer Review is your primary friction center: 60% of items encountered a blocker here, with a median (P50) blocked duration of 4 days").
-    5.  AI contrasts this with total residency to provide context: "While 'In Testing' has high total residency, 'Peer Review' has the highest _impediment_ density."
-    6.  **Stability Guardrail Awareness:** If the overall system is under high stress (>25% WIP flagged), the AI automatically surfaces a "SYSTEM PRESSURE WARNING" during forecasting simulations to alert the user that historical throughput may be overly optimistic.
+    1. User asks for a friction analysis.
+    2. AI calls `analyze_status_persistence`.
+    3. MCP Server calculates the **Impediment Count** and **Impediment Depth** using geometric intersection of blocked intervals.
+    4. AI identifies the stage with the highest friction (e.g., "Peer Review is your primary friction center: 60% of items encountered a blocker here, with a median (P50) blocked duration of 4 days").
+    5. AI contrasts this with total residency to provide context: "While 'In Testing' has high total residency, 'Peer Review' has the highest _impediment_ density."
+    6. **Stability Guardrail Awareness:** If the overall system is under high stress (>25% WIP flagged), the AI automatically surfaces a "SYSTEM PRESSURE WARNING" during forecasting simulations to alert the user that historical throughput may be overly optimistic.
 
 ---
 
@@ -305,12 +305,12 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager / Scrum Master)
 - **Trigger:** Investigating why cycle times are starting to creep up, or confirming if the team can take on a new project.
 - **Main Success Scenario:**
-    1.  User asks: "Is our workload balanced? Are we taking on too much?"
-    2.  AI calls `analyze_flow_debt`.
-    3.  MCP Server calculates the **Arrival Rate** (items crossing the Commitment Point) and **Departure Rate** (items Delivered) per bucket.
-    4.  AI identifies a period of **Positive Flow Debt** (e.g., "In the last 4 weeks, you committed to 12 items but only delivered 8").
-    5.  AI warns: "Your system is in a state of **Accumulating Debt**. If this trend continues, your Cycle Times are mathematically guaranteed to increase to accommodate the growing WIP."
-    6.  AI correlates this with `analyze_wip_stability` to show the resulting WIP inflation.
+    1. User asks: "Is our workload balanced? Are we taking on too much?"
+    2. AI calls `analyze_flow_debt`.
+    3. MCP Server calculates the **Arrival Rate** (items crossing the Commitment Point) and **Departure Rate** (items Delivered) per bucket.
+    4. AI identifies a period of **Positive Flow Debt** (e.g., "In the last 4 weeks, you committed to 12 items but only delivered 8").
+    5. AI warns: "Your system is in a state of **Accumulating Debt**. If this trend continues, your Cycle Times are mathematically guaranteed to increase to accommodate the growing WIP."
+    6. AI correlates this with `analyze_wip_stability` to show the resulting WIP inflation.
 
 ---
 
@@ -321,9 +321,9 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Primary Actor:** User (Project Manager / Scrum Master)
 - **Trigger:** Identifying long-term bottlenecks, visualizing WIP surges, or verifying process stability.
 - **Main Success Scenario:**
-    1.  User asks: "Can I see our Cumulative Flow Diagram for the last 6 months?"
-    2.  AI calls `generate_cfd_data`.
-    3.  MCP Server reconstructs the historical state of every issue daily and aggregates by Issue Type and Status.
-    4.  AI provides the raw data to the visualization agent (or describes the trends).
-    5.  AI identifies a "bloating" status (e.g. "Your 'Code Review' band is widening, indicating a growing bottleneck despite stable arrivals").
-    6.  AI suggests cross-referencing with `analyze_flow_debt` to see if the bottleneck is caused by a recent commitment surge.
+    1. User asks: "Can I see our Cumulative Flow Diagram for the last 6 months?"
+    2. AI calls `generate_cfd_data`.
+    3. MCP Server reconstructs the historical state of every issue daily and aggregates by Issue Type and Status.
+    4. AI provides the raw data to the visualization agent (or describes the trends).
+    5. AI identifies a "bloating" status (e.g. "Your 'Code Review' band is widening, indicating a growing bottleneck despite stable arrivals").
+    6. AI suggests cross-referencing with `analyze_flow_debt` to see if the bottleneck is caused by a recent commitment surge.

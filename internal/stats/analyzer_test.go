@@ -170,7 +170,7 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	}
 
 	// Test WIP Age
-	results := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "wip", time.Now())
+	results := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "wip", false, time.Now())
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result in WIP mode, got %d", len(results))
@@ -187,7 +187,7 @@ func TestCalculateInventoryAgeExecution(t *testing.T) {
 	}
 
 	// Test Total Age
-	resultsTotal := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "total", time.Now())
+	resultsTotal := stats.CalculateInventoryAge(wipIssues, "3", statusWeights, mappings, history, "total", false, time.Now())
 	for _, r := range resultsTotal {
 		if r.Key == "DEM-1" {
 			if r.TotalAgeSinceCreation < 9.9 { // ~10 days
