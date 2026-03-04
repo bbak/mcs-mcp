@@ -46,6 +46,7 @@ type Server struct {
 	activeEvaluationDate  *time.Time
 	activeRegistry        *jira.NameRegistry
 	enableMermaidCharts   bool
+	simulationSeed        int64 // 0 = random (production); non-zero = fixed seed (tests)
 }
 
 func (s *Server) Clock() time.Time {

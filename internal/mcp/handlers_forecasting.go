@@ -110,6 +110,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
+	if s.simulationSeed != 0 {
+		engine.SetSeed(s.simulationSeed)
+	}
 
 	// Distribution handling
 	var dist map[string]float64
@@ -199,7 +202,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -26*7), time.Now(), "day", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -26*7), s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -224,6 +227,9 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
+	if s.simulationSeed != 0 {
+		engine.SetSeed(s.simulationSeed)
+	}
 
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes, ctByType)

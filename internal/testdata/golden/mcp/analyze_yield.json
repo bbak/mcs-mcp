@@ -1,0 +1,55 @@
+{
+  "data": {
+    "stratified": {
+      "Activity": {
+        "totalIngested": 593,
+        "deliveredCount": 539,
+        "abandonedCount": 0,
+        "overallYieldRate": 0.9089376053962901,
+        "lossPoints": null
+      },
+      "Bug": {
+        "totalIngested": 245,
+        "deliveredCount": 227,
+        "abandonedCount": 0,
+        "overallYieldRate": 0.926530612244898,
+        "lossPoints": null
+      },
+      "Defect": {
+        "totalIngested": 19,
+        "deliveredCount": 19,
+        "abandonedCount": 0,
+        "overallYieldRate": 1,
+        "lossPoints": null
+      },
+      "Story": {
+        "totalIngested": 455,
+        "deliveredCount": 391,
+        "abandonedCount": 0,
+        "overallYieldRate": 0.8593406593406593,
+        "lossPoints": null
+      },
+      "ZeroThroughputType": {
+        "totalIngested": 1,
+        "deliveredCount": 0,
+        "abandonedCount": 0,
+        "overallYieldRate": 0,
+        "lossPoints": null
+      }
+    },
+    "yield": {
+      "totalIngested": 1313,
+      "deliveredCount": 1176,
+      "abandonedCount": 0,
+      "overallYieldRate": 0.8956587966488957,
+      "lossPoints": null
+    }
+  },
+  "guardrails": {
+    "insights": [
+      "High 'Abandoned Upstream' often points to discovery/refinement issues.",
+      "High 'Abandoned Downstream' points to execution or commitment issues."
+    ],
+    "warnings": []
+  }
+}
