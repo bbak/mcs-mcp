@@ -75,10 +75,10 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 		eligible := true
 		reason := "Meets volume and variance criteria"
 
-		if decision.Volume < 15 {
+		if decision.Volume < StratificationMinVolume {
 			eligible = false
 			reason = "Volume too low (< 15 items)"
-		} else if decision.DistanceToPool > -0.15 && decision.DistanceToPool < 0.15 {
+		} else if decision.DistanceToPool > -StratificationMinVariance && decision.DistanceToPool < StratificationMinVariance {
 			// If variance is less than 15%, it's close enough to the average to be pooled
 			eligible = false
 			reason = "Insufficient variance from pooled average (< 15%)"
@@ -93,15 +93,8 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 }
 
 func calculateP85(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
 	slices.Sort(values)
-	idx := int(float64(len(values)) * 0.85)
-	if idx >= len(values) {
-		idx = len(values) - 1
-	}
-	return values[idx]
+	return stats.CalculatePercentile(values, 0.85)
 }
 
 // CalculateCorrelation calculates Pearson correlation between two daily throughput series.
@@ -151,7 +144,7 @@ func DetectDependencies(stratified map[string][]int) map[string]string {
 			corr := CalculateCorrelation(stratified[t1], stratified[t2])
 
 			// Significant negative correlation indicates a capacity clash/dependency
-			if corr < -0.6 {
+			if corr < DependencyCorrelationThreshold {
 				// We identify the "Taxer" as the one with higher volume/influence?
 				// For now, we just pick t1 as taxer of t2 if t1 is conventionally "higher priority" or more bursty.
 				// Actually, the relationship is mutual capacity drain, but usually one type (Bugs)
@@ -174,12 +167,12 @@ func CalculateFatTail(counts []int) float64 {
 	}
 	slices.Sort(floats)
 
-	p50 := floats[int(float64(len(floats))*0.50)]
-	p98 := floats[int(float64(len(floats))*0.98)]
+	p50 := stats.CalculatePercentile(floats, 0.50)
+	p98 := stats.CalculatePercentile(floats, 0.98)
 
 	if p50 == 0 {
 		if p98 > 0 {
-			return 10.0 // Symbolic high value for sparse processes
+			return SparseFatTailSymbol // Symbolic high value for sparse processes
 		}
 		return 1.0
 	}

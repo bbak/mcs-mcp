@@ -93,7 +93,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		if includeWIP {
-			wipIssues := stats.ApplyBackflowPolicy(wip, analysisCtx.StatusWeights, cWeight)
+			wipIssues := stats.ApplyBackflowPolicy(wip, analysisCtx.StatusWeights, cWeight, s.Clock())
 			for _, issue := range wipIssues {
 				actualTargets[issue.IssueType]++
 			}

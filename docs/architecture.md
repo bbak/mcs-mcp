@@ -367,9 +367,9 @@ MCS-MCP uses two distinct strategies for managing server state across handler in
 
 - **`resolveSourceContext` (Read-Only)**: Performs a stateless JQL/board metadata lookup. It validates the project/board combination and normalises the filter JQL, but does **not** set `s.activeSourceID` or modify any server state. Used by `workflow_discover_mapping` so that discovery can run at any time without forcing a context switch.
 
-- **`anchorContext` (State-Mutating)**: Switches the server's active context to a new project/board. It clears all previously active state (mapping, resolutions, order, commitment point, evaluation date), prunes the in-memory event store to free RAM (`PruneExcept`), and loads the persisted `WorkflowMetadata` from disk for the new source. Used by all configuration tools (`workflow_set_mapping`, `workflow_set_order`, `workflow_set_evaluation_date`) to ensure mutations are applied to the correct context.
+- **`anchorContext` (State-Mutating)**: Switches the server's active context to a new project/board. It clears all previously active state (mapping, resolutions, order, commitment point, evaluation date), prunes the in-memory event store to free RAM (`PruneExcept`), and loads the persisted `WorkflowMetadata` from disk for the new source. Short-circuits immediately if the source is already active (`s.activeSourceID == sourceID`). Used by all configuration tools (`workflow_set_mapping`, `workflow_set_order`, `workflow_set_evaluation_date`) **and all diagnostic handlers** (`analyze_flow_debt`, `analyze_process_stability`, `analyze_process_evolution`, etc.) to guarantee that workflow metadata (mapping, commitment point, status order) is always initialised before analysis runs. Without this, a fresh-start diagnostic call would operate on empty state and overwrite the persisted workflow file with that empty state via `saveWorkflow`.
 
-This separation means that browsing or re-running discovery across multiple boards does not corrupt the active analytical context, while all confirmed configuration changes are always applied to an explicitly anchored source.
+This separation means that browsing or re-running discovery across multiple boards does not corrupt the active analytical context, while all state-mutating and analytical operations are always applied to an explicitly anchored source.
 
 ### 8.11 Response Envelope
 

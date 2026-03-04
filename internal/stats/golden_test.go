@@ -220,7 +220,8 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 		// Optional: write actual to a tmp file for user to diff easily
 		tmpPath := goldenPath + ".actual"
-		os.WriteFile(tmpPath, actualJSON, 0644)
-		t.Errorf("Wrote actual output to %s for comparison. If the mathematical change was intentional, re-run with 'go test ./... -update'", tmpPath)
+		if wErr := os.WriteFile(tmpPath, actualJSON, 0644); wErr == nil {
+			t.Errorf("Wrote actual output to %s for comparison. If the mathematical change was intentional, re-run with 'go test ./... -update'", tmpPath)
+		}
 	}
 }

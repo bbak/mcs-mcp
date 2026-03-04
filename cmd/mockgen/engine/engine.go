@@ -185,7 +185,9 @@ func Save(outDir string, sourceID string, events []eventlog.IssueEvent, mapping 
 	w := bufio.NewWriter(f)
 	enc := json.NewEncoder(w)
 	for _, e := range events {
-		enc.Encode(e)
+		if err := enc.Encode(e); err != nil {
+			return fmt.Errorf("encoding event: %w", err)
+		}
 	}
 	w.Flush()
 

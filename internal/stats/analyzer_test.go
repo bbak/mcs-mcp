@@ -689,7 +689,7 @@ func TestFilterIssuesByResolutionWindow_WithCutoff(t *testing.T) {
 		{Key: "I-3", ResolutionDate: func() *time.Time { tt := now.AddDate(0, 0, -25); return &tt }()}, // Drop (before window)
 	}
 
-	filtered := stats.FilterIssuesByResolutionWindow(issues, windowDays, cutoff)
+	filtered := stats.FilterIssuesByResolutionWindow(issues, windowDays, cutoff, now)
 
 	if len(filtered) != 1 {
 		t.Errorf("Expected 1 filtered issue, got %d", len(filtered))

@@ -2,6 +2,19 @@ package stats
 
 import "slices"
 
+// CalculatePercentile returns the value at percentile p (0.0–1.0) from a pre-sorted ascending slice.
+// The slice must be sorted before calling. Returns 0 if the slice is empty.
+func CalculatePercentile(sorted []float64, p float64) float64 {
+	if len(sorted) == 0 {
+		return 0
+	}
+	idx := int(float64(len(sorted)) * p)
+	if idx >= len(sorted) {
+		idx = len(sorted) - 1
+	}
+	return sorted[idx]
+}
+
 // CalculateMedianDiscrete finds the median value in a slice of integers.
 func CalculateMedianDiscrete(values []int) float64 {
 	if len(values) == 0 {

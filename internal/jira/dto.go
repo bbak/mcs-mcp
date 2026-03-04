@@ -90,3 +90,13 @@ type Status struct {
 func ParseTime(s string) (time.Time, error) {
 	return time.Parse("2006-01-02T15:04:05.000-0700", s)
 }
+
+// ExtractProjectKey extracts the project key portion from a Jira issue key (e.g., "PROJ" from "PROJ-123").
+func ExtractProjectKey(issueKey string) string {
+	for i := 0; i < len(issueKey); i++ {
+		if issueKey[i] == '-' {
+			return issueKey[:i]
+		}
+	}
+	return issueKey
+}

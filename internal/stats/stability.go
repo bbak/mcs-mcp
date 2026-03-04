@@ -221,7 +221,6 @@ func GroupIssuesByBucket(issues []jira.Issue, cycleTimes []float64, window Analy
 	}
 
 	groups := make(map[string]*SubgroupStats)
-	var keys []string
 
 	for i, issue := range issues {
 		if i >= len(cycleTimes) || issue.ResolutionDate == nil {
@@ -238,7 +237,6 @@ func GroupIssuesByBucket(issues []jira.Issue, cycleTimes []float64, window Analy
 
 		if _, ok := groups[bucketKey]; !ok {
 			groups[bucketKey] = &SubgroupStats{Label: bucketKey}
-			keys = append(keys, bucketKey)
 		}
 
 		groups[bucketKey].Values = append(groups[bucketKey].Values, cycleTimes[i])
