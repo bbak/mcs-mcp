@@ -35,7 +35,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -180), time.Now(), "day", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -180), s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -94,7 +94,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
+	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -169,7 +169,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), bucket, cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), bucket, cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -237,7 +237,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any,
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -26*7), time.Now(), "week", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -26*7), s.Clock(), "week", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -309,7 +309,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Now().AddDate(0, -windowMonths, 0), time.Now(), "month", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, -windowMonths, 0), s.Clock(), "month", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -360,7 +360,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(time.Time{}, time.Now(), "day", cutoff)
+	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -423,7 +423,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 		}
 	}
 
-	issue := eventlog.ReconstructIssue(events, time.Now())
+	issue := eventlog.ReconstructIssue(events, s.Clock())
 
 	type JourneyStep struct {
 		Status string  `json:"status"`
@@ -555,7 +555,7 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 
 	// 3. Bound the chart output strictly to the requested display window
-	displayWindow := stats.NewAnalysisWindow(time.Now().AddDate(0, 0, -windowWeeks*7), time.Now(), "day", cutoff)
+	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), "day", cutoff)
 	wipStability := stats.AnalyzeHistoricalWIP(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
 
 	res := map[string]any{

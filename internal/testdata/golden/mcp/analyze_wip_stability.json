@@ -1,0 +1,928 @@
+{
+  "data": {
+    "wip_stability": {
+      "run_chart": [
+        {
+          "date": "2026-01-13T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-01-14T00:00:00Z",
+          "count": 45
+        },
+        {
+          "date": "2026-01-15T00:00:00Z",
+          "count": 38
+        },
+        {
+          "date": "2026-01-16T00:00:00Z",
+          "count": 39
+        },
+        {
+          "date": "2026-01-17T00:00:00Z",
+          "count": 39
+        },
+        {
+          "date": "2026-01-18T00:00:00Z",
+          "count": 39
+        },
+        {
+          "date": "2026-01-19T00:00:00Z",
+          "count": 39
+        },
+        {
+          "date": "2026-01-20T00:00:00Z",
+          "count": 39
+        },
+        {
+          "date": "2026-01-21T00:00:00Z",
+          "count": 38
+        },
+        {
+          "date": "2026-01-22T00:00:00Z",
+          "count": 38
+        },
+        {
+          "date": "2026-01-23T00:00:00Z",
+          "count": 38
+        },
+        {
+          "date": "2026-01-24T00:00:00Z",
+          "count": 45
+        },
+        {
+          "date": "2026-01-25T00:00:00Z",
+          "count": 41
+        },
+        {
+          "date": "2026-01-26T00:00:00Z",
+          "count": 41
+        },
+        {
+          "date": "2026-01-27T00:00:00Z",
+          "count": 41
+        },
+        {
+          "date": "2026-01-28T00:00:00Z",
+          "count": 44
+        },
+        {
+          "date": "2026-01-29T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-01-30T00:00:00Z",
+          "count": 46
+        },
+        {
+          "date": "2026-01-31T00:00:00Z",
+          "count": 46
+        },
+        {
+          "date": "2026-02-01T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-02-02T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-02-03T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-02-04T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-05T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-02-06T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-07T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-02-08T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-02-09T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-02-10T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-02-11T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-02-12T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-13T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-02-14T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-02-15T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-02-16T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-02-17T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-02-18T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-02-19T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-02-20T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-02-21T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-02-22T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-23T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-24T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-02-25T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-02-26T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-02-27T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-02-28T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-03-01T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-03-02T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-03-03T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-03-04T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-03-05T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-03-06T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-07T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-08T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-09T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-03-10T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-03-11T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-03-12T00:00:00Z",
+          "count": 58
+        },
+        {
+          "date": "2026-03-13T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-03-14T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-03-15T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-03-16T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-03-17T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-03-18T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-03-19T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-03-20T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-03-21T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-03-22T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-23T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-24T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-03-25T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-03-26T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-03-27T00:00:00Z",
+          "count": 46
+        },
+        {
+          "date": "2026-03-28T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-03-29T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-03-30T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-03-31T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-01T00:00:00Z",
+          "count": 48
+        },
+        {
+          "date": "2026-04-02T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-03T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-04T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-05T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-06T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-07T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-08T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-09T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-10T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-11T00:00:00Z",
+          "count": 44
+        },
+        {
+          "date": "2026-04-12T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-13T00:00:00Z",
+          "count": 46
+        },
+        {
+          "date": "2026-04-14T00:00:00Z",
+          "count": 46
+        },
+        {
+          "date": "2026-04-15T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-16T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-04-17T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-04-18T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-19T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-20T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-21T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-22T00:00:00Z",
+          "count": 47
+        },
+        {
+          "date": "2026-04-23T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-04-24T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-25T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-26T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-27T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-28T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-04-29T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-04-30T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-05-01T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-05-02T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-05-03T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-05-04T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-05-05T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-05-06T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-05-07T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-05-08T00:00:00Z",
+          "count": 52
+        },
+        {
+          "date": "2026-05-09T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-05-10T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-05-11T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-05-12T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-05-13T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-05-14T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-15T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-16T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-17T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-18T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-19T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-20T00:00:00Z",
+          "count": 49
+        },
+        {
+          "date": "2026-05-21T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-05-22T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-05-23T00:00:00Z",
+          "count": 50
+        },
+        {
+          "date": "2026-05-24T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-05-25T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-05-26T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-05-27T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-05-28T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-05-29T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-05-30T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-05-31T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-01T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-02T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-03T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-04T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-05T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-06T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-06-07T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-08T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-09T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-10T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-11T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-06-12T00:00:00Z",
+          "count": 60
+        },
+        {
+          "date": "2026-06-13T00:00:00Z",
+          "count": 60
+        },
+        {
+          "date": "2026-06-14T00:00:00Z",
+          "count": 61
+        },
+        {
+          "date": "2026-06-15T00:00:00Z",
+          "count": 61
+        },
+        {
+          "date": "2026-06-16T00:00:00Z",
+          "count": 61
+        },
+        {
+          "date": "2026-06-17T00:00:00Z",
+          "count": 61
+        },
+        {
+          "date": "2026-06-18T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-06-19T00:00:00Z",
+          "count": 57
+        },
+        {
+          "date": "2026-06-20T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-21T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-06-22T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-06-23T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-06-24T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-06-25T00:00:00Z",
+          "count": 51
+        },
+        {
+          "date": "2026-06-26T00:00:00Z",
+          "count": 53
+        },
+        {
+          "date": "2026-06-27T00:00:00Z",
+          "count": 55
+        },
+        {
+          "date": "2026-06-28T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-29T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-06-30T00:00:00Z",
+          "count": 54
+        },
+        {
+          "date": "2026-07-01T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-07-02T00:00:00Z",
+          "count": 56
+        },
+        {
+          "date": "2026-07-03T00:00:00Z",
+          "count": 59
+        },
+        {
+          "date": "2026-07-04T00:00:00Z",
+          "count": 60
+        },
+        {
+          "date": "2026-07-05T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-06T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-07T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-08T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-09T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-10T00:00:00Z",
+          "count": 62
+        },
+        {
+          "date": "2026-07-11T00:00:00Z",
+          "count": 65
+        },
+        {
+          "date": "2026-07-12T00:00:00Z",
+          "count": 59
+        },
+        {
+          "date": "2026-07-13T00:00:00Z",
+          "count": 59
+        },
+        {
+          "date": "2026-07-14T00:00:00Z",
+          "count": 59
+        }
+      ],
+      "xmr": {
+        "average": 51.851851851851855,
+        "average_moving_range": 3.5384615384615383,
+        "upper_natural_process_limit": 61.26415954415955,
+        "lower_natural_process_limit": 42.43954415954416,
+        "values": [
+          39,
+          41,
+          47,
+          53,
+          54,
+          49,
+          48,
+          52,
+          54,
+          52,
+          47,
+          51,
+          47,
+          47,
+          52,
+          53,
+          57,
+          49,
+          51,
+          54,
+          55,
+          61,
+          53,
+          54,
+          62,
+          59,
+          59
+        ],
+        "moving_ranges": [
+          2,
+          6,
+          6,
+          1,
+          5,
+          1,
+          4,
+          2,
+          2,
+          5,
+          4,
+          4,
+          0,
+          5,
+          1,
+          4,
+          8,
+          2,
+          3,
+          1,
+          6,
+          8,
+          1,
+          8,
+          3,
+          0
+        ],
+        "signals": [
+          {
+            "index": 2,
+            "key": "2026-01-15",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 3,
+            "key": "2026-01-16",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 4,
+            "key": "2026-01-17",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 5,
+            "key": "2026-01-18",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 6,
+            "key": "2026-01-19",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 7,
+            "key": "2026-01-20",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 8,
+            "key": "2026-01-21",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 9,
+            "key": "2026-01-22",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 10,
+            "key": "2026-01-23",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 12,
+            "key": "2026-01-25",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 13,
+            "key": "2026-01-26",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 14,
+            "key": "2026-01-27",
+            "type": "outlier",
+            "description": "WIP count below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 173,
+            "key": "2026-07-05",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 174,
+            "key": "2026-07-06",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 175,
+            "key": "2026-07-07",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 176,
+            "key": "2026-07-08",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 177,
+            "key": "2026-07-09",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 178,
+            "key": "2026-07-10",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 179,
+            "key": "2026-07-11",
+            "type": "outlier",
+            "description": "WIP count above Upper Natural Process Limit (UNPL)"
+          }
+        ]
+      },
+      "status": "unstable"
+    }
+  },
+  "guardrails": {
+    "insights": [
+      "WIP Stability provides a daily historical view of system population.",
+      "Signals (Outliers/Shifts) indicate that WIP was not actively managed or constrained, which violates Little's Law.",
+      "If the system is 'unstable', flow metrics (Cycle Time, Throughput) will be unpredictable and simulations may fail."
+    ],
+    "warnings": []
+  }
+}

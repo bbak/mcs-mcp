@@ -1,0 +1,131 @@
+{
+  "data": {
+    "percentiles": {
+      "aggressive": 3650,
+      "unlikely": 3650,
+      "coin_toss": 3650,
+      "probable": 3650,
+      "likely": 3650,
+      "conservative": 3650,
+      "safe": 3650,
+      "almost_certain": 3650
+    },
+    "spread": {
+      "iqr": 0,
+      "inner_80": 0
+    },
+    "fat_tail_ratio": 1,
+    "tail_to_median_ratio": 1,
+    "predictability": "Stable",
+    "context": {
+      "days_in_sample": 91,
+      "dropped_by_outcome": 0,
+      "dropped_by_window": 0,
+      "issues_analyzed": 76,
+      "issues_total": 76,
+      "modeling_insight": "Stratified: Modeling 1 distinct delivery streams independently to capture capacity clashes and variance.",
+      "stratification_decisions": [
+        {
+          "type": "Activity",
+          "eligible": false,
+          "reason": "Insufficient variance from pooled average (\u003c 15%)",
+          "volume": 27,
+          "p85_cycle_time": 202.9176612037037,
+          "distance_to_pool": -0.11782269855648969
+        },
+        {
+          "type": "Bug",
+          "eligible": false,
+          "reason": "Volume too low (\u003c 15 items)",
+          "volume": 14,
+          "p85_cycle_time": 194.2339707638889,
+          "distance_to_pool": -0.15557473331445193
+        },
+        {
+          "type": "Defect",
+          "eligible": false,
+          "reason": "Volume too low (\u003c 15 items)",
+          "volume": 1,
+          "p85_cycle_time": 7.102187372685186,
+          "distance_to_pool": -0.9691234934721037
+        },
+        {
+          "type": "Story",
+          "eligible": true,
+          "reason": "Meets volume and variance criteria",
+          "volume": 34,
+          "p85_cycle_time": 281.85268122685187,
+          "distance_to_pool": 0.22534448827357087
+        }
+      ],
+      "stratification_dependencies": {},
+      "stratification_eligible": {
+        "Story": true
+      },
+      "throughput_overall": 0.8444444444444444,
+      "throughput_recent": 1.1666666666666667,
+      "type_counts": {
+        "Activity": 27,
+        "Bug": 14,
+        "Defect": 1,
+        "Story": 34
+      },
+      "type_distribution": {
+        "Activity": 0.35526315789473684,
+        "Bug": 0.18421052631578946,
+        "Defect": 0.013157894736842105,
+        "Story": 0.4473684210526316
+      },
+      "type_volatility": {
+        "Activity": 10,
+        "Bug": 10,
+        "Defect": 1,
+        "Story": 10
+      }
+    },
+    "composition": {
+      "existing_backlog": 0,
+      "wip": 0,
+      "additional_items": 0,
+      "total": 0
+    },
+    "throughput_trend": {
+      "direction": "Increasing",
+      "percentage_change": 38.2
+    },
+    "percentile_labels": {
+      "aggressive": "P10 (Aggressive / Best Case)",
+      "almost_certain": "P98 (Limit / Extreme Outlier Boundaries)",
+      "coin_toss": "P50 (Coin Toss / Median / 50% probability)",
+      "conservative": "P90 (Conservative / Buffer)",
+      "likely": "P85 (Likely / Professional Standard / Professional commitment)",
+      "probable": "P70 (Probable)",
+      "safe": "P95 (Safe Bet / High Confidence)",
+      "unlikely": "P30 (Unlikely / High Risk)"
+    },
+    "background_items_predicted": {
+      "Activity": 1031,
+      "Bug": 529,
+      "Defect": 40,
+      "Story": 1291
+    },
+    "modeling_insight": "Stratified: Modeling 1 distinct delivery streams independently to capture capacity clashes and variance.",
+    "volatility_attribution": {
+      "Activity": "Fat-Tail High-Risk (10.00)",
+      "Bug": "Fat-Tail High-Risk (10.00)",
+      "Story": "Fat-Tail High-Risk (10.00)"
+    }
+  },
+  "guardrails": {
+    "insights": [
+      "Volatility Alert: Item Type 'Activity' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Bug' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Volatility Alert: Item Type 'Story' shows chaotic delivery patterns (Ratio 10.00). This type is the primary driver of forecast uncertainty.",
+      "Analysis uses EXPLICIT commitment point: '38776'."
+    ],
+    "warnings": [
+      "Throughput is significantly higher recently (38% above average). Monitor if this is sustainable.",
+      "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions)."
+    ]
+  }
+}

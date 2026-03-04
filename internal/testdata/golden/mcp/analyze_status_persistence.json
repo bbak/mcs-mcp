@@ -1,0 +1,723 @@
+{
+  "data": {
+    "persistence": [
+      {
+        "statusID": "6",
+        "statusName": "Closed",
+        "share": 0.301,
+        "role": "terminal",
+        "tier": "Finished",
+        "coin_toss": 0,
+        "probable": 0,
+        "likely": 8.9,
+        "safe_bet": 90.7,
+        "iqr": 0,
+        "inner_80": 14
+      },
+      {
+        "statusID": "10003",
+        "statusName": "Done",
+        "share": 0.775,
+        "role": "terminal",
+        "tier": "Finished",
+        "coin_toss": 0,
+        "probable": 0,
+        "likely": 0,
+        "safe_bet": 0,
+        "iqr": 0,
+        "inner_80": 0
+      },
+      {
+        "statusID": "1",
+        "statusName": "Open",
+        "share": 0.74,
+        "role": "queue",
+        "tier": "Demand",
+        "coin_toss": 6.9,
+        "probable": 57.8,
+        "likely": 153.9,
+        "safe_bet": 457.1,
+        "iqr": 107.2,
+        "inner_80": 210.2,
+        "interpretation": "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
+      },
+      {
+        "statusID": "38781",
+        "statusName": "UAT (+Fix)",
+        "share": 0.318,
+        "role": "active",
+        "tier": "Downstream",
+        "coin_toss": 6.8,
+        "probable": 17.9,
+        "likely": 35,
+        "safe_bet": 103.8,
+        "iqr": 17.9,
+        "inner_80": 40.7,
+        "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
+      },
+      {
+        "statusID": "38780",
+        "statusName": "awaiting UAT",
+        "share": 0.202,
+        "role": "queue",
+        "tier": "Downstream",
+        "coin_toss": 5.8,
+        "probable": 13.1,
+        "likely": 20,
+        "safe_bet": 88.9,
+        "iqr": 15.8,
+        "inner_80": 30.8,
+        "interpretation": "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
+      },
+      {
+        "statusID": "38782",
+        "statusName": "awaiting deploy to Prod",
+        "share": 0.358,
+        "role": "queue",
+        "tier": "Downstream",
+        "coin_toss": 4,
+        "probable": 6.9,
+        "likely": 8.7,
+        "safe_bet": 21,
+        "iqr": 6.1,
+        "inner_80": 13.2,
+        "interpretation": "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
+      },
+      {
+        "statusID": "38778",
+        "statusName": "awaiting deploy to QA",
+        "share": 0.225,
+        "role": "queue",
+        "tier": "Downstream",
+        "coin_toss": 6.1,
+        "probable": 15,
+        "likely": 27.8,
+        "safe_bet": 44.1,
+        "iqr": 18.7,
+        "inner_80": 35.7,
+        "interpretation": "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
+      },
+      {
+        "statusID": "38776",
+        "statusName": "awaiting development",
+        "share": 0.462,
+        "role": "queue",
+        "tier": "Downstream",
+        "coin_toss": 6.6,
+        "probable": 13,
+        "likely": 44,
+        "safe_bet": 196,
+        "iqr": 15.6,
+        "inner_80": 54.1,
+        "interpretation": "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
+      },
+      {
+        "statusID": "38783",
+        "statusName": "deploying to Prod",
+        "share": 0.364,
+        "role": "active",
+        "tier": "Downstream",
+        "coin_toss": 3.1,
+        "probable": 8.2,
+        "likely": 27.1,
+        "safe_bet": 58.9,
+        "iqr": 10.8,
+        "inner_80": 34.9,
+        "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
+      },
+      {
+        "statusID": "38779",
+        "statusName": "deploying to QA",
+        "share": 0.173,
+        "role": "active",
+        "tier": "Downstream",
+        "coin_toss": 6,
+        "probable": 9.1,
+        "likely": 13.6,
+        "safe_bet": 28.1,
+        "iqr": 7.3,
+        "inner_80": 22.7,
+        "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
+      },
+      {
+        "statusID": "38777",
+        "statusName": "developing",
+        "share": 0.526,
+        "role": "active",
+        "tier": "Downstream",
+        "coin_toss": 13.9,
+        "probable": 30.2,
+        "likely": 63.1,
+        "safe_bet": 153.4,
+        "iqr": 35.6,
+        "inner_80": 97.2,
+        "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
+      },
+      {
+        "statusID": "38775",
+        "statusName": "refining",
+        "share": 0.578,
+        "role": "active",
+        "tier": "Upstream",
+        "coin_toss": 4.9,
+        "probable": 11.8,
+        "likely": 34.2,
+        "safe_bet": 91.1,
+        "iqr": 17.3,
+        "inner_80": 60,
+        "interpretation": "This is an active working stage. High residency indicates a local bottleneck at this step."
+      }
+    ],
+    "stratified_persistence": {
+      "Activity": [
+        {
+          "statusID": "6",
+          "statusName": "Closed",
+          "share": 0.343,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 14,
+          "safe_bet": 90.7,
+          "iqr": 0.6,
+          "inner_80": 71.2
+        },
+        {
+          "statusID": "10003",
+          "statusName": "Done",
+          "share": 0.771,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "1",
+          "statusName": "Open",
+          "share": 0.6,
+          "coin_toss": 2.8,
+          "probable": 15.9,
+          "likely": 112.8,
+          "safe_bet": 367,
+          "iqr": 21,
+          "inner_80": 205
+        },
+        {
+          "statusID": "38781",
+          "statusName": "UAT (+Fix)",
+          "share": 0.286,
+          "coin_toss": 7.4,
+          "probable": 22.1,
+          "likely": 83.9,
+          "safe_bet": 103.8,
+          "iqr": 32.1,
+          "inner_80": 103.6
+        },
+        {
+          "statusID": "38780",
+          "statusName": "awaiting UAT",
+          "share": 0.171,
+          "coin_toss": 7.1,
+          "probable": 15.9,
+          "likely": 88.9,
+          "safe_bet": 217.7,
+          "iqr": 18.7,
+          "inner_80": 88.9
+        },
+        {
+          "statusID": "38782",
+          "statusName": "awaiting deploy to Prod",
+          "share": 0.343,
+          "coin_toss": 2.1,
+          "probable": 6.1,
+          "likely": 8.4,
+          "safe_bet": 12,
+          "iqr": 6.7,
+          "inner_80": 11.7
+        },
+        {
+          "statusID": "38778",
+          "statusName": "awaiting deploy to QA",
+          "share": 0.271,
+          "coin_toss": 6.1,
+          "probable": 7.9,
+          "likely": 22,
+          "safe_bet": 152.7,
+          "iqr": 18.7,
+          "inner_80": 32.8
+        },
+        {
+          "statusID": "38776",
+          "statusName": "awaiting development",
+          "share": 0.543,
+          "coin_toss": 5,
+          "probable": 9,
+          "likely": 34.4,
+          "safe_bet": 64.9,
+          "iqr": 9.8,
+          "inner_80": 46
+        },
+        {
+          "statusID": "38783",
+          "statusName": "deploying to Prod",
+          "share": 0.357,
+          "coin_toss": 2.1,
+          "probable": 4.9,
+          "likely": 7,
+          "safe_bet": 27.8,
+          "iqr": 4.7,
+          "inner_80": 24.6
+        },
+        {
+          "statusID": "38779",
+          "statusName": "deploying to QA",
+          "share": 0.171,
+          "coin_toss": 9,
+          "probable": 9.2,
+          "likely": 23,
+          "safe_bet": 37.8,
+          "iqr": 6.7,
+          "inner_80": 22
+        },
+        {
+          "statusID": "38777",
+          "statusName": "developing",
+          "share": 0.471,
+          "coin_toss": 8.2,
+          "probable": 28,
+          "likely": 60,
+          "safe_bet": 111.9,
+          "iqr": 27.2,
+          "inner_80": 78.8
+        },
+        {
+          "statusID": "38775",
+          "statusName": "refining",
+          "share": 0.514,
+          "coin_toss": 3.7,
+          "probable": 6.3,
+          "likely": 7,
+          "safe_bet": 46,
+          "iqr": 6.7,
+          "inner_80": 18.1
+        }
+      ],
+      "Bug": [
+        {
+          "statusID": "6",
+          "statusName": "Closed",
+          "share": 0.32,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 8.9,
+          "safe_bet": 13.1,
+          "iqr": 8.9,
+          "inner_80": 13.1
+        },
+        {
+          "statusID": "10003",
+          "statusName": "Done",
+          "share": 0.76,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "1",
+          "statusName": "Open",
+          "share": 0.76,
+          "coin_toss": 3.1,
+          "probable": 5,
+          "likely": 53.9,
+          "safe_bet": 133.1,
+          "iqr": 6,
+          "inner_80": 57.8
+        },
+        {
+          "statusID": "38781",
+          "statusName": "UAT (+Fix)",
+          "share": 0.36,
+          "coin_toss": 8.2,
+          "probable": 18,
+          "likely": 19.9,
+          "safe_bet": 40.7,
+          "iqr": 16.2,
+          "inner_80": 40.7
+        },
+        {
+          "statusID": "38780",
+          "statusName": "awaiting UAT",
+          "share": 0.12,
+          "coin_toss": 5.8,
+          "probable": 20,
+          "likely": 20,
+          "safe_bet": 20,
+          "iqr": 15.8,
+          "inner_80": 15.8
+        },
+        {
+          "statusID": "38782",
+          "statusName": "awaiting deploy to Prod",
+          "share": 0.24,
+          "coin_toss": 1.1,
+          "probable": 1.2,
+          "likely": 3,
+          "safe_bet": 3,
+          "iqr": 1.2,
+          "inner_80": 3
+        },
+        {
+          "statusID": "38778",
+          "statusName": "awaiting deploy to QA",
+          "share": 0.08,
+          "coin_toss": 2,
+          "probable": 2,
+          "likely": 2,
+          "safe_bet": 2,
+          "iqr": 0.9,
+          "inner_80": 0.9
+        },
+        {
+          "statusID": "38776",
+          "statusName": "awaiting development",
+          "share": 0.36,
+          "coin_toss": 6.2,
+          "probable": 13,
+          "likely": 525,
+          "safe_bet": 546,
+          "iqr": 7.3,
+          "inner_80": 546
+        },
+        {
+          "statusID": "38783",
+          "statusName": "deploying to Prod",
+          "share": 0.32,
+          "coin_toss": 7,
+          "probable": 11,
+          "likely": 13.1,
+          "safe_bet": 34.9,
+          "iqr": 10.2,
+          "inner_80": 34.9
+        },
+        {
+          "statusID": "38779",
+          "statusName": "deploying to QA",
+          "share": 0.08,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38777",
+          "statusName": "developing",
+          "share": 0.64,
+          "coin_toss": 17.1,
+          "probable": 25.3,
+          "likely": 54.1,
+          "safe_bet": 71,
+          "iqr": 26.9,
+          "inner_80": 63.1
+        },
+        {
+          "statusID": "38775",
+          "statusName": "refining",
+          "share": 0.44,
+          "coin_toss": 2,
+          "probable": 7.8,
+          "likely": 12.9,
+          "safe_bet": 27.1,
+          "iqr": 7.2,
+          "inner_80": 12.9
+        }
+      ],
+      "Defect": [
+        {
+          "statusID": "6",
+          "statusName": "Closed",
+          "share": 0.5,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "10003",
+          "statusName": "Done",
+          "share": 0.5,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "1",
+          "statusName": "Open",
+          "share": 0.5,
+          "coin_toss": 173,
+          "probable": 173,
+          "likely": 173,
+          "safe_bet": 173,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38781",
+          "statusName": "UAT (+Fix)",
+          "share": 0.5,
+          "coin_toss": 0.3,
+          "probable": 0.3,
+          "likely": 0.3,
+          "safe_bet": 0.3,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38780",
+          "statusName": "awaiting UAT",
+          "share": 0.5,
+          "coin_toss": 0.1,
+          "probable": 0.1,
+          "likely": 0.1,
+          "safe_bet": 0.1,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38782",
+          "statusName": "awaiting deploy to Prod",
+          "share": 0.5,
+          "coin_toss": 6.9,
+          "probable": 6.9,
+          "likely": 6.9,
+          "safe_bet": 6.9,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38776",
+          "statusName": "awaiting development",
+          "share": 0.5,
+          "coin_toss": 0.9,
+          "probable": 0.9,
+          "likely": 0.9,
+          "safe_bet": 0.9,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38777",
+          "statusName": "developing",
+          "share": 0.5,
+          "coin_toss": 6.8,
+          "probable": 6.8,
+          "likely": 6.8,
+          "safe_bet": 6.8,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "38775",
+          "statusName": "refining",
+          "share": 0.5,
+          "coin_toss": 10.8,
+          "probable": 10.8,
+          "likely": 10.8,
+          "safe_bet": 10.8,
+          "iqr": 0,
+          "inner_80": 0
+        }
+      ],
+      "Story": [
+        {
+          "statusID": "6",
+          "statusName": "Closed",
+          "share": 0.25,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 1.2,
+          "safe_bet": 711,
+          "iqr": 0,
+          "inner_80": 61.8
+        },
+        {
+          "statusID": "10003",
+          "statusName": "Done",
+          "share": 0.789,
+          "coin_toss": 0,
+          "probable": 0,
+          "likely": 0,
+          "safe_bet": 0,
+          "iqr": 0,
+          "inner_80": 0
+        },
+        {
+          "statusID": "1",
+          "statusName": "Open",
+          "share": 0.868,
+          "coin_toss": 28.1,
+          "probable": 122.9,
+          "likely": 198.8,
+          "safe_bet": 728.3,
+          "iqr": 153.8,
+          "inner_80": 337.2
+        },
+        {
+          "statusID": "38781",
+          "statusName": "UAT (+Fix)",
+          "share": 0.329,
+          "coin_toss": 5.2,
+          "probable": 17.3,
+          "likely": 33.8,
+          "safe_bet": 113.7,
+          "iqr": 15.7,
+          "inner_80": 35.5
+        },
+        {
+          "statusID": "38780",
+          "statusName": "awaiting UAT",
+          "share": 0.25,
+          "coin_toss": 5.8,
+          "probable": 6.1,
+          "likely": 20,
+          "safe_bet": 49,
+          "iqr": 13,
+          "inner_80": 30.8
+        },
+        {
+          "statusID": "38782",
+          "statusName": "awaiting deploy to Prod",
+          "share": 0.408,
+          "coin_toss": 4.8,
+          "probable": 8.1,
+          "likely": 19.7,
+          "safe_bet": 28.9,
+          "iqr": 4.6,
+          "inner_80": 19.8
+        },
+        {
+          "statusID": "38778",
+          "statusName": "awaiting deploy to QA",
+          "share": 0.237,
+          "coin_toss": 9.1,
+          "probable": 19.2,
+          "likely": 35.7,
+          "safe_bet": 44.1,
+          "iqr": 19.8,
+          "inner_80": 39
+        },
+        {
+          "statusID": "38776",
+          "statusName": "awaiting development",
+          "share": 0.421,
+          "coin_toss": 9,
+          "probable": 15,
+          "likely": 47.3,
+          "safe_bet": 154.1,
+          "iqr": 20.5,
+          "inner_80": 54.1
+        },
+        {
+          "statusID": "38783",
+          "statusName": "deploying to Prod",
+          "share": 0.395,
+          "coin_toss": 5,
+          "probable": 15.3,
+          "likely": 56.1,
+          "safe_bet": 92.1,
+          "iqr": 18.7,
+          "inner_80": 60.1
+        },
+        {
+          "statusID": "38779",
+          "statusName": "deploying to QA",
+          "share": 0.211,
+          "coin_toss": 6,
+          "probable": 6.1,
+          "likely": 11.3,
+          "safe_bet": 28.1,
+          "iqr": 6.7,
+          "inner_80": 13.2
+        },
+        {
+          "statusID": "38777",
+          "statusName": "developing",
+          "share": 0.539,
+          "coin_toss": 19.1,
+          "probable": 38,
+          "likely": 106.9,
+          "safe_bet": 222.1,
+          "iqr": 45.1,
+          "inner_80": 125.8
+        },
+        {
+          "statusID": "38775",
+          "statusName": "refining",
+          "share": 0.684,
+          "coin_toss": 7,
+          "probable": 21,
+          "likely": 61.1,
+          "safe_bet": 97.4,
+          "iqr": 26.3,
+          "inner_80": 72.1
+        }
+      ]
+    },
+    "tier_summary": {
+      "Demand": {
+        "count": 128,
+        "combined_median": 6.9,
+        "combined_p85": 153.9,
+        "statuses": [
+          "1"
+        ],
+        "interpretation": "Total time spent in the backlog/discovery phase. High numbers here are non-blocking."
+      },
+      "Downstream": {
+        "count": 151,
+        "combined_median": 29.3,
+        "combined_p85": 118,
+        "statuses": [
+          "38776",
+          "38777",
+          "38778",
+          "38779",
+          "38780",
+          "38781",
+          "38782",
+          "38783"
+        ],
+        "interpretation": "Total time spent in implementation/testing. This is your primary delivery capacity."
+      },
+      "Upstream": {
+        "count": 100,
+        "combined_median": 4.9,
+        "combined_p85": 34.2,
+        "statuses": [
+          "38775"
+        ],
+        "interpretation": "Total time spent in definition/refinement. Key indicator of 'Definition Bottlenecks'."
+      }
+    }
+  },
+  "guardrails": {
+    "insights": [
+      "This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
+      "Status Persistence EXCLUSIVELY analyzes items that have successfully finished ('delivered') to prevent active WIP from skewing historical norms.",
+      "Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
+      "Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
+      "Tier Summary aggregates performance by meta-workflow phase (Demand, Upstream, Downstream)."
+    ],
+    "warnings": []
+  }
+}

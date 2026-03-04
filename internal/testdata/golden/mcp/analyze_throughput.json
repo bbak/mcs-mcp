@@ -1,0 +1,413 @@
+{
+  "data": {
+    "@metadata": [
+      {
+        "end_date": "2026-01-18",
+        "index": "1",
+        "is_partial": "false",
+        "label": "2026-W03",
+        "start_date": "2026-01-12"
+      },
+      {
+        "end_date": "2026-01-25",
+        "index": "2",
+        "is_partial": "false",
+        "label": "2026-W04",
+        "start_date": "2026-01-19"
+      },
+      {
+        "end_date": "2026-02-01",
+        "index": "3",
+        "is_partial": "false",
+        "label": "2026-W05",
+        "start_date": "2026-01-26"
+      },
+      {
+        "end_date": "2026-02-08",
+        "index": "4",
+        "is_partial": "false",
+        "label": "2026-W06",
+        "start_date": "2026-02-02"
+      },
+      {
+        "end_date": "2026-02-15",
+        "index": "5",
+        "is_partial": "false",
+        "label": "2026-W07",
+        "start_date": "2026-02-09"
+      },
+      {
+        "end_date": "2026-02-22",
+        "index": "6",
+        "is_partial": "false",
+        "label": "2026-W08",
+        "start_date": "2026-02-16"
+      },
+      {
+        "end_date": "2026-03-01",
+        "index": "7",
+        "is_partial": "false",
+        "label": "2026-W09",
+        "start_date": "2026-02-23"
+      },
+      {
+        "end_date": "2026-03-08",
+        "index": "8",
+        "is_partial": "true",
+        "label": "2026-W10",
+        "start_date": "2026-03-02"
+      },
+      {
+        "end_date": "2026-03-15",
+        "index": "9",
+        "is_partial": "false",
+        "label": "2026-W11",
+        "start_date": "2026-03-09"
+      },
+      {
+        "end_date": "2026-03-22",
+        "index": "10",
+        "is_partial": "false",
+        "label": "2026-W12",
+        "start_date": "2026-03-16"
+      },
+      {
+        "end_date": "2026-03-29",
+        "index": "11",
+        "is_partial": "false",
+        "label": "2026-W13",
+        "start_date": "2026-03-23"
+      },
+      {
+        "end_date": "2026-04-05",
+        "index": "12",
+        "is_partial": "false",
+        "label": "2026-W14",
+        "start_date": "2026-03-30"
+      },
+      {
+        "end_date": "2026-04-12",
+        "index": "13",
+        "is_partial": "false",
+        "label": "2026-W15",
+        "start_date": "2026-04-06"
+      },
+      {
+        "end_date": "2026-04-19",
+        "index": "14",
+        "is_partial": "false",
+        "label": "2026-W16",
+        "start_date": "2026-04-13"
+      },
+      {
+        "end_date": "2026-04-26",
+        "index": "15",
+        "is_partial": "false",
+        "label": "2026-W17",
+        "start_date": "2026-04-20"
+      },
+      {
+        "end_date": "2026-05-03",
+        "index": "16",
+        "is_partial": "false",
+        "label": "2026-W18",
+        "start_date": "2026-04-27"
+      },
+      {
+        "end_date": "2026-05-10",
+        "index": "17",
+        "is_partial": "false",
+        "label": "2026-W19",
+        "start_date": "2026-05-04"
+      },
+      {
+        "end_date": "2026-05-17",
+        "index": "18",
+        "is_partial": "false",
+        "label": "2026-W20",
+        "start_date": "2026-05-11"
+      },
+      {
+        "end_date": "2026-05-24",
+        "index": "19",
+        "is_partial": "false",
+        "label": "2026-W21",
+        "start_date": "2026-05-18"
+      },
+      {
+        "end_date": "2026-05-31",
+        "index": "20",
+        "is_partial": "false",
+        "label": "2026-W22",
+        "start_date": "2026-05-25"
+      },
+      {
+        "end_date": "2026-06-07",
+        "index": "21",
+        "is_partial": "false",
+        "label": "2026-W23",
+        "start_date": "2026-06-01"
+      },
+      {
+        "end_date": "2026-06-14",
+        "index": "22",
+        "is_partial": "false",
+        "label": "2026-W24",
+        "start_date": "2026-06-08"
+      },
+      {
+        "end_date": "2026-06-21",
+        "index": "23",
+        "is_partial": "false",
+        "label": "2026-W25",
+        "start_date": "2026-06-15"
+      },
+      {
+        "end_date": "2026-06-28",
+        "index": "24",
+        "is_partial": "false",
+        "label": "2026-W26",
+        "start_date": "2026-06-22"
+      },
+      {
+        "end_date": "2026-07-05",
+        "index": "25",
+        "is_partial": "false",
+        "label": "2026-W27",
+        "start_date": "2026-06-29"
+      },
+      {
+        "end_date": "2026-07-12",
+        "index": "26",
+        "is_partial": "false",
+        "label": "2026-W28",
+        "start_date": "2026-07-06"
+      },
+      {
+        "end_date": "2026-07-19",
+        "index": "27",
+        "is_partial": "false",
+        "label": "2026-W29",
+        "start_date": "2026-07-13"
+      }
+    ],
+    "stability": {
+      "average": 6.111111111111111,
+      "average_moving_range": 5.384615384615385,
+      "upper_natural_process_limit": 20.434188034188036,
+      "lower_natural_process_limit": 0,
+      "values": [
+        10,
+        2,
+        5,
+        7,
+        9,
+        8,
+        7,
+        4,
+        6,
+        11,
+        6,
+        14,
+        3,
+        6,
+        9,
+        6,
+        9,
+        0,
+        4,
+        4,
+        0,
+        12,
+        1,
+        3,
+        19,
+        0,
+        0
+      ],
+      "moving_ranges": [
+        8,
+        3,
+        2,
+        2,
+        1,
+        1,
+        3,
+        2,
+        5,
+        5,
+        8,
+        11,
+        3,
+        3,
+        3,
+        3,
+        9,
+        4,
+        0,
+        4,
+        12,
+        11,
+        2,
+        16,
+        19,
+        0
+      ],
+      "signals": null
+    },
+    "stratified_throughput": {
+      "Activity": [
+        2,
+        2,
+        5,
+        4,
+        4,
+        4,
+        2,
+        2,
+        1,
+        7,
+        2,
+        5,
+        1,
+        1,
+        4,
+        3,
+        3,
+        0,
+        3,
+        1,
+        0,
+        2,
+        1,
+        3,
+        5,
+        0,
+        0
+      ],
+      "Bug": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        2,
+        1,
+        1,
+        2,
+        1,
+        0,
+        2,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        6,
+        0,
+        0
+      ],
+      "Defect": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Story": [
+        7,
+        0,
+        0,
+        3,
+        4,
+        2,
+        4,
+        1,
+        3,
+        3,
+        4,
+        6,
+        1,
+        4,
+        4,
+        2,
+        5,
+        0,
+        1,
+        3,
+        0,
+        6,
+        0,
+        0,
+        8,
+        0,
+        0
+      ]
+    },
+    "total_throughput": [
+      10,
+      2,
+      5,
+      7,
+      9,
+      8,
+      7,
+      4,
+      6,
+      11,
+      6,
+      14,
+      3,
+      6,
+      9,
+      6,
+      9,
+      0,
+      4,
+      4,
+      0,
+      12,
+      1,
+      3,
+      19,
+      0,
+      0
+    ]
+  },
+  "guardrails": {
+    "insights": [
+      "Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
+      "The current window uses a 26-week historical baseline anchored at 2026-01-12, grouped by week."
+    ],
+    "warnings": []
+  }
+}
