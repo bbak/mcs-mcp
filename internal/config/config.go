@@ -18,7 +18,8 @@ type AppConfig struct {
 	DataPath            string
 	LogDir              string
 	CacheDir            string
-	EnableMermaidCharts bool
+	EnableMermaidCharts     bool
+	CommitmentBackflowReset bool // Reset WIP age clock on backflow past the commitment point
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -78,7 +79,8 @@ func Load() (*AppConfig, error) {
 		DataPath:            dataPath,
 		LogDir:              logDir,
 		CacheDir:            cacheDir,
-		EnableMermaidCharts: getEnvBool("ENABLE_MERMAID_CHARTS", false),
+		EnableMermaidCharts:     getEnvBool("ENABLE_MERMAID_CHARTS", false),
+		CommitmentBackflowReset: getEnvBool("COMMITMENT_POINT_BACKFLOW_RESET_CLOCK", true),
 	}
 
 	return cfg, nil

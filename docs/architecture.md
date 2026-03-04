@@ -94,6 +94,21 @@ Every status is mapped to a logical process layer to ensure specialized clock be
 | **Downstream** | Actual Implementation (WIP).     | Active clock (Execution).                             |
 | **Finished**   | Terminal exit point.             | **Clock Stops**. Duration becomes fixed "Cycle Time". |
 
+### 2.1.1 Backflow & Clock Reset Behavior
+
+A **backflow** occurs when an item transitions to a status whose weight is below the **commitment point** weight — i.e., the item moves backwards past the point where work was considered committed. Backflow is detected purely via weight comparison against the commitment point, not via tier membership, because the commitment point is freely configurable and may sit anywhere in the workflow (including mid-Downstream).
+
+When backflow past the commitment point is detected:
+
+| Metric             | Effect                                                                                                              |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------ |
+| **Cycle Time**     | Clock resets. Transitions before the last backflow are trimmed; residency recalculated from that point forward.     |
+| **WIP Age**        | Clock resets (same policy as Cycle Time). Controlled by `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` (default: `true`).  |
+| **WIP Run Chart**  | Item exits WIP on backflow (same as crossing the delivery point) and re-enters on recommitment.                     |
+| **Status Age**     | Unaffected (always measures time in current status only).                                                           |
+
+> **Design Note**: A future enhancement will make the delivery point similarly configurable, allowing operators to freely position both "clock start" and "clock stop" in the workflow.
+
 ### 2.2 Discovery Heuristics
 
 - **Birth Status**: The earliest entry point identifies the system's primary source of demand.

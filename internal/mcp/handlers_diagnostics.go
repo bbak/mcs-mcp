@@ -107,7 +107,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	// Cycle times from history
 	cycleTimes, _ := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 
-	aging := stats.CalculateInventoryAge(wip, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType, window.End)
+	aging := stats.CalculateInventoryAge(wip, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes, agingType, s.commitmentBackflowReset, window.End)
 
 	// Apply tier filter if requested
 	if tierFilter != "All" && tierFilter != "" {
