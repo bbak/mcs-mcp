@@ -481,12 +481,13 @@ To ensure byte-for-byte consistency across test runs, the system enforces strict
 - **Simulation Seeding**: The Monte-Carlo Engine receives a fixed random seed (`SetSeed(42)`), disabling entropy so complex distributions can be byte-verified.
 - **Temporal Anchoring**: Instead of relative `time.Now()` calculations, functions like `CalculateInventoryAge` accept an injected `evaluationTime`. The testing harness computes the exact maximum timestamp present in the anonymized dataset to serve as the definitive "Now".
 
-### 11.3 Integration Baselines
+### 11.3 Per-Handler Golden Baselines
 
-The framework bypasses HTTP/JSON layers and tests the core mathematical engines directly:
+Each MCP handler has its own golden baseline file under `internal/testdata/golden/mcp/` (e.g., `analyze_cycle_time.json`, `forecast_monte_carlo_scope.json`). The `TestHandlers_Golden` test exercises every analytical handler end-to-end through the full server stack (handler → hydrate → stats → response envelope).
 
-- **Pipeline Snapshotting**: The `stats` pipeline and the `simulation` pipeline dump their entire analytical output (Cadence, YTM, XmR, percentiles) into massive JSON files (`testdata/golden/stats_pipeline_golden.json`, etc.).
-- **Drift Detection**: Any code change that shifts a percentile or alters chronological sorting causes a byte-comparison failure against the golden files. If the shift is intentional, the developer must explicitly re-anchor the system via `go test -update` to register the new mathematical truth.
+- **Granular Drift Detection**: Each handler's output is compared byte-for-byte against its own baseline. A change in one metric does not obscure changes in another.
+- **Selective Regeneration**: Baselines can be regenerated individually or all at once via `go test ./internal/mcp/ -run TestHandlers_Golden -update`.
+- **Fixture Integrity**: A SHA-256 hash of `simulated_events.jsonl` is tracked in a sidecar file. When the fixture changes, all baselines must be regenerated.
 
 ### 11.4 External Mathematical Verification (Nave Benchmarking)
 
