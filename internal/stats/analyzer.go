@@ -34,6 +34,11 @@ func IsDelivered(issue jira.Issue) bool {
 	return issue.Outcome == "delivered"
 }
 
+// HasExited returns true if the issue has left the system (any non-empty outcome).
+func HasExited(issue jira.Issue) bool {
+	return issue.Outcome != ""
+}
+
 // isFinishedInMapping checks, via ID-first then name fallback, whether a status is in the Finished tier.
 func isFinishedInMapping(statusID, statusName string, mappings map[string]StatusMetadata) bool {
 	if m, ok := mappings[statusID]; ok {

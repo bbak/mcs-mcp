@@ -43,6 +43,20 @@ func TestCalculateFlowDebt(t *testing.T) {
 			Status:        "In Progress",
 			StatusID:      "2",
 		},
+		{
+			Key:           "I3",
+			BirthStatus:   "To Do",
+			BirthStatusID: "1",
+			Created:       monday.AddDate(0, 0, -5), // Wednesday last week
+			Transitions: []jira.StatusTransition{
+				{ToStatus: "In Progress", ToStatusID: "2", Date: monday.AddDate(0, 0, -4)}, // Thursday last week (Arrival)
+				{ToStatus: "Done", ToStatusID: "3", Date: monday.AddDate(0, 0, -3)},        // Friday last week (Departure - abandoned)
+			},
+			OutcomeDate: func() *time.Time { tt := monday.AddDate(0, 0, -3); return &tt }(),
+			Outcome:     "abandoned",
+			Status:      "Done",
+			StatusID:    "3",
+		},
 	}
 
 	mappings := map[string]StatusMetadata{
@@ -65,12 +79,12 @@ func TestCalculateFlowDebt(t *testing.T) {
 		t.Fatalf("Expected 2 buckets, got %d", len(res.Buckets))
 	}
 
-	// I2 arrived last week (Sunday)
-	if res.Buckets[0].Arrivals != 1 {
-		t.Errorf("Expected 1 arrival in last week, got %d", res.Buckets[0].Arrivals)
+	// I2 arrived last week (Sunday), I3 arrived last week (Thursday) and departed last week (Friday, abandoned)
+	if res.Buckets[0].Arrivals != 2 {
+		t.Errorf("Expected 2 arrivals in last week, got %d", res.Buckets[0].Arrivals)
 	}
-	if res.Buckets[0].Departures != 0 {
-		t.Errorf("Expected 0 departures in last week, got %d", res.Buckets[0].Departures)
+	if res.Buckets[0].Departures != 1 {
+		t.Errorf("Expected 1 departure in last week (abandoned I3), got %d", res.Buckets[0].Departures)
 	}
 
 	// I1 arrived this week (Tuesday) and departed this week (Wednesday)
@@ -82,6 +96,6 @@ func TestCalculateFlowDebt(t *testing.T) {
 	}
 
 	if res.TotalDebt != 1 {
-		t.Errorf("Expected total debt 1 (2 arrivals - 1 departure), got %d", res.TotalDebt)
+		t.Errorf("Expected total debt 1 (3 arrivals - 2 departures), got %d", res.TotalDebt)
 	}
 }

@@ -51,7 +51,7 @@ func CalculateDeliveryCadence(issues []jira.Issue, windowWeeks int) []DeliveryCa
 	return results
 }
 
-// CalculateFlowDebt compares arrival rates (commitment) vs. departure rates (delivery) across the window.
+// CalculateFlowDebt compares arrival rates (commitment) vs. departure rates (exits) across the window.
 func CalculateFlowDebt(issues []jira.Issue, window AnalysisWindow, commitmentPoint string, weights map[string]int, resolutions map[string]string, mappings map[string]StatusMetadata) FlowDebtResult {
 	buckets := window.Subdivide()
 	results := make([]FlowDebtBucket, len(buckets))
@@ -90,8 +90,8 @@ func CalculateFlowDebt(issues []jira.Issue, window AnalysisWindow, commitmentPoi
 			}
 		}
 
-		// 2. Calculate Departures
-		if IsDelivered(issue) && issue.OutcomeDate != nil {
+		// 2. Calculate Departures (any exit: delivered or abandoned)
+		if HasExited(issue) && issue.OutcomeDate != nil {
 			idx := window.FindBucketIndex(*issue.OutcomeDate)
 			if idx >= 0 && idx < len(results) {
 				results[idx].Departures++
