@@ -214,7 +214,13 @@ func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mappin
 		}
 	}
 	s.activeResolutions = rm
-	s.activeCommitmentPoint = commitmentPoint
+
+	// Resolve commitment point name → ID for internal consistency
+	if cp := s.activeRegistry.GetStatusID(commitmentPoint); cp != "" {
+		s.activeCommitmentPoint = cp
+	} else {
+		s.activeCommitmentPoint = commitmentPoint
+	}
 
 	// Calculate and persist DiscoveryCutoff based on confirmed mapping
 	s.recalculateDiscoveryCutoff(sourceID)
