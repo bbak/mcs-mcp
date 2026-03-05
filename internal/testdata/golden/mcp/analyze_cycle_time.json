@@ -1,81 +1,80 @@
 {
   "data": {
     "percentiles": {
-      "aggressive": 0.00017361111111111112,
-      "unlikely": 7.919965277777777,
-      "coin_toss": 25.34071759259259,
-      "probable": 49.1778125,
-      "likely": 119.95811342592594,
-      "conservative": 154.01460648148148,
+      "aggressive": 0.5385648148148148,
+      "unlikely": 9.0784375,
+      "coin_toss": 30.288738425925924,
+      "probable": 55.149039351851854,
+      "likely": 123.9114814814815,
+      "conservative": 195.9986342592593,
       "safe": 263.8598148148148,
-      "almost_certain": 546.0374421296297
+      "almost_certain": 596.0730555555556
     },
     "spread": {
-      "iqr": 57.14445601851851,
-      "inner_80": 154.01443287037037
+      "iqr": 81.0045138888889,
+      "inner_80": 195.46006944444449
     },
-    "fat_tail_ratio": 21.55,
-    "tail_to_median_ratio": 4.73,
+    "fat_tail_ratio": 19.68,
+    "tail_to_median_ratio": 4.09,
     "predictability": "Unstable \u0026 Volatile",
     "context": {
       "days_in_sample": 184,
-      "dropped_by_outcome": 0,
+      "dropped_by_outcome": 40,
       "dropped_by_window": 0,
-      "issues_analyzed": 179,
+      "issues_analyzed": 139,
       "issues_total": 179,
-      "modeling_insight": "Stratified: Modeling 2 distinct delivery streams independently to capture capacity clashes and variance.",
+      "modeling_insight": "Stratified: Modeling 1 distinct delivery streams independently to capture capacity clashes and variance.",
       "stratification_decisions": [
         {
           "type": "Activity",
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
-          "volume": 71,
-          "p85_cycle_time": 205.04636841435186,
-          "distance_to_pool": -0.10062723238399165
+          "volume": 55,
+          "p85_cycle_time": 202.9176612037037,
+          "distance_to_pool": -0.09393509378077257
         },
         {
           "type": "Bug",
           "eligible": true,
           "reason": "Meets volume and variance criteria",
-          "volume": 27,
-          "p85_cycle_time": 90.87752532407409,
-          "distance_to_pool": -0.6013937135446207
+          "volume": 20,
+          "p85_cycle_time": 104.84546478009258,
+          "distance_to_pool": -0.5318455986040509
         },
         {
           "type": "Defect",
           "eligible": false,
           "reason": "Volume too low (\u003c 15 items)",
-          "volume": 2,
-          "p85_cycle_time": 191.77117615740738,
-          "distance_to_pool": -0.15885477619806238
+          "volume": 1,
+          "p85_cycle_time": 7.102187372685186,
+          "distance_to_pool": -0.9682874191550856
         },
         {
           "type": "Story",
-          "eligible": true,
-          "reason": "Meets volume and variance criteria",
-          "volume": 79,
-          "p85_cycle_time": 293.86165185185183,
-          "distance_to_pool": 0.28893366493641004
+          "eligible": false,
+          "reason": "Insufficient variance from pooled average (\u003c 15%)",
+          "volume": 63,
+          "p85_cycle_time": 233.96716738425926,
+          "distance_to_pool": 0.0447066968783291
         }
       ],
       "stratification_dependencies": {},
       "stratification_eligible": {
-        "Bug": true,
-        "Story": true
+        "Bug": true
       },
-      "throughput_overall": 0.9781420765027322,
-      "throughput_recent": 1.1666666666666667,
+      "throughput_overall": 0.7595628415300546,
+      "throughput_recent": 0.9,
       "type_counts": {
-        "Activity": 71,
-        "Bug": 27,
-        "Defect": 2,
-        "Story": 79
+        "Activity": 55,
+        "Bug": 20,
+        "Defect": 1,
+        "Story": 63
       },
       "type_distribution": {
-        "Activity": 0.39664804469273746,
-        "Bug": 0.15083798882681565,
-        "Defect": 0.0111731843575419,
-        "Story": 0.441340782122905
+        "Activity": 0.39568345323741005,
+        "Bug": 0.14388489208633093,
+        "Defect": 0.007194244604316547,
+        "Story": 0.45323741007194246
       },
       "type_volatility": {
         "Activity": 10,
@@ -92,7 +91,7 @@
     },
     "throughput_trend": {
       "direction": "Increasing",
-      "percentage_change": 19.3
+      "percentage_change": 18.5
     },
     "percentile_labels": {
       "aggressive": "P10 (Aggressive / Fast Outliers)",
@@ -106,40 +105,40 @@
     },
     "type_sles": {
       "Activity": {
-        "aggressive": 0.03695601851851851,
-        "unlikely": 7.260208333333334,
-        "coin_toss": 22.036608796296296,
-        "probable": 42.191180555555555,
-        "likely": 119.95811342592594,
-        "conservative": 135.8145949074074,
-        "safe": 221.62855324074076,
+        "aggressive": 0.5385648148148148,
+        "unlikely": 8.0940625,
+        "coin_toss": 26.011180555555562,
+        "probable": 62.107824074074074,
+        "likely": 124.85115740740743,
+        "conservative": 195.9986342592593,
+        "safe": 223.95468749999998,
         "almost_certain": 245.96050925925925
       },
       "Bug": {
-        "aggressive": 0.0017129629629629632,
-        "unlikely": 7.101342592592593,
-        "coin_toss": 25.34071759259259,
-        "probable": 35.922581018518514,
+        "aggressive": 1.8815046296296296,
+        "unlikely": 8.014282407407409,
+        "coin_toss": 29.245949074074073,
+        "probable": 36.92336805555556,
         "likely": 51.755208333333336,
         "conservative": 89.01861111111111,
-        "safe": 546.0374421296297,
+        "safe": 596.0730555555556,
         "almost_certain": 596.0730555555556
       },
       "Defect": {
         "aggressive": 7.101458333333333,
         "unlikely": 7.101458333333333,
-        "coin_toss": 7.919965277777777,
-        "probable": 7.919965277777777,
-        "likely": 7.919965277777777,
-        "conservative": 7.919965277777777,
-        "safe": 7.919965277777777,
-        "almost_certain": 7.919965277777777
+        "coin_toss": 7.101458333333333,
+        "probable": 7.101458333333333,
+        "likely": 7.101458333333333,
+        "conservative": 7.101458333333333,
+        "safe": 7.101458333333333,
+        "almost_certain": 7.101458333333333
       },
       "Story": {
-        "aggressive": 0.000011574074074074073,
-        "unlikely": 8.980763888888891,
-        "coin_toss": 35.22364583333333,
-        "probable": 64.80524305555556,
+        "aggressive": 0.09168981481481482,
+        "unlikely": 12.16644675925926,
+        "coin_toss": 39.22163194444445,
+        "probable": 91.00613425925927,
         "likely": 131.27915509259262,
         "conservative": 223.24512731481482,
         "safe": 322.86552083333333,
@@ -149,8 +148,8 @@
   },
   "guardrails": {
     "insights": [
-      "Fat-Tail Warning (Ratio 21.55): Extreme outliers are in control of this process (Kanban heuristic \u003e= 5.6). Your forecasts are high-risk.",
-      "Heavy-Tail Warning (Ratio 4.73): The process is highly volatile, indicating a significant risk of extreme delay (Volatility heuristic \u003e 3).",
+      "Fat-Tail Warning (Ratio 19.68): Extreme outliers are in control of this process (Kanban heuristic \u003e= 5.6). Your forecasts are high-risk.",
+      "Heavy-Tail Warning (Ratio 4.09): The process is highly volatile, indicating a significant risk of extreme delay (Volatility heuristic \u003e 3).",
       "Analysis uses EXPLICIT commitment point: '38776'."
     ],
     "warnings": []

@@ -19,27 +19,27 @@
     "predictability": "Stable",
     "context": {
       "days_in_sample": 91,
-      "dropped_by_outcome": 0,
+      "dropped_by_outcome": 20,
       "dropped_by_window": 0,
-      "issues_analyzed": 76,
+      "issues_analyzed": 56,
       "issues_total": 76,
-      "modeling_insight": "Stratified: Modeling 1 distinct delivery streams independently to capture capacity clashes and variance.",
+      "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
       "stratification_decisions": [
         {
           "type": "Activity",
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
-          "volume": 27,
+          "volume": 19,
           "p85_cycle_time": 202.9176612037037,
-          "distance_to_pool": -0.11782269855648969
+          "distance_to_pool": -0.0604197142616504
         },
         {
           "type": "Bug",
           "eligible": false,
           "reason": "Volume too low (\u003c 15 items)",
-          "volume": 14,
+          "volume": 10,
           "p85_cycle_time": 194.2339707638889,
-          "distance_to_pool": -0.15557473331445193
+          "distance_to_pool": -0.10062826139503142
         },
         {
           "type": "Defect",
@@ -47,34 +47,32 @@
           "reason": "Volume too low (\u003c 15 items)",
           "volume": 1,
           "p85_cycle_time": 7.102187372685186,
-          "distance_to_pool": -0.9691234934721037
+          "distance_to_pool": -0.9671143694372866
         },
         {
           "type": "Story",
-          "eligible": true,
-          "reason": "Meets volume and variance criteria",
-          "volume": 34,
-          "p85_cycle_time": 281.85268122685187,
-          "distance_to_pool": 0.22534448827357087
+          "eligible": false,
+          "reason": "Insufficient variance from pooled average (\u003c 15%)",
+          "volume": 26,
+          "p85_cycle_time": 230.01913659722223,
+          "distance_to_pool": 0.0650696681958497
         }
       ],
       "stratification_dependencies": {},
-      "stratification_eligible": {
-        "Story": true
-      },
-      "throughput_overall": 0.8444444444444444,
-      "throughput_recent": 1.1666666666666667,
+      "stratification_eligible": {},
+      "throughput_overall": 0.6222222222222222,
+      "throughput_recent": 0.9,
       "type_counts": {
-        "Activity": 27,
-        "Bug": 14,
+        "Activity": 19,
+        "Bug": 10,
         "Defect": 1,
-        "Story": 34
+        "Story": 26
       },
       "type_distribution": {
-        "Activity": 0.35526315789473684,
-        "Bug": 0.18421052631578946,
-        "Defect": 0.013157894736842105,
-        "Story": 0.4473684210526316
+        "Activity": 0.3392857142857143,
+        "Bug": 0.17857142857142858,
+        "Defect": 0.017857142857142856,
+        "Story": 0.4642857142857143
       },
       "type_volatility": {
         "Activity": 10,
@@ -91,7 +89,7 @@
     },
     "throughput_trend": {
       "direction": "Increasing",
-      "percentage_change": 38.2
+      "percentage_change": 44.6
     },
     "percentile_labels": {
       "aggressive": "P10 (Aggressive / Best Case)",
@@ -104,12 +102,12 @@
       "unlikely": "P30 (Unlikely / High Risk)"
     },
     "background_items_predicted": {
-      "Activity": 1031,
-      "Bug": 529,
+      "Activity": 733,
+      "Bug": 389,
       "Defect": 40,
-      "Story": 1291
+      "Story": 1009
     },
-    "modeling_insight": "Stratified: Modeling 1 distinct delivery streams independently to capture capacity clashes and variance.",
+    "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
     "volatility_attribution": {
       "Activity": "Fat-Tail High-Risk (10.00)",
       "Bug": "Fat-Tail High-Risk (10.00)",
@@ -124,7 +122,7 @@
       "Analysis uses EXPLICIT commitment point: '38776'."
     ],
     "warnings": [
-      "Throughput is significantly higher recently (38% above average). Monitor if this is sustainable.",
+      "Throughput is significantly higher recently (45% above average). Monitor if this is sustainable.",
       "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions)."
     ]
   }

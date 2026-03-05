@@ -63,16 +63,6 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	cutoff, _ := time.Parse(time.RFC3339, wf.DiscoveryCutoff)
 
-	// Ensure we lock the "Now()" evaluation for the test so Aging/Yield calculations don't drift globally.
-	// We'll set the test evaluation time to a fixed point long after the simulated shift.
-	// Last simulated event timestamp + some buffer. We know the shift was ~142 days.
-	// Actually, stats tools use `time.Now()` internally in some places unless we override it.
-	// Wait, stats functions usually take dates or rely on `issue.Updated`.
-	// For `CalculateInventoryAge`, we pass `history` but `time.Now()` is NOT used, it subtracts from `issue.Updated`?
-	// `CalculateInventoryAge` uses `time.Now().Sub(*item.AgeSinceCommitment)` inside it? No, `processor.go` sets AgeSinceCommitment absolute dates.
-	// Let's actually look at it later if it fails on drift.
-	// We will supply a fixed window for the projections.
-
 	latestTS := store.GetLatestTimestamp(eventsFile)
 	windowEnd := latestTS
 	windowStart := latestTS.AddDate(-1, 0, 0) // 1 year back
@@ -83,33 +73,13 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	// We use a dummy provider since no Jira/Hydrate calls are made
 	provider := eventlog.NewLogProvider(nil, store, "")
 
-	allEvents := provider.GetIssuesInRange(eventsFile, time.Time{}, latestTS)
-	nameToID := make(map[string]string)
-	for _, e := range allEvents {
-		if e.ToStatus != "" && e.ToStatusID != "" {
-			nameToID[e.ToStatus] = e.ToStatusID
-		}
-		if e.FromStatus != "" && e.FromStatusID != "" {
-			nameToID[e.FromStatus] = e.FromStatusID
-		}
-	}
-
-	idMapping := make(map[string]stats.StatusMetadata)
-	for name, m := range wf.Mapping {
-		if id, ok := nameToID[name]; ok && id != "" {
-			idMapping[id] = m
-		} else {
-			idMapping[name] = m
-		}
-	}
-
 	// For the session, we filter events relevant to the window
 	sessionEvents := provider.GetIssuesInRange(eventsFile, window.Start, window.End)
 	session := stats.NewAnalysisSession(
 		sessionEvents,
 		eventsFile,
 		jira.SourceContext{ProjectKey: "MOCK", FetchedAt: latestTS},
-		idMapping,
+		wf.Mapping,
 		wf.Resolutions,
 		window,
 	)
@@ -118,28 +88,22 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 	cadence := stats.GetStratifiedThroughput(session.GetDelivered(), window)
 	cadence.XmR = stats.AnalyzeThroughputStability(cadence)
 
-	yield := stats.CalculateProcessYield(session.GetAllIssues(), idMapping, wf.Resolutions)
+	yield := stats.CalculateProcessYield(session.GetAllIssues(), wf.Mapping, wf.Resolutions)
 
 	// Weights are usually derived dynamically, but we'll supply a flat weight for stability.
 	flatWeights := make(map[string]int)
-	for id := range idMapping {
+	for id := range wf.Mapping {
 		flatWeights[id] = 1
 	}
+	flatWeights[wf.CommitmentPoint] = 2
 
-	// Resolve Commitment Point to ID
-	commitmentID := wf.CommitmentPoint
-	if id, ok := nameToID[wf.CommitmentPoint]; ok && id != "" {
-		commitmentID = id
-	}
-	flatWeights[commitmentID] = 2
-
-	aging := stats.CalculateInventoryAge(session.GetWIP(), commitmentID, flatWeights, idMapping, []float64{10.0, 20.0, 30.0}, "wip", true, window.End)
+	aging := stats.CalculateInventoryAge(session.GetWIP(), wf.CommitmentPoint, flatWeights, wf.Mapping, []float64{10.0, 20.0, 30.0}, "wip", true, window.End)
 
 	var cycleTimes []float64
 	for _, issue := range session.GetDelivered() {
 		var sumSeconds int64
 		for st, secs := range issue.StatusResidency {
-			if m, ok := idMapping[st]; ok && m.Tier == "Downstream" {
+			if m, ok := wf.Mapping[st]; ok && m.Tier == "Downstream" {
 				sumSeconds += secs
 			}
 		}
@@ -163,12 +127,12 @@ func TestAnalyticalPipeline_Golden(t *testing.T) {
 
 	persistence := stats.EnrichStatusPersistence(
 		stats.CalculateStatusPersistence(session.GetDelivered()),
-		idMapping,
+		wf.Mapping,
 	)
 
-	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, commitmentID, flatWeights, idMapping)
+	wipStability := stats.AnalyzeHistoricalWIP(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, wf.Mapping)
 
-	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, commitmentID, flatWeights, wf.Resolutions, idMapping)
+	flowDebt := stats.CalculateFlowDebt(session.GetAllIssues(), window, wf.CommitmentPoint, flatWeights, wf.Resolutions, wf.Mapping)
 
 	cfd := stats.CalculateCFDData(session.GetAllIssues(), window)
 

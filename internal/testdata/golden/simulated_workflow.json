@@ -1,62 +1,139 @@
 {
-  "commitment_point": "awaiting development",
-  "discovery_cutoff": "2023-08-02T12:36:51+02:00",
-  "resolutions": {
-    "Done": "delivered",
-    "Won't Do": "abandoned",
-    "Stop doing": "abandoned"
-  },
+  "source_id": "MOCK_37814",
   "mapping": {
-    "Closed": {
-      "outcome": "abandoned",
-      "role": "terminal",
-      "tier": "Finished"
-    },
-    "Done": {
-      "outcome": "delivered",
-      "role": "terminal",
-      "tier": "Finished"
-    },
-    "Open": {
+    "1": {
+      "name": "Open",
       "role": "queue",
       "tier": "Demand"
     },
-    "UAT (+Fix)": {
-      "role": "active",
-      "tier": "Downstream"
+    "10003": {
+      "name": "Done",
+      "role": "terminal",
+      "tier": "Finished",
+      "outcome": "delivered"
     },
-    "awaiting UAT": {
-      "role": "queue",
-      "tier": "Downstream"
-    },
-    "awaiting deploy to Prod": {
-      "role": "queue",
-      "tier": "Downstream"
-    },
-    "awaiting deploy to QA": {
-      "role": "queue",
-      "tier": "Downstream"
-    },
-    "awaiting development": {
-      "role": "queue",
-      "tier": "Downstream"
-    },
-    "deploying to Prod": {
-      "role": "active",
-      "tier": "Downstream"
-    },
-    "deploying to QA": {
-      "role": "active",
-      "tier": "Downstream"
-    },
-    "developing": {
-      "role": "active",
-      "tier": "Downstream"
-    },
-    "refining": {
+    "38775": {
+      "name": "refining",
       "role": "active",
       "tier": "Upstream"
+    },
+    "38776": {
+      "name": "awaiting development",
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "38777": {
+      "name": "developing",
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "38778": {
+      "name": "awaiting deploy to QA",
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "38779": {
+      "name": "deploying to QA",
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "38780": {
+      "name": "awaiting UAT",
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "38781": {
+      "name": "UAT (+Fix)",
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "38782": {
+      "name": "awaiting deploy to Prod",
+      "role": "queue",
+      "tier": "Downstream"
+    },
+    "38783": {
+      "name": "deploying to Prod",
+      "role": "active",
+      "tier": "Downstream"
+    },
+    "6": {
+      "name": "Closed",
+      "role": "terminal",
+      "tier": "Finished",
+      "outcome": "abandoned"
     }
   },
-  "source_id": "MOCK_37814"
+  "resolutions": {
+    "10000": "delivered",
+    "10100": "abandoned",
+    "10401": "abandoned"
+  },
+  "commitment_point": "38776",
+  "discovery_cutoff": "2023-08-02T12:36:51+02:00",
+  "name_registry": {
+    "statuses": {
+      "1": "Open",
+      "10000": "Blocked",
+      "10003": "Done",
+      "10030": "To Do",
+      "10065": "Obsolete",
+      "10479": "In Review",
+      "3": "In Progress",
+      "38775": "refining",
+      "38776": "awaiting development",
+      "38777": "developing",
+      "38778": "awaiting deploy to QA",
+      "38779": "deploying to QA",
+      "38780": "awaiting UAT",
+      "38781": "UAT (+Fix)",
+      "38782": "awaiting deploy to Prod",
+      "38783": "deploying to Prod",
+      "4": "Reopened",
+      "5": "Resolved",
+      "6": "Closed"
+    },
+    "resolutions": {
+      "1": "Fixed",
+      "10000": "Done",
+      "10100": "Won't Do",
+      "10200": "Consulting",
+      "10201": "Fixed Elsewhere",
+      "10202": "Feature Request",
+      "10300": "Not realized",
+      "10400": "Delivered",
+      "10401": "Stop doing",
+      "10402": "Revisit later",
+      "10403": "Decommitted",
+      "10404": "Rejected",
+      "10405": "Not Applicable",
+      "10406": "Upgraded",
+      "10407": "Deprecated",
+      "10408": "Descoped",
+      "10409": "Complete",
+      "10410": "Rejected Support Ticket",
+      "10411": "Resolved",
+      "10412": "Passed",
+      "10413": "Not a Bug",
+      "10414": "Failed",
+      "10415": "New development required",
+      "10416": "Cancelled",
+      "10500": "Environment Fix",
+      "10501": "Configuration Fix",
+      "10502": "Won't Fix - Insufficient Detail",
+      "10504": "Handed over to third party",
+      "10600": "Data Fix",
+      "10601": "Won't Fix - Nonresponse",
+      "10602": "Invalid",
+      "10603": "No Longer Needed",
+      "10604": "(Bug) Fixed",
+      "10605": "General Availability",
+      "2": "Won't Fix",
+      "3": "Duplicate",
+      "4": "Incomplete",
+      "5": "Cannot Reproduce",
+      "6": "DONOTUSE_Unresolved",
+      "7": "Works as Designed"
+    }
+  }
 }
