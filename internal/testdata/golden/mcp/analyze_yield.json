@@ -3,31 +3,112 @@
     "stratified": {
       "Activity": {
         "totalIngested": 593,
-        "deliveredCount": 539,
-        "abandonedCount": 0,
-        "overallYieldRate": 0.9089376053962901,
-        "lossPoints": null
+        "deliveredCount": 455,
+        "abandonedCount": 84,
+        "overallYieldRate": 0.7672849915682968,
+        "lossPoints": [
+          {
+            "tier": "Demand",
+            "count": 38,
+            "percentage": 0.06408094435075885,
+            "avgAge": 110.9,
+            "severity": "Low"
+          },
+          {
+            "tier": "Upstream",
+            "count": 4,
+            "percentage": 0.006745362563237774,
+            "avgAge": 72,
+            "severity": "Medium"
+          },
+          {
+            "tier": "Downstream",
+            "count": 42,
+            "percentage": 0.07082630691399663,
+            "avgAge": 32.1,
+            "severity": "High"
+          }
+        ]
       },
       "Bug": {
         "totalIngested": 245,
-        "deliveredCount": 227,
-        "abandonedCount": 0,
-        "overallYieldRate": 0.926530612244898,
-        "lossPoints": null
+        "deliveredCount": 179,
+        "abandonedCount": 48,
+        "overallYieldRate": 0.7306122448979592,
+        "lossPoints": [
+          {
+            "tier": "Demand",
+            "count": 20,
+            "percentage": 0.08163265306122448,
+            "avgAge": 142.9,
+            "severity": "Low"
+          },
+          {
+            "tier": "Upstream",
+            "count": 2,
+            "percentage": 0.00816326530612245,
+            "avgAge": 49.9,
+            "severity": "Medium"
+          },
+          {
+            "tier": "Downstream",
+            "count": 26,
+            "percentage": 0.10612244897959183,
+            "avgAge": 100.7,
+            "severity": "High"
+          }
+        ]
       },
       "Defect": {
         "totalIngested": 19,
-        "deliveredCount": 19,
-        "abandonedCount": 0,
-        "overallYieldRate": 1,
-        "lossPoints": null
+        "deliveredCount": 17,
+        "abandonedCount": 2,
+        "overallYieldRate": 0.8947368421052632,
+        "lossPoints": [
+          {
+            "tier": "Demand",
+            "count": 1,
+            "percentage": 0.05263157894736842,
+            "avgAge": 191.8,
+            "severity": "Low"
+          },
+          {
+            "tier": "Downstream",
+            "count": 1,
+            "percentage": 0.05263157894736842,
+            "avgAge": 17,
+            "severity": "High"
+          }
+        ]
       },
       "Story": {
         "totalIngested": 455,
-        "deliveredCount": 391,
-        "abandonedCount": 0,
-        "overallYieldRate": 0.8593406593406593,
-        "lossPoints": null
+        "deliveredCount": 308,
+        "abandonedCount": 83,
+        "overallYieldRate": 0.676923076923077,
+        "lossPoints": [
+          {
+            "tier": "Demand",
+            "count": 50,
+            "percentage": 0.10989010989010989,
+            "avgAge": 305.6,
+            "severity": "Low"
+          },
+          {
+            "tier": "Upstream",
+            "count": 3,
+            "percentage": 0.006593406593406593,
+            "avgAge": 123.4,
+            "severity": "Medium"
+          },
+          {
+            "tier": "Downstream",
+            "count": 30,
+            "percentage": 0.06593406593406594,
+            "avgAge": 129,
+            "severity": "High"
+          }
+        ]
       },
       "ZeroThroughputType": {
         "totalIngested": 1,
@@ -39,10 +120,32 @@
     },
     "yield": {
       "totalIngested": 1313,
-      "deliveredCount": 1176,
-      "abandonedCount": 0,
-      "overallYieldRate": 0.8956587966488957,
-      "lossPoints": null
+      "deliveredCount": 959,
+      "abandonedCount": 217,
+      "overallYieldRate": 0.7303884234577304,
+      "lossPoints": [
+        {
+          "tier": "Demand",
+          "count": 109,
+          "percentage": 0.08301599390708302,
+          "avgAge": 206.9,
+          "severity": "Low"
+        },
+        {
+          "tier": "Upstream",
+          "count": 9,
+          "percentage": 0.006854531607006854,
+          "avgAge": 84.2,
+          "severity": "Medium"
+        },
+        {
+          "tier": "Downstream",
+          "count": 99,
+          "percentage": 0.0753998476770754,
+          "avgAge": 79.3,
+          "severity": "High"
+        }
+      ]
     }
   },
   "guardrails": {

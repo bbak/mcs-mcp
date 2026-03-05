@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
@@ -182,7 +181,7 @@ func newGoldenServer(t *testing.T) *Server {
 		t.Fatalf("newGoldenServer: write events cache: %v", err)
 	}
 
-	// 2. Parse simulated_workflow.json
+	// 2. Parse simulated_workflow.json (ID-keyed, matches production format)
 	wfData, err := os.ReadFile(filepath.Join(fixDir, "simulated_workflow.json"))
 	if err != nil {
 		t.Fatalf("newGoldenServer: read workflow: %v", err)
@@ -192,54 +191,13 @@ func newGoldenServer(t *testing.T) *Server {
 		Resolutions     map[string]string               `json:"resolutions"`
 		CommitmentPoint string                          `json:"commitment_point"`
 		DiscoveryCutoff string                          `json:"discovery_cutoff"`
+		NameRegistry    *jira.NameRegistry              `json:"name_registry"`
 	}
 	if err := json.Unmarshal(wfData, &wf); err != nil {
 		t.Fatalf("newGoldenServer: parse workflow: %v", err)
 	}
 
-	// 3. Scan events to build status name↔ID maps
-	nameToID := make(map[string]string)
-	idToName := make(map[string]string)
-	scanner := bufio.NewScanner(bytes.NewReader(eventsData))
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-	for scanner.Scan() {
-		var evt struct {
-			ToStatus     string `json:"toStatus"`
-			ToStatusID   string `json:"toStatusId"`
-			FromStatus   string `json:"fromStatus"`
-			FromStatusID string `json:"fromStatusId"`
-		}
-		if json.Unmarshal(scanner.Bytes(), &evt) != nil {
-			continue
-		}
-		if evt.ToStatus != "" && evt.ToStatusID != "" {
-			nameToID[evt.ToStatus] = evt.ToStatusID
-			idToName[evt.ToStatusID] = evt.ToStatus
-		}
-		if evt.FromStatus != "" && evt.FromStatusID != "" {
-			nameToID[evt.FromStatus] = evt.FromStatusID
-			idToName[evt.FromStatusID] = evt.FromStatus
-		}
-	}
-
-	// 4. Build ID-keyed status mapping (simulated_workflow.json uses name keys)
-	idMapping := make(map[string]stats.StatusMetadata)
-	for name, m := range wf.Mapping {
-		m.Name = name
-		if id, ok := nameToID[name]; ok && id != "" {
-			idMapping[id] = m
-		} else {
-			idMapping[name] = m // unknown status name — keep as-is
-		}
-	}
-
-	// 5. Translate commitment point name → ID
-	commitmentPoint := wf.CommitmentPoint
-	if id, ok := nameToID[wf.CommitmentPoint]; ok && id != "" {
-		commitmentPoint = id
-	}
-
-	// 6. Parse discovery cutoff
+	// 3. Parse discovery cutoff
 	var discoveryCutoff *time.Time
 	if wf.DiscoveryCutoff != "" {
 		if ct, parseErr := time.Parse(time.RFC3339, wf.DiscoveryCutoff); parseErr == nil {
@@ -247,22 +205,19 @@ func newGoldenServer(t *testing.T) *Server {
 		}
 	}
 
-	// 7. Pin clock to the last event's timestamp (events are strictly time-ordered)
+	// 4. Pin clock to the last event's timestamp (events are strictly time-ordered)
 	latestTS := lastEventTimestamp(t, eventsData)
 
-	// 8. Build NameRegistry from events-derived ID→name map
-	registry := &jira.NameRegistry{Statuses: idToName}
-
-	// 9. Create server and pre-anchor state to bypass loadWorkflow
+	// 5. Create server and pre-anchor state to bypass loadWorkflow
 	srv := NewServer(&config.AppConfig{CacheDir: cacheDir, CommitmentBackflowReset: true}, &DummyClient{})
-	srv.activeSourceID       = testSourceID
-	srv.activeMapping        = idMapping
-	srv.activeResolutions    = wf.Resolutions // name-keyed; matches resolution fields in events
-	srv.activeCommitmentPoint = commitmentPoint
+	srv.activeSourceID        = testSourceID
+	srv.activeMapping         = wf.Mapping
+	srv.activeResolutions     = wf.Resolutions
+	srv.activeCommitmentPoint = wf.CommitmentPoint
 	srv.activeDiscoveryCutoff = discoveryCutoff
-	srv.activeRegistry       = registry
-	srv.activeEvaluationDate = &latestTS
-	srv.simulationSeed       = 42
+	srv.activeRegistry        = wf.NameRegistry
+	srv.activeEvaluationDate  = &latestTS
+	srv.simulationSeed        = 42
 
 	return srv
 }
