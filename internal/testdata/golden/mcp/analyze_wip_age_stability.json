@@ -1,0 +1,1352 @@
+{
+  "data": {
+    "wip_age_stability": {
+      "run_chart": [
+        {
+          "date": "2026-01-13T00:00:00Z",
+          "total_age": 5509.7,
+          "count": 51,
+          "average_age": 108
+        },
+        {
+          "date": "2026-01-14T00:00:00Z",
+          "total_age": 5215.2,
+          "count": 45,
+          "average_age": 115.9
+        },
+        {
+          "date": "2026-01-15T00:00:00Z",
+          "total_age": 4623.3,
+          "count": 38,
+          "average_age": 121.7
+        },
+        {
+          "date": "2026-01-16T00:00:00Z",
+          "total_age": 4661.3,
+          "count": 39,
+          "average_age": 119.5
+        },
+        {
+          "date": "2026-01-17T00:00:00Z",
+          "total_age": 4699.7,
+          "count": 39,
+          "average_age": 120.5
+        },
+        {
+          "date": "2026-01-18T00:00:00Z",
+          "total_age": 4738.7,
+          "count": 39,
+          "average_age": 121.5
+        },
+        {
+          "date": "2026-01-19T00:00:00Z",
+          "total_age": 4777.7,
+          "count": 39,
+          "average_age": 122.5
+        },
+        {
+          "date": "2026-01-20T00:00:00Z",
+          "total_age": 4816.7,
+          "count": 39,
+          "average_age": 123.5
+        },
+        {
+          "date": "2026-01-21T00:00:00Z",
+          "total_age": 4816,
+          "count": 38,
+          "average_age": 126.7
+        },
+        {
+          "date": "2026-01-22T00:00:00Z",
+          "total_age": 4821.1,
+          "count": 38,
+          "average_age": 126.9
+        },
+        {
+          "date": "2026-01-23T00:00:00Z",
+          "total_age": 4707.1,
+          "count": 38,
+          "average_age": 123.9
+        },
+        {
+          "date": "2026-01-24T00:00:00Z",
+          "total_age": 4656.5,
+          "count": 45,
+          "average_age": 103.5
+        },
+        {
+          "date": "2026-01-25T00:00:00Z",
+          "total_age": 4694.9,
+          "count": 41,
+          "average_age": 114.5
+        },
+        {
+          "date": "2026-01-26T00:00:00Z",
+          "total_age": 4735.9,
+          "count": 41,
+          "average_age": 115.5
+        },
+        {
+          "date": "2026-01-27T00:00:00Z",
+          "total_age": 4776.9,
+          "count": 41,
+          "average_age": 116.5
+        },
+        {
+          "date": "2026-01-28T00:00:00Z",
+          "total_age": 4821.9,
+          "count": 44,
+          "average_age": 109.6
+        },
+        {
+          "date": "2026-01-29T00:00:00Z",
+          "total_age": 4863.1,
+          "count": 47,
+          "average_age": 103.5
+        },
+        {
+          "date": "2026-01-30T00:00:00Z",
+          "total_age": 4909.1,
+          "count": 46,
+          "average_age": 106.7
+        },
+        {
+          "date": "2026-01-31T00:00:00Z",
+          "total_age": 4955.1,
+          "count": 46,
+          "average_age": 107.7
+        },
+        {
+          "date": "2026-02-01T00:00:00Z",
+          "total_age": 5001.8,
+          "count": 47,
+          "average_age": 106.4
+        },
+        {
+          "date": "2026-02-02T00:00:00Z",
+          "total_age": 5048.8,
+          "count": 47,
+          "average_age": 107.4
+        },
+        {
+          "date": "2026-02-03T00:00:00Z",
+          "total_age": 5095.8,
+          "count": 47,
+          "average_age": 108.4
+        },
+        {
+          "date": "2026-02-04T00:00:00Z",
+          "total_age": 5294.5,
+          "count": 49,
+          "average_age": 108.1
+        },
+        {
+          "date": "2026-02-05T00:00:00Z",
+          "total_age": 5335.3,
+          "count": 50,
+          "average_age": 106.7
+        },
+        {
+          "date": "2026-02-06T00:00:00Z",
+          "total_age": 5340,
+          "count": 49,
+          "average_age": 109
+        },
+        {
+          "date": "2026-02-07T00:00:00Z",
+          "total_age": 5390.8,
+          "count": 52,
+          "average_age": 103.7
+        },
+        {
+          "date": "2026-02-08T00:00:00Z",
+          "total_age": 5443.5,
+          "count": 53,
+          "average_age": 102.7
+        },
+        {
+          "date": "2026-02-09T00:00:00Z",
+          "total_age": 5496.5,
+          "count": 53,
+          "average_age": 103.7
+        },
+        {
+          "date": "2026-02-10T00:00:00Z",
+          "total_age": 5549.5,
+          "count": 53,
+          "average_age": 104.7
+        },
+        {
+          "date": "2026-02-11T00:00:00Z",
+          "total_age": 5602.5,
+          "count": 53,
+          "average_age": 105.7
+        },
+        {
+          "date": "2026-02-12T00:00:00Z",
+          "total_age": 5365.2,
+          "count": 49,
+          "average_age": 109.5
+        },
+        {
+          "date": "2026-02-13T00:00:00Z",
+          "total_age": 5415.5,
+          "count": 51,
+          "average_age": 106.2
+        },
+        {
+          "date": "2026-02-14T00:00:00Z",
+          "total_age": 5200.4,
+          "count": 52,
+          "average_age": 100
+        },
+        {
+          "date": "2026-02-15T00:00:00Z",
+          "total_age": 5253.1,
+          "count": 54,
+          "average_age": 97.3
+        },
+        {
+          "date": "2026-02-16T00:00:00Z",
+          "total_age": 5307.1,
+          "count": 54,
+          "average_age": 98.3
+        },
+        {
+          "date": "2026-02-17T00:00:00Z",
+          "total_age": 5361.1,
+          "count": 54,
+          "average_age": 99.3
+        },
+        {
+          "date": "2026-02-18T00:00:00Z",
+          "total_age": 5366.2,
+          "count": 54,
+          "average_age": 99.4
+        },
+        {
+          "date": "2026-02-19T00:00:00Z",
+          "total_age": 5421.3,
+          "count": 56,
+          "average_age": 96.8
+        },
+        {
+          "date": "2026-02-20T00:00:00Z",
+          "total_age": 5448.7,
+          "count": 55,
+          "average_age": 99.1
+        },
+        {
+          "date": "2026-02-21T00:00:00Z",
+          "total_age": 5595.5,
+          "count": 56,
+          "average_age": 99.9
+        },
+        {
+          "date": "2026-02-22T00:00:00Z",
+          "total_age": 5493,
+          "count": 49,
+          "average_age": 112.1
+        },
+        {
+          "date": "2026-02-23T00:00:00Z",
+          "total_age": 5542,
+          "count": 49,
+          "average_age": 113.1
+        },
+        {
+          "date": "2026-02-24T00:00:00Z",
+          "total_age": 5591,
+          "count": 49,
+          "average_age": 114.1
+        },
+        {
+          "date": "2026-02-25T00:00:00Z",
+          "total_age": 5512,
+          "count": 50,
+          "average_age": 110.2
+        },
+        {
+          "date": "2026-02-26T00:00:00Z",
+          "total_age": 5552.6,
+          "count": 48,
+          "average_age": 115.7
+        },
+        {
+          "date": "2026-02-27T00:00:00Z",
+          "total_age": 5601.3,
+          "count": 50,
+          "average_age": 112
+        },
+        {
+          "date": "2026-02-28T00:00:00Z",
+          "total_age": 5619.9,
+          "count": 50,
+          "average_age": 112.4
+        },
+        {
+          "date": "2026-03-01T00:00:00Z",
+          "total_age": 5657.2,
+          "count": 48,
+          "average_age": 117.9
+        },
+        {
+          "date": "2026-03-02T00:00:00Z",
+          "total_age": 5705.2,
+          "count": 48,
+          "average_age": 118.9
+        },
+        {
+          "date": "2026-03-03T00:00:00Z",
+          "total_age": 5753.2,
+          "count": 48,
+          "average_age": 119.9
+        },
+        {
+          "date": "2026-03-04T00:00:00Z",
+          "total_age": 5801.6,
+          "count": 49,
+          "average_age": 118.4
+        },
+        {
+          "date": "2026-03-05T00:00:00Z",
+          "total_age": 5851.2,
+          "count": 50,
+          "average_age": 117
+        },
+        {
+          "date": "2026-03-06T00:00:00Z",
+          "total_age": 5902.4,
+          "count": 52,
+          "average_age": 113.5
+        },
+        {
+          "date": "2026-03-07T00:00:00Z",
+          "total_age": 5945.4,
+          "count": 52,
+          "average_age": 114.3
+        },
+        {
+          "date": "2026-03-08T00:00:00Z",
+          "total_age": 5953.9,
+          "count": 52,
+          "average_age": 114.5
+        },
+        {
+          "date": "2026-03-09T00:00:00Z",
+          "total_age": 6004.9,
+          "count": 51,
+          "average_age": 117.7
+        },
+        {
+          "date": "2026-03-10T00:00:00Z",
+          "total_age": 6055.9,
+          "count": 51,
+          "average_age": 118.7
+        },
+        {
+          "date": "2026-03-11T00:00:00Z",
+          "total_age": 6109.5,
+          "count": 55,
+          "average_age": 111.1
+        },
+        {
+          "date": "2026-03-12T00:00:00Z",
+          "total_age": 6202.7,
+          "count": 58,
+          "average_age": 106.9
+        },
+        {
+          "date": "2026-03-13T00:00:00Z",
+          "total_age": 6222.8,
+          "count": 57,
+          "average_age": 109.2
+        },
+        {
+          "date": "2026-03-14T00:00:00Z",
+          "total_age": 6205.4,
+          "count": 54,
+          "average_age": 114.9
+        },
+        {
+          "date": "2026-03-15T00:00:00Z",
+          "total_age": 6259.4,
+          "count": 54,
+          "average_age": 115.9
+        },
+        {
+          "date": "2026-03-16T00:00:00Z",
+          "total_age": 6313.4,
+          "count": 54,
+          "average_age": 116.9
+        },
+        {
+          "date": "2026-03-17T00:00:00Z",
+          "total_age": 6367.4,
+          "count": 54,
+          "average_age": 117.9
+        },
+        {
+          "date": "2026-03-18T00:00:00Z",
+          "total_age": 6380.2,
+          "count": 54,
+          "average_age": 118.2
+        },
+        {
+          "date": "2026-03-19T00:00:00Z",
+          "total_age": 6345.9,
+          "count": 56,
+          "average_age": 113.3
+        },
+        {
+          "date": "2026-03-20T00:00:00Z",
+          "total_age": 6287,
+          "count": 55,
+          "average_age": 114.3
+        },
+        {
+          "date": "2026-03-21T00:00:00Z",
+          "total_age": 6342,
+          "count": 55,
+          "average_age": 115.3
+        },
+        {
+          "date": "2026-03-22T00:00:00Z",
+          "total_age": 6197.6,
+          "count": 52,
+          "average_age": 119.2
+        },
+        {
+          "date": "2026-03-23T00:00:00Z",
+          "total_age": 6249.6,
+          "count": 52,
+          "average_age": 120.2
+        },
+        {
+          "date": "2026-03-24T00:00:00Z",
+          "total_age": 6301.6,
+          "count": 52,
+          "average_age": 121.2
+        },
+        {
+          "date": "2026-03-25T00:00:00Z",
+          "total_age": 6354.2,
+          "count": 53,
+          "average_age": 119.9
+        },
+        {
+          "date": "2026-03-26T00:00:00Z",
+          "total_age": 5000,
+          "count": 48,
+          "average_age": 104.2
+        },
+        {
+          "date": "2026-03-27T00:00:00Z",
+          "total_age": 4994.3,
+          "count": 46,
+          "average_age": 108.6
+        },
+        {
+          "date": "2026-03-28T00:00:00Z",
+          "total_age": 5040.7,
+          "count": 47,
+          "average_age": 107.2
+        },
+        {
+          "date": "2026-03-29T00:00:00Z",
+          "total_age": 5017,
+          "count": 47,
+          "average_age": 106.7
+        },
+        {
+          "date": "2026-03-30T00:00:00Z",
+          "total_age": 5064,
+          "count": 47,
+          "average_age": 107.7
+        },
+        {
+          "date": "2026-03-31T00:00:00Z",
+          "total_age": 5111,
+          "count": 47,
+          "average_age": 108.7
+        },
+        {
+          "date": "2026-04-01T00:00:00Z",
+          "total_age": 5158.4,
+          "count": 48,
+          "average_age": 107.5
+        },
+        {
+          "date": "2026-04-02T00:00:00Z",
+          "total_age": 5208.1,
+          "count": 52,
+          "average_age": 100.2
+        },
+        {
+          "date": "2026-04-03T00:00:00Z",
+          "total_age": 5260.1,
+          "count": 52,
+          "average_age": 101.2
+        },
+        {
+          "date": "2026-04-04T00:00:00Z",
+          "total_age": 5062.1,
+          "count": 52,
+          "average_age": 97.3
+        },
+        {
+          "date": "2026-04-05T00:00:00Z",
+          "total_age": 5010.5,
+          "count": 51,
+          "average_age": 98.2
+        },
+        {
+          "date": "2026-04-06T00:00:00Z",
+          "total_age": 5061.5,
+          "count": 51,
+          "average_age": 99.2
+        },
+        {
+          "date": "2026-04-07T00:00:00Z",
+          "total_age": 5112.5,
+          "count": 51,
+          "average_age": 100.2
+        },
+        {
+          "date": "2026-04-08T00:00:00Z",
+          "total_age": 5163.5,
+          "count": 51,
+          "average_age": 101.2
+        },
+        {
+          "date": "2026-04-09T00:00:00Z",
+          "total_age": 5179.2,
+          "count": 51,
+          "average_age": 101.6
+        },
+        {
+          "date": "2026-04-10T00:00:00Z",
+          "total_age": 4880.8,
+          "count": 52,
+          "average_age": 93.9
+        },
+        {
+          "date": "2026-04-11T00:00:00Z",
+          "total_age": 4498.3,
+          "count": 44,
+          "average_age": 102.2
+        },
+        {
+          "date": "2026-04-12T00:00:00Z",
+          "total_age": 4543.2,
+          "count": 47,
+          "average_age": 96.7
+        },
+        {
+          "date": "2026-04-13T00:00:00Z",
+          "total_age": 4589.2,
+          "count": 46,
+          "average_age": 99.8
+        },
+        {
+          "date": "2026-04-14T00:00:00Z",
+          "total_age": 4635.2,
+          "count": 46,
+          "average_age": 100.8
+        },
+        {
+          "date": "2026-04-15T00:00:00Z",
+          "total_age": 4681.6,
+          "count": 47,
+          "average_age": 99.6
+        },
+        {
+          "date": "2026-04-16T00:00:00Z",
+          "total_age": 4507.9,
+          "count": 49,
+          "average_age": 92
+        },
+        {
+          "date": "2026-04-17T00:00:00Z",
+          "total_age": 4557.5,
+          "count": 50,
+          "average_age": 91.1
+        },
+        {
+          "date": "2026-04-18T00:00:00Z",
+          "total_age": 4528.6,
+          "count": 47,
+          "average_age": 96.4
+        },
+        {
+          "date": "2026-04-19T00:00:00Z",
+          "total_age": 4575.6,
+          "count": 47,
+          "average_age": 97.4
+        },
+        {
+          "date": "2026-04-20T00:00:00Z",
+          "total_age": 4622.6,
+          "count": 47,
+          "average_age": 98.4
+        },
+        {
+          "date": "2026-04-21T00:00:00Z",
+          "total_age": 4669.6,
+          "count": 47,
+          "average_age": 99.4
+        },
+        {
+          "date": "2026-04-22T00:00:00Z",
+          "total_age": 4716.6,
+          "count": 47,
+          "average_age": 100.4
+        },
+        {
+          "date": "2026-04-23T00:00:00Z",
+          "total_age": 4767.1,
+          "count": 53,
+          "average_age": 89.9
+        },
+        {
+          "date": "2026-04-24T00:00:00Z",
+          "total_age": 4482,
+          "count": 51,
+          "average_age": 87.9
+        },
+        {
+          "date": "2026-04-25T00:00:00Z",
+          "total_age": 4167.3,
+          "count": 52,
+          "average_age": 80.1
+        },
+        {
+          "date": "2026-04-26T00:00:00Z",
+          "total_age": 4219.3,
+          "count": 52,
+          "average_age": 81.1
+        },
+        {
+          "date": "2026-04-27T00:00:00Z",
+          "total_age": 4271.3,
+          "count": 52,
+          "average_age": 82.1
+        },
+        {
+          "date": "2026-04-28T00:00:00Z",
+          "total_age": 4323.3,
+          "count": 52,
+          "average_age": 83.1
+        },
+        {
+          "date": "2026-04-29T00:00:00Z",
+          "total_age": 4269.9,
+          "count": 51,
+          "average_age": 83.7
+        },
+        {
+          "date": "2026-04-30T00:00:00Z",
+          "total_age": 4112.8,
+          "count": 50,
+          "average_age": 82.3
+        },
+        {
+          "date": "2026-05-01T00:00:00Z",
+          "total_age": 4080,
+          "count": 51,
+          "average_age": 80
+        },
+        {
+          "date": "2026-05-02T00:00:00Z",
+          "total_age": 4131.4,
+          "count": 52,
+          "average_age": 79.5
+        },
+        {
+          "date": "2026-05-03T00:00:00Z",
+          "total_age": 4183.5,
+          "count": 53,
+          "average_age": 78.9
+        },
+        {
+          "date": "2026-05-04T00:00:00Z",
+          "total_age": 4235.4,
+          "count": 52,
+          "average_age": 81.5
+        },
+        {
+          "date": "2026-05-05T00:00:00Z",
+          "total_age": 4287.4,
+          "count": 52,
+          "average_age": 82.5
+        },
+        {
+          "date": "2026-05-06T00:00:00Z",
+          "total_age": 4324.6,
+          "count": 52,
+          "average_age": 83.2
+        },
+        {
+          "date": "2026-05-07T00:00:00Z",
+          "total_age": 4274.1,
+          "count": 53,
+          "average_age": 80.6
+        },
+        {
+          "date": "2026-05-08T00:00:00Z",
+          "total_age": 4318.4,
+          "count": 52,
+          "average_age": 83
+        },
+        {
+          "date": "2026-05-09T00:00:00Z",
+          "total_age": 4372.6,
+          "count": 56,
+          "average_age": 78.1
+        },
+        {
+          "date": "2026-05-10T00:00:00Z",
+          "total_age": 4363.4,
+          "count": 57,
+          "average_age": 76.6
+        },
+        {
+          "date": "2026-05-11T00:00:00Z",
+          "total_age": 4419.4,
+          "count": 56,
+          "average_age": 78.9
+        },
+        {
+          "date": "2026-05-12T00:00:00Z",
+          "total_age": 4475.4,
+          "count": 56,
+          "average_age": 79.9
+        },
+        {
+          "date": "2026-05-13T00:00:00Z",
+          "total_age": 4244.1,
+          "count": 57,
+          "average_age": 74.5
+        },
+        {
+          "date": "2026-05-14T00:00:00Z",
+          "total_age": 4272,
+          "count": 49,
+          "average_age": 87.2
+        },
+        {
+          "date": "2026-05-15T00:00:00Z",
+          "total_age": 4124.6,
+          "count": 49,
+          "average_age": 84.2
+        },
+        {
+          "date": "2026-05-16T00:00:00Z",
+          "total_age": 4173.6,
+          "count": 49,
+          "average_age": 85.2
+        },
+        {
+          "date": "2026-05-17T00:00:00Z",
+          "total_age": 4222.6,
+          "count": 49,
+          "average_age": 86.2
+        },
+        {
+          "date": "2026-05-18T00:00:00Z",
+          "total_age": 4271.6,
+          "count": 49,
+          "average_age": 87.2
+        },
+        {
+          "date": "2026-05-19T00:00:00Z",
+          "total_age": 4320.6,
+          "count": 49,
+          "average_age": 88.2
+        },
+        {
+          "date": "2026-05-20T00:00:00Z",
+          "total_age": 4369.6,
+          "count": 49,
+          "average_age": 89.2
+        },
+        {
+          "date": "2026-05-21T00:00:00Z",
+          "total_age": 4419.2,
+          "count": 50,
+          "average_age": 88.4
+        },
+        {
+          "date": "2026-05-22T00:00:00Z",
+          "total_age": 4469.2,
+          "count": 50,
+          "average_age": 89.4
+        },
+        {
+          "date": "2026-05-23T00:00:00Z",
+          "total_age": 4519.2,
+          "count": 50,
+          "average_age": 90.4
+        },
+        {
+          "date": "2026-05-24T00:00:00Z",
+          "total_age": 4570,
+          "count": 51,
+          "average_age": 89.6
+        },
+        {
+          "date": "2026-05-25T00:00:00Z",
+          "total_age": 4621,
+          "count": 51,
+          "average_age": 90.6
+        },
+        {
+          "date": "2026-05-26T00:00:00Z",
+          "total_age": 4672,
+          "count": 51,
+          "average_age": 91.6
+        },
+        {
+          "date": "2026-05-27T00:00:00Z",
+          "total_age": 4724,
+          "count": 53,
+          "average_age": 89.1
+        },
+        {
+          "date": "2026-05-28T00:00:00Z",
+          "total_age": 4777,
+          "count": 53,
+          "average_age": 90.1
+        },
+        {
+          "date": "2026-05-29T00:00:00Z",
+          "total_age": 4830.5,
+          "count": 54,
+          "average_age": 89.5
+        },
+        {
+          "date": "2026-05-30T00:00:00Z",
+          "total_age": 4851.3,
+          "count": 54,
+          "average_age": 89.8
+        },
+        {
+          "date": "2026-05-31T00:00:00Z",
+          "total_age": 4905.3,
+          "count": 54,
+          "average_age": 90.8
+        },
+        {
+          "date": "2026-06-01T00:00:00Z",
+          "total_age": 4959.3,
+          "count": 54,
+          "average_age": 91.8
+        },
+        {
+          "date": "2026-06-02T00:00:00Z",
+          "total_age": 5013.3,
+          "count": 54,
+          "average_age": 92.8
+        },
+        {
+          "date": "2026-06-03T00:00:00Z",
+          "total_age": 5067.3,
+          "count": 54,
+          "average_age": 93.8
+        },
+        {
+          "date": "2026-06-04T00:00:00Z",
+          "total_age": 5121.8,
+          "count": 55,
+          "average_age": 93.1
+        },
+        {
+          "date": "2026-06-05T00:00:00Z",
+          "total_age": 5176.8,
+          "count": 55,
+          "average_age": 94.1
+        },
+        {
+          "date": "2026-06-06T00:00:00Z",
+          "total_age": 5197.4,
+          "count": 57,
+          "average_age": 91.2
+        },
+        {
+          "date": "2026-06-07T00:00:00Z",
+          "total_age": 5063.5,
+          "count": 55,
+          "average_age": 92.1
+        },
+        {
+          "date": "2026-06-08T00:00:00Z",
+          "total_age": 5118.5,
+          "count": 55,
+          "average_age": 93.1
+        },
+        {
+          "date": "2026-06-09T00:00:00Z",
+          "total_age": 5173.5,
+          "count": 55,
+          "average_age": 94.1
+        },
+        {
+          "date": "2026-06-10T00:00:00Z",
+          "total_age": 5228.5,
+          "count": 55,
+          "average_age": 95.1
+        },
+        {
+          "date": "2026-06-11T00:00:00Z",
+          "total_age": 5284.3,
+          "count": 57,
+          "average_age": 92.7
+        },
+        {
+          "date": "2026-06-12T00:00:00Z",
+          "total_age": 5343.1,
+          "count": 60,
+          "average_age": 89.1
+        },
+        {
+          "date": "2026-06-13T00:00:00Z",
+          "total_age": 5403.1,
+          "count": 60,
+          "average_age": 90.1
+        },
+        {
+          "date": "2026-06-14T00:00:00Z",
+          "total_age": 5463.4,
+          "count": 61,
+          "average_age": 89.6
+        },
+        {
+          "date": "2026-06-15T00:00:00Z",
+          "total_age": 5524.4,
+          "count": 61,
+          "average_age": 90.6
+        },
+        {
+          "date": "2026-06-16T00:00:00Z",
+          "total_age": 5585.4,
+          "count": 61,
+          "average_age": 91.6
+        },
+        {
+          "date": "2026-06-17T00:00:00Z",
+          "total_age": 5646.4,
+          "count": 61,
+          "average_age": 92.6
+        },
+        {
+          "date": "2026-06-18T00:00:00Z",
+          "total_age": 4304.2,
+          "count": 57,
+          "average_age": 75.5
+        },
+        {
+          "date": "2026-06-19T00:00:00Z",
+          "total_age": 4361.2,
+          "count": 57,
+          "average_age": 76.5
+        },
+        {
+          "date": "2026-06-20T00:00:00Z",
+          "total_age": 4243.2,
+          "count": 54,
+          "average_age": 78.6
+        },
+        {
+          "date": "2026-06-21T00:00:00Z",
+          "total_age": 4296.1,
+          "count": 53,
+          "average_age": 81.1
+        },
+        {
+          "date": "2026-06-22T00:00:00Z",
+          "total_age": 4349.1,
+          "count": 53,
+          "average_age": 82.1
+        },
+        {
+          "date": "2026-06-23T00:00:00Z",
+          "total_age": 4402.1,
+          "count": 53,
+          "average_age": 83.1
+        },
+        {
+          "date": "2026-06-24T00:00:00Z",
+          "total_age": 4455.1,
+          "count": 53,
+          "average_age": 84.1
+        },
+        {
+          "date": "2026-06-25T00:00:00Z",
+          "total_age": 4398.6,
+          "count": 51,
+          "average_age": 86.2
+        },
+        {
+          "date": "2026-06-26T00:00:00Z",
+          "total_age": 4450.5,
+          "count": 53,
+          "average_age": 84
+        },
+        {
+          "date": "2026-06-27T00:00:00Z",
+          "total_age": 4456.4,
+          "count": 55,
+          "average_age": 81
+        },
+        {
+          "date": "2026-06-28T00:00:00Z",
+          "total_age": 4510,
+          "count": 54,
+          "average_age": 83.5
+        },
+        {
+          "date": "2026-06-29T00:00:00Z",
+          "total_age": 4564,
+          "count": 54,
+          "average_age": 84.5
+        },
+        {
+          "date": "2026-06-30T00:00:00Z",
+          "total_age": 4618,
+          "count": 54,
+          "average_age": 85.5
+        },
+        {
+          "date": "2026-07-01T00:00:00Z",
+          "total_age": 4672.8,
+          "count": 56,
+          "average_age": 83.4
+        },
+        {
+          "date": "2026-07-02T00:00:00Z",
+          "total_age": 4671,
+          "count": 56,
+          "average_age": 83.4
+        },
+        {
+          "date": "2026-07-03T00:00:00Z",
+          "total_age": 4646.7,
+          "count": 59,
+          "average_age": 78.8
+        },
+        {
+          "date": "2026-07-04T00:00:00Z",
+          "total_age": 4719.4,
+          "count": 60,
+          "average_age": 78.7
+        },
+        {
+          "date": "2026-07-05T00:00:00Z",
+          "total_age": 4780.4,
+          "count": 62,
+          "average_age": 77.1
+        },
+        {
+          "date": "2026-07-06T00:00:00Z",
+          "total_age": 4842.4,
+          "count": 62,
+          "average_age": 78.1
+        },
+        {
+          "date": "2026-07-07T00:00:00Z",
+          "total_age": 4904.4,
+          "count": 62,
+          "average_age": 79.1
+        },
+        {
+          "date": "2026-07-08T00:00:00Z",
+          "total_age": 4837.2,
+          "count": 62,
+          "average_age": 78
+        },
+        {
+          "date": "2026-07-09T00:00:00Z",
+          "total_age": 4733.1,
+          "count": 62,
+          "average_age": 76.3
+        },
+        {
+          "date": "2026-07-10T00:00:00Z",
+          "total_age": 4705.6,
+          "count": 62,
+          "average_age": 75.9
+        },
+        {
+          "date": "2026-07-11T00:00:00Z",
+          "total_age": 4739.7,
+          "count": 65,
+          "average_age": 72.9
+        },
+        {
+          "date": "2026-07-12T00:00:00Z",
+          "total_age": 4591.8,
+          "count": 59,
+          "average_age": 77.8
+        },
+        {
+          "date": "2026-07-13T00:00:00Z",
+          "total_age": 4650.8,
+          "count": 59,
+          "average_age": 78.8
+        },
+        {
+          "date": "2026-07-14T00:00:00Z",
+          "total_age": 4709.8,
+          "count": 59,
+          "average_age": 79.8
+        }
+      ],
+      "xmr": {
+        "average": 4952.537037037037,
+        "average_moving_range": 294.21153846153834,
+        "upper_natural_process_limit": 5735.13972934473,
+        "lower_natural_process_limit": 4169.934344729345,
+        "values": [
+          4738.7,
+          4694.9,
+          5001.8,
+          5443.5,
+          5253.1,
+          5493,
+          5657.2,
+          5953.9,
+          6259.4,
+          6197.6,
+          5017,
+          5010.5,
+          4543.2,
+          4575.6,
+          4219.3,
+          4183.5,
+          4363.4,
+          4222.6,
+          4570,
+          4905.3,
+          5063.5,
+          5463.4,
+          4296.1,
+          4510,
+          4780.4,
+          4591.8,
+          4709.8
+        ],
+        "moving_ranges": [
+          43.80000000000018,
+          306.90000000000055,
+          441.6999999999998,
+          190.39999999999964,
+          239.89999999999964,
+          164.19999999999982,
+          296.6999999999998,
+          305.5,
+          61.79999999999927,
+          1180.6000000000004,
+          6.5,
+          467.3000000000002,
+          32.400000000000546,
+          356.3000000000002,
+          35.80000000000018,
+          179.89999999999964,
+          140.79999999999927,
+          347.39999999999964,
+          335.3000000000002,
+          158.19999999999982,
+          399.89999999999964,
+          1167.2999999999993,
+          213.89999999999964,
+          270.39999999999964,
+          188.59999999999945,
+          118
+        ],
+        "signals": [
+          {
+            "index": 49,
+            "key": "2026-03-03",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 50,
+            "key": "2026-03-04",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 51,
+            "key": "2026-03-05",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 52,
+            "key": "2026-03-06",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 53,
+            "key": "2026-03-07",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 54,
+            "key": "2026-03-08",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 55,
+            "key": "2026-03-09",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 56,
+            "key": "2026-03-10",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 57,
+            "key": "2026-03-11",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 58,
+            "key": "2026-03-12",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 59,
+            "key": "2026-03-13",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 60,
+            "key": "2026-03-14",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 61,
+            "key": "2026-03-15",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 62,
+            "key": "2026-03-16",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 63,
+            "key": "2026-03-17",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 64,
+            "key": "2026-03-18",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 65,
+            "key": "2026-03-19",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 66,
+            "key": "2026-03-20",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 67,
+            "key": "2026-03-21",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 68,
+            "key": "2026-03-22",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 69,
+            "key": "2026-03-23",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 70,
+            "key": "2026-03-24",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 71,
+            "key": "2026-03-25",
+            "type": "outlier",
+            "description": "Total WIP Age above Upper Natural Process Limit (UNPL)"
+          },
+          {
+            "index": 102,
+            "key": "2026-04-25",
+            "type": "outlier",
+            "description": "Total WIP Age below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 107,
+            "key": "2026-04-30",
+            "type": "outlier",
+            "description": "Total WIP Age below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 108,
+            "key": "2026-05-01",
+            "type": "outlier",
+            "description": "Total WIP Age below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 109,
+            "key": "2026-05-02",
+            "type": "outlier",
+            "description": "Total WIP Age below Lower Natural Process Limit (LNPL)"
+          },
+          {
+            "index": 122,
+            "key": "2026-05-15",
+            "type": "outlier",
+            "description": "Total WIP Age below Lower Natural Process Limit (LNPL)"
+          }
+        ]
+      },
+      "status": "unstable"
+    }
+  },
+  "guardrails": {
+    "insights": [
+      "Total WIP Age reveals the cumulative age burden on the system.",
+      "While WIP Count tells how many items are in progress, Total WIP Age tells how long they have collectively been there.",
+      "A growing Total WIP Age means items are aging without being delivered — it is a leading indicator of delivery problems.",
+      "Even with stable WIP count, Total WIP Age can grow if items stagnate.",
+      "Natural behavior: Total WIP Age grows by (WIP count x 1 day) per day when no items enter or exit.",
+      "Average WIP Age is provided for convenience but is less informative — it can mask individual outliers and assumes nothing about the distribution shape.",
+      "The XmR analysis on Total WIP Age is the most defensible signal — it detects process changes without distribution assumptions."
+    ],
+    "warnings": []
+  }
+}

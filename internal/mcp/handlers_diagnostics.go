@@ -575,6 +575,67 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
+func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, windowWeeks int) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// 1. Hydrate
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
+		return nil, err
+	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
+
+	if windowWeeks <= 0 {
+		windowWeeks = 26
+	}
+
+	// 2. Project EVERYTHING from the beginning of time to capture stagnant WIP
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+
+	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
+	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+
+	all := session.GetAllIssues()
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
+
+	// 3. Bound the chart output strictly to the requested display window
+	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), "day", cutoff)
+	wipAgeStability := stats.AnalyzeHistoricalWIPAge(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
+
+	res := map[string]any{
+		"wip_age_stability": wipAgeStability,
+	}
+
+	if s.enableMermaidCharts {
+		res["visual_wip_age_run_chart"] = visuals.GenerateWIPAgeRunChart(wipAgeStability)
+	}
+
+	guidance := []string{
+		"Total WIP Age reveals the cumulative age burden on the system.",
+		"While WIP Count tells how many items are in progress, Total WIP Age tells how long they have collectively been there.",
+		"A growing Total WIP Age means items are aging without being delivered — it is a leading indicator of delivery problems.",
+		"Even with stable WIP count, Total WIP Age can grow if items stagnate.",
+		"Natural behavior: Total WIP Age grows by (WIP count x 1 day) per day when no items enter or exit.",
+		"Average WIP Age is provided for convenience but is less informative — it can mask individual outliers and assumes nothing about the distribution shape.",
+		"The XmR analysis on Total WIP Age is the most defensible signal — it detects process changes without distribution assumptions.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
+}
+
 func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks int, bucket string) (any, error) {
 	if err := s.anchorContext(projectKey, boardID); err != nil {
 		return nil, err

@@ -58,6 +58,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_process_stability` | Assess cycle-time predictability using XmR Individual and Moving Range charts. |
 | `analyze_flow_debt` | Analyze the balance between commitment arrivals and delivery departures. |
 | `analyze_wip_stability` | Analyze WIP population stability via daily run chart with XmR bounds. |
+| `analyze_wip_age_stability` | Analyze Total WIP Age stability (cumulative age burden) via daily run chart with XmR bounds. |
 | `analyze_process_evolution` | Perform a longitudinal "Strategic Audit" using Three-Way Control Charts. |
 | `analyze_yield` | Analyze delivery efficiency (delivered vs. abandoned) attributed to workflow tiers. |
 | `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. |

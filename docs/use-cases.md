@@ -81,6 +81,21 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
+## UC4c: Total WIP Age Stability (Age Burden Indicator)
+
+**Goal:** Detect whether items are aging in the system without being delivered, even when WIP count appears stable.
+
+- **Primary Actor:** AI (Proactive) or User
+- **Trigger:** AI is investigating delivery stalls, or User asks "Are items getting stuck?"
+- **Main Success Scenario:**
+    1. AI calls `analyze_wip_age_stability`.
+    2. MCP Server calculates a daily run chart of Total WIP Age (sum of individual WIP ages) and computes Natural Process Limits derived strictly from weekly samples. XmR is applied to Total WIP Age, not the average.
+    3. AI identifies periods where Total WIP Age breached the Upper Limit.
+    4. AI reports: "Your Total WIP Age is growing beyond natural limits. Even though you have a stable number of items in progress, they are collectively aging — this is a leading indicator that delivery is stalling."
+    5. AI notes: "Average WIP Age is provided for convenience but can mask individual outliers. The XmR analysis on Total WIP Age is the most defensible signal."
+
+---
+
 ## UC5: Strategic Process Evolution (The Strategic Audit)
 
 **Goal:** Perform a longitudinal analysis of process behavior to detect long-term shifts or maturity changes.
