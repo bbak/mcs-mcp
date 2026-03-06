@@ -56,6 +56,12 @@ func TestHandlers_Golden(t *testing.T) {
 			},
 		},
 		{
+			"analyze_wip_age_stability",
+			func() (any, error) {
+				return srv.handleAnalyzeWIPAgeStability(testProject, testBoard, 26)
+			},
+		},
+		{
 			"analyze_process_evolution",
 			func() (any, error) {
 				return srv.handleGetProcessEvolution(testProject, testBoard, 12)
