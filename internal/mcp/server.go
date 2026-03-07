@@ -378,6 +378,23 @@ func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
 		boardID := asInt(call.Arguments["board_id"])
 		windowWeeks := asInt(call.Arguments["history_window_weeks"])
 		data, err = s.handleAnalyzeWIPAgeStability(projectKey, boardID, windowWeeks)
+	case "analyze_residence_time":
+		projectKey := asString(call.Arguments["project_key"])
+		boardID := asInt(call.Arguments["board_id"])
+		windowWeeks := asInt(call.Arguments["history_window_weeks"])
+		granularity := asString(call.Arguments["granularity"])
+		if granularity == "weekly" {
+			granularity = "week"
+		} else {
+			granularity = "day"
+		}
+		var issueTypes []string
+		if it, ok := call.Arguments["issue_types"].([]any); ok {
+			for _, v := range it {
+				issueTypes = append(issueTypes, asString(v))
+			}
+		}
+		data, err = s.handleAnalyzeResidenceTime(projectKey, boardID, windowWeeks, issueTypes, granularity)
 	case "analyze_process_evolution":
 		projectKey := asString(call.Arguments["project_key"])
 		boardID := asInt(call.Arguments["board_id"])

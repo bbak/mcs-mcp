@@ -86,6 +86,12 @@ func TestHandlers_Golden(t *testing.T) {
 			},
 		},
 		{
+			"analyze_residence_time",
+			func() (any, error) {
+				return srv.handleAnalyzeResidenceTime(testProject, testBoard, 52, nil, "day")
+			},
+		},
+		{
 			"forecast_cycle_time",
 			func() (any, error) {
 				return srv.handleGetCycleTimeAssessment(testProject, testBoard, true, "", "", nil)

@@ -63,6 +63,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_yield` | Analyze delivery efficiency (delivered vs. abandoned) attributed to workflow tiers. |
 | `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. |
 | `analyze_item_journey` | Get a detailed breakdown of a single item's time across all workflow stages. |
+| `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
 
 #### Forecasting

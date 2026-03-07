@@ -342,3 +342,19 @@ This document describes the primary interaction scenarios between the User (Proj
     4. AI provides the raw data to the visualization agent (or describes the trends).
     5. AI identifies a "bloating" status (e.g. "Your 'Code Review' band is widening, indicating a growing bottleneck despite stable arrivals").
     6. AI suggests cross-referencing with `analyze_flow_debt` to see if the bottleneck is caused by a recent commitment surge.
+
+---
+
+## UC21: Sample Path Analysis (Residence Time)
+
+**Goal:** Validate the finite Little's Law identity L(T) = Λ(T) · w(T) and diagnose the "end effect" of active items on the system via the coherence gap between residence time and sojourn time.
+
+- **Primary Actor:** User (Flow Advisor / Process Coach)
+- **Trigger:** System feels "stuck" — WIP looks stable but items are aging, or cycle time is rising without obvious cause.
+- **Main Success Scenario:**
+    1. User asks: "Why is our cycle time drifting up even though WIP count is stable?"
+    2. AI calls `analyze_residence_time` with a 52-week window.
+    3. MCP Server computes the sample path N(t), cumulative element-days H(T), arrival rate Λ(T), average residence time w(T), average sojourn time W*(T), and the coherence gap.
+    4. AI verifies `identity_verified: true` and examines the coherence gap trend.
+    5. AI explains: "Your residence time (w) is 18 days, but sojourn time (W*) is only 12 days — the 6-day coherence gap shows active items are inflating the average. The gap is diverging, meaning stale items are accumulating."
+    6. AI suggests cross-referencing with `analyze_work_item_age` to identify specific aging outliers, or `analyze_wip_stability` to check for population management issues.

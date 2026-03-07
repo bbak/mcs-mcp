@@ -738,3 +738,82 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(allIssues), guidance), nil
 }
+
+func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, windowWeeks int, issueTypes []string, granularity string) (any, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+
+	// 1. Hydrate
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
+		return nil, err
+	}
+	s.activeRegistry = reg
+	_ = s.saveWorkflow(projectKey, boardID)
+
+	if windowWeeks <= 0 {
+		windowWeeks = 52
+	}
+	if granularity == "" {
+		granularity = "day"
+	}
+
+	// 2. Project EVERYTHING from the beginning of time to capture stagnant/pre-window items
+	cutoff := time.Time{}
+	if s.activeDiscoveryCutoff != nil {
+		cutoff = *s.activeDiscoveryCutoff
+	}
+
+	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
+	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
+	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+
+	all := session.GetAllIssues()
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
+
+	// 3. Apply issue type filter if provided
+	filteredIssues := all
+	if len(issueTypes) > 0 {
+		typeSet := make(map[string]bool, len(issueTypes))
+		for _, t := range issueTypes {
+			typeSet[t] = true
+		}
+		var filtered []jira.Issue
+		for _, issue := range all {
+			if typeSet[issue.IssueType] {
+				filtered = append(filtered, issue)
+			}
+		}
+		filteredIssues = filtered
+	}
+
+	// 4. Extract residence items with backflow-reset logic (always-on)
+	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), granularity, cutoff)
+	residenceItems := stats.ExtractResidenceItems(filteredIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, displayWindow.Start)
+
+	// 5. Compute the sample path time series
+	result := stats.ComputeResidenceTimeSeries(residenceItems, displayWindow)
+
+	res := map[string]any{
+		"residence_time": result,
+	}
+
+	guidance := []string{
+		"This is a Sample Path Analysis (Stidham 1972, El-Taha & Stidham 1999) — it tracks the instantaneous count N(t) of active items over the observation window.",
+		"Residence time: the time an item accumulates in the system within the observation window. Applies to both completed and still-active items. For active items, residence time grows linearly with the window endpoint T.",
+		"Sojourn time (W*): the special case of residence time for completed items — their full duration from commitment to resolution. This is what 'analyze_cycle_time' measures.",
+		fmt.Sprintf("The finite Little's Law identity L(T) = Λ(T) · w(T) holds exactly at every point. Identity verified: %v (max deviation: %.2e).", result.Validation.IdentityVerified, result.Validation.MaxDeviation),
+		"The coherence gap w(T) - W*(T) reveals the 'end effect' of active items on the system. A large gap means active WIP is significantly inflating the average residence time beyond what completed items experienced.",
+		fmt.Sprintf("Convergence assessment: %s — this describes how the coherence gap is trending over the final quarter of the window.", result.Summary.Convergence),
+		"IMPORTANT: This tool always applies backflow reset (uses the LAST commitment date). This diverges from the configurable commitmentBackflowReset used by other tools like analyze_work_item_age.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
+}
