@@ -22,6 +22,7 @@ Rather than relying on Jira's often-misconfigured built-in reports, MCS-MCP infe
 - **Process Yield & Abandonment**: Quantify waste by identifying exactly where work is discarded — broken down by work type and workflow stage.
 - **High-Fidelity Aging Analysis**: Identify "neglected" inventory by comparing current WIP age against historical norms at the individual status level.
 - **Stratified Analytics**: Work item type stratification is pervasive across the suite. Separate Bugs from Stories in simulations, throughput, cycle time, and stability to surface capacity conflicts (the "Bug-Tax").
+- **Sample Path Analysis (Residence Time)**: Compute the finite Little's Law identity L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. The coherence gap between residence time and sojourn time reveals the "end effect" of active items on the system.
 - **Strategic Evolution Tracking**: Longitudinal audits using Three-Way Control Charts (weekly/monthly) detect systemic improvements or process drift over time.
 - **Historical Time-Travel**: Set a specific past date as the analytical reference point to recreate the state of your process at that moment. Useful for retrospectives, post-mortems, or before/after comparisons following a process change.
 - **Guided Analytical Roadmaps**: The server proactively suggests the right sequence of diagnostic steps for a given goal (forecasting, bottleneck analysis, capacity planning), preventing AI agents from guessing at the right path.

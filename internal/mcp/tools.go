@@ -418,6 +418,26 @@ func (s *Server) listTools() any {
 				},
 			},
 			map[string]any{
+				"name": "analyze_residence_time",
+				"description": "Perform a Sample Path Analysis (Stidham 1972, El-Taha & Stidham 1999) to compute the finite version of Little's Law: L(T) = Λ(T) · w(T).\n\n" +
+					"RESIDENCE TIME: The time an item accumulates in the system within the observation window. Applies to both completed and still-active items.\n" +
+					"SOJOURN TIME (W*): The special case for completed items — full duration from commitment to resolution (what 'analyze_cycle_time' measures).\n" +
+					"The COHERENCE GAP between average residence time w(T) and average sojourn time W*(T) reveals the 'end effect' of active items on the system.\n\n" +
+					"This tool provides a unified view that ties together what existing tools measure separately (cycle time, WIP age, WIP stability, flow debt).\n" +
+					"IMPORTANT: This tool ALWAYS applies backflow reset (uses the LAST commitment date), which diverges from the configurable commitmentBackflowReset in other tools.",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"project_key":          map[string]any{"type": "string", "description": "The project key"},
+						"board_id":             map[string]any{"type": "integer", "description": "The board ID"},
+						"history_window_weeks": map[string]any{"type": "integer", "description": "Number of weeks to analyze (default: 52)"},
+						"issue_types":          map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Optional: List of issue types to include (e.g., ['Story', 'Bug'])."},
+						"granularity":          map[string]any{"type": "string", "enum": []string{"daily", "weekly"}, "description": "Time series granularity: 'daily' (default) or 'weekly'."},
+					},
+					"required": []string{"project_key", "board_id"},
+				},
+			},
+			map[string]any{
 				"name":        "import_history_expand",
 				"description": "Extend the historical dataset backwards without creating gaps. Returns number of items fetched and used OMRC (oldest most recent change) boundary. Also triggers a catch-up.",
 				"inputSchema": map[string]any{
