@@ -726,6 +726,28 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 	// 3. Calculate CFD Data
 	cfd := stats.CalculateCFDData(allIssues, window)
 
+	// 4. Translate status IDs to human-readable names (API boundary translation)
+	if s.activeRegistry != nil {
+		for i, id := range cfd.Statuses {
+			if name := s.activeRegistry.GetStatusName(id); name != "" {
+				cfd.Statuses[i] = name
+			}
+		}
+		for i := range cfd.Buckets {
+			for t, statusCounts := range cfd.Buckets[i].ByIssueType {
+				translated := make(map[string]int, len(statusCounts))
+				for id, count := range statusCounts {
+					key := id
+					if name := s.activeRegistry.GetStatusName(id); name != "" {
+						key = name
+					}
+					translated[key] = count
+				}
+				cfd.Buckets[i].ByIssueType[t] = translated
+			}
+		}
+	}
+
 	res := map[string]any{
 		"cfd_data": cfd,
 	}
