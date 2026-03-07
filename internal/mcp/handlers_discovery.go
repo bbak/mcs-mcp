@@ -31,7 +31,6 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
@@ -49,7 +48,11 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 		discoverySource = "LOADED_FROM_CACHE"
 	}
 
-	res := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource, s.getResolutionMap(sourceID))
+	res, discoveredOrder := s.presentWorkflowMetadata(sourceID, sample, total, first, last, discoverySource, s.getResolutionMap(sourceID))
+
+	// Persist the discovered order alongside the updated NameRegistry
+	s.activeStatusOrder = discoveredOrder
+	_ = s.saveWorkflow(projectKey, boardID)
 
 	// Add is_cached signal to _metadata
 	if m, ok := res.(map[string]any); ok {
@@ -65,7 +68,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	return res, nil
 }
 
-func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string, resolutions map[string]string) any {
+func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, totalCount int, first, last time.Time, discoverySource string, resolutions map[string]string) (any, []string) {
 	persistence := stats.CalculateStatusPersistence(sample)
 
 	var mapping map[string]stats.StatusMetadata
@@ -162,7 +165,7 @@ func (s *Server) presentWorkflowMetadata(sourceID string, sample []jira.Issue, t
 		insights = append(insights, "NOTE: This is a NEW PROPOSAL based on recent data patterns. AI MUST verify this with the user before proceeding to diagnostics.")
 	}
 
-	return WrapResponse(res, "", 0, diagnostics, guidance, insights)
+	return WrapResponse(res, "", 0, diagnostics, guidance, insights), discoveredOrder
 }
 
 func (s *Server) handleSetWorkflowMapping(projectKey string, boardID int, mapping map[string]any, resolutions map[string]any, commitmentPoint string) (any, error) {

@@ -275,6 +275,9 @@ func (s *Server) listTools() any {
 					"The response provides a split view: 'Whole' (deterministic volumes) and 'Sample' (probabilistic characterization).\n" +
 					"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Terminal Status mapping (Secondary).\n" +
 					"TIER VISIBILITY: AI MUST show the confirmed mapping of Statuses to Tiers to the user.\n\n" +
+					"STATUS ORDER: The response includes a 'status_order' array — the canonical chronological ordering of workflow statuses. " +
+					"AI MUST present this order to the user for verification. If the user confirms or corrects it, AI MUST call 'workflow_set_order' to persist the final order. " +
+					"This order is critical for CFD visualization, flow debt analysis, and other range-based analytics.\n\n" +
 					"METAWORKFLOW GUIDANCE:\n" +
 					"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 					"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
@@ -352,7 +355,10 @@ func (s *Server) listTools() any {
 			},
 			map[string]any{
 				"name":        "workflow_set_order",
-				"description": "Explicity define the chronological order of statuses for a project to enable range-based analytics.",
+				"description": "Persist the user-confirmed chronological order of workflow statuses. " +
+					"AI MUST call this after 'workflow_discover_mapping' once the user has verified or corrected the proposed 'status_order'. " +
+					"If the user accepts the discovered order as-is, pass it back unchanged. If the user reorders statuses, pass the corrected order. " +
+					"This order is the primary means for ordering statuses in CFD charts, flow debt, and all range-based analytics.",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
