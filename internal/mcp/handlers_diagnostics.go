@@ -213,7 +213,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
 }
 
-func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any, error) {
+func (s *Server) handleGetProcessStability(projectKey string, boardID int, includeRawSeries bool) (any, error) {
 	if err := s.anchorContext(projectKey, boardID); err != nil {
 		return nil, err
 	}
@@ -263,6 +263,16 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int) (any,
 
 	stability := stats.CalculateProcessStability(matchedIssues, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
+
+	if !includeRawSeries {
+		stability.XmR.Values = nil
+		stability.XmR.MovingRange = nil
+		for k, sr := range stratified {
+			sr.XmR.Values = nil
+			sr.XmR.MovingRange = nil
+			stratified[k] = sr
+		}
+	}
 
 	res := map[string]any{
 		"stability":  stability,
@@ -690,7 +700,7 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks int) (any, error) {
+func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks int, granularity string) (any, error) {
 	if err := s.anchorContext(projectKey, boardID); err != nil {
 		return nil, err
 	}
@@ -748,13 +758,29 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 		}
 	}
 
+	// Weekly downsampling: keep only the last bucket per ISO week (CFD is cumulative)
+	if granularity == "weekly" && len(cfd.Buckets) > 0 {
+		var weekly []stats.CFDBucket
+		for i, b := range cfd.Buckets {
+			isLast := i == len(cfd.Buckets)-1
+			if !isLast {
+				nextYear, nextWeek := cfd.Buckets[i+1].Date.ISOWeek()
+				curYear, curWeek := b.Date.ISOWeek()
+				if nextYear == curYear && nextWeek == curWeek {
+					continue // Not the last day of this ISO week
+				}
+			}
+			weekly = append(weekly, b)
+		}
+		cfd.Buckets = weekly
+	}
+
 	res := map[string]any{
 		"cfd_data": cfd,
 	}
 
 	guidance := []string{
-		"CFD (Cumulative Flow Diagram) provides a daily snapshot of work items by status and issue type.",
-		"High-fidelity daily granularity allows detecting mid-week WIP surges or bottlenecks.",
+		"CFD (Cumulative Flow Diagram) provides a snapshot of work items by status and issue type.",
 		"The visualization agent should use this data to render a stacked area chart.",
 	}
 

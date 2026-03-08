@@ -249,7 +249,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 
 	addTool(mcpSrv, s, "analyze_process_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeProcessStabilityInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleGetProcessStability(args.ProjectKey, args.BoardID)
+			data, err := s.handleGetProcessStability(args.ProjectKey, args.BoardID, args.IncludeRawSeries)
 			return handleResult(s, data, err)
 		})
 
@@ -261,7 +261,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 
 	addTool(mcpSrv, s, "generate_cfd_data",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GenerateCFDDataInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
+			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, string(args.Granularity))
 			return handleResult(s, data, err)
 		})
 

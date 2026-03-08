@@ -30,16 +30,18 @@ type ValidationCheckpoint struct {
 	PredictedP50  float64 `json:"predicted_p50"`
 	PredictedP85  float64 `json:"predicted_p85"`
 	PredictedP95  float64 `json:"predicted_p95"`
-	IsWithinCone  bool    `json:"is_within_cone"` // Is actual between P10 and P95?
-	DriftDetected bool    `json:"drift_detected"` // If true, this checkpoint is unreliable due to system change
+	IsWithinCone  bool    `json:"is_within_cone"`  // Is actual between P10 and P95?
+	DriftDetected bool    `json:"drift_detected"`  // If true, this checkpoint is unreliable due to system change
+	IsDegenerate  bool    `json:"is_degenerate,omitempty"` // If true, near-zero throughput made this forecast meaningless
 }
 
 // WalkForwardResult holds the aggregate results of the analysis.
 type WalkForwardResult struct {
-	AccuracyScore     float64                `json:"accuracy_score"` // % of checkpoints within cone
-	Checkpoints       []ValidationCheckpoint `json:"checkpoints"`
-	DriftWarning      string                 `json:"drift_warning,omitempty"`
-	ValidationMessage string                 `json:"validation_message"`
+	AccuracyScore          float64                `json:"accuracy_score"` // % of checkpoints within cone
+	DegenerateCheckpoints  int                    `json:"degenerate_checkpoints,omitempty"`
+	Checkpoints            []ValidationCheckpoint `json:"checkpoints"`
+	DriftWarning           string                 `json:"drift_warning,omitempty"`
+	ValidationMessage      string                 `json:"validation_message"`
 }
 
 // WalkForwardEngine orchestrates the time-travel validation.
@@ -213,7 +215,18 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 			}
 		}
 
-		totalHits++
+		// Detect degenerate checkpoints (near-zero throughput → meaningless forecast)
+		if cfg.SimulationMode == "duration" && (cp.PredictedP50 >= MaxForecastDays || cp.PredictedP85 >= MaxForecastDays || cp.PredictedP95 >= MaxForecastDays) {
+			cp.IsDegenerate = true
+		} else if cfg.SimulationMode == "scope" && cp.PredictedP50 == 0 && cp.PredictedP85 == 0 && cp.PredictedP95 == 0 {
+			cp.IsDegenerate = true
+		}
+
+		if cp.IsDegenerate {
+			result.DegenerateCheckpoints++
+		} else {
+			totalHits++
+		}
 		result.Checkpoints = append(result.Checkpoints, cp)
 	}
 
@@ -222,6 +235,10 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		result.ValidationMessage = fmt.Sprintf("Walk-Forward Analysis: %d/%d (%.0f%%) of actual outcomes fell within the predicted forecast cone (P10-P98).", activeHits, totalHits, result.AccuracyScore*100)
 	} else {
 		result.ValidationMessage = "Insufficient historical data or drift constraints prevented meaningful backtesting."
+	}
+
+	if result.DegenerateCheckpoints > 0 {
+		result.ValidationMessage += fmt.Sprintf(" %d checkpoint(s) excluded due to near-zero throughput (degenerate).", result.DegenerateCheckpoints)
 	}
 
 	if result.AccuracyScore < 0.7 && totalHits > 3 {

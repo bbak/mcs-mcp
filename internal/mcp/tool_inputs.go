@@ -164,6 +164,7 @@ type AnalyzeProcessStabilityInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
 	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
+	IncludeRawSeries   bool   `json:"include_raw_series,omitempty" jsonschema:"If true includes the full Values and MovingRange arrays in the response (default: false)."`
 }
 
 // AnalyzeFlowDebtInput holds arguments for the analyze_flow_debt tool.
@@ -176,9 +177,10 @@ type AnalyzeFlowDebtInput struct {
 
 // GenerateCFDDataInput holds arguments for the generate_cfd_data tool.
 type GenerateCFDDataInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
+	ProjectKey         string      `json:"project_key" jsonschema:"The project key"`
+	BoardID            int         `json:"board_id" jsonschema:"The board ID"`
+	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
+	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity: daily (default) or weekly. Weekly keeps only the last data point per ISO week reducing payload size."`
 }
 
 // AnalyzeWIPStabilityInput holds arguments for the analyze_wip_stability tool.

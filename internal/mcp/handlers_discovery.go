@@ -63,6 +63,15 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 				"is_cached": isCachedMapping,
 			}
 		}
+
+		// Cache staleness check: compare mapped statuses against observed event data
+		if isCachedMapping && !forceRefresh && s.activeMapping != nil {
+			if warning := s.detectMappingStaleness(events); warning != "" {
+				if meta, ok := m["_metadata"].(map[string]any); ok {
+					meta["staleness_warning"] = warning
+				}
+			}
+		}
 	}
 
 	return res, nil

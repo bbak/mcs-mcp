@@ -46,7 +46,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_process_stability",
 			func() (any, error) {
-				return srv.handleGetProcessStability(testProject, testBoard)
+				return srv.handleGetProcessStability(testProject, testBoard, true)
 			},
 		},
 		{
@@ -82,7 +82,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"generate_cfd_data",
 			func() (any, error) {
-				return srv.handleGetCFDData(testProject, testBoard, 26)
+				return srv.handleGetCFDData(testProject, testBoard, 26, "")
 			},
 		},
 		{
