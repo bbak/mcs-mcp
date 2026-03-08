@@ -43,15 +43,14 @@ Apply this explicit whitelist logic before building any chart data array.
 ### Exclude — always, unconditionally:
 - `tier: "Demand"` statuses (e.g. "Open") — these are pre-commitment backlog states;
   residency here is not delivery time and misleads the chart scale dramatically
-- `tier: "Finished"` statuses (e.g. "Done", "Closed") — terminal states; "Done" is
+- `tier: "Finished"` statuses (e.g. "Done", "Closed") — finished states; "Done" is
   always 0d (instantaneous), "Closed" reflects abandonment semantics, not flow time
-- Any status with `role: "terminal"`
 - Any status with `role: "ignore"`
 
 ```js
 // CORRECT: whitelist filter
 const OPERATIONAL = data.persistence
-  .filter(s => (s.tier === "Downstream" || s.tier === "Upstream") && s.role !== "terminal")
+  .filter(s => s.tier === "Downstream" || s.tier === "Upstream")
   .sort((a, b) => WORKFLOW_ORDER.indexOf(a.statusName) - WORKFLOW_ORDER.indexOf(b.statusName));
 
 // WRONG: do not show all statuses
@@ -84,7 +83,7 @@ data.persistence[]               — one entry per status:
   .statusID                      — Jira status ID
   .statusName                    — display name
   .share                         — fraction of delivered items that visited this status (0–1)
-  .role                          — "active" | "queue" | "terminal"
+  .role                          — "active" | "queue" | "ignore"
   .tier                          — "Demand" | "Upstream" | "Downstream" | "Finished"
   .coin_toss                     — P50 median residency in days
   .probable                      — P70
@@ -110,7 +109,7 @@ data.tier_summary                — aggregated stats by tier:
 ```js
 // Whitelist filter — see ⚠ Whitelist section above
 const OPERATIONAL = data.persistence
-  .filter(s => (s.tier === "Downstream" || s.tier === "Upstream") && s.role !== "terminal")
+  .filter(s => s.tier === "Downstream" || s.tier === "Upstream")
   .sort((a, b) => WORKFLOW_ORDER.indexOf(a.statusName) - WORKFLOW_ORDER.indexOf(b.statusName));
 
 // Metric selector — driven by state toggle
@@ -157,7 +156,7 @@ const TYPE_COLORS = {
 const ROLE_COLORS = {
   active:   "#6b7de8",   // PRIMARY — value-adding work
   queue:    "#e2c97e",   // CAUTION — waiting / flow debt
-  terminal: "#505878",   // MUTED   (excluded from chart, included for legend completeness)
+  ignore:   "#505878",   // MUTED   (excluded from chart, included for legend completeness)
 };
 
 const TIER_COLORS = {
@@ -308,7 +307,7 @@ Two sections:
 
 2. **"Data scope:"** — Only items that reached a "delivered" resolution are included;
    active WIP is excluded to prevent inflating historical norms. Demand and Finished
-   statuses are excluded from the chart — they reflect backlog age and terminal states,
+   statuses are excluded from the chart — they reflect backlog age and finished states,
    not delivery flow. Visit share shows the fraction of delivered items that passed
    through each status.
 
@@ -323,7 +322,7 @@ Two sections:
 - [ ] Chart title reads exactly **"Status Persistence"**
 - [ ] **Whitelist filter applied** — only `tier: "Downstream"` and `tier: "Upstream"` statuses rendered
 - [ ] **Demand statuses (e.g. "Open") explicitly excluded** — never appear in any panel
-- [ ] **Finished/terminal statuses (e.g. "Done", "Closed") explicitly excluded** — never appear in any panel
+- [ ] **Finished-tier statuses (e.g. "Done", "Closed") explicitly excluded** — never appear in any panel
 - [ ] Statuses sorted by confirmed workflow order
 - [ ] Panel 1: metric toggle (P50 / P85 / P95) drives bar heights
 - [ ] Panel 1: color-by toggle (BY ROLE / BY TIER) drives bar colors

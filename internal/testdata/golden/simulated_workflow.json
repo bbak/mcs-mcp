@@ -8,7 +8,6 @@
     },
     "10003": {
       "name": "Done",
-      "role": "terminal",
       "tier": "Finished",
       "outcome": "delivered"
     },
@@ -59,7 +58,6 @@
     },
     "6": {
       "name": "Closed",
-      "role": "terminal",
       "tier": "Finished",
       "outcome": "abandoned"
     }
@@ -69,8 +67,22 @@
     "10100": "abandoned",
     "10401": "abandoned"
   },
+  "status_order": [
+    "1",
+    "38775",
+    "38776",
+    "38777",
+    "38778",
+    "38779",
+    "38780",
+    "38781",
+    "38782",
+    "38783",
+    "10003",
+    "6"
+  ],
   "commitment_point": "38776",
-  "discovery_cutoff": "2023-08-02T12:36:51+02:00",
+  "discovery_cutoff": "2023-08-02T12:36:51+01:00",
   "name_registry": {
     "statuses": {
       "1": "Open",

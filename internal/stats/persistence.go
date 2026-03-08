@@ -144,7 +144,16 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 			s.Interpretation = "This status is ignored in most process diagnostics."
 		}
 	}
-	return results
+
+	// Filter out Finished-tier statuses — they are terminal exit points,
+	// not operational flow stages, and have no meaningful residency.
+	filtered := results[:0]
+	for _, s := range results {
+		if s.Tier != "Finished" {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
 }
 
 // CalculateTierSummary aggregates persistence data into tiers.
