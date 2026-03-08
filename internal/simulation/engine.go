@@ -63,7 +63,7 @@ type Result struct {
 	StaleWIPCount     int            `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
-	Composition              Composition               `json:"composition"`
+	Composition              *Composition              `json:"composition,omitempty"`
 	WIPAgeDistribution       map[string]map[string]int `json:"wip_age_distribution,omitempty"`
 	ThroughputTrend          ThroughputTrend           `json:"throughput_trend"`
 	Insights                 []string                  `json:"insights,omitempty"`

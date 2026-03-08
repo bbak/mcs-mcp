@@ -83,12 +83,6 @@
         "Story": 10
       }
     },
-    "composition": {
-      "existing_backlog": 0,
-      "wip": 0,
-      "additional_items": 0,
-      "total": 0
-    },
     "throughput_trend": {
       "direction": "Increasing",
       "percentage_change": 18.5
