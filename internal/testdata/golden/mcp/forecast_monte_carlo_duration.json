@@ -82,10 +82,10 @@
       }
     },
     "composition": {
-      "existing_backlog": 0,
-      "wip": 0,
+      "existing_backlog": 27,
+      "wip": 47,
       "additional_items": 0,
-      "total": 0
+      "total": 74
     },
     "throughput_trend": {
       "direction": "Increasing",

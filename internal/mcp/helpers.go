@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 
@@ -206,6 +207,40 @@ func (s *Server) getFinishedStatuses() map[string]bool {
 		}
 	}
 	return finished
+}
+
+func (s *Server) detectMappingStaleness(events []eventlog.IssueEvent) string {
+	// Collect unique status IDs observed in event data
+	observed := make(map[string]bool)
+	for i := range events {
+		if events[i].ToStatusID != "" {
+			observed[events[i].ToStatusID] = true
+		}
+		if events[i].FromStatusID != "" {
+			observed[events[i].FromStatusID] = true
+		}
+	}
+
+	// Find statuses in events but missing from mapping
+	var unmapped []string
+	for id := range observed {
+		if _, ok := s.activeMapping[id]; !ok {
+			name := ""
+			if s.activeRegistry != nil {
+				name = s.activeRegistry.GetStatusName(id)
+			}
+			if name != "" {
+				unmapped = append(unmapped, name)
+			} else {
+				unmapped = append(unmapped, id)
+			}
+		}
+	}
+
+	if len(unmapped) > 0 {
+		return fmt.Sprintf("Board configuration may have changed: %d status(es) found in data but not in cached mapping (%s). Consider running with force_refresh=true.", len(unmapped), strings.Join(unmapped, ", "))
+	}
+	return ""
 }
 
 func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statusWeights map[string]int, mappings map[string]stats.StatusMetadata, cycleTimes []float64) map[string][]float64 {

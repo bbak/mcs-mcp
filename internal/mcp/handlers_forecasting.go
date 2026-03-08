@@ -77,6 +77,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	actualTargets := make(map[string]int)
+	var backlogCount, wipCount int
 
 	if len(targets) > 0 {
 		for k, v := range targets {
@@ -88,6 +89,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			for _, issue := range all {
 				if m, ok := s.activeMapping[issue.StatusID]; ok && (m.Tier == "Demand" || m.Tier == "Upstream") {
 					actualTargets[issue.IssueType]++
+					backlogCount++
 				}
 			}
 		}
@@ -99,6 +101,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			}
 			for _, issue := range wipIssues {
 				actualTargets[issue.IssueType]++
+				wipCount++
 			}
 		}
 
@@ -143,22 +146,24 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
-
-		// Populate Composition breakdown
-		resObj.Composition.ExistingBacklog = 0 // Existing backlog handled via Targets
-		resObj.Composition.WIP = 0
-		resObj.Composition.AdditionalItems = additionalItems
-		resObj.Composition.Total = 0
-		for _, v := range actualTargets {
-			resObj.Composition.Total += v
+		resObj.Composition = simulation.Composition{
+			ExistingBacklog: backlogCount,
+			WIP:             wipCount,
+			AdditionalItems: additionalItems,
+			Total:           backlogCount + wipCount + additionalItems,
 		}
-
 		res = resObj
 
 	case "duration":
 		resObj := engine.RunMultiTypeDurationSimulation(actualTargets, dist, 1000, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+		resObj.Composition = simulation.Composition{
+			ExistingBacklog: backlogCount,
+			WIP:             wipCount,
+			AdditionalItems: additionalItems,
+			Total:           backlogCount + wipCount + additionalItems,
+		}
 		res = resObj
 	}
 

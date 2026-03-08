@@ -8117,8 +8117,7 @@
   },
   "guardrails": {
     "insights": [
-      "CFD (Cumulative Flow Diagram) provides a daily snapshot of work items by status and issue type.",
-      "High-fidelity daily granularity allows detecting mid-week WIP surges or bottlenecks.",
+      "CFD (Cumulative Flow Diagram) provides a snapshot of work items by status and issue type.",
       "The visualization agent should use this data to render a stacked area chart."
     ],
     "warnings": []

@@ -11,8 +11,8 @@ type XmRResult struct {
 	AmR         float64   `json:"average_moving_range"`
 	UNPL        float64   `json:"upper_natural_process_limit"`
 	LNPL        float64   `json:"lower_natural_process_limit"`
-	Values      []float64 `json:"values"`
-	MovingRange []float64 `json:"moving_ranges"`
+	Values      []float64 `json:"values,omitempty"`
+	MovingRange []float64 `json:"moving_ranges,omitempty"`
 	Signals     []Signal  `json:"signals"`
 }
 

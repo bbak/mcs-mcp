@@ -150,7 +150,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 				t.Logf("[%s/%s] Flow Debt: TotalDebt=%d", dist, scen, flowDebt.TotalDebt)
 
 				// 6. Verify CFD Data
-				cRes, err := server.handleGetCFDData("MCSTEST", 0, 26)
+				cRes, err := server.handleGetCFDData("MCSTEST", 0, 26, "")
 				if err != nil {
 					t.Fatalf("Failed to get CFD data: %v", err)
 				}
