@@ -188,7 +188,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	return WrapResponse(res, projectKey, boardID, nil, warnings, insights), runErr
 }
 
-func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, analyzeWIP bool, startStatus, endStatus string, issueTypes []string) (any, error) {
+func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, startStatus, endStatus string, issueTypes []string) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -217,7 +217,6 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 	delivered := session.GetDelivered()
 	finished := session.GetFinished()
 	all := session.GetAllIssues()
-	wip := session.GetWIP()
 
 	if len(delivered) == 0 {
 		return nil, fmt.Errorf("no historical delivery data found")
@@ -241,11 +240,6 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, an
 
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes, ctByType)
-
-	if analyzeWIP {
-		wipAges := s.calculateWIPAges(wip, startStatus, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, cycleTimes)
-		engine.AnalyzeWIPStability(&resObj, wipAges, ctByType)
-	}
 
 	warnings := append(resObj.Warnings, s.getQualityWarnings(all)...)
 	insights := s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)

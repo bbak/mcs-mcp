@@ -62,6 +62,19 @@ data.aging[]                         — one entry per active WIP item:
   .cumulative_downstream_days        — time spent in Downstream tier
   .percentile                        — relative to historical cycle time distribution
   .is_aging_outlier                  — true if age exceeds historical P85
+
+data.summary                         — aggregate WIP health snapshot:
+  .total_items                       — total active WIP count
+  .outlier_count                     — items exceeding P85 cycle time
+  .p50_threshold_days                — historical cycle time P50
+  .p85_threshold_days                — historical cycle time P85 ★
+  .p95_threshold_days                — historical cycle time P95
+  .distribution                      — bucketed item counts:
+    ."Inconspicuous (within P50)"    — items aging < P50
+    ."Aging (P50-P85)"               — items between P50 and P85
+    ."Warning (P85-P95)"             — items between P85 and P95
+    ."Extreme (>P95)"                — items exceeding P95
+  .stability_index                   — Little's Law index (WIP / throughput × avgCT)
 ```
 
 > **Primary age metric:** Always use `age_since_commitment_days` as the main displayed
@@ -69,104 +82,71 @@ data.aging[]                         — one entry per active WIP item:
 > with long pre-commitment history but is NOT the outlier basis.
 >
 > **`is_aging_outlier` flag:** Set by the tool when `age_since_commitment_days` exceeds
-> the historical P85 cycle time. The P85 threshold value is NOT returned by this tool —
-> it must be cross-referenced from `analyze_cycle_time` results if available. If not
-> available, acknowledge this in the footer.
+> the historical P85 cycle time. The P85 threshold is available in
+> `data.summary.p85_threshold_days`.
 >
 > **`percentile` field:** Relative to historical completed items. P85+ = outlier.
 > P98 = extreme outlier. This is the tool's internal P85 flagging basis — do not
 > recalculate it.
-
----
-
-## P85 Threshold
-
-The tool flags outliers internally using P85 but does NOT return the threshold value.
-
-**If `analyze_cycle_time` results are available in the session:**
-```js
-const P85_THRESHOLD = data_from_analyze_cycle_time.percentiles.p85; // days
-// Show as reference line in the Age Ranking view
-// Show in stat card: "P85 THRESHOLD — {N}d — from cycle time SLE"
-```
-
-**If not available:**
-```js
-// Omit the reference line
-// Stat card: "P85 THRESHOLD — N/A — run analyze_cycle_time"
-// Footer note: "P85 threshold not available — run analyze_cycle_time for the exact value"
-```
-
----
-
-## Outlier Severity Color Scale
-
-Four levels, applied to bars, table text, and outlier cards:
-
-```js
-const outlierColor = (wipAge) =>
-  wipAge >= 300 ? ALARM              // #ff6b6b — critical (extreme outlier)
-: wipAge >= 120 ? "#ff9b6b"          // orange-red — severe
-: wipAge >=  85 ? CAUTION            // #e2c97e — outlier (at/near P85)
-:                 PRIMARY;           // #6b7de8 — normal (dimmed)
-
-// fillOpacity: outlier = 0.9, normal = 0.5
-```
-
-This scale communicates urgency beyond the binary outlier flag.
+>
+> **`stability_index`:** Little's Law ratio (WIP ÷ throughput × avg cycle time).
+> Values > 1.3 indicate a clogged system; < 0.7 indicate a starving system.
 
 ---
 
 ## Data Preparation
 
+Flatten the tool response fields into a compact local array at the top of the component.
+Use short property names (e.g. `wip`, `statusAge`, `pct`, `outlier`) rather than the
+full API field names. This makes JSX easier to read and avoids deep property access
+inside render loops.
+
 ```js
-// Sort all items by WIP age descending for Age Ranking view
-const sorted = [...data.aging].sort((a, b) =>
-  b.age_since_commitment_days - a.age_since_commitment_days
-);
+// Recommended shape for each item in the hardcoded array:
+// { key, type, status, wip, statusAge, pct, outlier }
+//   wip       ← age_since_commitment_days
+//   statusAge ← age_in_current_status_days
+//   pct       ← percentile
+//   outlier   ← is_aging_outlier
 
-// Outliers only (for table + stat cards)
-const OUTLIERS = data.aging.filter(d => d.is_aging_outlier);
-const TOTAL    = data.aging.length;
+const sorted = [...AGING].sort((a, b) => b.wip - a.wip);
+const oldest = sorted[0];
+const median = sorted[Math.floor(sorted.length / 2)].wip;
 
-// Status breakdown (for By Status view)
-// Ordered by canonical workflow position — use workflow_set_order if known
-const STATUS_ORDER = [
-  "awaiting development", "developing",
-  "awaiting deploy to QA", "deploying to QA",
-  "awaiting UAT", "UAT (+Fix)",
-  "awaiting deploy to Prod", "deploying to Prod",
-];
+// Outliers (for table)
+const OUTLIERS = AGING.filter(d => d.outlier);
 
+// By-status breakdown
 const byStatus = STATUS_ORDER.map(s => {
-  const inStatus = data.aging.filter(d => d.status === s);
+  const items = AGING.filter(d => d.status === s);
+  if (!items.length) return null;
   return {
-    status:     s,
-    count:      inStatus.length,
-    outliers:   inStatus.filter(d => d.is_aging_outlier).length,
-    normal:     inStatus.filter(d => !d.is_aging_outlier).length,
-    maxAge:     inStatus.length ? Math.max(...inStatus.map(d => d.age_since_commitment_days)) : 0,
+    status:     s,            // abbreviated label for X-axis
+    fullStatus: s,            // full name for tooltip
+    count:      items.length,
+    outliers:   items.filter(d => d.outlier).length,
+    normal:     items.filter(d => !d.outlier).length,
+    maxAge:     Math.max(...items.map(d => d.wip)),
   };
-}).filter(d => d.count > 0);
+}).filter(Boolean);
 
-// Type breakdown (for By Type view)
-const byType = [...new Set(data.aging.map(d => d.type))].map(t => {
-  const items = data.aging.filter(d => d.type === t);
+// By-type breakdown
+const byType = ALL_TYPES.map(t => {
+  const items = AGING.filter(d => d.type === t);
   return {
     type:     t,
     total:    items.length,
-    outliers: items.filter(d => d.is_aging_outlier).length,
-    normal:   items.filter(d => !d.is_aging_outlier).length,
-    maxAge:   Math.max(...items.map(d => d.age_since_commitment_days)),
-    avgAge:   items.reduce((s, d) => s + d.age_since_commitment_days, 0) / items.length,
-    color:    TYPE_COLORS[t] || TEXT,
+    outliers: items.filter(d => d.outlier).length,
+    normal:   items.filter(d => !d.outlier).length,
+    maxAge:   Math.max(...items.map(d => d.wip)),
+    avgAge:   items.reduce((s, d) => s + d.wip, 0) / items.length,
   };
 });
 ```
 
 ---
 
-## Issue Type and Status Color Maps
+## Issue Type Color Map
 
 ```js
 const TYPE_COLORS = {
@@ -179,65 +159,184 @@ const TYPE_COLORS = {
 
 ---
 
+## Outlier Severity Color Scale
+
+Four levels applied to bar fills, table text, and stat cards:
+
+```js
+function outlierColor(age) {
+  if (age >= 300) return ALARM;       // #ff6b6b — critical
+  if (age >= 120) return "#ff9b6b";   // orange-red — severe
+  if (age >= 85)  return CAUTION;     // #e2c97e — outlier (at/near P85)
+  return PRIMARY;                     // #6b7de8 — normal
+}
+// fillOpacity: outlier = 0.9, normal = 0.45
+```
+
+---
+
+## Recharts Rendering Rules  ⚠ CRITICAL
+
+These rules reflect confirmed rendering behaviour. Violating them causes silent
+chart failures (blank panels, missing bars, console errors).
+
+### Rule 1 — `<Cell>` is only safe inside a single-series `<Bar>`
+
+`<Cell>` works reliably when a `<Bar>` is the **only** bar in the chart (no `stackId`).
+**Never** combine `<Cell>` per-row coloring with `stackId` — Recharts drops the bar
+silently or renders nothing.
+
+```jsx
+// ✅ CORRECT — single Bar with Cell (Age Ranking view)
+<Bar dataKey="wip" radius={[0, 3, 3, 0]}>
+  {filtered.map((d, i) => (
+    <Cell key={`cell-${i}`}
+      fill={outlierColor(d.wip)}
+      fillOpacity={d.outlier ? 0.9 : 0.45} />
+  ))}
+</Bar>
+
+// ❌ WRONG — Cell inside a stacked Bar
+<Bar dataKey="normal" stackId="s" fill={PRIMARY}>
+  {items.map((d, i) => <Cell key={i} fill={TYPE_COLORS[d.type]} />)}  // DO NOT DO THIS
+</Bar>
+```
+
+### Rule 2 — Stacked bars use uniform fill only
+
+For By Status and By Type views, both bars share the same `stackId`. Apply color via
+the `fill` prop on `<Bar>` — not via `<Cell>`. Use `fillOpacity` to visually separate
+the two series.
+
+```jsx
+// ✅ CORRECT — stacked bars, uniform fill
+<Bar dataKey="outliers" stackId="s" fill={ALARM}   fillOpacity={0.85} />
+<Bar dataKey="normal"   stackId="s" fill={PRIMARY} fillOpacity={0.5} radius={[3,3,0,0]} />
+```
+
+### Rule 3 — Do not mix `layout="vertical"` with `stackId`
+
+The Age Ranking view uses `layout="vertical"` (horizontal bars). The By Status and
+By Type views use the default vertical layout (upright bars). Never apply `stackId`
+inside a `layout="vertical"` chart.
+
+### Rule 4 — `ResponsiveContainer` height must be a stable number
+
+Always pass a numeric `height` directly. Never derive it inside JSX in a way that
+could produce `NaN` or `0`. Minimum safe height for the Age Ranking view:
+
+```js
+const rankH = Math.max(420, filtered.length * 14);
+// Pass as: <ResponsiveContainer width="100%" height={rankH}>
+```
+
+### Rule 5 — Unique `key` props on `<Cell>`
+
+Always use `key={\`cell-${i}\`}` (template literal), not `key={i}` alone. Recharts
+uses the key to track cell identity across re-renders; plain integer keys can collide.
+
+### Rule 6 — Keep tooltip `cursor` subtle
+
+```jsx
+cursor={{ fill: PRIMARY + "0c" }}   // ~5% opacity — avoids obscuring bars
+```
+
+---
+
 ## Chart Architecture
 
 Three views, toggled from the badge row. An outlier table sits below all views.
-Type filter toggles (All / Story / Activity / Bug) apply to Age Ranking and By Status
-views. By Type view always shows all types.
+Type filter toggles (All / Story / Activity / Bug / …) apply to Age Ranking and
+By Status views. By Type view always shows all types.
 
 ### View A: Age Ranking (default)
 
-**Horizontal `BarChart`** (`layout="vertical"`), height scales with item count
-(`Math.max(340, items.length * 13)`).
+**Horizontal `BarChart`** (`layout="vertical"`).
 
+- Height: `Math.max(420, filtered.length * 14)` — scales with item count
 - X-axis: `type="number"`, `tickFormatter={v => v + "d"}`
-- Y-axis: `type="category"`, `dataKey="key"` (Jira issue keys), `width={120}`, 9px font
-- `<Bar dataKey="age_since_commitment_days">` — one bar per item, sorted descending
-- Bar fill: `outlierColor(wipAge)` via `<Cell>`, `fillOpacity` 0.9 (outlier) / 0.5 (normal)
-- `barSize={9}`, `radius={[0, 3, 3, 0]}`
-- `<ReferenceLine x={P85_THRESHOLD}>` — CAUTION, dashed `"6 3"`, `strokeWidth={1.5}`,
-  labeled `"P85: {N}d"` at `position="top"`. Omit if threshold unavailable.
+- Y-axis: `type="category"`, `dataKey="key"`, `width={138}`, 9px font
+- Single `<Bar dataKey="wip">` with per-item `<Cell>` coloring (see Rule 1)
+- `radius={[0, 3, 3, 0]}` — rounded right edge only
+- `<ReferenceLine x={P85}>` — CAUTION, `strokeDasharray="6 3"`, `strokeWidth={1.5}`,
+  `label={{ position: "insideTopRight" }}`
 
 **Panel subtitle:** `"WIP age per item, sorted descending — P85 outlier threshold marked"`
 
 ### View B: By Status
 
-**Stacked `BarChart`**, height 300px. X-axis: status names (truncated for display),
-rotated -35°. Y-axis: item count.
+**Stacked `BarChart`** (default vertical layout), height 310px.
 
-Two stacked bars:
-1. `<Bar dataKey="outliers" stackId="a">` — ALARM fill, `fillOpacity={0.85}`,
-   `radius={[0,0,0,0]}`
-2. `<Bar dataKey="normal"  stackId="a">` — PRIMARY fill, `fillOpacity={0.5}`,
-   `radius={[3,3,0,0]}`
-
-Status names on X-axis can be abbreviated (e.g. "await dev", "depl QA") to prevent
-label crowding. Store the full name separately for tooltips.
-
-Statuses ordered by canonical workflow position (use `STATUS_ORDER` from data
-preparation). Only statuses with at least one item are rendered.
+- X-axis: abbreviated status labels (e.g. "await dev", "depl QA"), rotated -35°,
+  `height={70}` to accommodate rotation
+- Y-axis: item count
+- Two stacked bars (see Rule 2):
+  1. `<Bar dataKey="outliers" stackId="s">` — ALARM, `fillOpacity={0.85}`
+  2. `<Bar dataKey="normal"   stackId="s">` — PRIMARY, `fillOpacity={0.5}`,
+     `radius={[3,3,0,0]}`
+- Store full status name in `fullStatus` field; display abbreviation on axis,
+  full name in tooltip
+- Only statuses with at least one item are included
 
 ### View C: By Type
 
-**Stacked `BarChart`**, height 280px. X-axis: issue types. Two stacked bars per type
-(outliers ALARM / normal at `TYPE_COLORS[type]`).
+**Stacked `BarChart`** (default vertical layout), height 280px.
 
-Type toggle not needed in this view — always show all types side by side.
+- X-axis: issue types
+- Two stacked bars with uniform fill (see Rule 2):
+  1. `<Bar dataKey="outliers" stackId="t">` — ALARM, `fillOpacity={0.85}`
+  2. `<Bar dataKey="normal"   stackId="t">` — PRIMARY, `fillOpacity={0.5}`,
+     `radius={[3,3,0,0]}`
+- No type filter in this view (all types always shown)
+- **Do not** use per-type colors via `<Cell>` here — use uniform fill only
 
-### Outlier Table (always visible)
+### Outlier Table (always visible below all views)
 
-Columns: Item | Type | Status | WIP Age | In Status | Pct
+Columns: ITEM | TYPE | STATUS | WIP AGE | IN STATUS | PCT
 
-- Show only `is_aging_outlier: true` items, filtered by active type toggle
-- Sorted by `age_since_commitment_days` descending (most urgent first)
+- Show only `outlier: true` items, filtered by active type toggle
+- Sorted by `wip` descending (most urgent first)
 - Color rules:
-  - Item key: `outlierColor(wipAge)`, bold
+  - Item key: `outlierColor(wip)`, bold
   - Type: `TYPE_COLORS[type]`
   - Status: MUTED, 10px
-  - WIP Age: `outlierColor(wipAge)`, bold
+  - WIP Age: `outlierColor(wip)`, bold
   - In Status: SECONDARY
-  - Pct: ALARM, format as `"P{percentile}"`
-- Row background: no tint (outlierColor on text is sufficient signal)
+  - Pct: ALARM, format as `"P{pct}"`
+
+---
+
+## Legend
+
+Replace the Recharts `<Legend>` with a manual swatch row using a reusable `Swatch`
+component. Inline SVG is not required — a styled `<div>` with `borderRadius: 2`
+is simpler and equally correct:
+
+```jsx
+function Swatch({ color, label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div style={{ width: 14, height: 10, background: color,
+        borderRadius: 2, opacity: 0.85 }} />
+      <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
+    </div>
+  );
+}
+```
+
+**Age Ranking legend:**
+```
+Swatch ALARM     "≥ 300d — critical"
+Swatch #ff9b6b   "120–299d — severe"
+Swatch CAUTION   "85–119d — outlier"
+Swatch PRIMARY   "< P85 — normal (dimmed)"
+```
+
+**By Status and By Type legend:**
+```
+Swatch ALARM    "Aging outliers (≥ P85)"
+Swatch PRIMARY  "Normal items (< P85)"
+```
 
 ---
 
@@ -245,20 +344,18 @@ Columns: Item | Type | Status | WIP Age | In Status | Pct
 
 - **Breadcrumb:** `{PROJECT_KEY} · {board name} · Board {board_id}`
 - **Title:** exactly `"WIP Item Age"`
-- **Subtitle:** `"Age since commitment · {TOTAL} active items · P85 outlier threshold: {P85_THRESHOLD}d"`
-  (or `"P85 threshold: N/A"` if not available)
+- **Subtitle:** `"Age since commitment · {TOTAL} active items · P85 outlier threshold: {P85}d"`
 
 **Stat cards:**
 
 | Label | Value | Sub | Color |
 |---|---|---|---|
 | `TOTAL WIP` | `{TOTAL}` | — | MUTED |
-| `OUTLIERS (P85+)` | `{OUTLIERS.length}` | `"{N}% of WIP"` | ALARM |
-| `OLDEST ITEM` | `{max wip age}d` | `{item key}` | ALARM |
-| `P85 THRESHOLD` | `{P85_THRESHOLD}d` or `"N/A"` | `"from cycle time SLE"` | CAUTION |
-| `MEDIAN AGE` | `{median age}d` | — | SECONDARY |
-
-Median = `sorted[Math.floor(sorted.length / 2)].age_since_commitment_days`.
+| `OUTLIERS (P85+)` | `{OUTLIER_COUNT}` | `"{N}% of WIP"` | ALARM |
+| `OLDEST ITEM` | `{oldest.wip.toFixed(0)}d` | `{oldest.key}` | ALARM |
+| `P85 THRESHOLD` | `{P85.toFixed(0)}d` | `"historical cycle time"` | CAUTION |
+| `MEDIAN AGE` | `{median.toFixed(1)}d` | — | SECONDARY |
+| `STABILITY INDEX` | `{STABILITY.toFixed(2)}` | `"> 1.3 clogged / < 0.7 starving"` | `STABILITY > 1.3 ? ALARM : STABILITY < 0.7 ? CAUTION : POSITIVE` |
 
 ---
 
@@ -267,12 +364,11 @@ Median = `sorted[Math.floor(sorted.length / 2)].age_since_commitment_days`.
 Always show:
 1. `⚠ {N} aging outliers — {N}% of WIP exceeds P85` — ALARM
 2. `Oldest: {key} — {age}d in {status}` — ALARM
-3. `P85 threshold cross-referenced from analyze_cycle_time` — MUTED
-   (or `⚠ P85 threshold unavailable — run analyze_cycle_time` — CAUTION if missing)
+3. `P85: {P85}d` — CAUTION
+4. `Little's Law: {STABILITY} — {verdict}` — ALARM / CAUTION / POSITIVE
 
-**Interactive controls** (right-aligned, per base skill pattern): three view toggle
-buttons using PRIMARY as the active color:
-- `AGE RANKING` (default)
+**Interactive controls** (right-aligned): three view toggle buttons:
+- `AGE RANKING` (default active)
 - `BY STATUS`
 - `BY TYPE`
 
@@ -281,103 +377,84 @@ buttons using PRIMARY as the active color:
 ## Type Filter Buttons
 
 Shown for Age Ranking and By Status views. One button per type present in the data,
-plus "All" (default). Uses `TYPE_COLORS[type]` as the active color.
-Hidden for By Type view (always shows all types).
+plus "All" (default). Uses `TYPE_COLORS[type]` as the active border/text color.
+Hidden for By Type view.
 
 ---
 
-## Tooltips (extends base skill tooltip base style)
+## Tooltips
 
 **Age Ranking view:**
 ```
-{item key}
-{type} · {status}   ← TYPE_COLORS[type], 11px
-──────────────────────────────
-WIP age:          {age}d     ← outlierColor(age), bold
-In current status:{statusAge}d ← SECONDARY
-Percentile:       P{pct}     ← ALARM if outlier, MUTED otherwise
-──────────────────────────────
-⚠ Aging outlier (P85+)       ← ALARM, bold — only if is_aging_outlier
+{key}
+{type} · {status}           ← TYPE_COLORS[type], 11px
+────────────────────────────
+WIP age:    {wip}d          ← outlierColor(wip), bold
+In status:  {statusAge}d    ← SECONDARY
+Percentile: P{pct}          ← ALARM if outlier, MUTED otherwise
+────────────────────────────
+⚠ Aging outlier (P85+)     ← ALARM, bold — only if outlier
 ```
 
 **By Status view:**
 ```
-{full status name}
-──────────────────────────────
-Outliers:  {N}               ← ALARM
-Normal:    {N}               ← PRIMARY
-Total:     {N}               ← MUTED
-──────────────────────────────
-Max age:   {N}d              ← CAUTION, 11px
+{fullStatus}
+────────────────────────────
+Outliers: {N}               ← ALARM
+Normal:   {N}               ← PRIMARY
+Total:    {N}               ← MUTED
+Max age:  {N}d              ← CAUTION
 ```
 
 **By Type view:**
 ```
-{type}
-──────────────────────────────
-Total WIP: {N}               ← TEXT
-Outliers:  {N}               ← ALARM
-Max age:   {N}d              ← CAUTION
-Avg age:   {N}d              ← SECONDARY
-```
-
----
-
-## Legend (extends base skill legend pattern)
-
-**Age Ranking view:**
-```
-■ ALARM     #ff6b6b   ≥ 300d — critical
-■           #ff9b6b   120–299d — severe
-■ CAUTION   #e2c97e   85–119d — outlier
-■ PRIMARY   #6b7de8   < P85 — normal   (dimmed)
-```
-
-**By Status and By Type views:**
-```
-■ ALARM    Aging outliers (≥ P85)
-■ TYPE/PRIMARY  Normal items (< P85)
+{type}                      ← TYPE_COLORS[type]
+────────────────────────────
+Total WIP: {N}              ← TEXT
+Outliers:  {N}              ← ALARM
+Max age:   {N}d             ← CAUTION
+Avg age:   {N}d             ← SECONDARY
 ```
 
 ---
 
 ## Footer Content (follows base skill footer style)
 
-Two sections:
+**"Reading this chart:"** — WIP age is measured from the commitment point to today.
+Items flagged as aging outliers exceed the historical P85 cycle time — they have been
+in progress longer than 85% of all previously completed items. This does not
+necessarily mean they are blocked; it means they are statistically unusual and warrant
+attention. "Age in current status" shows how long an item has been sitting in its
+current workflow step — a high ratio relative to total WIP age suggests the item is
+stalled at that particular step.
 
-1. **"Reading this chart:"** — WIP age is measured from the commitment point to today.
-   Items flagged as aging outliers exceed the historical P85 cycle time — they have been
-   in progress longer than 85% of all previously completed items. This does not
-   necessarily mean they are blocked; it means they are statistically unusual and warrant
-   attention. "Age in current status" shows how long an item has been sitting in its
-   current workflow step specifically — a high status age relative to total WIP age
-   suggests the item is stalled at that particular step.
-
-2. **"Data scope:"** — `{TOTAL} active WIP items. Age type: WIP (resets on backflow
-   to Demand/Upstream — reflects the LAST commitment date).`
-   If P85 threshold available: `P85 threshold ({N}d) cross-referenced from analyze_cycle_time.`
-   If not: `P85 threshold not available — run analyze_cycle_time to surface the exact value.`
+**Stability index sentence:** inline after the above — state the index value, the
+verdict (Clogged / Starving / Balanced), and the 1.3 threshold.
 
 ---
 
 ## Chart-Specific Checklist
 
-> The universal checklist is in `mcs-charts-base`. Only chart-specific items are listed here.
+> The universal checklist is in `mcs-charts-base`. Only chart-specific items here.
 
 - [ ] Both `mcs-charts-base` and this skill read before building
 - [ ] Skill triggered by `analyze_work_item_age` data
 - [ ] Chart title reads exactly **"WIP Item Age"**
-- [ ] Primary age metric is `age_since_commitment_days` — NOT `total_age_since_creation_days`
-- [ ] `is_aging_outlier` flag taken directly from tool — never recalculated
-- [ ] P85 threshold cross-referenced from `analyze_cycle_time` if available; acknowledged if not
-- [ ] Outlier severity color scale applied: ≥300d ALARM / 120–299d orange-red / 85–119d CAUTION / normal PRIMARY dimmed
-- [ ] Age Ranking: horizontal bar chart, sorted descending; P85 reference line if threshold known
-- [ ] By Status: stacked bars in canonical workflow order; only statuses with items shown
-- [ ] By Type: all types shown simultaneously; no type toggle needed
-- [ ] Type filter buttons shown for Age Ranking and By Status; hidden for By Type
-- [ ] Outlier table always visible; sorted descending by WIP age; filtered by type toggle
+- [ ] Data flattened into compact local array (short field names: wip, statusAge, pct, outlier)
+- [ ] Primary age metric is `age_since_commitment_days` → stored as `wip`
+- [ ] `is_aging_outlier` flag taken directly from tool → stored as `outlier`
+- [ ] P85 threshold taken from `data.summary.p85_threshold_days`
+- [ ] Outlier severity color scale applied: ≥300d ALARM / 120–299d #ff9b6b / 85–119d CAUTION / < P85 PRIMARY dimmed
+- [ ] Age Ranking: `layout="vertical"` BarChart, single Bar with Cell per item, no stackId ← **Rule 1 + Rule 3**
+- [ ] Age Ranking height: `Math.max(420, filtered.length * 14)` ← **Rule 4**
+- [ ] Cell keys use template literal `\`cell-${i}\`` ← **Rule 5**
+- [ ] By Status: stacked bars, uniform fill per Bar (no Cell), canonical workflow order ← **Rule 2**
+- [ ] By Type: stacked bars, uniform fill per Bar (no Cell), all types shown ← **Rule 2**
+- [ ] Type filter shown for Age Ranking and By Status; hidden for By Type
+- [ ] Outlier table always visible; sorted descending by wip; filtered by type toggle
 - [ ] Stat card "OLDEST ITEM" shows item key as sub-label
-- [ ] Stat card "P85 THRESHOLD" shows "N/A" and CAUTION if threshold unavailable
-- [ ] Badge: `⚠ P85 threshold unavailable` shown when analyze_cycle_time not run
-- [ ] Tooltip: shows WIP age + status age + percentile + outlier flag if applicable
+- [ ] Stat card "STABILITY INDEX" uses clogged/starving/balanced coloring
+- [ ] Badge: Little's Law stability index with verdict
+- [ ] Tooltip cursor subtle: `fill: PRIMARY + "0c"`
+- [ ] Legend rendered as Swatch components — no Recharts `<Legend>`
 - [ ] Footer distinguishes WIP age (since last commitment) from total age (since creation)

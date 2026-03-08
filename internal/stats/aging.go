@@ -328,3 +328,81 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 
 	return results
 }
+
+// AgingSummary provides an aggregate WIP health snapshot with risk-band distribution
+// and Little's Law stability index. Designed to complement the per-item InventoryAge data.
+type AgingSummary struct {
+	TotalItems     int            `json:"total_items"`
+	OutlierCount   int            `json:"outlier_count"`      // items > P85
+	P50Threshold   float64        `json:"p50_threshold_days"` // historical cycle time P50
+	P85Threshold   float64        `json:"p85_threshold_days"` // historical cycle time P85
+	P95Threshold   float64        `json:"p95_threshold_days"` // historical cycle time P95
+	Distribution   map[string]int `json:"distribution"`       // bucketed item counts
+	StabilityIndex float64        `json:"stability_index"`    // Little's Law index
+}
+
+// CalculateAgingSummary computes aggregate WIP health metrics from individual aging data.
+// cycleTimes must contain historical cycle times (unsorted is fine — will be copied and sorted).
+// throughput is items/day over the analysis window.
+func CalculateAgingSummary(ages []InventoryAge, cycleTimes []float64, wipCount int, throughput float64) AgingSummary {
+	summary := AgingSummary{
+		TotalItems: len(ages),
+		Distribution: map[string]int{
+			"Inconspicuous (within P50)": 0,
+			"Aging (P50-P85)":            0,
+			"Warning (P85-P95)":          0,
+			"Extreme (>P95)":             0,
+		},
+	}
+
+	if len(cycleTimes) == 0 {
+		return summary
+	}
+
+	// Sort a copy to compute percentiles
+	sorted := make([]float64, len(cycleTimes))
+	copy(sorted, cycleTimes)
+	slices.Sort(sorted)
+
+	p50 := CalculatePercentile(sorted, 0.50)
+	p85 := CalculatePercentile(sorted, 0.85)
+	p95 := CalculatePercentile(sorted, 0.95)
+
+	summary.P50Threshold = math.Round(p50*10) / 10
+	summary.P85Threshold = math.Round(p85*10) / 10
+	summary.P95Threshold = math.Round(p95*10) / 10
+
+	for _, a := range ages {
+		age := 0.0
+		if a.AgeSinceCommitment != nil {
+			age = *a.AgeSinceCommitment
+		}
+
+		switch {
+		case age < p50:
+			summary.Distribution["Inconspicuous (within P50)"]++
+		case age < p85:
+			summary.Distribution["Aging (P50-P85)"]++
+		case age < p95:
+			summary.Distribution["Warning (P85-P95)"]++
+		default:
+			summary.Distribution["Extreme (>P95)"]++
+		}
+
+		if age > p85 {
+			summary.OutlierCount++
+		}
+	}
+
+	// Little's Law stability index
+	if throughput > 0 && len(sorted) > 0 {
+		avgCT := 0.0
+		for _, ct := range sorted {
+			avgCT += ct
+		}
+		avgCT /= float64(len(sorted))
+		summary.StabilityIndex = LittlesLawIndex(wipCount, throughput, avgCT)
+	}
+
+	return summary
+}
