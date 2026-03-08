@@ -83,7 +83,7 @@
         "Story": 10
       }
     },
-    "stability_ratio": 1.03,
+    "stability_index": 1.03,
     "stale_wip_count": 6,
     "composition": {
       "existing_backlog": 0,

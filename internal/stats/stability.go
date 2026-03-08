@@ -76,6 +76,16 @@ type StabilityResult struct {
 	Signals          []Signal  `json:"signals"`
 }
 
+// LittlesLawIndex computes the stability index: currentWIP / (throughput × avgCycleTime).
+// A ratio > 1.3 indicates a clogged system; < 0.7 indicates a starving system.
+// Returns 0 if inputs are invalid (zero throughput or avgCycleTime).
+func LittlesLawIndex(currentWIP int, throughput, avgCycleTime float64) float64 {
+	if throughput <= 0 || avgCycleTime <= 0 {
+		return 0
+	}
+	return math.Round(float64(currentWIP)/(throughput*avgCycleTime)*100) / 100
+}
+
 // CalculateProcessStability evaluates the system's predictability using cycle times and WIP.
 func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCount int, activeDays float64) StabilityResult {
 	// Prepare keys for signal traceability
@@ -89,18 +99,16 @@ func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCou
 	stabilityIndex := 0.0
 	expectedLeadTime := 0.0
 	if len(cycleTimes) > 0 && activeDays > 0 {
-		throughput := float64(len(cycleTimes)) / activeDays // Items per day
+		throughput := float64(len(cycleTimes)) / activeDays
 		if throughput > 0 {
 			expectedLeadTime = float64(wipCount) / throughput
-			if xmr.Average > 0 {
-				stabilityIndex = expectedLeadTime / xmr.Average
-			}
+			stabilityIndex = LittlesLawIndex(wipCount, throughput, xmr.Average)
 		}
 	}
 
 	return StabilityResult{
 		XmR:              xmr,
-		StabilityIndex:   math.Round(stabilityIndex*100) / 100,
+		StabilityIndex:   stabilityIndex,
 		ExpectedLeadTime: math.Round(expectedLeadTime*10) / 10,
 		Signals:          xmr.Signals,
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"mcs-mcp/internal/stats"
 	"slices"
 	"time"
 
@@ -58,7 +59,7 @@ type Result struct {
 	VisualCDF         string         `json:"visual_cdf,omitempty"`
 	Context           map[string]any `json:"context,omitempty"`
 	Warnings          []string       `json:"warnings,omitempty"`
-	StabilityRatio    float64        `json:"stability_ratio,omitempty"`
+	StabilityIndex    float64        `json:"stability_index,omitempty"`
 	StaleWIPCount     int            `json:"stale_wip_count,omitempty"`
 
 	// Advanced Analytics
@@ -892,16 +893,13 @@ func (e *Engine) AnalyzeWIPStability(res *Result, wipAges map[string][]float64, 
 		}
 		avgCT := sumCT / float64(len(allCycleTimes))
 
-		if ok1 && th > 0 && avgCT > 0 {
-			expectedWIP := th * avgCT
-			currentWIP := float64(totalWIPCount)
-			ratio := currentWIP / expectedWIP
-			res.StabilityRatio = math.Round(ratio*100) / 100
+		if ok1 {
+			res.StabilityIndex = stats.LittlesLawIndex(totalWIPCount, th, avgCT)
 
-			if res.StabilityRatio > 1.3 {
-				res.Warnings = append(res.Warnings, fmt.Sprintf("Clogged System (Stability Index %.2f): You have %.0f%% more WIP than your historical capacity supports.", res.StabilityRatio, (res.StabilityRatio-1)*100))
-			} else if res.StabilityRatio < 0.7 && currentWIP > 0 {
-				res.Warnings = append(res.Warnings, fmt.Sprintf("Starving System (Stability Index %.2f): WIP is significantly lower than historical levels.", res.StabilityRatio))
+			if res.StabilityIndex > 1.3 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Clogged System (Stability Index %.2f): You have %.0f%% more WIP than your historical capacity supports.", res.StabilityIndex, (res.StabilityIndex-1)*100))
+			} else if res.StabilityIndex < 0.7 && totalWIPCount > 0 {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("Starving System (Stability Index %.2f): WIP is significantly lower than historical levels.", res.StabilityIndex))
 			}
 		}
 	}
