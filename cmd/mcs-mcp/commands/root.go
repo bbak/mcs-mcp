@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+
 	"mcs-mcp/internal/config"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/logging"
@@ -48,7 +50,9 @@ using Monte-Carlo-Simulation based on Jira data.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("MCP Server starting Stdio loop")
 		server := mcp.NewServer(cfg, jiraClient)
-		server.Start()
+		if err := server.Run(context.Background(), Version); err != nil {
+			log.Fatal().Err(err).Msg("MCP server exited with error")
+		}
 	},
 }
 

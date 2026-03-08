@@ -1,12 +1,11 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -16,22 +15,9 @@ import (
 	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/stats/discovery"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/zerolog/log"
 )
-
-type JSONRPCRequest struct {
-	Jsonrpc string          `json:"jsonrpc"`
-	ID      any             `json:"id"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params"`
-}
-
-type JSONRPCResponse struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      any    `json:"id"`
-	Result  any    `json:"result,omitempty"`
-	Error   any    `json:"error,omitempty"`
-}
 
 type Server struct {
 	jira                  jira.Client
@@ -71,422 +57,77 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	return s
 }
 
-func (s *Server) Start() {
-	decoder := json.NewDecoder(os.Stdin)
-	for {
-		var req JSONRPCRequest
-		if err := decoder.Decode(&req); err != nil {
-			if err == io.EOF {
-				break // End of input
-			}
-			log.Error().Err(err).Msg("Failed to decode JSON-RPC request")
-			continue
-		}
-
-		s.dispatch(req)
-	}
+// NewMCPServer creates an SDK MCP server wired to all tools on the given app server.
+func NewMCPServer(s *Server, version string) *mcp.Server {
+	mcpSrv := mcp.NewServer(&mcp.Implementation{
+		Name:    "mcs-mcp",
+		Version: version,
+	}, nil)
+	registerTools(mcpSrv, s)
+	return mcpSrv
 }
 
-func (s *Server) dispatch(req JSONRPCRequest) {
-	defer func() {
-		if r := recover(); r != nil {
-			stack := string(debug.Stack())
-			log.Error().
-				Interface("panic", r).
-				Str("stack", stack).
-				Msg("Panic recovered in dispatch")
-			s.sendError(req.ID, map[string]any{
-				"code":    -32603,
-				"message": fmt.Sprintf("Internal error: %v", r),
-			})
-		}
-	}()
+// Run starts the MCP server on the stdio transport.
+func (s *Server) Run(ctx context.Context, version string) error {
+	mcpSrv := NewMCPServer(s, version)
+	return mcpSrv.Run(ctx, &mcp.StdioTransport{})
+}
 
-	log.Info().
-		Str("method", req.Method).
-		Interface("id", req.ID).
-		Msg("Received JSON-RPC request")
+// handleImportProjects searches for Jira projects, injecting mock data for MCSTEST.
+func (s *Server) handleImportProjects(query string) (any, error) {
+	var projects []any
 
-	// Handle notifications (no ID)
-	if req.ID == nil {
-		switch req.Method {
-		case "notifications/initialized":
-			log.Info().Msg("Client confirmed initialization")
-		default:
-			log.Debug().Str("method", req.Method).Msg("Received notification")
-		}
-		return
-	}
-
-	switch req.Method {
-	case "initialize":
-		s.sendResponse(req.ID, map[string]any{
-			"protocolVersion": "2024-11-05",
-			"capabilities":    map[string]any{},
-			"serverInfo":      map[string]any{"name": "mcs-mcp", "version": "0.11.0"},
-		})
-	case "tools/list":
-		s.sendResponse(req.ID, s.listTools())
-	case "tools/call":
-		res, err := s.callTool(req.Params)
-		if err != nil {
-			s.sendError(req.ID, err)
-		} else {
-			s.sendResponse(req.ID, res)
-		}
-	default:
-		s.sendError(req.ID, map[string]any{
-			"code":    -32601,
-			"message": fmt.Sprintf("Method not found: %s", req.Method),
+	isMockQuery := strings.Contains(strings.ToUpper(query), "MCSTEST") || query == ""
+	if isMockQuery {
+		projects = append(projects, map[string]any{
+			"key":  "MCSTEST",
+			"name": "Mock Test Project (Synthetic)",
 		})
 	}
-}
 
-func (s *Server) sendResponse(id any, result any) {
-	log.Info().Interface("id", id).Msg("Sending response")
-	resp := JSONRPCResponse{
-		Jsonrpc: "2.0",
-		ID:      id,
-		Result:  result,
+	if strings.ToUpper(query) != "MCSTEST" {
+		jiraProjects, err := s.jira.FindProjects(query)
+		if err == nil {
+			projects = append(projects, jiraProjects...)
+		} else if !isMockQuery {
+			return nil, err
+		}
 	}
-	out, _ := json.Marshal(resp)
-	fmt.Println(string(out))
-}
-
-func (s *Server) sendError(id any, err any) {
-	log.Info().Interface("id", id).Interface("error", err).Msg("Sending error response")
-	resp := JSONRPCResponse{
-		Jsonrpc: "2.0",
-		ID:      id,
-		Error:   err,
-	}
-	out, _ := json.Marshal(resp)
-	fmt.Println(string(out))
-}
-
-func (s *Server) callTool(params json.RawMessage) (res any, errRes any) {
-	defer func() {
-		if r := recover(); r != nil {
-			stack := string(debug.Stack())
-			log.Error().
-				Interface("panic", r).
-				Str("stack", stack).
-				Msg("Panic recovered in callTool")
-			errRes = map[string]any{
-				"code":    -32603,
-				"message": fmt.Sprintf("Internal error: %v\n\nStack trace:\n%s", r, stack),
-			}
-		}
-	}()
-
-	var call struct {
-		Name      string         `json:"name"`
-		Arguments map[string]any `json:"arguments"`
-	}
-	if err := json.Unmarshal(params, &call); err != nil {
-		return nil, map[string]any{"code": -32602, "message": "Invalid params"}
-	}
-
-	log.Info().Str("tool", call.Name).Msg("Processing tool call")
-	log.Debug().Interface("arguments", call.Arguments).Msg("Tool arguments")
-
-	var data any
-	var err error
-
-	switch call.Name {
-	case "import_projects":
-		query := asString(call.Arguments["query"])
-		var projects []any
-		var findErr error
-
-		// Intercept MCSTEST (case-insensitive) or broad searches
-		isMockQuery := strings.Contains(strings.ToUpper(query), "MCSTEST") || query == ""
-		if isMockQuery {
-			projects = append(projects, map[string]any{
-				"key":  "MCSTEST",
-				"name": "Mock Test Project (Synthetic)",
-			})
-		}
-
-		// Only call Jira if the query isn't JUST "MCSTEST"
-		if strings.ToUpper(query) != "MCSTEST" {
-			jiraProjects, jErr := s.jira.FindProjects(query)
-			if jErr == nil {
-				projects = append(projects, jiraProjects...)
-			} else if !isMockQuery {
-				findErr = jErr
-			}
-		}
-
-		if findErr == nil {
-			data = map[string]any{
-				"projects": projects,
-				"_guidance": []string{
-					"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
-				},
-			}
-		}
-		err = findErr
-	case "import_boards":
-		pKey := asString(call.Arguments["project_key"])
-		nFilter := asString(call.Arguments["name_filter"])
-		var boards []any
-		var findErr error
-
-		isMockKey := strings.ToUpper(pKey) == "MCSTEST" || pKey == ""
-		if isMockKey {
-			boards = append(boards, map[string]any{
-				"id":   0,
-				"name": "Mock Test Board 0 (Synthetic)",
-				"type": "kanban",
-			})
-		}
-
-		if strings.ToUpper(pKey) != "MCSTEST" {
-			jiraBoards, jErr := s.jira.FindBoards(pKey, nFilter)
-			if jErr == nil {
-				boards = append(boards, jiraBoards...)
-			} else if !isMockKey {
-				findErr = jErr
-			}
-		}
-		if findErr == nil {
-			data = map[string]any{
-				"boards": boards,
-				"_guidance": []string{
-					"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
-				},
-			}
-		}
-		err = findErr
-	case "import_project_context":
-		key := asString(call.Arguments["project_key"])
-		data, err = s.handleGetProjectDetails(key)
-	case "import_board_context":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetBoardDetails(projectKey, boardID)
-	case "forecast_monte_carlo":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		mode := asString(call.Arguments["mode"])
-		startStatus := asString(call.Arguments["start_status"])
-		endStatus := asString(call.Arguments["end_status"])
-
-		includeExisting := false
-		if b, ok := call.Arguments["include_existing_backlog"].(bool); ok {
-			includeExisting = b
-		}
-
-		additional := asInt(call.Arguments["additional_items"])
-
-		targetDays := asInt(call.Arguments["target_days"])
-		targetDate := asString(call.Arguments["target_date"])
-
-		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]any); ok {
-			for _, v := range it {
-				issueTypes = append(issueTypes, asString(v))
-			}
-		}
-
-		var includeWIP bool
-		if w, ok := call.Arguments["include_wip"].(bool); ok {
-			includeWIP = w
-		}
-
-		sampleDays := asInt(call.Arguments["history_window_days"])
-		sampleStart := asString(call.Arguments["history_start_date"])
-		sampleEnd := asString(call.Arguments["history_end_date"])
-
-		var targets map[string]int
-		if t, ok := call.Arguments["targets"].(map[string]any); ok {
-			targets = make(map[string]int)
-			for k, v := range t {
-				targets[k] = asInt(v)
-			}
-		}
-
-		var mixOverrides map[string]float64
-		if m, ok := call.Arguments["mix_overrides"].(map[string]any); ok {
-			mixOverrides = make(map[string]float64)
-			for k, v := range m {
-				if f, ok := v.(float64); ok {
-					mixOverrides[k] = f
-				} else if i, ok := v.(int); ok {
-					mixOverrides[k] = float64(i)
-				}
-			}
-		}
-
-		data, err = s.handleRunSimulation(projectKey, boardID, mode, includeExisting, additional, targetDays, targetDate, startStatus, endStatus, issueTypes, includeWIP, sampleDays, sampleStart, sampleEnd, targets, mixOverrides)
-	case "analyze_cycle_time":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		issueTypes := []string{}
-		if types, ok := call.Arguments["issue_types"].([]any); ok {
-			for _, t := range types {
-				issueTypes = append(issueTypes, asString(t))
-			}
-		}
-		wipStability, _ := call.Arguments["analyze_wip_stability"].(bool)
-		startStatus := asString(call.Arguments["start_status"])
-		endStatus := asString(call.Arguments["end_status"])
-		data, err = s.handleGetCycleTimeAssessment(projectKey, boardID, wipStability, startStatus, endStatus, issueTypes)
-	case "analyze_status_persistence":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetStatusPersistence(projectKey, boardID)
-	case "analyze_work_item_age":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		agingType := asString(call.Arguments["age_type"])
-		tierFilter := asString(call.Arguments["tier_filter"])
-		data, err = s.handleGetAgingAnalysis(projectKey, boardID, agingType, tierFilter)
-	case "analyze_throughput":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		weeks := asInt(call.Arguments["history_window_weeks"])
-		includeAbandoned, _ := call.Arguments["include_abandoned"].(bool)
-		bucket := asString(call.Arguments["bucket"])
-		if bucket == "" {
-			bucket = "week"
-		}
-		data, err = s.handleGetDeliveryCadence(projectKey, boardID, weeks, bucket, includeAbandoned)
-	case "analyze_process_stability":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetProcessStability(projectKey, boardID)
-	case "analyze_flow_debt":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["history_window_weeks"])
-		bucket := asString(call.Arguments["bucket_size"])
-		data, err = s.handleGetFlowDebt(projectKey, boardID, windowWeeks, bucket)
-	case "generate_cfd_data":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["history_window_weeks"])
-		data, err = s.handleGetCFDData(projectKey, boardID, windowWeeks)
-	case "analyze_wip_stability":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["history_window_weeks"])
-		data, err = s.handleAnalyzeWIPStability(projectKey, boardID, windowWeeks)
-	case "analyze_wip_age_stability":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["history_window_weeks"])
-		data, err = s.handleAnalyzeWIPAgeStability(projectKey, boardID, windowWeeks)
-	case "analyze_residence_time":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		windowWeeks := asInt(call.Arguments["history_window_weeks"])
-		granularity := asString(call.Arguments["granularity"])
-		if granularity == "weekly" {
-			granularity = "week"
-		} else {
-			granularity = "day"
-		}
-		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]any); ok {
-			for _, v := range it {
-				issueTypes = append(issueTypes, asString(v))
-			}
-		}
-		data, err = s.handleAnalyzeResidenceTime(projectKey, boardID, windowWeeks, issueTypes, granularity)
-	case "analyze_process_evolution":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		window := asInt(call.Arguments["history_window_months"])
-		if window == 0 {
-			window = 12
-		}
-		data, err = s.handleGetProcessEvolution(projectKey, boardID, window)
-	case "analyze_yield":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleGetProcessYield(projectKey, boardID)
-	case "workflow_discover_mapping":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		force, _ := call.Arguments["force_refresh"].(bool)
-		data, err = s.handleGetWorkflowDiscovery(projectKey, boardID, force)
-	case "workflow_set_mapping":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		mapping, _ := call.Arguments["mapping"].(map[string]any)
-		resolutions, _ := call.Arguments["resolutions"].(map[string]any)
-		commitmentPoint := asString(call.Arguments["commitment_point"])
-		data, err = s.handleSetWorkflowMapping(projectKey, boardID, mapping, resolutions, commitmentPoint)
-	case "workflow_set_order":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		order := []string{}
-		if o, ok := call.Arguments["order"].([]any); ok {
-			for _, v := range o {
-				order = append(order, asString(v))
-			}
-		}
-		data, err = s.handleSetWorkflowOrder(projectKey, boardID, order)
-	case "guide_diagnostic_roadmap":
-		goal := asString(call.Arguments["goal"])
-		data, err = s.handleGetDiagnosticRoadmap(goal)
-	case "analyze_item_journey":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		issueKey := asString(call.Arguments["issue_key"])
-		data, err = s.handleGetItemJourney(projectKey, boardID, issueKey)
-	case "forecast_backtest":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		mode := asString(call.Arguments["simulation_mode"])
-		items := asInt(call.Arguments["items_to_forecast"])
-		horizon := asInt(call.Arguments["forecast_horizon_days"])
-
-		var issueTypes []string
-		if it, ok := call.Arguments["issue_types"].([]any); ok {
-			for _, v := range it {
-				issueTypes = append(issueTypes, asString(v))
-			}
-		}
-
-		sampleDays := asInt(call.Arguments["history_window_days"])
-		sampleStart := asString(call.Arguments["history_start_date"])
-		sampleEnd := asString(call.Arguments["history_end_date"])
-
-		data, err = s.handleGetForecastAccuracy(projectKey, boardID, mode, items, horizon, issueTypes, sampleDays, sampleStart, sampleEnd)
-	case "import_history_expand":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		chunks := asInt(call.Arguments["chunks"])
-		data, err = s.handleCacheExpandHistory(projectKey, boardID, chunks)
-	case "import_history_update":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		data, err = s.handleCacheCatchUp(projectKey, boardID)
-	case "workflow_set_evaluation_date":
-		projectKey := asString(call.Arguments["project_key"])
-		boardID := asInt(call.Arguments["board_id"])
-		dateStr := asString(call.Arguments["date"])
-		data, err = s.handleSetEvaluationDate(projectKey, boardID, dateStr)
-	default:
-		return nil, map[string]any{"code": -32601, "message": "Tool not found"}
-	}
-
-	if err != nil {
-		log.Error().Err(err).Str("tool", call.Name).Msg("Tool call failed")
-		return nil, map[string]any{"code": -32000, "message": err.Error()}
-	}
-
-	log.Info().Str("tool", call.Name).Msg("Tool call completed successfully")
 
 	return map[string]any{
-		"content": []any{
-			map[string]any{
-				"type": "text",
-				"text": s.formatResult(data),
-			},
+		"projects": projects,
+		"_guidance": []string{
+			"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
+		},
+	}, nil
+}
+
+// handleImportBoards searches for Jira boards, injecting mock data for MCSTEST.
+func (s *Server) handleImportBoards(projectKey, nameFilter string) (any, error) {
+	var boards []any
+
+	isMockKey := strings.ToUpper(projectKey) == "MCSTEST" || projectKey == ""
+	if isMockKey {
+		boards = append(boards, map[string]any{
+			"id":   0,
+			"name": "Mock Test Board 0 (Synthetic)",
+			"type": "kanban",
+		})
+	}
+
+	if strings.ToUpper(projectKey) != "MCSTEST" {
+		jiraBoards, err := s.jira.FindBoards(projectKey, nameFilter)
+		if err == nil {
+			boards = append(boards, jiraBoards...)
+		} else if !isMockKey {
+			return nil, err
+		}
+	}
+
+	return map[string]any{
+		"boards": boards,
+		"_guidance": []string{
+			"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
 		},
 	}, nil
 }

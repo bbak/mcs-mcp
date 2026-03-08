@@ -192,25 +192,6 @@ func asString(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-func asInt(v any) int {
-	if v == nil {
-		return 0
-	}
-	switch val := v.(type) {
-	case float64:
-		return int(val)
-	case int:
-		return val
-	case string:
-		var res int
-		if _, err := fmt.Sscanf(val, "%d", &res); err != nil {
-			return 0
-		}
-		return res
-	default:
-		return 0
-	}
-}
 
 func (s *Server) getFinishedStatuses() map[string]bool {
 	finished := make(map[string]bool)
