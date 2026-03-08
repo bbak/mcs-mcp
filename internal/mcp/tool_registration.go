@@ -90,14 +90,14 @@ var toolDescriptions = map[string]string{
 	"workflow_discover_mapping": "Probe project status categories, residence times, and resolution frequencies into a semantic workflow mapping. \n\n" +
 		"AI MUST use this to verify the workflow tiers, roles, AND the 'Commitment Point' (where clock starts) with the user before diagnostics. \n" +
 		"The response provides a split view: 'Whole' (deterministic volumes) and 'Sample' (probabilistic characterization).\n" +
-		"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Terminal Status mapping (Secondary).\n" +
+		"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Finished-tier Status mapping (Secondary).\n" +
 		"TIER VISIBILITY: AI MUST show the confirmed mapping of Statuses to Tiers to the user.\n\n" +
 		"STATUS ORDER: The response includes a 'status_order' array — the canonical chronological ordering of workflow statuses. " +
 		"AI MUST present this order to the user for verification. If the user confirms or corrects it, AI MUST call 'workflow_set_order' to persist the final order. " +
 		"This order is critical for CFD visualization, flow debt analysis, and other range-based analytics.\n\n" +
 		"METAWORKFLOW GUIDANCE:\n" +
 		"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
-		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
+		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin). Not applicable for 'Finished' tier.\n" +
 		"- OUTCOMES: 'delivered' (Value Provided), 'abandoned' (Work Discarded).",
 
 	"workflow_set_mapping": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the MANDATORY persistence step after the 'Inform & Veto' loop. \n\n" +
@@ -108,7 +108,7 @@ var toolDescriptions = map[string]string{
 		"WITHOUT this mapping, analytical tools will provide SUBPAR or WRONG results.\n\n" +
 		"METAWORKFLOW GUIDANCE:\n" +
 		"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
-		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin).\n" +
+		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin). Omit for 'Finished' tier.\n" +
 		"- OUTCOMES: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
 
 	"workflow_set_order": "Persist the user-confirmed chronological order of workflow statuses. " +
@@ -324,7 +324,10 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			// Convert typed structs to map[string]any for the handler interface
 			mappingAny := make(map[string]any, len(args.Mapping))
 			for k, v := range args.Mapping {
-				entry := map[string]any{"tier": string(v.Tier), "role": string(v.Role)}
+				entry := map[string]any{"tier": string(v.Tier)}
+				if v.Role != "" {
+					entry["role"] = string(v.Role)
+				}
 				if v.Outcome != "" {
 					entry["outcome"] = string(v.Outcome)
 				}

@@ -146,7 +146,7 @@ func ProposeSemantics(issues []jira.Issue, persistence []stats.StatusPersistence
 		// --- ROLE & OUTCOME HEURISTICS ---
 		outcome := ""
 		if tier == "Finished" {
-			role = "terminal"
+			// Role intentionally left empty — Tier:"Finished" carries the terminal semantics.
 
 			// Final fallback logic if resolution checking down below doesn't trigger
 			if matchesAny(lowerName, abandonedKeywords) {

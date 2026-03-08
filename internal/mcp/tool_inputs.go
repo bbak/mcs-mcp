@@ -78,7 +78,7 @@ const (
 // StatusMappingEntry holds the semantic metadata for a single workflow status.
 type StatusMappingEntry struct {
 	Tier    WorkflowTier    `json:"tier"`
-	Role    WorkflowRole    `json:"role"`
+	Role    WorkflowRole    `json:"role,omitempty" jsonschema:"Omit for Finished tier."`
 	Outcome WorkflowOutcome `json:"outcome,omitempty" jsonschema:"Mandatory for Finished tier statuses if resolutions are not used."`
 }
 

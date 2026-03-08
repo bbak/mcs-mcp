@@ -2,32 +2,6 @@
   "data": {
     "persistence": [
       {
-        "statusID": "6",
-        "statusName": "Closed",
-        "share": 0.097,
-        "role": "terminal",
-        "tier": "Finished",
-        "coin_toss": 13.1,
-        "probable": 71.2,
-        "likely": 234.6,
-        "safe_bet": 711,
-        "iqr": 70.1,
-        "inner_80": 234.6
-      },
-      {
-        "statusID": "10003",
-        "statusName": "Done",
-        "share": 1,
-        "role": "terminal",
-        "tier": "Finished",
-        "coin_toss": 0,
-        "probable": 0,
-        "likely": 0,
-        "safe_bet": 0,
-        "iqr": 0,
-        "inner_80": 0
-      },
-      {
         "statusID": "1",
         "statusName": "Open",
         "share": 0.776,

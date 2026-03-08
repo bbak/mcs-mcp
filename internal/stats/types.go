@@ -7,7 +7,7 @@ import (
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
 type StatusMetadata struct {
 	Name    string `json:"name,omitempty"` // For display/AI lookup
-	Role    string `json:"role"`
+	Role    string `json:"role,omitempty"`
 	Tier    string `json:"tier"`
 	Outcome string `json:"outcome,omitempty"` // delivered, abandoned or empty if not yet finished
 }

@@ -27,7 +27,7 @@ func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {
 			"title":       "Analytical Workflow: Bottleneck & Flow Analysis",
 			"description": "Recommended sequence to identify systemic delays and batching behavior.",
 			"steps": []any{
-				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and terminal states."},
+				map[string]any{"step": 1, "tool": "workflow_discover_mapping", "description": "Map the workflow tiers to differentiate between analysis, execution, and finished states."},
 				map[string]any{"step": 2, "tool": "analyze_status_persistence", "description": "Identify tiers and statuses where items spend the most time (High Persistence)."},
 				map[string]any{"step": 3, "tool": "analyze_throughput", "description": "Analyze throughput pulse to detect batching (uneven delivery) vs. steady flow."},
 				map[string]any{"step": 4, "tool": "analyze_flow_debt", "description": "Analyze the balance between work committed vs. work delivered (Flow Debt) to find leading indicators of cycle time inflation."},

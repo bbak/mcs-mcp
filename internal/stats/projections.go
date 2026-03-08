@@ -220,7 +220,7 @@ func BuildWIPProjection(events []eventlog.IssueEvent, commitmentPoint string, ma
 		// Reactive check: Update finished state based on target status if present
 		if e.ToStatus != "" {
 			if m, ok := mappings[s.currentStatus]; ok {
-				if m.Tier == "Finished" || m.Role == "terminal" {
+				if m.Tier == "Finished" {
 					s.isFinished = true
 				} else {
 					s.isFinished = false
@@ -279,9 +279,9 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 					statusKey = e.ToStatus
 				}
 
-				if m, ok := mappings[statusKey]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+				if m, ok := mappings[statusKey]; ok && m.Tier == "Finished" && m.Outcome == "delivered" {
 					nowDelivered = true
-				} else if m, ok := mappings[e.ToStatus]; ok && (m.Tier == "Finished" || m.Role == "terminal") && m.Outcome == "delivered" {
+				} else if m, ok := mappings[e.ToStatus]; ok && m.Tier == "Finished" && m.Outcome == "delivered" {
 					nowDelivered = true
 				}
 			}
