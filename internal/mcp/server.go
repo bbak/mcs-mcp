@@ -58,18 +58,23 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 }
 
 // NewMCPServer creates an SDK MCP server wired to all tools on the given app server.
-func NewMCPServer(s *Server, version string) *mcp.Server {
+func NewMCPServer(s *Server, version string) (*mcp.Server, error) {
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
 		Name:    "mcs-mcp",
 		Version: version,
 	}, nil)
-	registerTools(mcpSrv, s)
-	return mcpSrv
+	if err := registerTools(mcpSrv, s); err != nil {
+		return nil, fmt.Errorf("register tools: %w", err)
+	}
+	return mcpSrv, nil
 }
 
 // Run starts the MCP server on the stdio transport.
 func (s *Server) Run(ctx context.Context, version string) error {
-	mcpSrv := NewMCPServer(s, version)
+	mcpSrv, err := NewMCPServer(s, version)
+	if err != nil {
+		return err
+	}
 	return mcpSrv.Run(ctx, &mcp.StdioTransport{})
 }
 

@@ -9,4 +9,4 @@ After downloading and extracting the MCP Server archive, follow these steps to i
 
 ## Prerequisites
 
-- Node.js installed, whhich is required to render JSX/React components from skills.
+- Node.js installed, which is required to render JSX/React components from skills.

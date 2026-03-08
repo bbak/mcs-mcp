@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"mcs-mcp/internal/jira"
+	"mcs-mcp/internal/paths"
 
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
@@ -40,15 +41,8 @@ func Load() (*AppConfig, error) {
 		log.Debug().Msg("No .env file found in working directory, relying on environment variables or binary-relative .env")
 	}
 
-	// 3. Resolve Data Paths
-	dataPath := os.Getenv("DATA_PATH")
-	if dataPath == "" {
-		if exeDir != "" {
-			dataPath = exeDir
-		} else {
-			dataPath = "."
-		}
-	}
+	// 3. Resolve Data Paths (with fallback chain for read-only installations)
+	dataPath := paths.ResolveDataPath(exeDir)
 
 	logDir := filepath.Join(dataPath, "logs")
 	cacheDir := filepath.Join(dataPath, "cache")
