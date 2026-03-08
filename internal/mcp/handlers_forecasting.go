@@ -146,7 +146,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
-		resObj.Composition = simulation.Composition{
+		resObj.Composition = &simulation.Composition{
 			ExistingBacklog: backlogCount,
 			WIP:             wipCount,
 			AdditionalItems: additionalItems,
@@ -158,7 +158,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj := engine.RunMultiTypeDurationSimulation(actualTargets, dist, 1000, true)
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
-		resObj.Composition = simulation.Composition{
+		resObj.Composition = &simulation.Composition{
 			ExistingBacklog: backlogCount,
 			WIP:             wipCount,
 			AdditionalItems: additionalItems,

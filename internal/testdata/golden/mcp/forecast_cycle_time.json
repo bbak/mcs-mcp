@@ -85,12 +85,6 @@
     },
     "stability_index": 1.03,
     "stale_wip_count": 6,
-    "composition": {
-      "existing_backlog": 0,
-      "wip": 0,
-      "additional_items": 0,
-      "total": 0
-    },
     "wip_age_distribution": {
       "Activity": {
         "Aging (P50-P85)": 12,
