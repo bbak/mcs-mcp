@@ -78,12 +78,13 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 ### How-To
 
 1. Build from sources (see [Building from Sources](#building-from-sources)) or download a release.
-2. Copy `mcs-mcp.exe` and `.env-example` to a location of your choice (for builders, look into `dist/`).
+2. Copy `mcs-mcp.exe` (or `mcs-mcp`) and `.env-example` to a location of your choice (for builders, look into `dist/`).
 3. Rename `.env-example` to `.env` and modify it accordingly. At a minimum, you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)).
-4. Configure an AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
-5. Chat:
+4. Especially for **MacOS Users**: Make sure that the MCP-Server either has write permissions on the path of the binary (`mcs-mcp`) or use the `DATA_PATH` setting in `.env` to point to directory, where it has, because it needs to create two folders (`cache` and `logs`) and write files to it.
+5. Configure an AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
+6. Chat:
    - Tell the AI Agent which Project and which Board you want to look at.
-   - Tell the Agent to **discover the workflow**. Carefully review whether the proposal matches your actual process. You should confirm the **Tiers** (Demand, Upstream, Downstream, Finished), which resolutions or terminal statuses mean _delivered_ vs. _abandoned_ (this determines what counts as throughput), and what your **Commitment Point** is (the status where work officially starts — this defines Cycle Time and WIP). These choices are cached, so you only need to confirm them once.
+   - Tell the Agent to **discover the workflow**. Carefully review whether the proposal matches your actual process. You should confirm the **Tiers** (Demand, Upstream, Downstream, Finished), which resolutions or terminal statuses mean _delivered_ vs. _abandoned_ (this determines what counts as throughput), and what your **Commitment Point** is (the status where work officially starts — this defines Cycle Time and WIP) and of course the order of workflow statuses. These choices are cached, so you only need to confirm them once (unlesss you empty the `cache` folder).
    - Ask the Agent for the **diagnostic roadmap** to get a goal-oriented sequence of tools (e.g., _"I want to forecast 15 items"_ or _"I want to understand what's slowing us down"_).
    - Optionally, ask the Agent to set an **evaluation date** if you want to analyze the system as it existed at a point in the past (e.g., for a retrospective or post-mortem).
 
@@ -93,14 +94,14 @@ The server supports 3 ways of Authentication through setting variables in the `.
 
 Note: Please make sure that those auth-related variables, that don't apply, are commented out.
 
-**Option A: Personal Access Token (PAT) for Jira Datacenter**
+#### Option A: Personal Access Token (PAT) for Jira Datacenter
 
 ```env
 JIRA_TOKEN_TYPE=pat
 JIRA_TOKEN=your-personal-access-token
 ```
 
-**Option B: API Token for Jira Cloud**
+#### Option B: API Token for Jira Cloud
 
 ```env
 JIRA_TOKEN_TYPE=api
@@ -108,7 +109,8 @@ JIRA_TOKEN=your-api-token
 JIRA_USER_EMAIL=your-jira-account-email
 ```
 
-**Option C: Session Cookies - Fallback**
+#### Option C: Session Cookies - Fallback
+
 If neither is available, provide session cookies extracted from an active browser session:
 
 - `JIRA_SESSION_ID`: Your Jira session ID
@@ -128,7 +130,7 @@ Download Sources or clone the repository.
 .\build.ps1 build
 ```
 
-**On Unix/Linux (Make):**
+**On Unix/Linux/MacOS (Make):**
 
 Untested, but should work.
 
@@ -146,7 +148,7 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 {
 	"mcpServers": {
 		"mcs-mcp": {
-			"command": "/path/to/mcs-mcp/dist/mcs-mcp.exe",
+			"command": "/path/to/mcs-mcp/mcs-mcp.exe",
 			"args": []
 		}
 	}
@@ -165,7 +167,7 @@ These optional variables can be set in the `.env` file:
 | `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                     |
 | `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.      |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point. |
-| `JIRA_REQUEST_DELAY_SECONDS`            | `10`         | Enforced delay (in seconds) between requests to the Jira REST API.    |
+| `JIRA_REQUEST_DELAY_SECONDS`            | `5`         | Enforced delay (in seconds) between requests to the Jira REST API.    |
 
 ---
 

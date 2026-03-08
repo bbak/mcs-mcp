@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -150,12 +151,12 @@ var customSchemas = map[reflect.Type]*jsonschema.Schema{
 }
 
 // schemaFor infers a JSON Schema for type T with custom enum type mappings.
-func schemaFor[T any]() *jsonschema.Schema {
+func schemaFor[T any]() (*jsonschema.Schema, error) {
 	s, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: customSchemas})
 	if err != nil {
-		panic(fmt.Sprintf("schemaFor[%T]: %v", *new(T), err))
+		return nil, fmt.Errorf("schemaFor[%T]: %w", *new(T), err)
 	}
-	return s
+	return s, nil
 }
 
 // formatToolResult wraps handler output into an MCP CallToolResult with text content.
@@ -180,32 +181,39 @@ func formatToolError(err error) *mcp.CallToolResult {
 // registerTools wires all MCP tools to their handler methods on the Server.
 // All tools use the generic mcp.AddTool with typed input structs.
 // Enum types are mapped to JSON Schema via customSchemas + schemaFor.
-func registerTools(mcpSrv *mcp.Server, s *Server) {
-	addTool(mcpSrv, s, "import_projects",
+func registerTools(mcpSrv *mcp.Server, s *Server) error {
+	var errs []error
+	must := func(err error) {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	must(addTool(mcpSrv, s, "import_projects",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportProjectsInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleImportProjects(args.Query)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "import_boards",
+	must(addTool(mcpSrv, s, "import_boards",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportBoardsInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleImportBoards(args.ProjectKey, args.NameFilter)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "import_project_context",
+	must(addTool(mcpSrv, s, "import_project_context",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportProjectContextInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProjectDetails(args.ProjectKey)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "import_board_context",
+	must(addTool(mcpSrv, s, "import_board_context",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportBoardContextInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetBoardDetails(args.ProjectKey, args.BoardID)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "forecast_monte_carlo",
+	must(addTool(mcpSrv, s, "forecast_monte_carlo",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ForecastMonteCarloInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleRunSimulation(
 				args.ProjectKey, args.BoardID, string(args.Mode),
@@ -217,27 +225,27 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 				args.Targets, args.MixOverrides,
 			)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_cycle_time",
+	must(addTool(mcpSrv, s, "analyze_cycle_time",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeCycleTimeInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetCycleTimeAssessment(args.ProjectKey, args.BoardID, args.AnalyzeWIPStability, args.StartStatus, args.EndStatus, args.IssueTypes)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_status_persistence",
+	must(addTool(mcpSrv, s, "analyze_status_persistence",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeStatusPersistenceInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetStatusPersistence(args.ProjectKey, args.BoardID)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_work_item_age",
+	must(addTool(mcpSrv, s, "analyze_work_item_age",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWorkItemAgeInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetAgingAnalysis(args.ProjectKey, args.BoardID, string(args.AgeType), string(args.TierFilter))
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_throughput",
+	must(addTool(mcpSrv, s, "analyze_throughput",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeThroughputInput) (*mcp.CallToolResult, any, error) {
 			bucket := args.Bucket
 			if bucket == "" {
@@ -245,39 +253,39 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 			}
 			data, err := s.handleGetDeliveryCadence(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, bucket, args.IncludeAbandoned)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_process_stability",
+	must(addTool(mcpSrv, s, "analyze_process_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeProcessStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProcessStability(args.ProjectKey, args.BoardID, args.IncludeRawSeries)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_flow_debt",
+	must(addTool(mcpSrv, s, "analyze_flow_debt",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeFlowDebtInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetFlowDebt(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.BucketSize)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "generate_cfd_data",
+	must(addTool(mcpSrv, s, "generate_cfd_data",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GenerateCFDDataInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, string(args.Granularity))
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_wip_stability",
+	must(addTool(mcpSrv, s, "analyze_wip_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleAnalyzeWIPStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_wip_age_stability",
+	must(addTool(mcpSrv, s, "analyze_wip_age_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPAgeStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleAnalyzeWIPAgeStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_residence_time",
+	must(addTool(mcpSrv, s, "analyze_residence_time",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeResidenceTimeInput) (*mcp.CallToolResult, any, error) {
 			granularity := string(args.Granularity)
 			if granularity == "weekly" {
@@ -287,9 +295,9 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 			}
 			data, err := s.handleAnalyzeResidenceTime(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.IssueTypes, granularity)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_process_evolution",
+	must(addTool(mcpSrv, s, "analyze_process_evolution",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeProcessEvolutionInput) (*mcp.CallToolResult, any, error) {
 			window := args.HistoryWindowMonths
 			if window == 0 {
@@ -297,21 +305,21 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 			}
 			data, err := s.handleGetProcessEvolution(args.ProjectKey, args.BoardID, window)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_yield",
+	must(addTool(mcpSrv, s, "analyze_yield",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeYieldInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProcessYield(args.ProjectKey, args.BoardID)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "workflow_discover_mapping",
+	must(addTool(mcpSrv, s, "workflow_discover_mapping",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowDiscoverMappingInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetWorkflowDiscovery(args.ProjectKey, args.BoardID, args.ForceRefresh)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "workflow_set_mapping",
+	must(addTool(mcpSrv, s, "workflow_set_mapping",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetMappingInput) (*mcp.CallToolResult, any, error) {
 			// Convert typed structs to map[string]any for the handler interface
 			mappingAny := make(map[string]any, len(args.Mapping))
@@ -331,33 +339,33 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 			}
 			data, err := s.handleSetWorkflowMapping(args.ProjectKey, args.BoardID, mappingAny, resolutionsAny, args.CommitmentPoint)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "workflow_set_order",
+	must(addTool(mcpSrv, s, "workflow_set_order",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetOrderInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleSetWorkflowOrder(args.ProjectKey, args.BoardID, args.Order)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "workflow_set_evaluation_date",
+	must(addTool(mcpSrv, s, "workflow_set_evaluation_date",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetEvaluationDateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleSetEvaluationDate(args.ProjectKey, args.BoardID, args.Date)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "analyze_item_journey",
+	must(addTool(mcpSrv, s, "analyze_item_journey",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeItemJourneyInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetItemJourney(args.ProjectKey, args.BoardID, args.IssueKey)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "guide_diagnostic_roadmap",
+	must(addTool(mcpSrv, s, "guide_diagnostic_roadmap",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GuideDiagnosticRoadmapInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetDiagnosticRoadmap(string(args.Goal))
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "forecast_backtest",
+	must(addTool(mcpSrv, s, "forecast_backtest",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ForecastBacktestInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetForecastAccuracy(
 				args.ProjectKey, args.BoardID, string(args.SimulationMode),
@@ -366,32 +374,39 @@ func registerTools(mcpSrv *mcp.Server, s *Server) {
 				args.HistoryStartDate, args.HistoryEndDate,
 			)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "import_history_expand",
+	must(addTool(mcpSrv, s, "import_history_expand",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryExpandInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleCacheExpandHistory(args.ProjectKey, args.BoardID, args.Chunks)
 			return handleResult(s, data, err)
-		})
+		}))
 
-	addTool(mcpSrv, s, "import_history_update",
+	must(addTool(mcpSrv, s, "import_history_update",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryUpdateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleCacheCatchUp(args.ProjectKey, args.BoardID)
 			return handleResult(s, data, err)
-		})
+		}))
+
+	return errors.Join(errs...)
 }
 
 // addTool registers a tool with the SDK using the generic mcp.AddTool API.
 // If the input type contains custom enum types, it pre-builds the schema
 // with customSchemas to include enum constraints.
-func addTool[In any](mcpSrv *mcp.Server, s *Server, name string, handler func(context.Context, *mcp.CallToolRequest, In) (*mcp.CallToolResult, any, error)) {
+func addTool[In any](mcpSrv *mcp.Server, s *Server, name string, handler func(context.Context, *mcp.CallToolRequest, In) (*mcp.CallToolResult, any, error)) error {
+	schema, err := schemaFor[In]()
+	if err != nil {
+		return fmt.Errorf("tool %q: %w", name, err)
+	}
 	desc := toolDescriptions[name]
 	tool := &mcp.Tool{
 		Name:        name,
 		Description: desc,
-		InputSchema: schemaFor[In](),
+		InputSchema: schema,
 	}
 	mcp.AddTool(mcpSrv, tool, withPanicRecovery(name, handler))
+	return nil
 }
 
 // withPanicRecovery wraps a tool handler with panic recovery and logging.

@@ -1,11 +1,12 @@
 package logging
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"mcs-mcp/internal/paths"
 
 	"github.com/joho/godotenv"
 	"github.com/mattn/go-isatty"
@@ -39,36 +40,31 @@ func Init() {
 		NoColor:    !isTerminal,
 	}
 
-	// 3. Setup File Writer (Rotating)
-	dataPath := os.Getenv("DATA_PATH")
-	if dataPath == "" {
-		if err == nil {
-			dataPath = filepath.Dir(exePath)
-		} else {
-			dataPath = "."
-		}
+	// 3. Setup File Writer (Rotating) using shared data path resolution
+	var exeDir string
+	if err == nil {
+		exeDir = filepath.Dir(exePath)
 	}
-
+	dataPath := paths.ResolveDataPath(exeDir)
 	logDir := filepath.Join(dataPath, "logs")
 
-	// Ensure log directory exists and is writable
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to create log directory %q: %v\n", logDir, err)
-		os.Exit(1)
-	}
+	var writers []io.Writer
+	writers = append(writers, io.Writer(consoleWriter))
 
-	logFile := filepath.Join(logDir, "mcs-mcp.log")
-
-	fileWriter := &lumberjack.Logger{
-		Filename:   logFile,
-		MaxSize:    16, // megabytes
-		MaxBackups: 32,
-		MaxAge:     365, // days
-		Compress:   true,
+	if err := os.MkdirAll(logDir, 0755); err == nil {
+		logFile := filepath.Join(logDir, "mcs-mcp.log")
+		fileWriter := &lumberjack.Logger{
+			Filename:   logFile,
+			MaxSize:    16, // megabytes
+			MaxBackups: 32,
+			MaxAge:     365, // days
+			Compress:   true,
+		}
+		writers = append(writers, fileWriter)
 	}
 
 	// 4. Combine Writers
-	multi := zerolog.MultiLevelWriter(io.Writer(consoleWriter), fileWriter)
+	multi := zerolog.MultiLevelWriter(writers...)
 
 	// 5. Set Global Logger
 	log.Logger = zerolog.New(multi).
@@ -76,5 +72,9 @@ func Init() {
 		Timestamp().
 		Logger()
 
-	log.Info().Msg("Logging initialized")
+	if len(writers) == 1 {
+		log.Warn().Msg("File logging disabled: could not create log directory")
+	} else {
+		log.Info().Str("dir", logDir).Msg("Logging initialized")
+	}
 }
