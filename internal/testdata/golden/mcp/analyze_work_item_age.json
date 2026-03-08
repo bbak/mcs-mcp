@@ -871,7 +871,21 @@
         "percentile": 22,
         "is_aging_outlier": false
       }
-    ]
+    ],
+    "summary": {
+      "total_items": 58,
+      "outlier_count": 18,
+      "p50_threshold_days": 14.1,
+      "p85_threshold_days": 84,
+      "p95_threshold_days": 146.3,
+      "distribution": {
+        "Aging (P50-P85)": 22,
+        "Extreme (\u003eP95)": 6,
+        "Inconspicuous (within P50)": 18,
+        "Warning (P85-P95)": 12
+      },
+      "stability_index": 1.61
+    }
   },
   "guardrails": {
     "insights": [

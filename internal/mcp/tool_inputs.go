@@ -130,9 +130,8 @@ type ForecastMonteCarloInput struct {
 type AnalyzeCycleTimeInput struct {
 	ProjectKey          string   `json:"project_key" jsonschema:"The project key"`
 	BoardID             int      `json:"board_id" jsonschema:"The board ID"`
-	IssueTypes          []string `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include in the calculation (e.g. Story or Bug)."`
-	AnalyzeWIPStability bool     `json:"analyze_wip_stability,omitempty" jsonschema:"If true performs a comparative analysis of current WIP against the historical baseline to detect early outliers."`
-	StartStatus         string   `json:"start_status,omitempty" jsonschema:"Optional: Explicit start status (default: Commitment Point)."`
+	IssueTypes  []string `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include in the calculation (e.g. Story or Bug)."`
+	StartStatus string   `json:"start_status,omitempty" jsonschema:"Optional: Explicit start status (default: Commitment Point)."`
 	EndStatus           string   `json:"end_status,omitempty" jsonschema:"Optional: Explicit end status (default: Finished Tier)."`
 }
 

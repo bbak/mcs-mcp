@@ -229,7 +229,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 
 	must(addTool(mcpSrv, s, "analyze_cycle_time",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeCycleTimeInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleGetCycleTimeAssessment(args.ProjectKey, args.BoardID, args.AnalyzeWIPStability, args.StartStatus, args.EndStatus, args.IssueTypes)
+			data, err := s.handleGetCycleTimeAssessment(args.ProjectKey, args.BoardID, args.StartStatus, args.EndStatus, args.IssueTypes)
 			return handleResult(s, data, err)
 		}))
 

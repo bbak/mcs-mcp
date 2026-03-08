@@ -53,7 +53,7 @@ A complete reference of all available MCP tools, grouped by category.
 | Tool | Purpose |
 | :--- | :--- |
 | `analyze_status_persistence` | Identify bottlenecks by analyzing time items spend in each workflow status (P50/P85/P95). |
-| `analyze_work_item_age` | Detect aging WIP outliers relative to P85 historical norms. |
+| `analyze_work_item_age` | Detect aging WIP outliers relative to P85 historical norms. Includes aggregate summary with P50/P85/P95 thresholds, risk-band distribution, and Little's Law stability index. |
 | `analyze_throughput` | Analyze weekly delivery volume with XmR stability limits. |
 | `analyze_process_stability` | Assess cycle-time predictability using XmR Individual and Moving Range charts. |
 | `analyze_flow_debt` | Analyze the balance between commitment arrivals and delivery departures. |

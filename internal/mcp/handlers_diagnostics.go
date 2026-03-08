@@ -124,8 +124,17 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		aging = filtered
 	}
 
+	// Compute aggregate summary with risk-band distribution and stability index
+	throughput := 0.0
+	activeDays := window.End.Sub(window.Start).Hours() / 24
+	if activeDays > 0 {
+		throughput = float64(len(delivered)) / activeDays
+	}
+	summary := stats.CalculateAgingSummary(aging, cycleTimes, len(aging), throughput)
+
 	res := map[string]any{
-		"aging": aging,
+		"aging":   aging,
+		"summary": summary,
 	}
 
 	if s.enableMermaidCharts {
