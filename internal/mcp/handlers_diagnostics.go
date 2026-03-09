@@ -273,19 +273,32 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 	stability := stats.CalculateProcessStability(matchedIssues, cycleTimes, len(wip), float64(window.ActiveDayCount()))
 	stratified := stats.CalculateStratifiedStability(issuesByType, ctByType, wipByType, float64(window.ActiveDayCount()))
 
+	// Scatterplot: chart-ready data with dates, cycle times, pooled moving ranges, and issue types.
+	scatterplot := stats.BuildScatterplot(matchedIssues, cycleTimes)
+
+	// Round all numeric output to 2 decimal places (post-math, output boundary only).
+	stability.Round()
+	for k, sr := range stratified {
+		sr.Round()
+		stratified[k] = sr
+	}
+
+	// Always strip stratified raw series (scatterplot supersedes them).
+	for k, sr := range stratified {
+		sr.XmR.Values = nil
+		sr.XmR.MovingRange = nil
+		stratified[k] = sr
+	}
+
 	if !includeRawSeries {
 		stability.XmR.Values = nil
 		stability.XmR.MovingRange = nil
-		for k, sr := range stratified {
-			sr.XmR.Values = nil
-			sr.XmR.MovingRange = nil
-			stratified[k] = sr
-		}
 	}
 
 	res := map[string]any{
-		"stability":  stability,
-		"stratified": stratified,
+		"stability":   stability,
+		"stratified":  stratified,
+		"scatterplot": scatterplot,
 	}
 
 	if s.enableMermaidCharts {
@@ -295,6 +308,10 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 	guidance := []string{
 		"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
 		"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
+		"The 'scatterplot' array contains one entry per delivered work item with cycle time (value), date (the work item's outcome date), pooled moving range, and issue type. " +
+			"Render a Cycle Time Scatterplot: X=date, Y=value. " +
+			"Reference lines from stability.xmr: average (center), upper_natural_process_limit, lower_natural_process_limit. " +
+			"For type-specific limits, use stratified[type].xmr.",
 	}
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil

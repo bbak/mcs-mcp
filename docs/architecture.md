@@ -55,7 +55,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_status_persistence` | Identify bottlenecks by analyzing time items spend in each workflow status (P50/P85/P95). |
 | `analyze_work_item_age` | Detect aging WIP outliers relative to P85 historical norms. Includes aggregate summary with P50/P85/P95 thresholds, risk-band distribution, and Little's Law stability index. |
 | `analyze_throughput` | Analyze weekly delivery volume with XmR stability limits. |
-| `analyze_process_stability` | Assess cycle-time predictability using XmR Individual and Moving Range charts. |
+| `analyze_process_stability` | Assess cycle-time predictability using XmR charts. Includes a Cycle Time Scatterplot array for visualization. |
 | `analyze_flow_debt` | Analyze the balance between commitment arrivals and delivery departures. |
 | `analyze_wip_stability` | Analyze WIP population stability via daily run chart with XmR bounds. |
 | `analyze_wip_age_stability` | Analyze Total WIP Age stability (cumulative age burden) via daily run chart with XmR bounds. |
@@ -250,6 +250,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **Throughput Cadence (XmR)**: Applies XmR limits to weekly/monthly delivery volumes to detect batching behavior or "Special Cause" surges/dips in capacity.
 - **Flow Debt (Arrival vs. Departure)**: Explicitly monitors the gap between items crossing the **Commitment Point** (Arrivals) and items being **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
 - **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
+- **Cycle Time Scatterplot**: Process Stability responses include a chart-ready `scatterplot` array with per-item completion date, cycle time, pooled moving range, and issue type — enabling date-based scatter visualization with XmR reference lines.
 
 ---
 
