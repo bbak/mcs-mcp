@@ -4,8 +4,8 @@ description: >
   Creates a dark-themed React/Recharts chart for the **Process Stability** analysis
   (mcs-mcp:analyze_process_stability). Trigger on: "process stability chart",
   "cycle time XmR", "lead time run chart", "cycle time stability", "stability index chart",
-  or any "show/chart/plot/visualize that" follow-up after an analyze_process_stability
-  result is present.
+  "cycle time scatterplot", or any "show/chart/plot/visualize that" follow-up after an
+  analyze_process_stability result is present.
   ONLY for analyze_process_stability output (individual item cycle times with XmR limits
   and Stability Index). Do NOT use for: throughput stability (analyze_throughput),
   WIP count stability (analyze_wip_stability), Total WIP Age (analyze_wip_age_stability),
@@ -16,9 +16,9 @@ description: >
 # Process Stability Chart
 
 > **Scope:** Use this skill ONLY when `analyze_process_stability` data is present in the
-> conversation. It visualizes individual item cycle times as an XmR run chart with UNPL
-> and mean reference lines, signal dot annotations, a Stability Index summary, and
-> per-issue-type breakdowns.
+> conversation. It visualizes individual item cycle times as a **Cycle Time Scatterplot**
+> with XmR reference lines (UNPL, Mean), signal dot annotations, a Stability Index summary,
+> and per-issue-type breakdowns.
 
 ---
 
@@ -42,11 +42,10 @@ data.stability
     .average_moving_range         — MR̄
     .upper_natural_process_limit  — UNPL = X̄ + 2.66 × MR̄
     .lower_natural_process_limit  — LNPL (usually 0 for cycle times)
-    .values[]                     — individual item cycle times in days, ordered by
-                                    completion date (NOT calendar time buckets)
-    .moving_ranges[]              — absolute day-to-day differences (length = n-1)
+    .values[]                     — individual item cycle times (only if includeRawSeries)
+    .moving_ranges[]              — absolute day-to-day differences (only if includeRawSeries)
     .signals[]                    — null or array:
-        .index       — position in values[] array (0-based)
+        .index       — position in scatterplot[] array (0-based)
         .key         — Jira issue key e.g. "IESFSCPL-1452" (NOT a date)
         .type        — "outlier" | "shift"
         .description — human-readable description
@@ -56,28 +55,29 @@ data.stability
   .expected_lead_time — estimated median lead time in days
   .signals[]          — duplicate of xmr.signals (same data, use either)
 
-data.stratified       — per-issue-type breakdown, same structure as stability:
+data.stratified       — per-issue-type breakdown:
   .Story / .Bug / .Activity / .Defect
-    .xmr { average, upper_natural_process_limit, lower_natural_process_limit,
-            values[], signals[] }
+    .xmr { average, average_moving_range,
+            upper_natural_process_limit, lower_natural_process_limit,
+            signals[] }
     .stability_index
     .expected_lead_time
     .signals[]
+  NOTE: Stratified results never include values[] or moving_ranges[].
+        Use data.scatterplot filtered by issue_type instead.
+
+data.scatterplot[]    — chart-ready array, one entry per delivered work item:
+    .date             — completion date (outcome date), "YYYY-MM-DD"
+    .value            — cycle time in days (rounded to 2 decimal places)
+    .moving_range     — |cycleTimes[i] - cycleTimes[i-1]|, pooled (null for first item)
+    .key              — Jira issue key e.g. "MOCK-100"
+    .issue_type       — e.g. "Story", "Bug", "Activity"
 ```
 
-**Critical difference from other charts:** `values[]` are **individual item cycle times**,
-not time-bucketed aggregates. The X-axis is item sequence number, not calendar date.
-Signal keys are **Jira issue keys**, not dates.
-
-> **Known limitation — completion dates not exposed (MCP server improvement pending):**
-> `analyze_process_stability` does not include per-item completion dates in its response.
-> The server uses completion dates internally for ordering `values[]`, but does not surface
-> them. As a result, the X-axis can only show item sequence numbers, not calendar dates.
-> Do NOT attempt to work around this by calling `analyze_item_journey` per item — it would
-> require N extra tool calls and only covers signal items, leaving the rest undated.
-> When this is fixed server-side (each `values[]` entry enriched with `{ value, date, key }`),
-> update the X-axis to use `dataKey="date"` with `tickFormatter={fmtDate}` and enable
-> the tooltip to show the formatted completion date.
+**Critical difference from other charts:** `scatterplot[]` entries are **individual item
+cycle times** plotted by completion date. The X-axis is calendar date (multiple items may
+share a date — this is a scatterplot, not a line chart). Signal keys are **Jira issue
+keys**, not dates.
 
 ---
 
@@ -91,7 +91,7 @@ const LNPL  = data.stability.xmr.lower_natural_process_limit; // usually 0
 const SI    = data.stability.stability_index;
 const ELT   = data.stability.expected_lead_time; // estimated P50 in days
 
-// Build signal lookup sets (indexed by position in values[])
+// Build signal lookup sets (indexed by position in scatterplot[])
 const signalOutliers = new Set(
   (data.stability.xmr.signals || [])
     .filter(s => s.type === "outlier")
@@ -107,20 +107,33 @@ const signalKeys = Object.fromEntries(
   (data.stability.xmr.signals || []).map(s => [s.index, s.key])
 );
 
-// Annotate data array
-const chartData = data.stability.xmr.values.map((v, i) => ({
-  i,                        // sequence number (X-axis)
-  value: v,
-  mean:  MEAN,
-  unpl:  UNPL,
-  isOutlier: signalOutliers.has(i),
-  isShift:   signalShifts.has(i),
-  issueKey:  signalKeys[i] || null,
+// Annotate data array from scatterplot
+const chartData = data.scatterplot.map((pt, i) => ({
+  date:       pt.date,             // completion date (X-axis)
+  value:      pt.value,            // cycle time in days (Y-axis)
+  mr:         pt.moving_range,     // pooled moving range (tooltip)
+  key:        pt.key,              // Jira issue key (tooltip)
+  issueType:  pt.issue_type,       // for type filtering
+  mean:       MEAN,
+  unpl:       UNPL,
+  isOutlier:  signalOutliers.has(i),
+  isShift:    signalShifts.has(i),
+  issueKey:   signalKeys[i] || pt.key,
 }));
 ```
 
-Apply same preparation to each stratified type. Values near 0.00 are valid — items
-committed and resolved on the same day. Do not filter them out.
+For type-filtered views (e.g., "Story"), filter `chartData` by `issueType` and use the
+matching stratified XmR limits:
+
+```js
+const typeData = chartData.filter(d => d.issueType === selectedType);
+const typeMean = data.stratified[selectedType].xmr.average;
+const typeUNPL = data.stratified[selectedType].xmr.upper_natural_process_limit;
+// Re-map mean/unpl on each filtered point
+```
+
+Values near 0.00 are valid — items committed and resolved on the same day.
+Do not filter them out.
 
 ---
 
@@ -129,10 +142,10 @@ committed and resolved on the same day. Do not filter them out.
 **Single panel** `ComposedChart` with one Y-axis. No dual axis, no stacked bars.
 
 ### X-axis
-- `dataKey="i"` (sequence index)
-- Tick formatter: `v => \`#${v+1}\`` — item number starting at 1
+- `dataKey="date"` (completion date)
+- Tick formatter: format as short date (e.g., `"Jun 12"`, `"Mar 3"`)
 - Interval: `Math.floor(data.length / 8)` to show ~8–10 labels
-- **No dates on the X-axis** — items are not evenly spaced in time
+- Multiple items may share a date — this is a scatterplot, not a line chart
 
 ### Y-axis
 - Domain: `[0, Math.ceil((Math.max(...values, UNPL) * 1.1) / 50) * 50]`
@@ -141,8 +154,10 @@ committed and resolved on the same day. Do not filter them out.
 
 ### Series
 
-1. **`<Line>`** — `dataKey="value"`, thin line connecting items, `strokeOpacity={0.5}`,
-   `strokeWidth={1}`. Purpose: show trend/shape. Custom dots for signals only.
+1. **`<Scatter>`** (preferred) or **`<Line>`** with `type="monotone"` — `dataKey="value"`.
+   Use `<Scatter>` for a true scatterplot (no connecting line). If using `<Line>`, set
+   `strokeOpacity={0.3}`, `strokeWidth={1}`, `connectNulls={false}`.
+   Custom dots for signals only.
 
 2. **`<ReferenceLine>`** for UNPL — `#ff6b6b`, dashed `"6 3"`, label "UNPL".
 3. **`<ReferenceLine>`** for MEAN — type color, dashed `"4 4"`, label "X̄".
@@ -154,11 +169,11 @@ committed and resolved on the same day. Do not filter them out.
 const CustomDot = ({ cx, cy, payload }) => {
   if (payload.isOutlier) return <circle cx={cx} cy={cy} r={5} fill="#ff6b6b" stroke="#080a0f" strokeWidth={1.5} />;
   if (payload.isShift)   return <circle cx={cx} cy={cy} r={4} fill="#e2c97e" stroke="#080a0f" strokeWidth={1.5} />;
-  return null;
+  return <circle cx={cx} cy={cy} r={2.5} fill="#dde1ef" fillOpacity={0.6} stroke="none" />;
 };
 ```
 
-Red dot = outlier above UNPL. Amber dot = shift anchor (8-point run).
+Red dot = outlier above UNPL. Amber dot = shift anchor (8-point run). Small dot = normal item.
 
 ---
 
@@ -167,8 +182,8 @@ Red dot = outlier above UNPL. Amber dot = shift anchor (8-point run).
 Add toggle buttons for `Overall`, `Story`, `Activity`, `Bug` (and `Defect` if present).
 
 - Show SI value as small sub-label on each per-type button
-- Switching type re-renders the chart with the selected type's `values`, `mean`, `unpl`,
-  `signals`, `stability_index`, and `expected_lead_time`
+- Switching type re-renders the chart with the selected type's filtered scatterplot data,
+  `mean`, `unpl`, `signals`, `stability_index`, and `expected_lead_time`
 - Defect often has only 1 item — still renderable but note "insufficient data" in the panel header
 
 Type colors:
@@ -198,7 +213,7 @@ Status label:
 
 - **Breadcrumb:** `{PROJECT_KEY} · {board name} · Board {board_id}` — muted, uppercase
 - **Title:** exactly `"Process Stability"`
-- **Subtitle:** `"Cycle Time XmR Run Chart · Individual items ordered by completion date"`
+- **Subtitle:** `"Cycle Time Scatterplot · Individual items by completion date"`
 - **Stat cards:**
 
 | Label | Value | Color |
@@ -229,17 +244,18 @@ one card per issue type (Story, Activity, Bug — skip Defect if only 1 item).
 Each card shows:
 - Type name + SI badge (colored by SI)
 - X̄, UNPL, P50 estimate, outlier count, shift count
-- A mini run chart (height ~140px) using `RunChart` with the type's data
+- A mini scatterplot (height ~140px) using the type's filtered data
 
 ---
 
 ## Tooltip
 
 ```
-Item #{i+1}
-{issueKey if present}          ← bold, Jira key
+{issueKey}                       ← bold, Jira key
+{date}                           ← completion date, formatted
 ─────────────────────
 Cycle Time: {value.toFixed(1)} days
+mR:         {mr?.toFixed(1) || "–"} d
 X̄:    {mean.toFixed(1)} d
 UNPL: {unpl.toFixed(1)} d
 [if isOutlier] ⚠ Outlier: above UNPL     ← red, bold
@@ -253,7 +269,7 @@ UNPL: {unpl.toFixed(1)} d
 Manual legend (never use Recharts `<Legend>` component). Center below chart.
 
 ```
-── (type color, semi-transparent)   Cycle Time (individual items)
+● (type color, semi-transparent)   Cycle Time (individual items)
 -- (red dashed)                     UNPL
 -- (type color dashed)              X̄ Mean
 ● (red)                             Outlier (above UNPL)
@@ -267,12 +283,12 @@ Manual legend (never use Recharts `<Legend>` component). Center below chart.
 Two sections:
 
 1. **"Reading this chart:"** — Each point is the cycle time of one delivered item,
-   ordered chronologically. The dashed X̄ is the process mean. The UNPL defines the
-   outer boundary of natural variation — points above it are outliers caused by special
-   circumstances, not normal process noise. Yellow dots mark the anchor of an 8-point
-   run on one side of the mean (Process Shift signal). The Stability Index
-   (WIP ÷ Throughput ÷ Mean Cycle Time) summarises system health: below 0.9 = stable,
-   0.9–1.3 = marginal, above 1.3 = clogged.
+   plotted by its completion date (outcome date). Multiple items may share a date.
+   The dashed X̄ is the process mean. The UNPL defines the outer boundary of natural
+   variation — points above it are outliers caused by special circumstances, not normal
+   process noise. Yellow dots mark the anchor of an 8-point run on one side of the mean
+   (Process Shift signal). The Stability Index (WIP ÷ Throughput ÷ Mean Cycle Time)
+   summarises system health: below 0.9 = stable, 0.9–1.3 = marginal, above 1.3 = clogged.
 
 2. **"Data provenance:"** — Wheeler XmR applied to individual item cycle times. Signals:
    outlier = above UNPL; shift = 8+ consecutive points on one side of X̄. Values near 0
@@ -284,16 +300,17 @@ Two sections:
 
 - [ ] Skill triggered by `analyze_process_stability` data
 - [ ] Chart title reads exactly **"Process Stability"**
-- [ ] X-axis shows item sequence numbers, NOT dates
+- [ ] X-axis shows completion dates (not sequence numbers)
 - [ ] Signal keys are Jira issue keys (e.g. "IESFSCPL-1452"), NOT dates — used only in tooltip
 - [ ] LNPL reference line only rendered if `LNPL > 0`
-- [ ] CustomDot: red r=5 for outliers, amber r=4 for shift anchors, null otherwise
+- [ ] CustomDot: red r=5 for outliers, amber r=4 for shift anchors, small dot otherwise
 - [ ] Type toggle buttons: Overall / Story / Activity / Bug
+- [ ] Type-filtered views use stratified XmR limits, not pooled
 - [ ] SI shown on toggle buttons as small sub-label
 - [ ] Status badge: CLOGGED (red) / MARGINAL (amber) / STABLE (green)
 - [ ] Outlier and shift count badges shown when count > 0
 - [ ] Per-type summary grid visible when Overall is selected
-- [ ] Tooltip shows issue key + cycle time + signal type
+- [ ] Tooltip shows issue key + completion date + cycle time + mR + signal type
 - [ ] Stat cards: X̄, UNPL, Expected P50, Stability Index
 - [ ] SI card color driven by SI thresholds (0.9 / 1.3)
 - [ ] Manual legend below chart panel

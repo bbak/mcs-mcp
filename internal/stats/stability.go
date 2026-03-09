@@ -16,6 +16,32 @@ type XmRResult struct {
 	Signals     []Signal  `json:"signals"`
 }
 
+// round2 rounds a float64 to 2 decimal places for output compactness.
+// If the original value is positive, the result is floored to 0.01 to avoid
+// misleading "0.00" output (same rationale as the Zero-Day Safeguard in §8.7).
+func round2(v float64) float64 {
+	r := math.Round(v*100) / 100
+	if r == 0 && v > 0 {
+		return 0.01
+	}
+	return r
+}
+
+// Round rounds all numeric fields to 2 decimal places for output compactness.
+// Call at the handler/output boundary — never inside math internals.
+func (r *XmRResult) Round() {
+	r.Average = round2(r.Average)
+	r.AmR = round2(r.AmR)
+	r.UNPL = round2(r.UNPL)
+	r.LNPL = round2(r.LNPL)
+	for i := range r.Values {
+		r.Values[i] = round2(r.Values[i])
+	}
+	for i := range r.MovingRange {
+		r.MovingRange[i] = round2(r.MovingRange[i])
+	}
+}
+
 // Signal represents a detected special cause variation.
 type Signal struct {
 	Index       int    `json:"index"`
@@ -74,6 +100,13 @@ type StabilityResult struct {
 	StabilityIndex   float64   `json:"stability_index"`    // Ratio: Expected Lead Time / Avg Cycle Time
 	ExpectedLeadTime float64   `json:"expected_lead_time"` // Days: WIP / Throughput
 	Signals          []Signal  `json:"signals"`
+}
+
+// Round rounds all numeric fields (including the embedded XmR) to 2 decimal places for output compactness.
+func (r *StabilityResult) Round() {
+	r.XmR.Round()
+	r.StabilityIndex = round2(r.StabilityIndex)
+	r.ExpectedLeadTime = round2(r.ExpectedLeadTime)
 }
 
 // LittlesLawIndex computes the stability index: currentWIP / (throughput × avgCycleTime).
@@ -266,6 +299,53 @@ func GroupIssuesByBucket(issues []jira.Issue, cycleTimes []float64, window Analy
 	}
 
 	return result
+}
+
+// ScatterPoint represents a single chart-ready data point for Cycle Time Scatterplot visualization.
+type ScatterPoint struct {
+	Date        string   `json:"date"`
+	Value       float64  `json:"value"`
+	MovingRange *float64 `json:"moving_range"` // nil for the first point
+	Key         string   `json:"key"`
+	IssueType   string   `json:"issue_type"`
+}
+
+// BuildScatterplot constructs a chart-ready scatterplot array from delivered issues and their cycle times.
+// Values and moving ranges are rounded to 2 decimal places for payload compactness.
+// The moving range is pooled (consecutive items regardless of type).
+func BuildScatterplot(issues []jira.Issue, cycleTimes []float64) []ScatterPoint {
+	if len(issues) == 0 || len(cycleTimes) == 0 {
+		return nil
+	}
+
+	n := len(issues)
+	if len(cycleTimes) < n {
+		n = len(cycleTimes)
+	}
+
+	points := make([]ScatterPoint, 0, n)
+	for i := 0; i < n; i++ {
+		iss := issues[i]
+		if iss.OutcomeDate == nil {
+			continue
+		}
+
+		p := ScatterPoint{
+			Date:      iss.OutcomeDate.Format("2006-01-02"),
+			Value:     round2(cycleTimes[i]),
+			Key:       iss.Key,
+			IssueType: iss.IssueType,
+		}
+
+		if len(points) > 0 {
+			mr := round2(math.Abs(cycleTimes[i] - cycleTimes[i-1]))
+			p.MovingRange = &mr
+		}
+
+		points = append(points, p)
+	}
+
+	return points
 }
 
 // SystemPressureResult represents the current impediment stress on the system.

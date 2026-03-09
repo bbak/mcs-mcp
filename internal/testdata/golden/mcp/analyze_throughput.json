@@ -53,14 +53,14 @@
       {
         "end_date": "2026-03-08",
         "index": "8",
-        "is_partial": "true",
+        "is_partial": "false",
         "label": "2026-W10",
         "start_date": "2026-03-02"
       },
       {
         "end_date": "2026-03-15",
         "index": "9",
-        "is_partial": "false",
+        "is_partial": "true",
         "label": "2026-W11",
         "start_date": "2026-03-09"
       },
