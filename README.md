@@ -2,8 +2,6 @@
 
 **MCS-MCP** is a Model Context Protocol (MCP) server that connects AI assistants like Claude to your Jira project history, enabling natural-language delivery analytics and probabilistic forecasting. Ask questions like _"When will we finish these 20 items?"_, _"Is our process getting more predictable?"_, or _"Where are items getting stuck?"_ — and get answers grounded in your team's actual historical performance, not estimates or gut feel.
 
-Rather than relying on Jira's often-misconfigured built-in reports, MCS-MCP infers the true shape of your delivery process from raw transition logs, with a strong focus on **mathematical hardening and defensive design**.
-
 > [!WARNING]
 > Currently, this must be considered _beta_. While it works quite well,
 > the Math is not thoroughly verified. Don't bet your bonus on the
@@ -26,6 +24,13 @@ Rather than relying on Jira's often-misconfigured built-in reports, MCS-MCP infe
 - **Strategic Evolution Tracking**: Longitudinal audits using Three-Way Control Charts (weekly/monthly) detect systemic improvements or process drift over time.
 - **Historical Time-Travel**: Set a specific past date as the analytical reference point to recreate the state of your process at that moment. Useful for retrospectives, post-mortems, or before/after comparisons following a process change.
 - **Guided Analytical Roadmaps**: The server proactively suggests the right sequence of diagnostic steps for a given goal (forecasting, bottleneck analysis, capacity planning), preventing AI agents from guessing at the right path.
+
+---
+
+## 🧱 Limitations and Assumptions
+
+- The Server doesn't use Jira's workflow related REST APIs. It infers the workflow from actual issue transitions, which is very reliable if - and that is the assumption - all work item types on a board share the same workflow, or - to be more precise - share the same statuses in the same order. If that assumtion doesn't hold, workflow discovery will yield unpredictable results and analytics/diagnostic and forecasting functions might get confused. I don't know whether I will ever tackle such cases, because analyzing a flow across different workflows seems nonsensical to me (I'm open to be proven wrong).
+- For the same reason, the Server currently works on Boards and doesn't allow you to pass JQL to it. A simple workaround is obvious: Create a board using your query as the Board-JQL. Just be mindful of what you're doing.
 
 ---
 
@@ -113,12 +118,15 @@ JIRA_USER_EMAIL=your-jira-account-email
 
 If neither is available, provide session cookies extracted from an active browser session:
 
-- `JIRA_SESSION_ID`: Your Jira session ID
-- `JIRA_XSRF_TOKEN`: Your XSRF token
-- `JIRA_REMEMBERME_COOKIE`: Your Jira RememberMe cookie
-- (optional) `JIRA_GCILB`, `JIRA_GCLB`: Actually these are Google-Cloud Load Balancer Cookies
+```env
+JIRA_SESSION_ID=jira-session-ID
+JIRA_XSRF_TOKEN=XSRF-token
+JIRA_REMEMBERME_COOKIE=Jira-RememberMe-cookie
+JIRA_GCILB=optional-google-cloud-load-balancer-cookie-GCILB
+JIRA_GCLB=optional-google-cloud-load-balancer-cookie-GCLB
+```
 
-Note that these a) might expire from time to time and b) Atlassian may take measures to prevent the use of session cookies this way.
+Note that Cookies a) might expire from time to time and b) Atlassian may take measures to prevent the use of session cookies this way.
 
 ### Building from Sources
 
@@ -167,17 +175,17 @@ These optional variables can be set in the `.env` file:
 | `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                     |
 | `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.      |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point. |
-| `JIRA_REQUEST_DELAY_SECONDS`            | `5`         | Enforced delay (in seconds) between requests to the Jira REST API.    |
+| `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.    |
 
 ---
 
-## Skills
+## 🧩 Skills
 
 MCS-MCP comes with Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
 
 ---
 
-## Usage Tips
+## 👉 Usage Tips
 
 - Many Agents can create Charts directly from the data returned by the MCP-Server. In Claude Desktop, a prompt like _"Please create a Chart for WIP"_ works well. For specific chart types, install the relevant Skill from the `docs/skills/` directory.
 - Ask the Agent for the **diagnostic roadmap** at the start of a session. It returns a goal-oriented sequence of tools so you always have a clear path of analysis rather than guessing what to run next.
