@@ -8,6 +8,7 @@ before:
         - go mod tidy
         - go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
         - go generate ./...
+        - zip -r mcs-mcp.skill docs/skills/
 
 builds:
     - id: "mcs-mcp"
@@ -61,7 +62,7 @@ archives:
           - docs/skill-installation-instructions.md
           - docs/testing.md
           - docs/use-cases.md
-          - docs/skills/**/*
+          - mcs-mcp.skill
 
 checksum:
     name_template: "checksums.txt"
@@ -83,3 +84,4 @@ release:
         owner: bbak
         name: mcs-mcp
     name_template: "{{ .ProjectName }} v{{ .Version }}"
+

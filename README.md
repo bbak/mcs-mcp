@@ -181,7 +181,13 @@ These optional variables can be set in the `.env` file:
 
 ## 🧩 Skills
 
-MCS-MCP comes with Skills that can be used by AI Agents to create Charts and other visualizations. The skills are located in the `docs/skills/` directory of the MCP-Server release archive. See [Skill Installation Instructions](docs/skill-installation-instructions.md) for instructions on how to install them.
+MCS-MCP comes with Skills that can be used by AI Agents to create Charts from the data sent by the MCP-Server. All tools are covered.
+
+1. Import `mcs-mcp.skill` as SKILL file.
+2. Start a new session.
+3. Run some analysis or forecast and tell the Agent (Claude) to also create a Chart.
+
+Note that this is tested with Claude Desktop only. In addition, a `.skill` file is just a ZIP-Archive with another file extension. Feel free to adopt them to your (visual) needs.
 
 ---
 
