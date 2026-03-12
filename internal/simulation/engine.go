@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"mcs-mcp/internal/stats"
 	"slices"
 	"time"
 
@@ -42,10 +43,28 @@ type Percentiles struct {
 	AlmostCertain float64 `json:"almost_certain"` // P98
 }
 
+// Round rounds all fields to 2 decimal places for output compactness.
+func (p *Percentiles) Round() {
+	p.Aggressive = stats.Round2(p.Aggressive)
+	p.Unlikely = stats.Round2(p.Unlikely)
+	p.CoinToss = stats.Round2(p.CoinToss)
+	p.Probable = stats.Round2(p.Probable)
+	p.Likely = stats.Round2(p.Likely)
+	p.Conservative = stats.Round2(p.Conservative)
+	p.Safe = stats.Round2(p.Safe)
+	p.AlmostCertain = stats.Round2(p.AlmostCertain)
+}
+
 // SpreadMetrics holds statistical dispersion data.
 type SpreadMetrics struct {
 	IQR     float64 `json:"iqr"`      // P75-P25
 	Inner80 float64 `json:"inner_80"` // P90-P10
+}
+
+// Round rounds all fields to 2 decimal places for output compactness.
+func (s *SpreadMetrics) Round() {
+	s.IQR = stats.Round2(s.IQR)
+	s.Inner80 = stats.Round2(s.Inner80)
 }
 
 // Result holds the percentiles of a simulation or analysis.
@@ -68,6 +87,37 @@ type Result struct {
 	ModelingInsight          string                    `json:"modeling_insight,omitempty"`
 	VolatilityAttribution    map[string]string         `json:"volatility_attribution,omitempty"`
 	TypeSLEs                 map[string]Percentiles    `json:"type_sles,omitempty"`
+}
+
+// Round rounds all numeric fields to 2 decimal places for output compactness.
+// Call at the handler/output boundary — never inside math internals.
+func (r *Result) Round() {
+	r.Percentiles.Round()
+	r.Spread.Round()
+	r.FatTailRatio = stats.Round2(r.FatTailRatio)
+	r.TailToMedianRatio = stats.Round2(r.TailToMedianRatio)
+	r.ThroughputTrend.PercentageChange = stats.Round2(r.ThroughputTrend.PercentageChange)
+	for k, p := range r.TypeSLEs {
+		p.Round()
+		r.TypeSLEs[k] = p
+	}
+	if decisions, ok := r.Context["stratification_decisions"].([]StratificationDecision); ok {
+		for i := range decisions {
+			decisions[i].Round()
+		}
+		r.Context["stratification_decisions"] = decisions
+	}
+	if v, ok := r.Context["throughput_overall"].(float64); ok {
+		r.Context["throughput_overall"] = stats.Round2(v)
+	}
+	if v, ok := r.Context["throughput_recent"].(float64); ok {
+		r.Context["throughput_recent"] = stats.Round2(v)
+	}
+	if dist, ok := r.Context["type_distribution"].(map[string]float64); ok {
+		for k, v := range dist {
+			dist[k] = stats.Round2(v)
+		}
+	}
 }
 
 func NewEngine(h *Histogram) *Engine {

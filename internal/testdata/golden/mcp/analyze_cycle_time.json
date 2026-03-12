@@ -1,18 +1,18 @@
 {
   "data": {
     "percentiles": {
-      "aggressive": 0.5385648148148148,
-      "unlikely": 9.0784375,
-      "coin_toss": 30.288738425925924,
-      "probable": 55.149039351851854,
-      "likely": 123.9114814814815,
-      "conservative": 195.9986342592593,
-      "safe": 263.8598148148148,
-      "almost_certain": 596.0730555555556
+      "aggressive": 0.54,
+      "unlikely": 9.08,
+      "coin_toss": 30.29,
+      "probable": 55.15,
+      "likely": 123.91,
+      "conservative": 196,
+      "safe": 263.86,
+      "almost_certain": 596.07
     },
     "spread": {
-      "iqr": 81.0045138888889,
-      "inner_80": 195.46006944444449
+      "iqr": 81,
+      "inner_80": 195.46
     },
     "fat_tail_ratio": 19.68,
     "tail_to_median_ratio": 4.09,
@@ -30,39 +30,39 @@
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
           "volume": 55,
-          "p85_cycle_time": 202.9176612037037,
-          "distance_to_pool": -0.09393509378077257
+          "p85_cycle_time": 202.92,
+          "distance_to_pool": -0.09
         },
         {
           "type": "Bug",
           "eligible": true,
           "reason": "Meets volume and variance criteria",
           "volume": 20,
-          "p85_cycle_time": 104.84546478009258,
-          "distance_to_pool": -0.5318455986040509
+          "p85_cycle_time": 104.85,
+          "distance_to_pool": -0.53
         },
         {
           "type": "Defect",
           "eligible": false,
           "reason": "Volume too low (\u003c 15 items)",
           "volume": 1,
-          "p85_cycle_time": 7.102187372685186,
-          "distance_to_pool": -0.9682874191550856
+          "p85_cycle_time": 7.1,
+          "distance_to_pool": -0.97
         },
         {
           "type": "Story",
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
           "volume": 63,
-          "p85_cycle_time": 233.96716738425926,
-          "distance_to_pool": 0.0447066968783291
+          "p85_cycle_time": 233.97,
+          "distance_to_pool": 0.04
         }
       ],
       "stratification_dependencies": {},
       "stratification_eligible": {
         "Bug": true
       },
-      "throughput_overall": 0.7595628415300546,
+      "throughput_overall": 0.76,
       "throughput_recent": 0.9,
       "type_counts": {
         "Activity": 55,
@@ -71,10 +71,10 @@
         "Story": 63
       },
       "type_distribution": {
-        "Activity": 0.39568345323741005,
-        "Bug": 0.14388489208633093,
-        "Defect": 0.007194244604316547,
-        "Story": 0.45323741007194246
+        "Activity": 0.4,
+        "Bug": 0.14,
+        "Defect": 0.01,
+        "Story": 0.45
       },
       "type_volatility": {
         "Activity": 10,
@@ -99,44 +99,44 @@
     },
     "type_sles": {
       "Activity": {
-        "aggressive": 0.5385648148148148,
-        "unlikely": 8.0940625,
-        "coin_toss": 26.011180555555562,
-        "probable": 62.107824074074074,
-        "likely": 124.85115740740743,
-        "conservative": 195.9986342592593,
-        "safe": 223.95468749999998,
-        "almost_certain": 245.96050925925925
+        "aggressive": 0.54,
+        "unlikely": 8.09,
+        "coin_toss": 26.01,
+        "probable": 62.11,
+        "likely": 124.85,
+        "conservative": 196,
+        "safe": 223.95,
+        "almost_certain": 245.96
       },
       "Bug": {
-        "aggressive": 1.8815046296296296,
-        "unlikely": 8.014282407407409,
-        "coin_toss": 29.245949074074073,
-        "probable": 36.92336805555556,
-        "likely": 51.755208333333336,
-        "conservative": 89.01861111111111,
-        "safe": 596.0730555555556,
-        "almost_certain": 596.0730555555556
+        "aggressive": 1.88,
+        "unlikely": 8.01,
+        "coin_toss": 29.25,
+        "probable": 36.92,
+        "likely": 51.76,
+        "conservative": 89.02,
+        "safe": 596.07,
+        "almost_certain": 596.07
       },
       "Defect": {
-        "aggressive": 7.101458333333333,
-        "unlikely": 7.101458333333333,
-        "coin_toss": 7.101458333333333,
-        "probable": 7.101458333333333,
-        "likely": 7.101458333333333,
-        "conservative": 7.101458333333333,
-        "safe": 7.101458333333333,
-        "almost_certain": 7.101458333333333
+        "aggressive": 7.1,
+        "unlikely": 7.1,
+        "coin_toss": 7.1,
+        "probable": 7.1,
+        "likely": 7.1,
+        "conservative": 7.1,
+        "safe": 7.1,
+        "almost_certain": 7.1
       },
       "Story": {
-        "aggressive": 0.09168981481481482,
-        "unlikely": 12.16644675925926,
-        "coin_toss": 39.22163194444445,
-        "probable": 91.00613425925927,
-        "likely": 131.27915509259262,
-        "conservative": 223.24512731481482,
-        "safe": 322.86552083333333,
-        "almost_certain": 734.8580787037037
+        "aggressive": 0.09,
+        "unlikely": 12.17,
+        "coin_toss": 39.22,
+        "probable": 91.01,
+        "likely": 131.28,
+        "conservative": 223.25,
+        "safe": 322.87,
+        "almost_certain": 734.86
       }
     }
   },

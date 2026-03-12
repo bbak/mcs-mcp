@@ -207,6 +207,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	}
 
 	if throughput.XmR != nil {
+		throughput.XmR.Round()
 		res["stability"] = throughput.XmR
 	}
 
@@ -355,6 +356,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	cycleTimes, matchedIssues := s.getCycleTimes(projectKey, boardID, delivered, analysisCtx.CommitmentPoint, "", nil)
 	subgroups := stats.GroupIssuesByBucket(matchedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
+	evolution.Round()
 
 	res := map[string]any{
 		"evolution": evolution,
@@ -402,7 +404,12 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 
 	all := session.GetAllIssues()
 	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
+	yield.Round()
 	stratified := stats.CalculateStratifiedYield(all, s.activeMapping, s.getResolutionMap(sourceID))
+	for k, sy := range stratified {
+		sy.Round()
+		stratified[k] = sy
+	}
 
 	res := map[string]any{
 		"yield":      yield,
@@ -593,6 +600,7 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 	// 3. Bound the chart output strictly to the requested display window
 	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), "day", cutoff)
 	wipStability := stats.AnalyzeHistoricalWIP(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
+	wipStability.XmR.Round()
 
 	res := map[string]any{
 		"wip_stability": wipStability,
@@ -650,6 +658,7 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, wi
 	// 3. Bound the chart output strictly to the requested display window
 	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), "day", cutoff)
 	wipAgeStability := stats.AnalyzeHistoricalWIPAge(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
+	wipAgeStability.XmR.Round()
 
 	res := map[string]any{
 		"wip_age_stability": wipAgeStability,

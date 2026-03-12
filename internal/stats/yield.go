@@ -24,6 +24,15 @@ type AbandonmentInsight struct {
 	Severity   string  `json:"severity"`   // Indicator of waste (High for Downstream)
 }
 
+// Round rounds all numeric fields to 2 decimal places for output compactness.
+func (y *ProcessYield) Round() {
+	y.OverallYieldRate = Round2(y.OverallYieldRate)
+	for i := range y.LossPoints {
+		y.LossPoints[i].Percentage = Round2(y.LossPoints[i].Percentage)
+		y.LossPoints[i].AvgAge = Round2(y.LossPoints[i].AvgAge)
+	}
+}
+
 // CalculateProcessYield analyzes abandonment points across tiers.
 func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetadata, resolutions map[string]string) ProcessYield {
 	yield := ProcessYield{

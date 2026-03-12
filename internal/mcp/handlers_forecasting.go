@@ -144,6 +144,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 
 		resObj := engine.RunMultiTypeScopeSimulation(finalDays, 10000, issueTypes, dist, true)
+		resObj.Round()
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
 		resObj.Composition = &simulation.Composition{
@@ -156,6 +157,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 
 	case "duration":
 		resObj := engine.RunMultiTypeDurationSimulation(actualTargets, dist, 1000, true)
+		resObj.Round()
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
 		resObj.Composition = &simulation.Composition{
@@ -240,6 +242,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes, ctByType)
+	resObj.Round()
 
 	warnings := append(resObj.Warnings, s.getQualityWarnings(all)...)
 	insights := s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)

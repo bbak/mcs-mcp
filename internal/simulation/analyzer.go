@@ -17,6 +17,12 @@ type StratificationDecision struct {
 	DistanceToPool float64 `json:"distance_to_pool"` // % difference in P85
 }
 
+// Round rounds numeric fields to 2 decimal places for output compactness.
+func (d *StratificationDecision) Round() {
+	d.P85CycleTime = stats.Round2(d.P85CycleTime)
+	d.DistanceToPool = stats.Round2(d.DistanceToPool)
+}
+
 // AssessStratificationNeeds analyzes a set of delivered issues to decide which types should be stratified.
 func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 	if len(issues) == 0 {

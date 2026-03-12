@@ -192,9 +192,9 @@
       }
     ],
     "stability": {
-      "average": 4.7407407407407405,
-      "average_moving_range": 4.730769230769231,
-      "upper_natural_process_limit": 17.324586894586893,
+      "average": 4.74,
+      "average_moving_range": 4.73,
+      "upper_natural_process_limit": 17.32,
       "lower_natural_process_limit": 0,
       "values": [
         7,
