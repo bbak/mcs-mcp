@@ -30,37 +30,37 @@
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
           "volume": 19,
-          "p85_cycle_time": 202.9176612037037,
-          "distance_to_pool": -0.0604197142616504
+          "p85_cycle_time": 202.92,
+          "distance_to_pool": -0.06
         },
         {
           "type": "Bug",
           "eligible": false,
           "reason": "Volume too low (\u003c 15 items)",
           "volume": 10,
-          "p85_cycle_time": 194.2339707638889,
-          "distance_to_pool": -0.10062826139503142
+          "p85_cycle_time": 194.23,
+          "distance_to_pool": -0.1
         },
         {
           "type": "Defect",
           "eligible": false,
           "reason": "Volume too low (\u003c 15 items)",
           "volume": 1,
-          "p85_cycle_time": 7.102187372685186,
-          "distance_to_pool": -0.9671143694372866
+          "p85_cycle_time": 7.1,
+          "distance_to_pool": -0.97
         },
         {
           "type": "Story",
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
           "volume": 26,
-          "p85_cycle_time": 230.01913659722223,
-          "distance_to_pool": 0.0650696681958497
+          "p85_cycle_time": 230.02,
+          "distance_to_pool": 0.07
         }
       ],
       "stratification_dependencies": {},
       "stratification_eligible": {},
-      "throughput_overall": 0.6222222222222222,
+      "throughput_overall": 0.62,
       "throughput_recent": 0.9,
       "type_counts": {
         "Activity": 19,
@@ -69,10 +69,10 @@
         "Story": 26
       },
       "type_distribution": {
-        "Activity": 0.3392857142857143,
-        "Bug": 0.17857142857142858,
-        "Defect": 0.017857142857142856,
-        "Story": 0.4642857142857143
+        "Activity": 0.34,
+        "Bug": 0.18,
+        "Defect": 0.02,
+        "Story": 0.46
       },
       "type_volatility": {
         "Activity": 10,

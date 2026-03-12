@@ -16,10 +16,10 @@ type XmRResult struct {
 	Signals     []Signal  `json:"signals"`
 }
 
-// round2 rounds a float64 to 2 decimal places for output compactness.
+// Round2 rounds a float64 to 2 decimal places for output compactness.
 // If the original value is positive, the result is floored to 0.01 to avoid
 // misleading "0.00" output (same rationale as the Zero-Day Safeguard in §8.7).
-func round2(v float64) float64 {
+func Round2(v float64) float64 {
 	r := math.Round(v*100) / 100
 	if r == 0 && v > 0 {
 		return 0.01
@@ -30,15 +30,15 @@ func round2(v float64) float64 {
 // Round rounds all numeric fields to 2 decimal places for output compactness.
 // Call at the handler/output boundary — never inside math internals.
 func (r *XmRResult) Round() {
-	r.Average = round2(r.Average)
-	r.AmR = round2(r.AmR)
-	r.UNPL = round2(r.UNPL)
-	r.LNPL = round2(r.LNPL)
+	r.Average = Round2(r.Average)
+	r.AmR = Round2(r.AmR)
+	r.UNPL = Round2(r.UNPL)
+	r.LNPL = Round2(r.LNPL)
 	for i := range r.Values {
-		r.Values[i] = round2(r.Values[i])
+		r.Values[i] = Round2(r.Values[i])
 	}
 	for i := range r.MovingRange {
-		r.MovingRange[i] = round2(r.MovingRange[i])
+		r.MovingRange[i] = Round2(r.MovingRange[i])
 	}
 }
 
@@ -105,8 +105,8 @@ type StabilityResult struct {
 // Round rounds all numeric fields (including the embedded XmR) to 2 decimal places for output compactness.
 func (r *StabilityResult) Round() {
 	r.XmR.Round()
-	r.StabilityIndex = round2(r.StabilityIndex)
-	r.ExpectedLeadTime = round2(r.ExpectedLeadTime)
+	r.StabilityIndex = Round2(r.StabilityIndex)
+	r.ExpectedLeadTime = Round2(r.ExpectedLeadTime)
 }
 
 // LittlesLawIndex computes the stability index: currentWIP / (throughput × avgCycleTime).
@@ -211,6 +211,17 @@ type ThreeWayResult struct {
 	Subgroups    []SubgroupStats `json:"subgroups"`
 	AverageChart XmRResult       `json:"average_chart"` // The "Third Way": XmR chart of the subgroup averages
 	Status       string          `json:"status"`        // "stable", "migrating", "volatile"
+}
+
+// Round rounds all numeric fields to 2 decimal places for output compactness.
+func (r *ThreeWayResult) Round() {
+	r.AverageChart.Round()
+	for i := range r.Subgroups {
+		r.Subgroups[i].Average = Round2(r.Subgroups[i].Average)
+		for j := range r.Subgroups[i].Values {
+			r.Subgroups[i].Values[j] = Round2(r.Subgroups[i].Values[j])
+		}
+	}
 }
 
 // CalculateThreeWayXmR implements Wheeler's Three-Way Chart logic to detect process drift.
@@ -332,13 +343,13 @@ func BuildScatterplot(issues []jira.Issue, cycleTimes []float64) []ScatterPoint 
 
 		p := ScatterPoint{
 			Date:      iss.OutcomeDate.Format("2006-01-02"),
-			Value:     round2(cycleTimes[i]),
+			Value:     Round2(cycleTimes[i]),
 			Key:       iss.Key,
 			IssueType: iss.IssueType,
 		}
 
 		if len(points) > 0 {
-			mr := round2(math.Abs(cycleTimes[i] - cycleTimes[i-1]))
+			mr := Round2(math.Abs(cycleTimes[i] - cycleTimes[i-1]))
 			p.MovingRange = &mr
 		}
 

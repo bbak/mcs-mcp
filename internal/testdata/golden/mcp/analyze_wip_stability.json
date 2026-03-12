@@ -736,10 +736,10 @@
         }
       ],
       "xmr": {
-        "average": 51.851851851851855,
-        "average_moving_range": 3.5384615384615383,
-        "upper_natural_process_limit": 61.26415954415955,
-        "lower_natural_process_limit": 42.43954415954416,
+        "average": 51.85,
+        "average_moving_range": 3.54,
+        "upper_natural_process_limit": 61.26,
+        "lower_natural_process_limit": 42.44,
         "values": [
           39,
           41,
