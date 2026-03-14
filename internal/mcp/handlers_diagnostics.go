@@ -918,8 +918,10 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, wind
 		"Residence time: the time an item accumulates in the system within the observation window. Applies to both completed and still-active items. For active items, residence time grows linearly with the window endpoint T.",
 		"Sojourn time (W*): the special case of residence time for completed items — their full duration from commitment to resolution. This is what 'analyze_cycle_time' measures.",
 		fmt.Sprintf("The finite Little's Law identity L(T) = Λ(T) · w(T) holds exactly at every point. Identity verified: %v (max deviation: %.2e).", result.Validation.IdentityVerified, result.Validation.MaxDeviation),
-		"The coherence gap w(T) - W*(T) reveals the 'end effect' of active items on the system. A large gap means active WIP is significantly inflating the average residence time beyond what completed items experienced.",
-		fmt.Sprintf("Convergence assessment: %s — this describes how the coherence gap is trending over the final quarter of the window.", result.Summary.Convergence),
+		"Flow rate signals: Λ(T) = arrival rate (lambda), Θ(T) = departure rate (theta). When Λ > Θ, WIP is accumulating (more arriving than leaving). When Λ ≈ Θ, the system is balanced.",
+		"Residence time decomposition: w(T) = H(T)/A(T) is arrival-denominated; w'(T) = H(T)/D(T) is departure-denominated. When w(T) ≈ w'(T), arrivals and departures are balanced. When w'(T) >> w(T), few departures are inflating the departure-weighted average — a flow imbalance signal.",
+		"Coherence gap w(T) - W*(T): the 'end effect' of still-active items. A large gap means active WIP is significantly inflating the average residence time beyond what completed items experienced. The gap w'(T) - W*(T) isolates the empirical residual (path-integral vs arithmetic mean of completed sojourns).",
+		fmt.Sprintf("Convergence assessment: %s — assessed via 1/T tail regression on w(T). 'converging' means w(T) is stabilising toward a steady-state value; 'diverging' means it is still climbing; 'metastable' means the tail is noisy but not clearly trending.", result.Summary.Convergence),
 		"IMPORTANT: This tool always applies backflow reset (uses the LAST commitment date). This diverges from the configurable commitmentBackflowReset used by other tools like analyze_work_item_age.",
 	}
 

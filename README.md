@@ -249,6 +249,12 @@ This project adheres to the core principles of **Cohesion, Coherence, and Consis
 
 ---
 
+## Acknowledgements
+
+- **Redidence Time** is based on the work of Krishna Kumar and our implementation is heavily based on and validated against his reference implementation in the [Sample Path Analysis Toolkit](https://github.com/presence-calculus/samplepath-flow).
+
+---
+
 ## 📜 License
 
 This project is licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) and [NOTICE](NOTICE) files for details.
