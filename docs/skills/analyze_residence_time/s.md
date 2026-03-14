@@ -1,7 +1,7 @@
 ---
 name: analyze_residence_time-chart
 description: >
-  Renders a Residence Time Analysis chart (dual panel: coherence gap + departure rate)
+  Renders a Residence Time Analysis chart (dual panel: coherence gap + flow rate balance)
   from an mcs-mcp:analyze_residence_time result.
 ---
 
@@ -39,7 +39,15 @@ Only these three fields are required. The JSX derives everything else from MCP_R
 - Daily data >120 points is downsampled to every 3rd point, retaining first and last.
 - `a` (window arrivals) and `d` (total historical resolved) are NOT symmetric — never present as "arrivals vs departures".
 - `d` is always labeled as "(W* denominator)" in badges.
-- `lambda` is cumulative departure rate (d/h), not arrival rate.
-- `convergence` values: "converging", "diverging", "metastable".
+- `lambda` (Λ) is the **arrival rate** = A(T)/T. It is NOT the departure rate.
+- `theta` (Θ) is the **departure rate** = D(T)/T. When Λ > Θ, WIP is accumulating; when Θ > Λ, WIP is draining.
+- `w_prime` (w′) is the **departure-denominated residence time** = H(T)/D(T). Diverges from `w` (arrival-denominated = H(T)/A(T)) when the system is unbalanced (arrivals ≠ departures). A large gap between w and w′ signals flow imbalance.
+- `final_w_prime` and `final_theta` are the terminal values of w′ and Θ in the summary object.
+- `convergence` values: "converging", "diverging", "metastable", "insufficient_data". Assessed via 1/T OLS regression on the w(T) tail.
 - Tool always applies backflow reset (last commitment date) — noted in footer.
 - `issue_types` filter is optional; does not change response structure.
+
+## Panel descriptions
+
+- **Panel 1 — Coherence Gap & Residence Time**: Shows w(T) (blue solid), w′(T) (violet dashed), and W*(T) (amber dashed). The gap between w(T) and W*(T) is the coherence gap (end-effect). The gap between w(T) and w′(T) signals arrival/departure imbalance.
+- **Panel 2 — Flow Rate Balance**: Shows Λ(T) arrival rate (teal solid) and Θ(T) departure rate (green dashed). When the two lines diverge, WIP is either accumulating (Λ > Θ) or draining (Θ > Λ).

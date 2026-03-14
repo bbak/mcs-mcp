@@ -17,6 +17,7 @@ const ALARM     = "#ff6b6b";
 const CAUTION   = "#e2c97e";
 const PRIMARY   = "#6b7de8";
 const SECONDARY = "#7edde2";
+const VIOLET    = "#c084fc";
 const POSITIVE  = "#6bffb8";
 const TEXT      = "#dde1ef";
 const MUTED     = "#505878";
@@ -34,9 +35,11 @@ const PROJECT_KEY = CHART_ATTRS.project_key;
 const BOARD_NAME  = CHART_ATTRS.board_name;
 
 const FINAL_W          = sum.final_w;
+const FINAL_W_PRIME    = sum.final_w_prime;
 const FINAL_W_STAR     = sum.final_w_star;
 const FINAL_GAP        = sum.final_coherence_gap;
 const FINAL_LAMBDA     = sum.final_lambda;
+const FINAL_THETA      = sum.final_theta;
 const FINAL_N          = sum.active_items;
 const WINDOW_ARRIVALS  = sum.in_window_arrivals;
 const PRE_WINDOW_ITEMS = sum.pre_window_items;
@@ -48,13 +51,15 @@ const isWeekly = (rt.series[0]?.label || "").includes("W");
 
 // Build data array with downsampling for daily granularity
 const rawSeries = rt.series.map(d => ({
-  date:   d.label,
-  n:      d.n,
-  w:      Math.round(d.w * 100) / 100,
-  w_star: Math.round(d.w_star * 100) / 100,
-  gap:    Math.round(d.coherence_gap * 100) / 100,
-  lambda: Math.round(d.lambda * 10000) / 10000,
-  a:      d.a,
+  date:      d.label,
+  n:         d.n,
+  w:         Math.round(d.w       * 100) / 100,
+  w_prime:   Math.round(d.w_prime * 100) / 100,
+  w_star:    Math.round(d.w_star  * 100) / 100,
+  gap:       Math.round(d.coherence_gap * 100) / 100,
+  lambda:    Math.round(d.lambda  * 10000) / 10000,
+  theta:     Math.round(d.theta   * 10000) / 10000,
+  a:         d.a,
 }));
 
 // Downsample daily data if >120 points; always keep first and last
@@ -81,14 +86,14 @@ function formatDate(label) {
 }
 
 // Y-axis domains
-const maxW     = Math.max(...RAW.map(d => Math.max(d.w, d.gap)));
+const maxW     = Math.max(...RAW.map(d => Math.max(d.w, d.w_prime, d.gap)));
 const Y_L_MAX  = Math.ceil((maxW + 5) / 10) * 10;
 const minWStar = Math.min(...RAW.map(d => d.w_star));
 const maxWStar = Math.max(...RAW.map(d => d.w_star));
 const Y_R_MIN  = Math.floor((minWStar - 2) / 5) * 5;
 const Y_R_MAX  = Math.ceil((maxWStar + 2) / 5) * 5;
-const maxLambda = Math.max(...RAW.map(d => d.lambda));
-const Y_L_MAX2  = Math.ceil((maxLambda + 1) / 2) * 2;
+const maxRate  = Math.max(...RAW.map(d => Math.max(d.lambda, d.theta)));
+const Y_L_MAX2 = Math.ceil((maxRate + 1) / 2) * 2;
 
 const xInterval = isWeekly ? 3 : 6;
 
@@ -118,6 +123,8 @@ const CustomTooltip = ({ active, payload }) => {
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
         <span style={{ color: PRIMARY }}>Residence w̄(T)</span>
         <span>{d.w?.toFixed(1)}d</span>
+        <span style={{ color: VIOLET }}>w′(T) per dep.</span>
+        <span>{d.w_prime?.toFixed(1)}d</span>
         <span style={{ color: CAUTION }}>Sojourn W*(T)</span>
         <span>{d.w_star?.toFixed(1)}d</span>
         <span style={{ color: ALARM }}>Gap w̄−W*</span>
@@ -125,8 +132,10 @@ const CustomTooltip = ({ active, payload }) => {
       </div>
       <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 6, paddingTop: 6,
         display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
-        <span style={{ color: SECONDARY }}>λ(T)</span>
+        <span style={{ color: SECONDARY }}>Λ(T) arrival</span>
         <span>{d.lambda?.toFixed(2)}/{periodLabel}</span>
+        <span style={{ color: POSITIVE }}>Θ(T) departure</span>
+        <span>{d.theta?.toFixed(2)}/{periodLabel}</span>
         <span style={{ color: MUTED }}>Active (n)</span>
         <span>{d.n}</span>
         <span style={{ color: MUTED }}>Arrivals (a)</span>
@@ -161,11 +170,13 @@ export default function ResidenceTimeChart() {
 
         {/* Stat cards */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-          <StatCard label="RESIDENCE w̄(T)" value={`${FINAL_W.toFixed(1)}d`}                 color={PRIMARY} />
-          <StatCard label="SOJOURN W*(T)"   value={`${FINAL_W_STAR.toFixed(1)}d`}            color={CAUTION} />
-          <StatCard label="COHERENCE GAP"   value={`${FINAL_GAP.toFixed(1)}d`}               color={ALARM} />
-          <StatCard label="λ(T)"            value={`${FINAL_LAMBDA.toFixed(2)}/${periodLabel}`} color={SECONDARY} />
-          <StatCard label="ACTIVE WIP"      value={FINAL_N}                                   color={MUTED} />
+          <StatCard label="RESIDENCE w̄(T)"  value={`${FINAL_W.toFixed(1)}d`}                    color={PRIMARY} />
+          <StatCard label="w′(T) PER DEP."   value={`${FINAL_W_PRIME.toFixed(1)}d`}              color={VIOLET} />
+          <StatCard label="SOJOURN W*(T)"    value={`${FINAL_W_STAR.toFixed(1)}d`}               color={CAUTION} />
+          <StatCard label="COHERENCE GAP"    value={`${FINAL_GAP.toFixed(1)}d`}                  color={ALARM} />
+          <StatCard label="Λ(T) ARRIVAL"     value={`${FINAL_LAMBDA.toFixed(2)}/${periodLabel}`} color={SECONDARY} />
+          <StatCard label="Θ(T) DEPARTURE"   value={`${FINAL_THETA.toFixed(2)}/${periodLabel}`}  color={POSITIVE} />
+          <StatCard label="ACTIVE WIP"       value={FINAL_N}                                      color={MUTED} />
         </div>
 
         {/* Badges */}
@@ -177,11 +188,11 @@ export default function ResidenceTimeChart() {
           <Badge text={`Convergence: ${CONVERGENCE}`} color={convergenceColor} />
         </div>
 
-        {/* Panel 1: Residence Time vs Sojourn Time */}
+        {/* Panel 1: Residence Time vs w'(T) vs Sojourn Time */}
         <div style={{ background: PANEL_BG, borderRadius: 12,
           border: `1px solid ${BORDER}`, padding: "16px 8px 12px", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
-            Residence Time w̄(T) vs Sojourn Time W*(T) — Coherence Gap
+            Residence Time w̄(T) · w′(T) per Departure · Sojourn Time W*(T) — Coherence Gap
           </div>
           <ResponsiveContainer width="100%" height={380}>
             <ComposedChart data={data} margin={{ top: 10, right: 70, left: 10, bottom: 10 }}>
@@ -214,6 +225,8 @@ export default function ResidenceTimeChart() {
                 dot={false} activeDot={false} isAnimationActive={false} />
               <Line yAxisId="left" dataKey="w" stroke={PRIMARY} strokeWidth={2}
                 dot={false} activeDot={false} isAnimationActive={false} />
+              <Line yAxisId="left" dataKey="w_prime" stroke={VIOLET} strokeWidth={2}
+                strokeDasharray="6 2" dot={false} activeDot={false} isAnimationActive={false} />
               <Line yAxisId="right" dataKey="w_star" stroke={CAUTION} strokeWidth={2}
                 strokeDasharray="4 3" dot={false} activeDot={false} isAnimationActive={false} />
             </ComposedChart>
@@ -226,6 +239,10 @@ export default function ResidenceTimeChart() {
               <span style={{ fontSize: 11, color: MUTED }}>Residence w̄(T)</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={VIOLET} strokeWidth={2} strokeDasharray="6 2" /></svg>
+              <span style={{ fontSize: 11, color: MUTED }}>w′(T) per departure</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={CAUTION} strokeWidth={2} strokeDasharray="4 3" /></svg>
               <span style={{ fontSize: 11, color: MUTED }}>Sojourn W*(T)</span>
             </div>
@@ -236,46 +253,45 @@ export default function ResidenceTimeChart() {
           </div>
         </div>
 
-        {/* Panel 2: Departure Rate */}
+        {/* Panel 2: Flow Rate Balance */}
         <div style={{ background: PANEL_BG, borderRadius: 12,
           border: `1px solid ${BORDER}`, padding: "16px 8px 12px", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
-            Departure Rate λ(T) — Cumulative departures per {isWeekly ? "week" : "day"} (d / horizon)
+            Flow Rate Balance: Λ(T) Arrival vs Θ(T) Departure — cumulative rates per {isWeekly ? "week" : "day"}
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={data} margin={{ top: 10, right: 70, left: 10, bottom: 10 }}>
-              <defs>
-                <linearGradient id="lambdaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={SECONDARY} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={SECONDARY} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="date" tickFormatter={formatDate} interval={xInterval}
                 angle={-45} textAnchor="end" height={60}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
               <YAxis domain={[0, Y_L_MAX2]} tickFormatter={v => v.toFixed(1)}
                 tick={{ fill: SECONDARY, fontSize: 10, fontFamily: "'Courier New', monospace" }}
-                label={{ value: `λ (dep/${periodLabel})`, angle: -90, position: "insideLeft",
-                  fill: SECONDARY, fontSize: 10, dy: 30 }} />
+                label={{ value: `rate (/${periodLabel})`, angle: -90, position: "insideLeft",
+                  fill: SECONDARY, fontSize: 10, dy: 40 }} />
               <Tooltip content={<CustomTooltip />} />
               <ReferenceLine y={1.0} stroke={MUTED} strokeDasharray="4 4"
-                label={{ value: "λ = 1", fill: MUTED, fontSize: 10, position: "right" }} />
-              <Area dataKey="lambda" fill="url(#lambdaGrad)"
-                stroke={SECONDARY} strokeWidth={2}
+                label={{ value: "1.0", fill: MUTED, fontSize: 10, position: "right" }} />
+              <Line dataKey="lambda" stroke={SECONDARY} strokeWidth={2}
                 dot={false} activeDot={false} isAnimationActive={false} />
+              <Line dataKey="theta" stroke={POSITIVE} strokeWidth={2}
+                strokeDasharray="5 2" dot={false} activeDot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
 
           {/* Legend Panel 2 */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={14} height={10}><rect width={14} height={10} fill={SECONDARY} opacity={0.4} rx={2} /></svg>
-              <span style={{ fontSize: 11, color: MUTED }}>Departure Rate λ(T)</span>
+              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeWidth={2} /></svg>
+              <span style={{ fontSize: 11, color: MUTED }}>Λ(T) Arrival rate</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={POSITIVE} strokeWidth={2} strokeDasharray="5 2" /></svg>
+              <span style={{ fontSize: 11, color: MUTED }}>Θ(T) Departure rate</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={MUTED} strokeDasharray="4 4" strokeWidth={1.5} /></svg>
-              <span style={{ fontSize: 11, color: MUTED }}>λ = 1 (equilibrium)</span>
+              <span style={{ fontSize: 11, color: MUTED }}>1.0 reference</span>
             </div>
           </div>
         </div>
@@ -285,17 +301,19 @@ export default function ResidenceTimeChart() {
           borderTop: `1px solid ${BORDER}`, paddingTop: 14 }}>
           <div style={{ marginBottom: 6 }}>
             <b style={{ color: TEXT }}>Reading this chart: </b>
-            Top panel: residence time w̄(T) (blue, left axis) — average time items spend in
-            system including active WIP — vs sojourn time W*(T) (amber dashed, right axis) —
-            average cycle time of completed items only. Red shaded area = coherence gap: how
-            much active WIP inflates average residence time beyond completed-item experience.
-            A diverging/growing gap signals aging WIP accumulation. Bottom panel: cumulative
-            departure rate λ(T) = d(T)/h(T); above 1.0 means the system resolves more than
-            one item per elapsed {isWeekly ? "week" : "day"} on average.
+            Top panel: residence time w̄(T) (blue solid, left axis) — average time items spend in system
+            including active WIP — vs w′(T) (violet dashed, left axis) — same quantity but denominated by
+            departures instead of arrivals. When w̄(T) ≈ w′(T), arrivals and departures are balanced; when
+            w′(T) diverges above w̄(T), few departures are inflating the departure-weighted average (flow
+            imbalance signal). W*(T) (amber dashed, right axis) — average cycle time of completed items.
+            Red shaded area = coherence gap w̄(T) − W*(T): how much active WIP inflates average residence
+            time beyond completed-item experience. Bottom panel: Λ(T) (teal solid) = cumulative arrival rate
+            A(T)/T; Θ(T) (green dashed) = cumulative departure rate D(T)/T. When Λ &gt; Θ, WIP is
+            accumulating; when Θ &gt; Λ, the system is draining.
           </div>
           <div>
             <b style={{ color: TEXT }}>Data: </b>
-            Sample Path Analysis (Stidham 1972, El-Taha & Stidham 1999). Little's Law identity
+            Sample Path Analysis (Stidham 1972, El-Taha &amp; Stidham 1999). Little's Law identity
             L(T) = Λ(T) · w(T) verified exactly. Window arrivals (a): items entering committed
             WIP during the window. Resolved (d): {RESOLVED_TOTAL_D} total historical departures
             used as W* denominator. Note: this tool always applies backflow reset (last commitment

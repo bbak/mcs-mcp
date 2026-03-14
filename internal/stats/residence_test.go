@@ -72,6 +72,63 @@ func TestComputeResidenceTimeSeries_Identity(t *testing.T) {
 	if result.Summary.ActiveItems != 0 {
 		t.Errorf("expected 0 active items, got %d", result.Summary.ActiveItems)
 	}
+
+	// Verify Theta = D(T)/T at final bucket:
+	// D=3, T=10 → Theta = 0.3
+	last := result.Series[9]
+	if math.Abs(last.Theta-0.3) > 0.001 {
+		t.Errorf("day 10: expected Theta=0.3, got %.4f", last.Theta)
+	}
+	if result.Summary.FinalTheta != last.Theta {
+		t.Errorf("FinalTheta mismatch: summary=%.4f, last bucket=%.4f", result.Summary.FinalTheta, last.Theta)
+	}
+
+	// Verify WPrime = H(T)/D(T) at final bucket (all 3 items departed):
+	// Items use end-of-day snap: item departed on day X means NOT active at day-end X.
+	// A (Jan1→Jan5): active days 1,2,3,4 (departed Jan 5)
+	// B (Jan3→Jan8): active days 3,4,5,6,7 (departed Jan 8)
+	// C (Jan6→Jan10): active days 6,7,8,9 (departed Jan 10)
+	// N per day: 1,1,2,2,1,2,2,1,1,0 → H(10) = 13; D=3; WPrime = 13/3 ≈ 4.3333
+	if math.Abs(last.WPrime-13.0/3.0) > 0.001 {
+		t.Errorf("day 10: expected WPrime=%.4f, got %.4f", 13.0/3.0, last.WPrime)
+	}
+	if result.Summary.FinalWPrime != last.WPrime {
+		t.Errorf("FinalWPrime mismatch: summary=%.4f, last bucket=%.4f", result.Summary.FinalWPrime, last.WPrime)
+	}
+}
+
+func TestComputeResidenceTimeSeries_WPrimeDivergence(t *testing.T) {
+	// Unbalanced system: 5 arrive, 1 departs — w(T) should be much smaller than w'(T)
+	// because w(T) = H/A (arrival-denominated) and w'(T) = H/D (departure-denominated).
+	// With A=5 >> D=1, w'(T) >> w(T).
+	window := NewAnalysisWindow(date(2025, 1, 1), date(2025, 1, 5), "day", time.Time{})
+
+	items := []ResidenceItem{
+		{Key: "A", Start: date(2025, 1, 1), End: datePtr(2025, 1, 5), PreWindow: false},
+		{Key: "B", Start: date(2025, 1, 2), End: nil, PreWindow: false},
+		{Key: "C", Start: date(2025, 1, 2), End: nil, PreWindow: false},
+		{Key: "D", Start: date(2025, 1, 3), End: nil, PreWindow: false},
+		{Key: "E", Start: date(2025, 1, 4), End: nil, PreWindow: false},
+	}
+
+	result := ComputeResidenceTimeSeries(items, window)
+	last := result.Series[len(result.Series)-1]
+
+	// D=1, A=5 → w'(T) should be much larger than w(T)
+	if last.D != 1 {
+		t.Errorf("expected D=1, got %d", last.D)
+	}
+	if last.WPrime <= last.W {
+		t.Errorf("expected w'(T)=%.4f > w(T)=%.4f for unbalanced system", last.WPrime, last.W)
+	}
+
+	// Theta = 1/5 = 0.2; Lambda = 5/5 = 1.0 → Lambda > Theta (WIP accumulating)
+	if math.Abs(last.Theta-0.2) > 0.001 {
+		t.Errorf("expected Theta=0.2, got %.4f", last.Theta)
+	}
+	if last.Lambda <= last.Theta {
+		t.Errorf("expected Lambda=%.4f > Theta=%.4f for growing WIP", last.Lambda, last.Theta)
+	}
 }
 
 func TestComputeResidenceTimeSeries_PreWindowItem(t *testing.T) {

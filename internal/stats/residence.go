@@ -19,15 +19,17 @@ type ResidenceItem struct {
 type ResidenceTimeBucket struct {
 	Date         time.Time `json:"date"`
 	Label        string    `json:"label"`
-	N            int       `json:"n"`              // instantaneous active count N(t)
-	H            float64   `json:"h"`              // cumulative element-days H(T)
-	L            float64   `json:"l"`              // time-average WIP = H(T) / T_days
-	A            int       `json:"a"`              // cumulative arrivals (excludes pre-window)
-	Lambda       float64   `json:"lambda"`          // arrival rate = A(T) / T_days
-	W            float64   `json:"w"`              // avg residence time = H(T) / A(T)
-	D            int       `json:"d"`              // cumulative departures
-	WStar        float64   `json:"w_star"`          // avg sojourn time (completed only)
-	CoherenceGap float64   `json:"coherence_gap"`   // w(T) - W*(T)
+	N            int       `json:"n"`             // instantaneous active count N(t)
+	H            float64   `json:"h"`             // cumulative element-days H(T)
+	L            float64   `json:"l"`             // time-average WIP = H(T) / T_days
+	A            int       `json:"a"`             // cumulative arrivals (excludes pre-window)
+	Lambda       float64   `json:"lambda"`        // arrival rate = A(T) / T_days
+	W            float64   `json:"w"`             // avg residence time per arrival = H(T) / A(T)
+	WPrime       float64   `json:"w_prime"`       // avg residence time per departure = H(T) / D(T)
+	D            int       `json:"d"`             // cumulative departures
+	Theta        float64   `json:"theta"`         // departure rate = D(T) / T_days
+	WStar        float64   `json:"w_star"`        // avg sojourn time of completed items
+	CoherenceGap float64   `json:"coherence_gap"` // w(T) - W*(T)
 }
 
 // ResidenceTimeSummary provides the final-value snapshot and window metadata.
@@ -42,7 +44,9 @@ type ResidenceTimeSummary struct {
 	Departures        int       `json:"departures"`          // D(T)
 	FinalL            float64   `json:"final_l"`             // time-average WIP at end
 	FinalLambda       float64   `json:"final_lambda"`        // arrival rate at end
-	FinalW            float64   `json:"final_w"`             // avg residence time at end
+	FinalTheta        float64   `json:"final_theta"`         // departure rate at end
+	FinalW            float64   `json:"final_w"`             // avg residence time per arrival at end
+	FinalWPrime       float64   `json:"final_w_prime"`       // avg residence time per departure at end
 	FinalWStar        float64   `json:"final_w_star"`        // avg sojourn time at end
 	FinalCoherenceGap float64   `json:"final_coherence_gap"` // w(T) - W*(T) at end
 	Convergence       string    `json:"convergence"`         // "converging", "metastable", "diverging"
@@ -207,6 +211,15 @@ func ComputeResidenceTimeSeries(
 			}
 		}
 
+		// w'(T) = H(T) / D(T) — avg residence time per departure; guarded
+		wPrimeT := 0.0
+		if dT > 0 {
+			wPrimeT = cumulativeH / float64(dT)
+		}
+
+		// Θ(T) = D(T) / T — departure rate
+		thetaT := float64(dT) / tDays
+
 		// W*(T): average sojourn time of completed items
 		wStarT := 0.0
 		if dT > 0 {
@@ -239,7 +252,9 @@ func ComputeResidenceTimeSeries(
 			A:            aT,
 			Lambda:       roundTo(lambdaT, 4),
 			W:            roundTo(wT, 4),
+			WPrime:       roundTo(wPrimeT, 4),
 			D:            dT,
+			Theta:        roundTo(thetaT, 4),
 			WStar:        roundTo(wStarT, 4),
 			CoherenceGap: roundTo(coherenceGap, 4),
 		}
@@ -272,7 +287,9 @@ func ComputeResidenceTimeSeries(
 		Departures:        last.D,
 		FinalL:            last.L,
 		FinalLambda:       last.Lambda,
+		FinalTheta:        last.Theta,
 		FinalW:            last.W,
+		FinalWPrime:       last.WPrime,
 		FinalWStar:        last.WStar,
 		FinalCoherenceGap: last.CoherenceGap,
 		Convergence:       convergence,
@@ -288,39 +305,105 @@ func ComputeResidenceTimeSeries(
 	}
 }
 
-// assessConvergence evaluates the trend of the coherence gap over the final quarter
-// of the series to determine if the system is converging, metastable, or diverging.
+// assessConvergence evaluates the trend of w(T) over the tail of the series using
+// a 1/T OLS regression. Theory predicts w(T) → w* as T → ∞, so a converging
+// series has w(T) ≈ β₀ + β₁·(1/T) with small |β₁| and low residual noise.
+//
+// Convergence labels:
+//   - "converging":        tail fits the 1/T model well and slope is small
+//   - "diverging":         slope is large and positive (w(T) still climbing)
+//   - "metastable":        tail is noisy but not clearly trending
+//   - "insufficient_data": fewer than 8 valid tail buckets
 func assessConvergence(series []ResidenceTimeBucket) string {
 	n := len(series)
 	if n < 8 {
 		return "insufficient_data"
 	}
 
-	quarterStart := n - n/4
-	if quarterStart >= n-1 {
-		quarterStart = n - 2
+	// Tail = final quarter, minimum 8 points
+	tailLen := n / 4
+	if tailLen < 8 {
+		tailLen = 8
+	}
+	tail := series[n-tailLen:]
+
+	// Collect valid tail points where w(T) > 0 (A(T) > 0)
+	type point struct {
+		x float64 // 1 / bucket_index (1-indexed from start of full series)
+		y float64 // w(T)
+	}
+	var pts []point
+	for i, b := range tail {
+		if b.W > 0 {
+			idx := float64(n - tailLen + i + 1) // 1-indexed position in full series
+			pts = append(pts, point{x: 1.0 / idx, y: b.W})
+		}
+	}
+	if len(pts) < 4 {
+		return "insufficient_data"
 	}
 
-	// Compare first and last coherence gaps in the final quarter
-	first := series[quarterStart].CoherenceGap
-	last := series[n-1].CoherenceGap
+	// OLS: fit y = β₀ + β₁·x
+	np := float64(len(pts))
+	var sumX, sumY, sumXX, sumXY float64
+	for _, p := range pts {
+		sumX += p.x
+		sumY += p.y
+		sumXX += p.x * p.x
+		sumXY += p.x * p.y
+	}
+	denom := np*sumXX - sumX*sumX
+	if denom == 0 {
+		return "metastable"
+	}
+	beta1 := (np*sumXY - sumX*sumY) / denom
+	beta0 := (sumY - beta1*sumX) / np
 
-	// Calculate the trend: positive means gap is growing (diverging)
-	delta := last - first
+	// RMSE of residuals
+	var ssRes float64
+	for _, p := range pts {
+		resid := p.y - (beta0 + beta1*p.x)
+		ssRes += resid * resid
+	}
+	rmse := math.Sqrt(ssRes / np)
 
-	// Use a relative threshold based on the magnitude
-	threshold := 0.5 // days
-	if math.Abs(first) > 1 {
-		threshold = math.Abs(first) * 0.1
+	// Threshold: 50% of median w(T) in the tail (permissive, catches chaos)
+	yVals := make([]float64, len(pts))
+	for i, p := range pts {
+		yVals[i] = p.y
+	}
+	medW := medianOfFloat64s(yVals)
+	threshold := 0.5 * medW
+	if threshold == 0 {
+		return "metastable"
 	}
 
-	if delta < -threshold {
-		return "converging"
+	if beta1 > threshold {
+		return "diverging" // w(T) is still climbing with 1/T term
 	}
-	if delta > threshold {
-		return "diverging"
+	if math.Abs(beta1) <= threshold && rmse <= threshold {
+		return "converging" // flat tail with good fit
 	}
 	return "metastable"
+}
+
+// medianOfFloat64s returns the median of a float64 slice (sorted in place).
+func medianOfFloat64s(vals []float64) float64 {
+	if len(vals) == 0 {
+		return 0
+	}
+	for i := 0; i < len(vals); i++ {
+		for j := i + 1; j < len(vals); j++ {
+			if vals[j] < vals[i] {
+				vals[i], vals[j] = vals[j], vals[i]
+			}
+		}
+	}
+	mid := len(vals) / 2
+	if len(vals)%2 == 0 {
+		return (vals[mid-1] + vals[mid]) / 2
+	}
+	return vals[mid]
 }
 
 func roundTo(val float64, places int) float64 {
