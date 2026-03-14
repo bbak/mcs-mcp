@@ -8,7 +8,7 @@ before:
         - go mod tidy
         - go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
         - go generate ./...
-        - zip -r mcs-mcp.skill docs/skills/
+        - bash -c "cd docs/skills && zip -r ../../mcs-mcp.skill ."
 
 builds:
     - id: "mcs-mcp"
