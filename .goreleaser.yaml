@@ -59,7 +59,6 @@ archives:
           - docs/charter.md
           - docs/jira-anatomy.md
           - docs/mockdata.md
-          - docs/skill-installation-instructions.md
           - docs/testing.md
           - docs/use-cases.md
           - mcs-mcp.skill
@@ -84,4 +83,3 @@ release:
         owner: bbak
         name: mcs-mcp
     name_template: "{{ .ProjectName }} v{{ .Version }}"
-
