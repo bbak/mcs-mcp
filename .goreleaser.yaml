@@ -7,7 +7,7 @@ before:
     hooks:
         - go mod tidy
         - go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-        - go generate ./...
+        - bash -c "cd cmd/mcs-mcp && goversioninfo -platform-specific -ver-major {{ .Major }} -ver-minor {{ .Minor }} -ver-patch {{ .Patch }} -file-version {{ .Version }} -product-version {{ .Version }}"
         - bash -c "cd docs/skills && zip -r ../../mcs-mcp.skill ."
 
 builds:
