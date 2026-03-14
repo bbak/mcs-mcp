@@ -181,13 +181,15 @@ These optional variables can be set in the `.env` file:
 
 ## 🧩 Skills
 
-MCS-MCP comes with Skills that can be used by AI Agents to create Charts from the data sent by the MCP-Server. All tools are covered.
+MCS-MCP comes with Skills that can be used by an Agent to create Charts from the data sent by the MCP-Server. All tools are covered.
+
+This is tested only in Claude Desktop. And even though I did my best to make it Agent agnostic, the approach taken was necessary to prevent high Token consumption, context window bloat and achieve a acceptable performance.
+
+Yet, a `.skill` file is just a ZIP-Archive with another file extension. Feel free to adopt them to your (visual) needs.
 
 1. Import `mcs-mcp.skill` as SKILL file.
 2. Start a new session.
 3. Run some analysis or forecast and tell the Agent (Claude) to also create a Chart.
-
-Note that this is tested with Claude Desktop only. In addition, a `.skill` file is just a ZIP-Archive with another file extension. Feel free to adopt them to your (visual) needs.
 
 ---
 
