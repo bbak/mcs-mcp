@@ -63,6 +63,18 @@ archives:
           - docs/use-cases.md
           - mcs-mcp.skill
 
+signs:
+    - cmd: cosign
+      signature: "${artifact}.sigstore.json"
+      args:
+          - sign-blob
+          - "--bundle=${signature}"
+          - "${artifact}"
+          - "--yes"
+      artifacts: checksum
+      env:
+          - COSIGN_EXPERIMENTAL=1
+
 checksum:
     name_template: "checksums.txt"
 
