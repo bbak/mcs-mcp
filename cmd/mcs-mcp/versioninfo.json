@@ -3,13 +3,13 @@
 		"FileVersion": {
 			"Major": 0,
 			"Minor": 17,
-			"Patch": 0,
+			"Patch": 1,
 			"Build": 0
 		},
 		"ProductVersion": {
 			"Major": 0,
 			"Minor": 17,
-			"Patch": 0,
+			"Patch": 1,
 			"Build": 0
 		},
 		"FileFlagsMask": "3f",
@@ -21,12 +21,12 @@
 	"StringFileInfo": {
 		"CompanyName": "MCS MCP",
 		"FileDescription": "Monte-Carlo-Simulation and Flow Data diagnostics for AI Agents",
-		"FileVersion": "0.17.0",
+		"FileVersion": "0.17.1",
 		"InternalName": "mcs-mcp",
 		"LegalCopyright": "Copyright (c) 2026",
 		"OriginalFilename": "mcs-mcp.exe",
 		"ProductName": "MCS MCP",
-		"ProductVersion": "0.17.0"
+		"ProductVersion": "0.17.1"
 	},
 	"VarFileInfo": {
 		"Translation": {
