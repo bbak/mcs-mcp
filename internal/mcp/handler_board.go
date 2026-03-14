@@ -33,7 +33,9 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, err
 		// Proceed anyway to show board metadata
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
@@ -53,7 +55,11 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, err
 			"type": "kanban",
 		}
 	} else {
-		board, _ = s.jira.GetBoard(boardID)
+		var boardErr error
+		board, boardErr = s.jira.GetBoard(boardID)
+		if boardErr != nil {
+			log.Warn().Err(boardErr).Int("boardID", boardID).Msg("Failed to fetch board metadata from Jira")
+		}
 	}
 
 	// 5. Return wrapped response

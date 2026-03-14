@@ -55,7 +55,12 @@ func Load() (*AppConfig, error) {
 		log.Warn().Err(err).Str("path", cacheDir).Msg("Failed to create cache directory")
 	}
 
-	delaySecs, _ := strconv.Atoi(getEnv("JIRA_REQUEST_DELAY_SECONDS", "10"))
+	delayRaw := getEnv("JIRA_REQUEST_DELAY_SECONDS", "10")
+	delaySecs, err := strconv.Atoi(delayRaw)
+	if err != nil {
+		log.Warn().Str("value", delayRaw).Msg("JIRA_REQUEST_DELAY_SECONDS is not a valid integer; defaulting to 10")
+		delaySecs = 10
+	}
 
 	cfg := &AppConfig{
 		Jira: jira.Config{

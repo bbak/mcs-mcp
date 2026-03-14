@@ -162,15 +162,24 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 	}
 
 	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
-	file, err := os.Create(path)
+	tmp := path + ".tmp"
+	file, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(meta)
+	if err := encoder.Encode(meta); err != nil {
+		file.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := file.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {

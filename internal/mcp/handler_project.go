@@ -36,7 +36,9 @@ func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 		log.Error().Err(err).Str("project", projectKey).Msg("Hydration failed")
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, 0)
+	if err := s.saveWorkflow(projectKey, 0); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetIssuesInRange(projectKey, time.Time{}, s.Clock())

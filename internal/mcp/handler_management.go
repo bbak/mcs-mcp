@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"fmt"
+
+	"github.com/rs/zerolog/log"
 )
 
 func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error) {
@@ -27,7 +29,9 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error)
 
 	// 4. Re-calculate DiscoveryCutoff (just in case)
 	s.recalculateDiscoveryCutoff(sourceID)
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	res := map[string]any{
 		"message": fmt.Sprintf("%d items fetched that were updated since %s", fetched, nmrc.Format("2006-01-02 15:04")),
@@ -64,7 +68,9 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 
 	// 4. Re-calculate DiscoveryCutoff
 	s.recalculateDiscoveryCutoff(sourceID)
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	cutoffStr := "N/A"
 	if s.activeDiscoveryCutoff != nil {

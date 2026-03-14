@@ -68,6 +68,66 @@ func (s *SpreadMetrics) Round() {
 	s.Inner80 = stats.Round2(s.Inner80)
 }
 
+// percentilesIdx returns a safe index into a sorted slice of length n for percentile p.
+// It clamps to [0, n-1] to prevent out-of-bounds panics near p=1.0.
+func percentilesIdx(n int, p float64) int {
+	i := int(float64(n) * p)
+	if i >= n {
+		i = n - 1
+	}
+	return i
+}
+
+// percentilesFromSorted builds a Percentiles struct from a pre-sorted ascending []float64.
+// Use for time-based results (duration, cycle time) where higher values are worse.
+func percentilesFromSorted(sorted []float64) Percentiles {
+	n := len(sorted)
+	return Percentiles{
+		Aggressive:    sorted[percentilesIdx(n, 0.10)],
+		Unlikely:      sorted[percentilesIdx(n, 0.30)],
+		CoinToss:      sorted[percentilesIdx(n, 0.50)],
+		Probable:      sorted[percentilesIdx(n, 0.70)],
+		Likely:        sorted[percentilesIdx(n, 0.85)],
+		Conservative:  sorted[percentilesIdx(n, 0.90)],
+		Safe:          sorted[percentilesIdx(n, 0.95)],
+		AlmostCertain: sorted[percentilesIdx(n, 0.98)],
+	}
+}
+
+// percentilesFromSortedInverted builds a Percentiles struct from a pre-sorted ascending []float64.
+// Use for scope-based results where higher values are better (inverted probability mapping).
+func percentilesFromSortedInverted(sorted []float64) Percentiles {
+	n := len(sorted)
+	return Percentiles{
+		Aggressive:    sorted[percentilesIdx(n, 0.90)], // 10% chance to deliver AT LEAST this much
+		Unlikely:      sorted[percentilesIdx(n, 0.70)], // 30% chance to deliver AT LEAST this much
+		CoinToss:      sorted[percentilesIdx(n, 0.50)],
+		Probable:      sorted[percentilesIdx(n, 0.30)], // 70% chance to deliver AT LEAST this much
+		Likely:        sorted[percentilesIdx(n, 0.15)], // 85% chance to deliver AT LEAST this much
+		Conservative:  sorted[percentilesIdx(n, 0.10)], // 90% chance to deliver AT LEAST this much
+		Safe:          sorted[percentilesIdx(n, 0.05)], // 95% chance to deliver AT LEAST this much
+		AlmostCertain: sorted[percentilesIdx(n, 0.02)], // 98% chance to deliver AT LEAST this much
+	}
+}
+
+// spreadFromSorted builds a SpreadMetrics struct from a pre-sorted ascending []float64.
+func spreadFromSorted(sorted []float64) SpreadMetrics {
+	n := len(sorted)
+	return SpreadMetrics{
+		IQR:     sorted[percentilesIdx(n, 0.75)] - sorted[percentilesIdx(n, 0.25)],
+		Inner80: sorted[percentilesIdx(n, 0.90)] - sorted[percentilesIdx(n, 0.10)],
+	}
+}
+
+// intsToFloat64 converts a []int slice to []float64.
+func intsToFloat64(in []int) []float64 {
+	out := make([]float64, len(in))
+	for i, v := range in {
+		out[i] = float64(v)
+	}
+	return out
+}
+
 // Result holds the percentiles of a simulation or analysis.
 type Result struct {
 	Percentiles       Percentiles    `json:"percentiles"`
@@ -142,6 +202,13 @@ func (e *Engine) RunDurationSimulation(backlogSize int, trials int) Result {
 	if e.histogram != nil {
 		if d, ok := e.histogram.Meta["type_distribution"].(map[string]float64); ok && len(d) > 0 {
 			dist = d
+			sumProbs := 0.0
+			for _, p := range dist {
+				sumProbs += p
+			}
+			if math.Abs(sumProbs-1.0) > 0.05 {
+				log.Warn().Float64("sum", sumProbs).Msg("type_distribution probabilities do not sum to ~1.0; forecast target counts may be off")
+			}
 			for t, p := range dist {
 				targets[t] = int(math.Round(float64(backlogSize) * p))
 			}
@@ -244,7 +311,10 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	capPool := make([]int, len(e.histogram.Counts))
 	copy(capPool, e.histogram.Counts)
 	slices.Sort(capPool)
-	capacityCap := max(capPool[int(float64(len(capPool))*0.95)], 1)
+	capacityCap := 1
+	if len(capPool) > 0 {
+		capacityCap = max(capPool[int(float64(len(capPool))*0.95)], 1)
+	}
 
 	log.Info().Int("trials", trials).Interface("targets", targets).Bool("stratified", useStratification).Msg("Starting multi-type duration simulation")
 
@@ -301,21 +371,10 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		medianBG[t] = counts[trials/2]
 	}
 
+	durationsF := intsToFloat64(durations)
 	res := Result{
-		Percentiles: Percentiles{
-			Aggressive:    float64(durations[int(float64(trials)*0.10)]),
-			Unlikely:      float64(durations[int(float64(trials)*0.30)]),
-			CoinToss:      float64(durations[int(float64(trials)*0.50)]),
-			Probable:      float64(durations[int(float64(trials)*0.70)]),
-			Likely:        float64(durations[int(float64(trials)*0.85)]),
-			Conservative:  float64(durations[int(float64(trials)*0.90)]),
-			Safe:          float64(durations[int(float64(trials)*0.95)]),
-			AlmostCertain: float64(durations[int(float64(trials)*0.98)]),
-		},
-		Spread: SpreadMetrics{
-			IQR:     float64(durations[int(float64(trials)*0.75)] - durations[int(float64(trials)*0.25)]),
-			Inner80: float64(durations[int(float64(trials)*0.90)] - durations[int(float64(trials)*0.10)]),
-		},
+		Percentiles:              percentilesFromSorted(durationsF),
+		Spread:                   spreadFromSorted(durationsF),
 		PercentileLabels:         getPercentileLabels("duration"),
 		BackgroundItemsPredicted: medianBG,
 	}
@@ -418,21 +477,10 @@ func (e *Engine) RunScopeSimulation(days int, trials int) Result {
 
 	slices.Sort(scopes)
 
+	scopesF := intsToFloat64(scopes)
 	res := Result{
-		Percentiles: Percentiles{
-			Aggressive:    float64(scopes[int(float64(trials)*0.90)]), // 10% chance to deliver AT LEAST this much
-			Unlikely:      float64(scopes[int(float64(trials)*0.70)]), // 30% chance to deliver AT LEAST this much
-			CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
-			Probable:      float64(scopes[int(float64(trials)*0.30)]), // 70% chance to deliver AT LEAST this much
-			Likely:        float64(scopes[int(float64(trials)*0.15)]), // 85% chance to deliver AT LEAST this much
-			Conservative:  float64(scopes[int(float64(trials)*0.10)]), // 90% chance to deliver AT LEAST this much
-			Safe:          float64(scopes[int(float64(trials)*0.05)]), // 95% chance to deliver AT LEAST this much
-			AlmostCertain: float64(scopes[int(float64(trials)*0.02)]), // 98% chance to deliver AT LEAST this much
-		},
-		Spread: SpreadMetrics{
-			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
-			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
-		},
+		Percentiles:      percentilesFromSortedInverted(scopesF),
+		Spread:           spreadFromSorted(scopesF),
 		PercentileLabels: getPercentileLabels("scope"),
 	}
 
@@ -460,23 +508,10 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 	}
 
 	slices.Sort(cycleTimes)
-	n := len(cycleTimes)
 
 	res := Result{
-		Percentiles: Percentiles{
-			Aggressive:    cycleTimes[int(float64(n)*0.10)],
-			Unlikely:      cycleTimes[int(float64(n)*0.30)],
-			CoinToss:      cycleTimes[int(float64(n)*0.50)],
-			Probable:      cycleTimes[int(float64(n)*0.70)],
-			Likely:        cycleTimes[int(float64(n)*0.85)],
-			Conservative:  cycleTimes[int(float64(n)*0.90)],
-			Safe:          cycleTimes[int(float64(n)*0.95)],
-			AlmostCertain: cycleTimes[int(float64(n)*0.98)],
-		},
-		Spread: SpreadMetrics{
-			IQR:     cycleTimes[int(float64(n)*0.75)] - cycleTimes[int(float64(n)*0.25)],
-			Inner80: cycleTimes[int(float64(n)*0.90)] - cycleTimes[int(float64(n)*0.10)],
-		},
+		Percentiles:      percentilesFromSorted(cycleTimes),
+		Spread:           spreadFromSorted(cycleTimes),
 		PercentileLabels: getPercentileLabels("cycle_time"),
 	}
 
@@ -488,17 +523,7 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 				continue
 			}
 			slices.Sort(cts)
-			tn := len(cts)
-			res.TypeSLEs[t] = Percentiles{
-				Aggressive:    cts[int(float64(tn)*0.10)],
-				Unlikely:      cts[int(float64(tn)*0.30)],
-				CoinToss:      cts[int(float64(tn)*0.50)],
-				Probable:      cts[int(float64(tn)*0.70)],
-				Likely:        cts[int(float64(tn)*0.85)],
-				Conservative:  cts[int(float64(tn)*0.90)],
-				Safe:          cts[int(float64(tn)*0.95)],
-				AlmostCertain: cts[int(float64(tn)*0.98)],
-			}
+			res.TypeSLEs[t] = percentilesFromSorted(cts)
 		}
 	}
 
@@ -605,21 +630,10 @@ func (e *Engine) RunMultiTypeScopeSimulation(targetDays int, trials int, filterT
 		medianBG[t] = counts[len(counts)/2]
 	}
 
+	scopesF2 := intsToFloat64(scopes)
 	res := Result{
-		Percentiles: Percentiles{
-			Aggressive:    float64(scopes[int(float64(trials)*0.90)]),
-			Unlikely:      float64(scopes[int(float64(trials)*0.70)]),
-			CoinToss:      float64(scopes[int(float64(trials)*0.50)]),
-			Probable:      float64(scopes[int(float64(trials)*0.30)]),
-			Likely:        float64(scopes[int(float64(trials)*0.15)]),
-			Conservative:  float64(scopes[int(float64(trials)*0.10)]),
-			Safe:          float64(scopes[int(float64(trials)*0.05)]),
-			AlmostCertain: float64(scopes[int(float64(trials)*0.02)]),
-		},
-		Spread: SpreadMetrics{
-			IQR:     float64(scopes[int(float64(trials)*0.75)] - scopes[int(float64(trials)*0.25)]),
-			Inner80: float64(scopes[int(float64(trials)*0.90)] - scopes[int(float64(trials)*0.10)]),
-		},
+		Percentiles:              percentilesFromSortedInverted(scopesF2),
+		Spread:                   spreadFromSorted(scopesF2),
 		PercentileLabels:         getPercentileLabels("scope"),
 		BackgroundItemsPredicted: medianBG,
 	}

@@ -113,7 +113,7 @@ func (r *StabilityResult) Round() {
 // A ratio > 1.3 indicates a clogged system; < 0.7 indicates a starving system.
 // Returns 0 if inputs are invalid (zero throughput or avgCycleTime).
 func LittlesLawIndex(currentWIP int, throughput, avgCycleTime float64) float64 {
-	if throughput <= 0 || avgCycleTime <= 0 {
+	if currentWIP < 0 || throughput <= 0 || avgCycleTime <= 0 {
 		return 0
 	}
 	return math.Round(float64(currentWIP)/(throughput*avgCycleTime)*100) / 100

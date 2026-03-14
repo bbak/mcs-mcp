@@ -52,7 +52,9 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 
 	// Persist the discovered order alongside the updated NameRegistry
 	s.activeStatusOrder = discoveredOrder
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// Add is_cached signal to _metadata
 	if m, ok := res.(map[string]any); ok {
