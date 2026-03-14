@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/visuals"
@@ -52,7 +53,9 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 3. Project using AnalysisSession
 	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
@@ -206,7 +209,9 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
@@ -274,7 +279,9 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	histEnd := s.Clock()
 	if sampleEndDate != "" {

@@ -8,6 +8,9 @@ func CalculatePercentile(sorted []float64, p float64) float64 {
 	if len(sorted) == 0 {
 		return 0
 	}
+	if p < 0 {
+		p = 0
+	}
 	idx := int(float64(len(sorted)) * p)
 	if idx >= len(sorted) {
 		idx = len(sorted) - 1

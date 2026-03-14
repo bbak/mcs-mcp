@@ -53,7 +53,7 @@
           "type": "Story",
           "eligible": false,
           "reason": "Insufficient variance from pooled average (\u003c 15%)",
-          "volume": 63,
+          "volume": 62,
           "p85_cycle_time": 233.97,
           "distance_to_pool": 0.04
         }

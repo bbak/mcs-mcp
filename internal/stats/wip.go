@@ -7,6 +7,11 @@ import (
 	"mcs-mcp/internal/jira"
 )
 
+// noCommitmentWeight is a sentinel value used when no commitment point is configured.
+// It is intentionally high so that all statuses appear "before" commitment,
+// meaning no items are counted as WIP until a real commitment point is set.
+const noCommitmentWeight = 999
+
 // WIPRunChartPoint represents the number of active WIP items on a specific date.
 type WIPRunChartPoint struct {
 	Date  time.Time `json:"date"`
@@ -125,7 +130,7 @@ func BuildActiveRanges(issues []jira.Issue, commitmentPoint string, weights map[
 
 	commitmentWeight := weights[commitmentPoint]
 	if commitmentWeight == 0 {
-		commitmentWeight = 999 // safe fallback
+		commitmentWeight = noCommitmentWeight
 	}
 
 	evaluateWipState := func(statusID, status string, currentIsWip bool) bool {

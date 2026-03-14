@@ -44,6 +44,9 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 			resDate = *iss.OutcomeDate
 		}
 		ct := resDate.Sub(iss.Created).Hours() / 24.0
+		if ct <= 0 {
+			continue // skip data quality anomalies (clock skew, migration artefacts)
+		}
 
 		typeGroups[iss.IssueType] = append(typeGroups[iss.IssueType], ct)
 		allCycleTimes = append(allCycleTimes, ct)
@@ -127,7 +130,7 @@ func CalculateCorrelation(a, b []int) float64 {
 	num := (n * sumAB) - (sumA * sumB)
 	den := math.Sqrt((n*sumA2 - sumA*sumA) * (n*sumB2 - sumB*sumB))
 
-	if den == 0 {
+	if den <= 0 {
 		return 0
 	}
 

@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -28,7 +29,9 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 2. Project on Demand (6-month historical window for persistence)
 	cutoff := time.Time{}
@@ -87,7 +90,9 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -167,7 +172,9 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -240,7 +247,9 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -335,7 +344,9 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowMonths <= 0 {
 		windowMonths = 12
@@ -391,7 +402,9 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -450,7 +463,9 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 			return nil, err
 		}
 		s.activeRegistry = reg
-		_ = s.saveWorkflow(projectKey, boardID)
+		if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 		events = s.events.GetEventsForIssue(sourceID, issueKey)
 	}
 
@@ -578,7 +593,9 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -636,7 +653,9 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, wi
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -698,7 +717,9 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -752,7 +773,9 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -839,7 +862,9 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, wind
 		return nil, err
 	}
 	s.activeRegistry = reg
-	_ = s.saveWorkflow(projectKey, boardID)
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
 
 	if windowWeeks <= 0 {
 		windowWeeks = 52
