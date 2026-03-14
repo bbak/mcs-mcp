@@ -1,21 +1,21 @@
 {
   "data": {
     "percentiles": {
-      "aggressive": 3650,
-      "unlikely": 3650,
-      "coin_toss": 3650,
-      "probable": 3650,
-      "likely": 3650,
-      "conservative": 3650,
-      "safe": 3650,
-      "almost_certain": 3650
+      "aggressive": 105,
+      "unlikely": 126,
+      "coin_toss": 142,
+      "probable": 158,
+      "likely": 178,
+      "conservative": 187,
+      "safe": 202,
+      "almost_certain": 229
     },
     "spread": {
-      "iqr": 0,
-      "inner_80": 0
+      "iqr": 42,
+      "inner_80": 82
     },
-    "fat_tail_ratio": 1,
-    "tail_to_median_ratio": 1,
+    "fat_tail_ratio": 1.61,
+    "tail_to_median_ratio": 1.25,
     "predictability": "Stable",
     "context": {
       "days_in_sample": 91,
@@ -102,10 +102,10 @@
       "unlikely": "P30 (Unlikely / High Risk)"
     },
     "background_items_predicted": {
-      "Activity": 733,
-      "Bug": 389,
-      "Defect": 40,
-      "Story": 1009
+      "Activity": 0,
+      "Bug": 4,
+      "Defect": 1,
+      "Story": 5
     },
     "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
     "volatility_attribution": {
@@ -122,8 +122,8 @@
       "Analysis uses EXPLICIT commitment point: '38776'."
     ],
     "warnings": [
-      "Throughput is significantly higher recently (45% above average). Monitor if this is sustainable.",
-      "WARNING: Forecast exceeds 10 years. This usually indicates 'Throughput Collapse' due to overly restrictive filters (Issue Types or Resolutions)."
+      "CAUTION: 1 item(s) of type(s) [ZeroThroughputType] have no delivery history and were excluded from the duration forecast. Their completion cannot be estimated.",
+      "Throughput is significantly higher recently (45% above average). Monitor if this is sustainable."
     ]
   }
 }

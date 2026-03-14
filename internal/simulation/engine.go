@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"mcs-mcp/internal/stats"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -161,7 +162,29 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		return Result{}
 	}
 
-	// 1. Determine if we should use stratification
+	// 1. Sanitize targets: remove types with no delivery history.
+	// A target type absent from the distribution can never be sampled, so its
+	// remaining count never reaches zero — causing every trial to run to MaxForecastDays.
+	unforecastableTypes := make([]string, 0)
+	unforecastableCount := 0
+	sanitizedTargets := make(map[string]int, len(targets))
+	for t, c := range targets {
+		if distribution[t] > 0 {
+			sanitizedTargets[t] = c
+		} else {
+			unforecastableTypes = append(unforecastableTypes, t)
+			unforecastableCount += c
+		}
+	}
+	slices.Sort(unforecastableTypes)
+	targets = sanitizedTargets
+	if len(targets) == 0 {
+		res := Result{PercentileLabels: getPercentileLabels("duration")}
+		res.Warnings = append(res.Warnings, fmt.Sprintf("CAUTION: %d item(s) of type(s) [%s] have no delivery history and were excluded from the duration forecast. Their completion cannot be estimated.", unforecastableCount, strings.Join(unforecastableTypes, ", ")))
+		return res
+	}
+
+	// 2. Determine if we should use stratification
 	useStratification := false
 	if eligible, ok := e.histogram.Meta["stratification_eligible"].(map[string]bool); ok {
 		for _, isEligible := range eligible {
@@ -172,7 +195,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		}
 	}
 
-	// 2. Prepare final distribution for pooled fallback
+	// 3. Prepare final distribution for pooled fallback
 	finalDist := make(map[string]float64)
 	if !expansionEnabled || len(distribution) == 0 {
 		targetTotalProb := 0.0
@@ -204,7 +227,7 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	// rather than a potentially nil original distribution.
 	trackedDistribution := finalDist
 
-	// 3. Parallel Execution Setup
+	// 4. Parallel Execution Setup
 	numGo := 4 // Split into 4 chunks
 	if trials < 100 {
 		numGo = 1
@@ -348,6 +371,11 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 		if total > 0 && float64(droppedWindow)/float64(total) > DroppedWindowWarnThreshold {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("WARNING: %d items (%d%%) were excluded because they fall outside the analysis time window. This suggests your time window is too narrow or the project is less active recently.", droppedWindow, int(float64(droppedWindow)/float64(total)*100)))
 		}
+	}
+
+	// Unforecastable types warning
+	if len(unforecastableTypes) > 0 {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("CAUTION: %d item(s) of type(s) [%s] have no delivery history and were excluded from the duration forecast. Their completion cannot be estimated.", unforecastableCount, strings.Join(unforecastableTypes, ", ")))
 	}
 
 	slices.Sort(res.Insights)

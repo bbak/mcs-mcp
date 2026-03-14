@@ -322,10 +322,8 @@
         },
         {
           "label": "Mar 2026",
-          "average": 118.98,
+          "average": 130.75,
           "values": [
-            35.92,
-            13.82,
             23.21,
             41.29,
             89.12,
@@ -442,9 +440,9 @@
         }
       ],
       "average_chart": {
-        "average": 57.51,
-        "average_moving_range": 40.69,
-        "upper_natural_process_limit": 165.75,
+        "average": 58.41,
+        "average_moving_range": 42.65,
+        "upper_natural_process_limit": 171.87,
         "lower_natural_process_limit": 0,
         "values": [
           74.49,
@@ -455,7 +453,7 @@
           39.79,
           86.64,
           31.29,
-          118.98,
+          130.75,
           73.27,
           37.29,
           109.76,
@@ -469,8 +467,8 @@
           11.25,
           46.85,
           55.35,
-          87.7,
-          45.71,
+          99.46,
+          57.48,
           35.98,
           72.47,
           79.21
