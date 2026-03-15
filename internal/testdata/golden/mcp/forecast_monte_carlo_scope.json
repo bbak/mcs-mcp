@@ -24,6 +24,14 @@
       "issues_analyzed": 56,
       "issues_total": 76,
       "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
+      "stationarity_assessment": {
+        "convergence": "diverging",
+        "lambda_theta_ratio": 1.34,
+        "coherence_gap_ratio": 0.12,
+        "stationary": false,
+        "recommended_window_days": 30,
+        "window_rationale": "Process divergence detected in the final quarter of the observation window (from 2026-06-23). Earlier data may not reflect current throughput."
+      },
       "stratification_decisions": [
         {
           "type": "Activity",
@@ -110,10 +118,13 @@
   },
   "guardrails": {
     "insights": [
-      "Analysis uses EXPLICIT commitment point: '38776'."
+      "Analysis uses EXPLICIT commitment point: '38776'.",
+      "RECOMMENDATION: Consider narrowing the sampling window to 30 days (Process divergence detected in the final quarter of the observation window (from 2026-06-23). Earlier data may not reflect current throughput.). Re-run with sample_days=30."
     ],
     "warnings": [
-      "Throughput is significantly higher recently (45% above average). Monitor if this is sustainable."
+      "Throughput is significantly higher recently (45% above average). Monitor if this is sustainable.",
+      "CAUTION: Residence time is DIVERGING — average item age is increasing over time. MCS assumes stationarity and may be optimistic.",
+      "CAUTION: Arrival rate (Λ=1.12/day) exceeds departure rate (Θ=0.84/day) by 34%. WIP is accumulating; future throughput may be lower than historical samples suggest."
     ]
   }
 }

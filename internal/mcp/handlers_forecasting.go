@@ -117,6 +117,16 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 	}
 
+	// 4. Stationarity assessment via residence time analysis
+	var stationarityAssessment *stats.StationarityAssessment
+	if analysisCtx.CommitmentPoint != "" {
+		rtItems := stats.ExtractResidenceItems(all, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, window.Start)
+		if len(rtItems) > 0 {
+			rtResult := stats.ComputeResidenceTimeSeries(rtItems, window)
+			stationarityAssessment = stats.AssessStationarity(rtResult)
+		}
+	}
+
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
 	if s.simulationSeed != 0 {
@@ -150,6 +160,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj.Round()
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+		s.applyStationarity(&resObj, stationarityAssessment)
 		resObj.Composition = &simulation.Composition{
 			ExistingBacklog: backlogCount,
 			WIP:             wipCount,
@@ -163,6 +174,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj.Round()
 		resObj.Insights = s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 		resObj.Warnings = append(resObj.Warnings, s.getQualityWarnings(all)...)
+		s.applyStationarity(&resObj, stationarityAssessment)
 		resObj.Composition = &simulation.Composition{
 			ExistingBacklog: backlogCount,
 			WIP:             wipCount,
@@ -323,6 +335,9 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		}
 	}
 
+	// Prepare commitment point info for stationarity tracking
+	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, nil)
+
 	cfg := simulation.WalkForwardConfig{
 		SourceID:        sourceID,
 		SimulationMode:  mode,
@@ -333,6 +348,8 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		IssueTypes:      issueTypes,
 		Resolutions:     s.activeResolutions,
 		EvaluationDate:  s.Clock(),
+		CommitmentPoint: analysisCtx.CommitmentPoint,
+		StatusWeights:   analysisCtx.StatusWeights,
 	}
 
 	res, err := wfa.Execute(cfg)
@@ -345,6 +362,23 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 
 	return WrapResponse(resMap, projectKey, boardID, nil, s.getQualityWarnings(wfa.GetAnalyzedIssues()), nil), nil
+}
+
+// applyStationarity injects stationarity warnings and insights into a simulation result.
+func (s *Server) applyStationarity(resObj *simulation.Result, assessment *stats.StationarityAssessment) {
+	if assessment == nil {
+		return
+	}
+	resObj.Warnings = append(resObj.Warnings, assessment.Warnings...)
+	if assessment.RecommendedWindowDays != nil {
+		resObj.Insights = append(resObj.Insights, fmt.Sprintf(
+			"RECOMMENDATION: Consider narrowing the sampling window to %d days (%s). Re-run with sample_days=%d.",
+			*assessment.RecommendedWindowDays, assessment.WindowRationale, *assessment.RecommendedWindowDays))
+	}
+	if resObj.Context == nil {
+		resObj.Context = make(map[string]any)
+	}
+	resObj.Context["stationarity_assessment"] = assessment
 }
 
 func (s *Server) addCommitmentInsights(insights []string, analysisCtx *AnalysisContext, explicitStart string) []string {

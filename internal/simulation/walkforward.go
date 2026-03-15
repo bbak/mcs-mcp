@@ -21,6 +21,10 @@ type WalkForwardConfig struct {
 	IssueTypes      []string // Optional: Filter by issue types
 	Resolutions     map[string]string
 	EvaluationDate  time.Time
+
+	// Stationarity tracking (Phase 2): required for per-checkpoint residence time analysis.
+	CommitmentPoint string
+	StatusWeights   map[string]int
 }
 
 // ValidationCheckpoint represents a single point in the past where we ran a simulation.
@@ -33,15 +37,26 @@ type ValidationCheckpoint struct {
 	IsWithinCone  bool    `json:"is_within_cone"`  // Is actual between P10 and P95?
 	DriftDetected bool    `json:"drift_detected"`  // If true, this checkpoint is unreliable due to system change
 	IsDegenerate  bool    `json:"is_degenerate,omitempty"` // If true, near-zero throughput made this forecast meaningless
+	Convergence   string  `json:"convergence,omitempty"`    // Residence time convergence at this checkpoint
+	NonStationary bool    `json:"non_stationary,omitempty"` // True if stationarity assessment fired warnings
+}
+
+// StationarityCorrelation summarizes whether non-stationarity correlates with forecast misses.
+type StationarityCorrelation struct {
+	NonStationaryCheckpoints int     `json:"non_stationary_checkpoints"`
+	NonStationaryMissRate    float64 `json:"non_stationary_miss_rate"`  // Fraction of non-stationary checkpoints that missed
+	StationaryMissRate       float64 `json:"stationary_miss_rate"`      // Fraction of stationary checkpoints that missed
+	Signal                   string  `json:"signal"`                    // "predictive", "not_predictive", "insufficient_data"
 }
 
 // WalkForwardResult holds the aggregate results of the analysis.
 type WalkForwardResult struct {
-	AccuracyScore          float64                `json:"accuracy_score"` // % of checkpoints within cone
-	DegenerateCheckpoints  int                    `json:"degenerate_checkpoints,omitempty"`
-	Checkpoints            []ValidationCheckpoint `json:"checkpoints"`
-	DriftWarning           string                 `json:"drift_warning,omitempty"`
-	ValidationMessage      string                 `json:"validation_message"`
+	AccuracyScore           float64                  `json:"accuracy_score"` // % of checkpoints within cone
+	DegenerateCheckpoints   int                      `json:"degenerate_checkpoints,omitempty"`
+	Checkpoints             []ValidationCheckpoint   `json:"checkpoints"`
+	DriftWarning            string                   `json:"drift_warning,omitempty"`
+	ValidationMessage       string                   `json:"validation_message"`
+	StationarityCorrelation *StationarityCorrelation `json:"stationarity_correlation,omitempty"`
 }
 
 // WalkForwardEngine orchestrates the time-travel validation.
@@ -161,8 +176,26 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
 		engine := NewEngine(h)
 
+		// 3.5. Stationarity assessment at this checkpoint (if commitment point available)
+		var cpStationary bool = true
+		var cpConvergence string
+		if cfg.CommitmentPoint != "" && len(cfg.StatusWeights) > 0 {
+			rtWindow := stats.NewAnalysisWindow(historyStart, d, "day", time.Time{})
+			rtItems := stats.ExtractResidenceItems(pastIssues, cfg.CommitmentPoint, cfg.StatusWeights, w.mappings, historyStart)
+			if len(rtItems) > 0 {
+				rtResult := stats.ComputeResidenceTimeSeries(rtItems, rtWindow)
+				assessment := stats.AssessStationarity(rtResult)
+				cpStationary = assessment.Stationary
+				cpConvergence = assessment.Convergence
+			}
+		}
+
 		// 4. Run Simulation & Verify
-		cp := ValidationCheckpoint{Date: d.Format("2006-01-02")}
+		cp := ValidationCheckpoint{
+			Date:          d.Format("2006-01-02"),
+			Convergence:   cpConvergence,
+			NonStationary: !cpStationary,
+		}
 
 		if cfg.SimulationMode == "scope" {
 			// FORECAST: "In next 14 days, check how many done"
@@ -245,7 +278,64 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		result.ValidationMessage += " Warning: Low forecast reliability detected."
 	}
 
+	// Compute stationarity correlation (only if we have stationarity data)
+	result.StationarityCorrelation = computeStationarityCorrelation(result.Checkpoints)
+
 	return result, nil
+}
+
+// computeStationarityCorrelation partitions checkpoints into stationary vs non-stationary
+// and compares miss rates to determine if the stationarity signal is predictive.
+func computeStationarityCorrelation(checkpoints []ValidationCheckpoint) *StationarityCorrelation {
+	var stationaryTotal, stationaryMisses int
+	var nonStationaryTotal, nonStationaryMisses int
+
+	for _, cp := range checkpoints {
+		if cp.IsDegenerate {
+			continue
+		}
+		if cp.Convergence == "" {
+			// No stationarity data for this checkpoint
+			continue
+		}
+		if cp.NonStationary {
+			nonStationaryTotal++
+			if !cp.IsWithinCone {
+				nonStationaryMisses++
+			}
+		} else {
+			stationaryTotal++
+			if !cp.IsWithinCone {
+				stationaryMisses++
+			}
+		}
+	}
+
+	// Need data in both groups to be meaningful
+	if stationaryTotal < 3 || nonStationaryTotal < 3 {
+		if stationaryTotal+nonStationaryTotal == 0 {
+			return nil // No stationarity data at all
+		}
+		return &StationarityCorrelation{
+			NonStationaryCheckpoints: nonStationaryTotal,
+			Signal:                   "insufficient_data",
+		}
+	}
+
+	stationaryMissRate := float64(stationaryMisses) / float64(stationaryTotal)
+	nonStationaryMissRate := float64(nonStationaryMisses) / float64(nonStationaryTotal)
+
+	signal := "not_predictive"
+	if nonStationaryMissRate > 2*stationaryMissRate && nonStationaryMissRate > 0.1 {
+		signal = "predictive"
+	}
+
+	return &StationarityCorrelation{
+		NonStationaryCheckpoints: nonStationaryTotal,
+		NonStationaryMissRate:    stats.Round2(nonStationaryMissRate),
+		StationaryMissRate:       stats.Round2(stationaryMissRate),
+		Signal:                   signal,
+	}
 }
 
 func (w *WalkForwardEngine) sliceEvents(cutoff time.Time) []eventlog.IssueEvent {
