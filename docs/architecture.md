@@ -61,7 +61,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_wip_age_stability` | Analyze Total WIP Age stability (cumulative age burden) via daily run chart with XmR bounds. |
 | `analyze_process_evolution` | Perform a longitudinal "Strategic Audit" using Three-Way Control Charts. |
 | `analyze_yield` | Analyze delivery efficiency (delivered vs. abandoned) attributed to workflow tiers. |
-| `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. |
+| `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. Includes a Cycle Time Scatterplot array for visualization with SLE reference lines. |
 | `analyze_item_journey` | Get a detailed breakdown of a single item's time across all workflow stages. |
 | `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance when Λ(T) ≠ Θ(T). |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
@@ -257,7 +257,7 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **Throughput Cadence (XmR)**: Applies XmR limits to weekly/monthly delivery volumes to detect batching behavior or "Special Cause" surges/dips in capacity.
 - **Flow Debt (Arrival vs. Departure)**: Explicitly monitors the gap between items crossing the **Commitment Point** (Arrivals) and items being **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
 - **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
-- **Cycle Time Scatterplot**: Process Stability responses include a chart-ready `scatterplot` array with per-item completion date, cycle time, pooled moving range, and issue type — enabling date-based scatter visualization with XmR reference lines.
+- **Cycle Time Scatterplot**: Both Process Stability and Cycle Time Analysis responses include a chart-ready `scatterplot` array with per-item completion date, cycle time, pooled moving range, and issue type. Process Stability uses XmR reference lines (X̄, UNPL, LNPL); Cycle Time Analysis uses SLE percentile reference lines (P50, P70, P85, P95).
 
 ---
 

@@ -5,7 +5,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:mcp-go.dev)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+	  "Bash(go test:*)"
     ]
   }
 }
