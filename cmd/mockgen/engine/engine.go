@@ -87,11 +87,11 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 				maxArrivalIdx = 1.0
 			}
 			offsetDays := totalDuration + rnd.Float64()*maxArrivalIdx
-			arrival = cfg.Now.Add(-time.Duration(offsetDays*24) * time.Hour)
+			arrival = cfg.Now.Add(-daysToD(offsetDays))
 		} else {
 			// WIP: Arrived more recently than totalDuration
 			offsetDays := rnd.Float64() * totalDuration
-			arrival = cfg.Now.Add(-time.Duration(offsetDays*24) * time.Hour)
+			arrival = cfg.Now.Add(-daysToD(offsetDays))
 		}
 
 		// Add Created event
@@ -118,7 +118,7 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 		// All items start in Open at 'arrival'
 
 		// Move to Refinement at 15% of totalDuration
-		tRefinement := arrival.Add(time.Duration(totalDuration*0.15*24) * time.Hour)
+		tRefinement := arrival.Add(daysToD(totalDuration * 0.15))
 		if tRefinement.Before(cfg.Now) {
 			events = append(events, eventlog.IssueEvent{
 				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "Open", FromStatusID: "1", ToStatus: "Refinement", ToStatusID: "2", Timestamp: tRefinement.UnixMicro(),
@@ -126,7 +126,7 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 		}
 
 		// Move to In Progress at 40% of totalDuration
-		tInProgress := arrival.Add(time.Duration(totalDuration*0.40*24) * time.Hour)
+		tInProgress := arrival.Add(daysToD(totalDuration * 0.40))
 		if tInProgress.Before(cfg.Now) && status != "Refinement" {
 			events = append(events, eventlog.IssueEvent{
 				IssueKey: key, IssueType: "Story", EventType: eventlog.Change, FromStatus: "Refinement", FromStatusID: "2", ToStatus: "In Progress", ToStatusID: "3", Timestamp: tInProgress.UnixMicro(),
@@ -134,7 +134,7 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 		}
 
 		// Move to Terminal at 100% of totalDuration
-		tDone := arrival.Add(time.Duration(totalDuration*24) * time.Hour)
+		tDone := arrival.Add(daysToD(totalDuration))
 		if tDone.Before(cfg.Now) {
 			resolution := "Fixed"
 			toStatus := "Done"
@@ -156,6 +156,11 @@ func Generate(cfg GeneratorConfig) ([]eventlog.IssueEvent, map[string]stats.Stat
 	}
 
 	return events, mapping
+}
+
+// daysToD converts fractional days to time.Duration with nanosecond precision.
+func daysToD(days float64) time.Duration {
+	return time.Duration(days * 24 * float64(time.Hour))
 }
 
 func weibullSample(rnd *rand.Rand, k, lambda float64) float64 {
