@@ -20,7 +20,7 @@ This document describes the primary interaction scenarios between the User (Proj
     6. AI calls `forecast_monte_carlo` with `mode: "duration"`.
     7. MCP Server runs 10,000 Monte-Carlo trials using historical throughput and type distribution.
     8. AI presents results using risk terminology: "There is a **Likely (85%)** probability that the work will be done by [Date]."
-    9. **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Discovery Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse** warning (detected by >10 year duration).
+    9. **Integrity Check**: The MCP Server surfaces a `_data_quality` block if the simulation window was clamped by the **Discovery Cutoff**. If individual item filters have collapsed the throughput, the server issues a **Throughput Collapse** warning (detected by >10 year duration). Additionally, a **Stationarity Guardrail** checks whether the process is stable (via residence time analysis). If non-stationarity is detected, the server emits CAUTION warnings and a RECOMMENDATION to narrow the sampling window.
 
 ---
 
@@ -354,7 +354,7 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Main Success Scenario:**
     1. User asks: "Why is our cycle time drifting up even though WIP count is stable?"
     2. AI calls `analyze_residence_time` with a 52-week window.
-    3. MCP Server computes the sample path N(t), cumulative element-days H(T), arrival rate Λ(T), average residence time w(T), average sojourn time W*(T), and the coherence gap.
+    3. MCP Server computes the sample path N(t), cumulative element-days H(T), arrival rate Λ(T), departure rate Θ(T), average residence time w(T), departure-denominated residence time w'(T), average sojourn time W*(T), and the coherence gap.
     4. AI verifies `identity_verified: true` and examines the coherence gap trend.
-    5. AI explains: "Your residence time (w) is 18 days, but sojourn time (W*) is only 12 days — the 6-day coherence gap shows active items are inflating the average. The gap is diverging, meaning stale items are accumulating."
+    5. AI explains: "Your residence time (w) is 18 days, but sojourn time (W*) is only 12 days — the 6-day coherence gap shows active items are inflating the average. Furthermore, Λ(T) = 2.1/day but Θ(T) = 1.6/day — arrivals are outpacing departures, confirming WIP accumulation. The divergence between w(T) and w'(T) reinforces this signal."
     6. AI suggests cross-referencing with `analyze_work_item_age` to identify specific aging outliers, or `analyze_wip_stability` to check for population management issues.
