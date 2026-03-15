@@ -28,7 +28,14 @@ var toolDescriptions = map[string]string{
 		"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n\n" +
 		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY.\n" +
 		"DO NOT provide date ranges or probability estimates (e.g., 'There is an 85% chance...') if the tool fails or returns zero throughput. \n" +
-		"If the simulation result is unexpectedly far in the future (e.g., years instead of months), YOU MUST warn the user that the historical throughput sampling might be too low due to filtered resolutions or issue types.",
+		"If the simulation result is unexpectedly far in the future (e.g., years instead of months), YOU MUST warn the user that the historical throughput sampling might be too low due to filtered resolutions or issue types.\n\n" +
+		"STATIONARITY ASSESSMENT: The result includes a 'stationarity_assessment' in the 'context' field. This evaluates whether the process is stable enough for uniform-random throughput sampling to be valid. Key fields:\n" +
+		"- 'stationary' (bool): false means the process is non-stationary — forecasts may be optimistic.\n" +
+		"- 'convergence': 'converging' (stable), 'diverging' (WIP accumulating), or 'metastable' (noisy but not trending).\n" +
+		"- 'lambda_theta_ratio': Arrival rate / Departure rate. Values > 1.3 indicate WIP is growing faster than it's being completed.\n" +
+		"- 'coherence_gap_ratio': How much active WIP is aging beyond completed items. Values > 0.5 indicate stalled or harder items remain.\n" +
+		"- 'recommended_window_days': When non-stationary, suggests a narrower sampling window. Present the recommendation to the user.\n" +
+		"When 'stationary' is false, you MUST surface the stationarity warnings to the user and suggest re-running with the recommended sample_days.",
 
 	"analyze_cycle_time": "Calculate Service Level Expectations (SLE) for a single item based on historical CYCLE TIMES (Lead Time). \n\n" +
 		"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results. \n" +
@@ -124,7 +131,12 @@ var toolDescriptions = map[string]string{
 
 	"forecast_backtest": "Perform a 'Walk-Forward Analysis' (Backtesting) to empirically validate the accuracy of Monte-Carlo Forecasts. \n\n" +
 		"This tool uses Time-Travel logic to reconstruct the state of the system at past points in time, runs a simulation, and checks if the ACTUAL outcome fell within the predicted cone. \n" +
-		"Drift Protection: The analysis automatically stops blindly backtesting if it detects a System Drift (Process Shift via 3-Way Chart).",
+		"Drift Protection: The analysis automatically stops blindly backtesting if it detects a System Drift (Process Shift via 3-Way Chart).\n\n" +
+		"STATIONARITY CORRELATION: Each checkpoint includes 'convergence' and 'non_stationary' fields from residence time analysis. " +
+		"The result includes a 'stationarity_correlation' object that compares miss rates between stationary and non-stationary checkpoints:\n" +
+		"- 'signal': 'predictive' means non-stationary checkpoints miss forecasts at > 2x the rate of stationary ones — the stationarity guardrail is validated for this project.\n" +
+		"- 'not_predictive' means both groups miss at similar rates. 'insufficient_data' means not enough checkpoints in each group.\n" +
+		"When 'signal' is 'predictive', recommend the user pay close attention to stationarity warnings in forecast_monte_carlo results.",
 
 	"analyze_residence_time": "Perform a Sample Path Analysis (Stidham 1972, El-Taha & Stidham 1999) to compute the finite version of Little's Law: L(T) = Λ(T) · w(T).\n\n" +
 		"RESIDENCE TIME: The time an item accumulates in the system within the observation window. Applies to both completed and still-active items.\n" +
