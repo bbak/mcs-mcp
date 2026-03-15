@@ -60,7 +60,7 @@
       {
         "end_date": "2026-03-15",
         "index": "9",
-        "is_partial": "true",
+        "is_partial": "false",
         "label": "2026-W11",
         "start_date": "2026-03-09"
       },
@@ -186,7 +186,7 @@
       {
         "end_date": "2026-07-19",
         "index": "27",
-        "is_partial": "false",
+        "is_partial": "true",
         "label": "2026-W29",
         "start_date": "2026-07-13"
       }

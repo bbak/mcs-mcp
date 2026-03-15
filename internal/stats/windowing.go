@@ -8,10 +8,11 @@ import (
 
 // AnalysisWindow defines the temporal context for analytical projections and diagnostics.
 type AnalysisWindow struct {
-	Start  time.Time `json:"start"`
-	End    time.Time `json:"end"`
-	Bucket string    `json:"bucket"` // "day", "week", "month"
-	Cutoff time.Time `json:"cutoff"` // Steady-State floor
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end"`
+	Bucket   string    `json:"bucket"` // "day", "week", "month"
+	Cutoff   time.Time `json:"cutoff"` // Steady-State floor
+	EvalTime time.Time `json:"-"`      // Evaluation time for partial-bucket detection (derived from end)
 }
 
 // NewAnalysisWindow creates a new window with normalized boundaries and cutoff clamping.
@@ -31,10 +32,11 @@ func NewAnalysisWindow(start, end time.Time, bucket string, cutoff time.Time) An
 	}
 
 	return AnalysisWindow{
-		Start:  normStart,
-		End:    normEnd,
-		Bucket: bucket,
-		Cutoff: cutoff,
+		Start:    normStart,
+		End:      normEnd,
+		Bucket:   bucket,
+		Cutoff:   cutoff,
+		EvalTime: end,
 	}
 }
 
@@ -82,9 +84,12 @@ func SnapToEnd(t time.Time, bucket string) time.Time {
 	}
 }
 
-// IsPartial returns true if the current bucket includes "Today", indicating incomplete data.
+// IsPartial returns true if the evaluation-time bucket includes "Today", indicating incomplete data.
 func (w AnalysisWindow) IsPartial(bucketStart time.Time) bool {
-	now := time.Now()
+	now := w.EvalTime
+	if now.IsZero() {
+		now = time.Now()
+	}
 	bucketEnd := SnapToEnd(bucketStart, w.Bucket)
 	return (now.After(bucketStart) || now.Equal(bucketStart)) && (now.Before(bucketEnd) || now.Equal(bucketEnd))
 }

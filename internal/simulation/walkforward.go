@@ -85,11 +85,15 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		Checkpoints: make([]ValidationCheckpoint, 0),
 	}
 
+	if cfg.EvaluationDate.IsZero() {
+		cfg.EvaluationDate = time.Now()
+	}
+
 	// 1. Detect System Drift (Three-Way Chart)
 	// We analyze the last year of data to find if there was a major process shift.
-	// We must reconstruction issues from "Now" to get the full history for stability check.
+	// We must reconstruction issues from the evaluation date to get the full history for stability check.
 	// Efficient reconstruction:
-	allIssues := w.reconstructAllIssuesAt(time.Now())
+	allIssues := w.reconstructAllIssuesAt(cfg.EvaluationDate)
 	w.analyzedIssues = allIssues
 
 	finishedIssues := make([]jira.Issue, 0)
@@ -113,7 +117,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		// Ideally use "Cycle Time" (Commit to Done), but Total Age is often a good proxy for massive drift
 	}
 
-	window := stats.NewAnalysisWindow(time.Now().AddDate(-1, 0, 0), time.Now(), "week", time.Time{})
+	window := stats.NewAnalysisWindow(cfg.EvaluationDate.AddDate(-1, 0, 0), cfg.EvaluationDate, "week", time.Time{})
 	subgroups := stats.GroupIssuesByBucket(finishedIssues, cycleTimes, window)
 	evolution := stats.CalculateThreeWayXmR(subgroups)
 
