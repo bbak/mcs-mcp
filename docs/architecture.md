@@ -63,7 +63,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_yield` | Analyze delivery efficiency (delivered vs. abandoned) attributed to workflow tiers. |
 | `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. |
 | `analyze_item_journey` | Get a detailed breakdown of a single item's time across all workflow stages. |
-| `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. |
+| `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance when Λ(T) ≠ Θ(T). |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
 
 #### Forecasting
@@ -208,6 +208,12 @@ To prevent nonsensical forecasts, the engine implements several integrity thresh
 
 - **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, a `WARNING` is issued. This usually indicates that filters (`issue_types` or `resolutions`) have reduced the sample size so much that outliers dominate.
 - **Resolution Density Check**: Monitors the ratio of "Delivered" items vs. "Dropped" items. If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative.
+- **Unforecastable Type Exclusion**: Target types with zero delivery history are automatically excluded from duration simulations. A `CAUTION` guardrail names the excluded types and item count so the user understands what was dropped.
+- **Stationarity Guardrail**: Before each simulation, a lightweight residence time analysis is computed over the sampling window. The `StationarityAssessment` inspects three signals:
+  - **Diverging process** (`convergence == "diverging"`): average item age is increasing, indicating WIP accumulation. MCS's uniform sampling assumption may be optimistic.
+  - **Flow imbalance** (`Λ/Θ > 1.3`): arrival rate exceeds departure rate by 30%+. WIP is growing; future throughput may be lower than historical samples.
+  - **Aging WIP** (`|CoherenceGap|/W* > 0.5`): active items are aging significantly beyond completed items, suggesting harder or stalled items remain.
+  When non-stationarity is detected, a window recommendation is emitted as an insight, advising the user to narrow the sampling window to the period after the detected inflection point. The `stationarity_assessment` is included in the simulation result's `context` for transparency.
 
 ### 4.5 Walk-Forward Analysis (Backtesting)
 
@@ -218,6 +224,7 @@ The system provides `forecast_backtest` to validate the reliability of Monte-Car
 - **Drift Protection**: Backtesting automatically terminates if a significant process shift is detected via the Three-Way Control Chart, preventing misleading accuracy results.
 - **Midnight Alignment**: Analysis dates are truncated to midnight to eliminate "partial-day bias," ensuring that daily-bucketed simulations align with real-world outcomes.
 - **Reconstruction Hardening**: The backtesting engine uses terminal status mappings during historical reconstruction to ensure finished items in the past are accurately projected.
+- **Stationarity Correlation**: At each checkpoint, a residence time stationarity assessment is computed and recorded. After all checkpoints, a `StationarityCorrelation` aggregate compares miss rates between stationary and non-stationary checkpoints. If non-stationary checkpoints miss at > 2× the rate of stationary ones, the signal is labeled `"predictive"`, empirically validating the stationarity guardrail for that project.
 
 ---
 
@@ -291,6 +298,7 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
   - **8-Page Cap**: Ingestion is capped at 2400 items to prevent memory exhaustion in legacy projects.
   - **OMRC/NMRC Boundaries**: For targeted extensions, the system uses the Oldest/Newest Most-Recent-Change (OMRC/NMRC) boundary logic to prevent data gaps or overlaps.
   - **Purge-before-Merge**: Targeted extensions replace existing issue histories to ensure Jira deletions or corrections are reflected.
+  - **Atomic File Writes**: Workflow metadata files are written atomically via a temporary file followed by a rename, preventing data loss from crashes or power failures during write operations.
 - **Cache Management Tools**:
   - `import_history_expand`: Fetches older items backwards from the **OMRC** boundary and catch-up forward from **NMRC**.
   - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
