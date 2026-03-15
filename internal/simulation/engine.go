@@ -148,6 +148,7 @@ type Result struct {
 	ModelingInsight          string                    `json:"modeling_insight,omitempty"`
 	VolatilityAttribution    map[string]string         `json:"volatility_attribution,omitempty"`
 	TypeSLEs                 map[string]Percentiles    `json:"type_sles,omitempty"`
+	Scatterplot              []stats.ScatterPoint      `json:"scatterplot,omitempty"`
 }
 
 // Round rounds all numeric fields to 2 decimal places for output compactness.
@@ -507,11 +508,14 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 		return Result{}
 	}
 
-	slices.Sort(cycleTimes)
+	// Sort a local copy — never mutate the caller's slice, which may be date-ordered.
+	sorted := make([]float64, len(cycleTimes))
+	copy(sorted, cycleTimes)
+	slices.Sort(sorted)
 
 	res := Result{
-		Percentiles:      percentilesFromSorted(cycleTimes),
-		Spread:           spreadFromSorted(cycleTimes),
+		Percentiles:      percentilesFromSorted(sorted),
+		Spread:           spreadFromSorted(sorted),
 		PercentileLabels: getPercentileLabels("cycle_time"),
 	}
 
@@ -522,8 +526,10 @@ func (e *Engine) RunCycleTimeAnalysis(cycleTimes []float64, ctByType map[string]
 			if len(cts) == 0 {
 				continue
 			}
-			slices.Sort(cts)
-			res.TypeSLEs[t] = percentilesFromSorted(cts)
+			typeSorted := make([]float64, len(cts))
+			copy(typeSorted, cts)
+			slices.Sort(typeSorted)
+			res.TypeSLEs[t] = percentilesFromSorted(typeSorted)
 		}
 	}
 

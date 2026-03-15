@@ -1,8 +1,8 @@
 ---
 name: analyze_cycle_time-chart
 description: >
-  Renders a Cycle Time SLE chart (three panels: predictability, pool SLE, per-type SLE)
-  from an mcs-mcp:analyze_cycle_time result.
+  Renders a Cycle Time SLE chart (four panels: predictability, pool SLE, per-type SLE,
+  scatterplot) from an mcs-mcp:analyze_cycle_time result.
 ---
 
 # analyze_cycle_time — Chart Skill
@@ -35,7 +35,8 @@ Only these three fields are required. The JSX derives everything else from MCP_R
 
 ## Notes
 
-- This is a STATIC SNAPSHOT — no time axis, no individual item dots.
+- Panels 1-3 are static SLE snapshots. Panel 4 is a cycle-time scatterplot showing
+  individual items by completion date, with SLE reference lines (P50, P70, P85, P95).
 - Issue types are derived dynamically from `context.stratification_decisions[]`.
 - Percentile keys (aggressive, unlikely, etc.) are fixed by API contract — safe to hardcode.
 - Issue type names are NOT safe to hardcode — always use dynamic arrays.

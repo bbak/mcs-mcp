@@ -138,7 +138,982 @@
         "safe": 322.87,
         "almost_certain": 734.86
       }
-    }
+    },
+    "scatterplot": [
+      {
+        "date": "2026-01-14",
+        "value": 110.81,
+        "moving_range": null,
+        "key": "MOCK-1590",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-14",
+        "value": 30.81,
+        "moving_range": 80,
+        "key": "MOCK-1743",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-14",
+        "value": 34.76,
+        "moving_range": 3.96,
+        "key": "MOCK-1728",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-01-14",
+        "value": 46.06,
+        "moving_range": 11.3,
+        "key": "MOCK-1683",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-01-14",
+        "value": 46.11,
+        "moving_range": 0.05,
+        "key": "MOCK-1681",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-15",
+        "value": 223.95,
+        "moving_range": 177.84,
+        "key": "MOCK-1411",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-01-15",
+        "value": 8.09,
+        "moving_range": 215.87,
+        "key": "MOCK-1680",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-15",
+        "value": 263.86,
+        "moving_range": 255.77,
+        "key": "MOCK-1373",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-15",
+        "value": 734.86,
+        "moving_range": 471,
+        "key": "MOCK-434",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-15",
+        "value": 245.96,
+        "moving_range": 488.9,
+        "key": "MOCK-1391",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-01-16",
+        "value": 0.01,
+        "moving_range": 245.96,
+        "key": "MOCK-1702",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-21",
+        "value": 39.22,
+        "moving_range": 39.22,
+        "key": "MOCK-1703",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-22",
+        "value": 33.05,
+        "moving_range": 6.17,
+        "key": "MOCK-1712",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-23",
+        "value": 208.42,
+        "moving_range": 175.37,
+        "key": "MOCK-1408",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-01-23",
+        "value": 26.87,
+        "moving_range": 181.55,
+        "key": "MOCK-1752",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-01-24",
+        "value": 0.01,
+        "moving_range": 26.87,
+        "key": "MOCK-1766",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-24",
+        "value": 0.01,
+        "moving_range": 0.01,
+        "key": "MOCK-1489",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-01-24",
+        "value": 0.01,
+        "moving_range": 0.01,
+        "key": "MOCK-1395",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-01-28",
+        "value": 5.91,
+        "moving_range": 5.9,
+        "key": "MOCK-1771",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-05",
+        "value": 0.28,
+        "moving_range": 5.62,
+        "key": "MOCK-1797",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-05",
+        "value": 1,
+        "moving_range": 0.72,
+        "key": "MOCK-1798",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-06",
+        "value": 13.83,
+        "moving_range": 12.83,
+        "key": "MOCK-1568",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-06",
+        "value": 30.19,
+        "moving_range": 16.36,
+        "key": "MOCK-1762",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-12",
+        "value": 123.91,
+        "moving_range": 93.72,
+        "key": "MOCK-1621",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-12",
+        "value": 7.26,
+        "moving_range": 116.65,
+        "key": "MOCK-1799",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-14",
+        "value": 21.05,
+        "moving_range": 13.79,
+        "key": "MOCK-1772",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-14",
+        "value": 119.98,
+        "moving_range": 98.93,
+        "key": "MOCK-1624",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-14",
+        "value": 124.85,
+        "moving_range": 4.87,
+        "key": "MOCK-1268",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-14",
+        "value": 0.01,
+        "moving_range": 124.85,
+        "key": "MOCK-462",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-18",
+        "value": 48.96,
+        "moving_range": 48.96,
+        "key": "MOCK-1748",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-20",
+        "value": 27.84,
+        "moving_range": 21.12,
+        "key": "MOCK-1783",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 7.04,
+        "moving_range": 20.8,
+        "key": "MOCK-1815",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 7.03,
+        "moving_range": 0.01,
+        "key": "MOCK-1814",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 8.08,
+        "moving_range": 1.05,
+        "key": "MOCK-1785",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 8.09,
+        "moving_range": 0.01,
+        "key": "MOCK-1829",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 6.9,
+        "moving_range": 1.2,
+        "key": "MOCK-1833",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 13.07,
+        "moving_range": 6.17,
+        "key": "MOCK-1387",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-22",
+        "value": 25.12,
+        "moving_range": 12.05,
+        "key": "MOCK-1701",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-25",
+        "value": 117.96,
+        "moving_range": 92.84,
+        "key": "MOCK-1655",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-02-26",
+        "value": 1,
+        "moving_range": 116.96,
+        "key": "MOCK-1849",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-02-26",
+        "value": 7.1,
+        "moving_range": 6.1,
+        "key": "MOCK-1835",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-02-27",
+        "value": 0.04,
+        "moving_range": 7.06,
+        "key": "MOCK-1854",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-02-28",
+        "value": 30.29,
+        "moving_range": 30.25,
+        "key": "MOCK-1794",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-01",
+        "value": 11.1,
+        "moving_range": 19.19,
+        "key": "MOCK-1834",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-07",
+        "value": 0.91,
+        "moving_range": 10.19,
+        "key": "MOCK-1864",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-07",
+        "value": 8.05,
+        "moving_range": 7.14,
+        "key": "MOCK-1855",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-08",
+        "value": 0.01,
+        "moving_range": 8.05,
+        "key": "MOCK-1786",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-08",
+        "value": 42.88,
+        "moving_range": 42.88,
+        "key": "MOCK-1784",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-12",
+        "value": 271.47,
+        "moving_range": 228.59,
+        "key": "MOCK-1452",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-14",
+        "value": 35.92,
+        "moving_range": 235.55,
+        "key": "MOCK-1791",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-03-14",
+        "value": 13.82,
+        "moving_range": 22.1,
+        "key": "MOCK-1537",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-14",
+        "value": 23.21,
+        "moving_range": 9.39,
+        "key": "MOCK-1816",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-18",
+        "value": 41.29,
+        "moving_range": 18.08,
+        "key": "MOCK-1795",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-03-19",
+        "value": 89.12,
+        "moving_range": 47.83,
+        "key": "MOCK-1708",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-20",
+        "value": 114.28,
+        "moving_range": 25.15,
+        "key": "MOCK-1696",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-22",
+        "value": 94.14,
+        "moving_range": 20.13,
+        "key": "MOCK-1744",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-22",
+        "value": 51.76,
+        "moving_range": 42.39,
+        "key": "MOCK-1765",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-03-22",
+        "value": 51.75,
+        "moving_range": 0.01,
+        "key": "MOCK-1533",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 112,
+        "moving_range": 60.25,
+        "key": "MOCK-1706",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 106.06,
+        "moving_range": 5.94,
+        "key": "MOCK-1726",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 122.98,
+        "moving_range": 16.92,
+        "key": "MOCK-1688",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 7.98,
+        "moving_range": 114.99,
+        "key": "MOCK-1836",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 41.13,
+        "moving_range": 33.15,
+        "key": "MOCK-1817",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 154.01,
+        "moving_range": 112.88,
+        "key": "MOCK-1636",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 788.33,
+        "moving_range": 634.32,
+        "key": "MOCK-442",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-26",
+        "value": 223.25,
+        "moving_range": 565.09,
+        "key": "MOCK-1535",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-03-29",
+        "value": 70.63,
+        "moving_range": 152.61,
+        "key": "MOCK-1764",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-04",
+        "value": 16.23,
+        "moving_range": 54.4,
+        "key": "MOCK-1880",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-04",
+        "value": 232.01,
+        "moving_range": 215.78,
+        "key": "MOCK-1531",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-04",
+        "value": 2.09,
+        "moving_range": 229.92,
+        "key": "MOCK-1813",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-09",
+        "value": 35.22,
+        "moving_range": 33.13,
+        "key": "MOCK-1853",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-10",
+        "value": 350.15,
+        "moving_range": 314.92,
+        "key": "MOCK-1367",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 31.07,
+        "moving_range": 319.07,
+        "key": "MOCK-1761",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 1.26,
+        "moving_range": 29.82,
+        "key": "MOCK-1894",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 77.32,
+        "moving_range": 76.07,
+        "key": "MOCK-1770",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 45.28,
+        "moving_range": 32.04,
+        "key": "MOCK-1848",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 23,
+        "moving_range": 22.28,
+        "key": "MOCK-1881",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 9.08,
+        "moving_range": 13.93,
+        "key": "MOCK-1691",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 9.08,
+        "moving_range": 0.01,
+        "key": "MOCK-1690",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 6.1,
+        "moving_range": 2.97,
+        "key": "MOCK-1692",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 135.81,
+        "moving_range": 129.71,
+        "key": "MOCK-1697",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-11",
+        "value": 93.67,
+        "moving_range": 42.14,
+        "key": "MOCK-1763",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-12",
+        "value": 0.01,
+        "moving_range": 93.67,
+        "key": "MOCK-1899",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-04-16",
+        "value": 221.63,
+        "moving_range": 221.63,
+        "key": "MOCK-787",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-18",
+        "value": 36.92,
+        "moving_range": 184.71,
+        "key": "MOCK-1769",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-04-18",
+        "value": 2.2,
+        "moving_range": 34.72,
+        "key": "MOCK-1904",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-24",
+        "value": 14.12,
+        "moving_range": 11.92,
+        "key": "MOCK-1859",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-24",
+        "value": 322.87,
+        "moving_range": 308.75,
+        "key": "MOCK-1020",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-29",
+        "value": 104.82,
+        "moving_range": 218.04,
+        "key": "MOCK-679",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-04-30",
+        "value": 17.89,
+        "moving_range": 86.94,
+        "key": "MOCK-1900",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-30",
+        "value": 7.1,
+        "moving_range": 10.78,
+        "key": "MOCK-1910",
+        "issue_type": "Defect"
+      },
+      {
+        "date": "2026-04-30",
+        "value": 26.01,
+        "moving_range": 18.91,
+        "key": "MOCK-1892",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-30",
+        "value": 26.02,
+        "moving_range": 0.01,
+        "key": "MOCK-1893",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-04-30",
+        "value": 131.28,
+        "moving_range": 105.26,
+        "key": "MOCK-853",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-03",
+        "value": 0.09,
+        "moving_range": 131.19,
+        "key": "MOCK-1929",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-06",
+        "value": 3.97,
+        "moving_range": 3.88,
+        "key": "MOCK-1928",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-05-07",
+        "value": 102.86,
+        "moving_range": 98.89,
+        "key": "MOCK-1710",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-08",
+        "value": 8.01,
+        "moving_range": 94.85,
+        "key": "MOCK-1925",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-05-10",
+        "value": 0.01,
+        "moving_range": 8.01,
+        "key": "MOCK-1828",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 63.25,
+        "moving_range": 63.25,
+        "key": "MOCK-1773",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 12.17,
+        "moving_range": 51.08,
+        "key": "MOCK-1775",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 12.17,
+        "moving_range": 0.01,
+        "key": "MOCK-1776",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 12.17,
+        "moving_range": 0.01,
+        "key": "MOCK-1774",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 55.15,
+        "moving_range": 42.98,
+        "key": "MOCK-1777",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-05-13",
+        "value": 42.19,
+        "moving_range": 12.96,
+        "key": "MOCK-1891",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-05-14",
+        "value": 196,
+        "moving_range": 153.81,
+        "key": "MOCK-1649",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-05-14",
+        "value": 20.93,
+        "moving_range": 175.07,
+        "key": "MOCK-1908",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-05-30",
+        "value": 1.03,
+        "moving_range": 19.9,
+        "key": "MOCK-1951",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-05-30",
+        "value": 29.29,
+        "moving_range": 28.26,
+        "key": "MOCK-1919",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-06-06",
+        "value": 64.81,
+        "moving_range": 35.52,
+        "key": "MOCK-1860",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-07",
+        "value": 52.14,
+        "moving_range": 12.67,
+        "key": "MOCK-1903",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-07",
+        "value": 134.24,
+        "moving_range": 82.1,
+        "key": "MOCK-1768",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-18",
+        "value": 167.33,
+        "moving_range": 33.09,
+        "key": "MOCK-1751",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-18",
+        "value": 596.07,
+        "moving_range": 428.74,
+        "key": "MOCK-927",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-06-20",
+        "value": 0.04,
+        "moving_range": 596.04,
+        "key": "MOCK-1926",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-20",
+        "value": 42.24,
+        "moving_range": 42.2,
+        "key": "MOCK-1718",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-20",
+        "value": 42.24,
+        "moving_range": 0.01,
+        "key": "MOCK-1715",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-20",
+        "value": 44.18,
+        "moving_range": 1.95,
+        "key": "MOCK-1932",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-06-20",
+        "value": 45.09,
+        "moving_range": 0.91,
+        "key": "MOCK-1927",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-06-25",
+        "value": 18.99,
+        "moving_range": 26.1,
+        "key": "MOCK-1945",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-02",
+        "value": 24.9,
+        "moving_range": 5.91,
+        "key": "MOCK-1980",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-02",
+        "value": 32.93,
+        "moving_range": 8.03,
+        "key": "MOCK-1944",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-08",
+        "value": 55.94,
+        "moving_range": 23.01,
+        "key": "MOCK-1713",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-07-08",
+        "value": 34.02,
+        "moving_range": 21.92,
+        "key": "MOCK-1755",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-08",
+        "value": 39.09,
+        "moving_range": 5.07,
+        "key": "MOCK-1717",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-07-09",
+        "value": 89.02,
+        "moving_range": 49.93,
+        "key": "MOCK-1884",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-09",
+        "value": 49.18,
+        "moving_range": 39.84,
+        "key": "MOCK-1946",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 7.78,
+        "moving_range": 41.39,
+        "key": "MOCK-1975",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 1.88,
+        "moving_range": 5.9,
+        "key": "MOCK-2017",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 1.88,
+        "moving_range": 0.01,
+        "key": "MOCK-2008",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 0.54,
+        "moving_range": 1.34,
+        "key": "MOCK-2021",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 8.01,
+        "moving_range": 7.48,
+        "key": "MOCK-1467",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 62.11,
+        "moving_range": 54.09,
+        "key": "MOCK-1935",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 91.01,
+        "moving_range": 28.9,
+        "key": "MOCK-1693",
+        "issue_type": "Story"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 29.25,
+        "moving_range": 61.76,
+        "key": "MOCK-1976",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 14,
+        "moving_range": 15.25,
+        "key": "MOCK-1995",
+        "issue_type": "Bug"
+      },
+      {
+        "date": "2026-07-11",
+        "value": 22.99,
+        "moving_range": 8.99,
+        "key": "MOCK-1984",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-12",
+        "value": 15.97,
+        "moving_range": 7.03,
+        "key": "MOCK-2005",
+        "issue_type": "Activity"
+      },
+      {
+        "date": "2026-07-12",
+        "value": 0.01,
+        "moving_range": 15.97,
+        "key": "MOCK-9992",
+        "issue_type": "Story"
+      }
+    ]
   },
   "guardrails": {
     "insights": [

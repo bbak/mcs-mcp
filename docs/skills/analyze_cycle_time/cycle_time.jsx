@@ -1,5 +1,6 @@
 import {
-  BarChart, Bar, Cell, ReferenceLine, XAxis, YAxis,
+  BarChart, Bar, Cell, ComposedChart, Scatter,
+  ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 
@@ -117,6 +118,59 @@ const P98 = round1(POOL.almost_certain);
 const maxTypeP98 = eligibleTypes.length > 0
   ? Math.max(...eligibleTypes.map(t => round1(TYPE_SLES[t].almost_certain || 0)))
   : P98;
+
+// ── SCATTERPLOT DATA ─────────────────────────────────────────────────────────
+
+const RAW_SCATTERPLOT = d.scatterplot || [];
+const P50 = round1(POOL.coin_toss);
+const P70 = round1(POOL.probable);
+const P95 = round1(POOL.safe);
+
+const scatterData = RAW_SCATTERPLOT.map(pt => ({
+  date:      pt.date,
+  value:     pt.value,
+  key:       pt.key,
+  issueType: pt.issue_type,
+  aboveSLE:  pt.value > POOL.likely,
+}));
+
+const formatDate = (d) =>
+  new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+
+const scatterYMax = scatterData.length > 0
+  ? Math.ceil(Math.max(...scatterData.map(d => d.value), P95) * 1.1 / 50) * 50
+  : P98;
+
+const scatterInterval = Math.max(1, Math.floor(scatterData.length / 9));
+
+const ScatterDot = ({ cx, cy, payload }) => {
+  if (!cx || !cy) return null;
+  const typeIdx = ALL_ISSUE_TYPES.indexOf(payload.issueType);
+  const color = ISSUE_TYPE_PALETTE[typeIdx >= 0 ? typeIdx % ISSUE_TYPE_PALETTE.length : 0];
+  if (payload.aboveSLE)
+    return <circle cx={cx} cy={cy} r={4} fill={color} stroke={CAUTION} strokeWidth={1.5}/>;
+  return <circle cx={cx} cy={cy} r={2.5} fill={color} fillOpacity={0.5} stroke="none"/>;
+};
+
+const ScatterTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const pt = payload[0].payload;
+  const typeIdx = ALL_ISSUE_TYPES.indexOf(pt.issueType);
+  const color = ISSUE_TYPE_PALETTE[typeIdx >= 0 ? typeIdx % ISSUE_TYPE_PALETTE.length : 0];
+  return (
+    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{pt.key}</div>
+      <div style={{ color: MUTED, marginBottom: 6 }}>{formatDate(pt.date)}</div>
+      <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
+        <div>Cycle Time: <b>{pt.value.toFixed(1)} d</b></div>
+        <div>Type: <span style={{ color }}>{pt.issueType}</span></div>
+        <div style={{ color: MUTED }}>P50: {P50}d · P70: {P70}d · P85: {P85}d · P95: {P95}d</div>
+        {pt.aboveSLE && <div style={{ color: CAUTION, fontWeight: 700, marginTop: 4 }}>Above P85 SLE</div>}
+      </div>
+    </div>
+  );
+};
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -335,6 +389,65 @@ export default function CycleTimeSleChart() {
           </div>
         )}
 
+        {/* Panel 4: Cycle Time Scatterplot */}
+        {scatterData.length > 0 && (
+          <div style={{ background: PANEL_BG, borderRadius: 12,
+            border: `1px solid ${BORDER}`, padding: "14px 12px 12px", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: MUTED, marginBottom: 8, letterSpacing: "0.05em",
+              textTransform: "uppercase" }}>
+              Cycle Time Scatterplot — Individual items by completion date · {scatterData.length} items
+            </div>
+
+            <ResponsiveContainer width="100%" height={380}>
+              <ComposedChart data={scatterData} margin={{ top: 10, right: 20, bottom: 60, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} interval={scatterInterval}
+                  angle={-45} textAnchor="end" height={60}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                <YAxis domain={[0, scatterYMax]} tickFormatter={v => `${v}d`}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }}
+                  label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
+                    fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                <Tooltip content={<ScatterTooltip />} />
+                <ReferenceLine y={P50} stroke={SECONDARY} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P50 ${P50}d`, fill: SECONDARY, fontSize: 10,
+                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
+                <ReferenceLine y={P70} stroke={PRIMARY} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P70 ${P70}d`, fill: PRIMARY, fontSize: 10,
+                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
+                <ReferenceLine y={P85} stroke={CAUTION} strokeDasharray="6 3" strokeWidth={1.5}
+                  label={{ value: `P85 SLE ${P85}d`, fill: CAUTION, fontSize: 10,
+                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
+                <ReferenceLine y={P95} stroke={ALARM} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P95 ${P95}d`, fill: ALARM, fontSize: 10,
+                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
+                <Scatter dataKey="value" shape={<ScatterDot />} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
+              {ALL_ISSUE_TYPES.map((t, i) => (
+                <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%",
+                    background: ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length] }} />
+                  <span style={{ fontSize: 10, color: MUTED }}>{t}</span>
+                </div>
+              ))}
+              {[
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P50 Median" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={PRIMARY} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P70 Probable" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={CAUTION} strokeDasharray="6 3" strokeWidth={1.5}/>, label: "P85 SLE" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={ALARM} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P95 Safe Bet" },
+              ].map(({ svg, label }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <svg width={24} height={12}>{svg}</svg>
+                  <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.7,
           borderTop: `1px solid ${BORDER}`, paddingTop: 14 }}>
@@ -344,7 +457,8 @@ export default function CycleTimeSleChart() {
             combined — how long it takes 10%, 30%, 50%... 98% of items to complete. P85 is
             the canonical SLE: 85% of items finish within that time. The per-type panel
             compares the same percentiles across independent delivery streams, always
-            highlighting P85.
+            highlighting P85. The scatterplot shows each individual item by its completion
+            date — points above the P85 line exceeded the Service Level Expectation.
           </div>
           <div>
             <b style={{ color: TEXT }}>Warning: </b>

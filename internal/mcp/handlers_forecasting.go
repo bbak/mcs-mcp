@@ -246,10 +246,12 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 		startStatus = analysisCtx.CommitmentPoint
 	}
 
-	cycleTimes, _ := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
+	cycleTimes, matchedIssues := s.getCycleTimes(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	if len(cycleTimes) == 0 {
 		return nil, fmt.Errorf("no cycle times found for criteria")
 	}
+
+	scatterplot := stats.BuildScatterplot(matchedIssues, cycleTimes)
 
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
@@ -260,6 +262,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 	ctByType := s.getCycleTimesByType(projectKey, boardID, delivered, startStatus, endStatus, issueTypes)
 	resObj := engine.RunCycleTimeAnalysis(cycleTimes, ctByType)
 	resObj.Round()
+	resObj.Scatterplot = scatterplot
 
 	warnings := append(resObj.Warnings, s.getQualityWarnings(all)...)
 	insights := s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
