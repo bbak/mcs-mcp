@@ -122,15 +122,9 @@ func ExtractResidenceItems(
 			}
 		}
 
-		// Fallback: if no transition found but currently downstream/finished, use Created
-		if lastCommitDate == nil {
-			tier := DetermineTier(issue, commitmentPoint, mappings)
-			if tier == "Downstream" || tier == "Finished" {
-				lastCommitDate = &issue.Created
-			}
-		}
-
-		// Skip items that never reached the commitment point
+		// Skip items with no commitment boundary crossing — they have zero residence time.
+		// This includes items still pre-commitment-point and items imported directly into
+		// the Finished tier (sojourn time = 0).
 		if lastCommitDate == nil {
 			continue
 		}

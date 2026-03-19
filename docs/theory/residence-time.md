@@ -195,9 +195,9 @@ The start anchor s_i is determined by walking the item's transition history forw
 - The origin status has weight below the commitment point weight
 - The destination status has weight at or above the commitment point weight
 
-If no such transition exists but the item is currently in a Downstream or Finished tier, the item's Created date is used as a fallback.
+If no such transition exists, the item is excluded from the sample path population. An item in the Finished tier with no commitment boundary crossing has zero residence time — it was either never committed (still pre-commitment-point) or was imported directly into the Finished tier with zero sojourn time. In neither case should a start date be fabricated from the `Created` timestamp, as items may linger in the Demand tier for extended periods before (or without ever) entering active work.
 
-Items that never reached the commitment point are excluded entirely.
+Note that this population rule means D(T) from sample path analysis may be lower than throughput from `analyze_throughput`. This is by design: throughput counts all delivered items, while the sample path only includes items with measurable residence time (commitment boundary crossing evidence).
 
 ### Discovery Cutoff
 

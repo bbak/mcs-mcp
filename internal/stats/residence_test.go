@@ -299,7 +299,8 @@ func TestExtractResidenceItems(t *testing.T) {
 				{ToStatusID: "10001", Date: date(2025, 1, 1)},
 			},
 		},
-		// Issue currently downstream with no transition to commitment — fallback to Created
+		// Issue currently downstream with no transition crossing commitment boundary —
+		// should be excluded (zero residence time, no commitment evidence)
 		{
 			Key:       "TEST-4",
 			IssueType: "Story",
@@ -311,8 +312,8 @@ func TestExtractResidenceItems(t *testing.T) {
 
 	result := ExtractResidenceItems(issues, commitmentPoint, statusWeights, mappings, windowStart)
 
-	if len(result) != 3 {
-		t.Fatalf("expected 3 items (TEST-3 excluded), got %d", len(result))
+	if len(result) != 2 {
+		t.Fatalf("expected 2 items (TEST-3 and TEST-4 excluded), got %d", len(result))
 	}
 
 	// TEST-1: should have Start = Jan 5
@@ -326,13 +327,5 @@ func TestExtractResidenceItems(t *testing.T) {
 	// TEST-2: should have Start = Jan 10 (last commitment, backflow reset)
 	if !result[1].Start.Equal(date(2025, 1, 10)) {
 		t.Errorf("TEST-2: expected start Jan 10 (backflow reset), got %v", result[1].Start)
-	}
-
-	// TEST-4: fallback to Created (Jun 1, 2024) — pre-window
-	if !result[2].Start.Equal(date(2024, 6, 1)) {
-		t.Errorf("TEST-4: expected start Jun 1 (Created fallback), got %v", result[2].Start)
-	}
-	if !result[2].PreWindow {
-		t.Error("TEST-4: should be pre-window")
 	}
 }

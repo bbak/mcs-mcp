@@ -66,6 +66,8 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance when Λ(T) ≠ Θ(T). |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
 
+> **Sample Path Population Rule**: The sample path population for `analyze_residence_time` consists of all items whose transition history shows at least one crossing of the commitment boundary (from a status below the commitment weight to at-or-above it). Items without commitment boundary evidence have zero residence time and are excluded — the server does not fabricate commitment dates. This means D(T) may be lower than throughput from `analyze_throughput`, which counts all items with `Outcome == "delivered"` regardless of transition evidence. This is by design: including zero-residence-time items would inject artificial near-zero sojourn times that distort w(T), W*(T), and the coherence gap.
+
 #### Forecasting
 
 | Tool | Purpose |

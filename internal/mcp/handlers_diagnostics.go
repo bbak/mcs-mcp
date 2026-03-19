@@ -923,6 +923,7 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, wind
 		"Coherence gap w(T) - W*(T): the 'end effect' of still-active items. A large gap means active WIP is significantly inflating the average residence time beyond what completed items experienced. The gap w'(T) - W*(T) isolates the empirical residual (path-integral vs arithmetic mean of completed sojourns).",
 		fmt.Sprintf("Convergence assessment: %s — assessed via 1/T tail regression on w(T). 'converging' means w(T) is stabilising toward a steady-state value; 'diverging' means it is still climbing; 'metastable' means the tail is noisy but not clearly trending.", result.Summary.Convergence),
 		"IMPORTANT: This tool always applies backflow reset (uses the LAST commitment date). This diverges from the configurable commitmentBackflowReset used by other tools like analyze_work_item_age.",
+		"POPULATION NOTE: The sample path population includes only items whose transition history shows at least one crossing of the commitment boundary (from a status below the commitment weight to at-or-above it). Items without such a transition have zero residence time and are excluded. D(T) may therefore be lower than throughput from analyze_throughput, which counts all delivered items regardless of commitment evidence.",
 	}
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
