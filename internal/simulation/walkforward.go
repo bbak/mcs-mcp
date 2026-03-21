@@ -29,6 +29,12 @@ type WalkForwardConfig struct {
 	// SimulationSeed, when non-zero, seeds each checkpoint's RNG deterministically
 	// as (SimulationSeed + checkpointIndex), making walk-forward results reproducible.
 	SimulationSeed int64
+
+	// ExperimentalMode, when true, enables per-checkpoint window narrowing based on
+	// the residence-time stationarity assessment. When non-stationary, the per-checkpoint
+	// history window is narrowed to min(90, RecommendedWindowDays) instead of the 90-day
+	// default. Requires CommitmentPoint and StatusWeights to be set.
+	ExperimentalMode bool
 }
 
 // ValidationCheckpoint represents a single point in the past where we ran a simulation.
@@ -174,34 +180,36 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 		// Reconstruct issues as they looked at 'd'
 		pastIssues := w.reconstructAllIssues(pastEvents, d)
 
-		// Build Histogram (Capability) based on 6 months PRIOR to 'd'
-		historyStart := d.AddDate(0, -6, 0) // 6 months rolling window
+		// 3.5. Stationarity assessment at this checkpoint (if commitment point available).
+		// Runs before histogram construction so the experimental branch can narrow historyStart.
+		historyStart := d.AddDate(0, 0, -90) // 90-day rolling window (aligned with MCS default)
 		if globalCutoff != nil && historyStart.Before(*globalCutoff) {
 			historyStart = *globalCutoff
-			// If history range is now too short (e.g. project just started),
+			// If history range is too short (e.g. project just started),
 			// the simulation will naturally have lower confidence/high spread.
 		}
 
+		var cpStationary bool = true
+		var cpConvergence string
+		var assessment *stats.StationarityAssessment
+		if cfg.CommitmentPoint != "" && len(cfg.StatusWeights) > 0 {
+			rtWindow := stats.NewAnalysisWindow(historyStart, d, "day", time.Time{})
+			rtItems := stats.ExtractResidenceItems(pastIssues, cfg.CommitmentPoint, cfg.StatusWeights, w.mappings, historyStart)
+			if len(rtItems) > 0 {
+				rtResult := stats.ComputeResidenceTimeSeries(rtItems, rtWindow)
+				assessment = stats.AssessStationarity(rtResult)
+				cpStationary = assessment.Stationary
+				cpConvergence = assessment.Convergence
+			}
+		}
+
+		// Build Histogram (Capability) using historyStart.
 		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
 		engine := NewEngine(h)
 		if cfg.SimulationSeed != 0 {
 			engine.SetSeed(cfg.SimulationSeed + int64(checkpointIndex))
 		}
 		checkpointIndex++
-
-		// 3.5. Stationarity assessment at this checkpoint (if commitment point available)
-		var cpStationary bool = true
-		var cpConvergence string
-		if cfg.CommitmentPoint != "" && len(cfg.StatusWeights) > 0 {
-			rtWindow := stats.NewAnalysisWindow(historyStart, d, "day", time.Time{})
-			rtItems := stats.ExtractResidenceItems(pastIssues, cfg.CommitmentPoint, cfg.StatusWeights, w.mappings, historyStart)
-			if len(rtItems) > 0 {
-				rtResult := stats.ComputeResidenceTimeSeries(rtItems, rtWindow)
-				assessment := stats.AssessStationarity(rtResult)
-				cpStationary = assessment.Stationary
-				cpConvergence = assessment.Convergence
-			}
-		}
 
 		// 4. Run Simulation & Verify
 		cp := ValidationCheckpoint{

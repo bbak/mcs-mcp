@@ -34,6 +34,8 @@ type Server struct {
 	enableMermaidCharts     bool
 	commitmentBackflowReset bool
 	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)
+	allowExperimental       bool  // operator gate: set at startup from MCS_ALLOW_EXPERIMENTAL
+	experimentalMode        bool  // session state: toggled by set_experimental tool
 }
 
 func (s *Server) Clock() time.Time {
@@ -49,6 +51,7 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 		cacheDir:                cfg.CacheDir,
 		enableMermaidCharts:     cfg.EnableMermaidCharts,
 		commitmentBackflowReset: cfg.CommitmentBackflowReset,
+		allowExperimental:       cfg.AllowExperimental,
 	}
 
 	store := eventlog.NewEventStore(s.Clock)

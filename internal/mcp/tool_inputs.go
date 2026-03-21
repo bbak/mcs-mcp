@@ -259,9 +259,9 @@ type ForecastBacktestInput struct {
 	ItemsToForecast   int            `json:"items_to_forecast,omitempty" jsonschema:"Number of items to forecast (duration mode). Default: 5"`
 	ForecastHorizon   int            `json:"forecast_horizon_days,omitempty" jsonschema:"Number of days to forecast (scope mode). Default: 14"`
 	IssueTypes        []string       `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include in the validation."`
-	HistoryWindowDays int            `json:"history_window_days,omitempty" jsonschema:"Optional: Lookback for historical baseline."`
-	HistoryStartDate  string         `json:"history_start_date,omitempty" jsonschema:"Optional: Start date for historical baseline."`
-	HistoryEndDate    string         `json:"history_end_date,omitempty" jsonschema:"Optional: End date for historical baseline."`
+	HistoryWindowDays int            `json:"history_window_days,omitempty" jsonschema:"Optional: How far back the validation iterates, controlling the number of checkpoints (not the per-checkpoint sampling window). Default: 175 days (25 weekly checkpoints). Each checkpoint always samples from a fixed 90-day window ending at that checkpoint."`
+	HistoryStartDate  string         `json:"history_start_date,omitempty" jsonschema:"Optional: Explicit start date for the validation range (YYYY-MM-DD). Overrides history_window_days."`
+	HistoryEndDate    string         `json:"history_end_date,omitempty" jsonschema:"Optional: Explicit end date for the validation range (YYYY-MM-DD). Defaults to today."`
 }
 
 // AnalyzeResidenceTimeInput holds arguments for the analyze_residence_time tool.
@@ -284,4 +284,9 @@ type ImportHistoryExpandInput struct {
 type ImportHistoryUpdateInput struct {
 	ProjectKey string `json:"project_key" jsonschema:"The project key"`
 	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
+}
+
+// SetExperimentalInput holds arguments for the set_experimental tool.
+type SetExperimentalInput struct {
+	Enabled bool `json:"enabled" jsonschema:"If true, activates experimental code paths for this session (requires MCS_ALLOW_EXPERIMENTAL=true in server config). If false, deactivates them."`
 }

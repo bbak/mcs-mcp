@@ -31,7 +31,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			return nil, fmt.Errorf("invalid sample_end_date format: %w", err)
 		}
 	}
-	histStart := histEnd.AddDate(0, -6, 0) // Default 6 months
+	histStart := histEnd.AddDate(0, 0, -90) // Default 90 days
 	if sampleStartDate != "" {
 		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
 			histStart = t
@@ -127,6 +127,14 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 	}
 
+	originalHistStart := histStart
+
+	log.Info().
+		Str("tool", "forecast_monte_carlo").
+		Bool("experimental", s.experimentalMode).
+		Bool("gate_open", s.allowExperimental).
+		Msg("tool executed")
+
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
 	engine := simulation.NewEngine(h)
 	if s.simulationSeed != 0 {
@@ -182,6 +190,17 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 			Total:           backlogCount + wipCount + additionalItems,
 		}
 		res = resObj
+	}
+
+	// Append auto-window insight when the experimental path narrowed the sampling range.
+	if s.experimentalMode && histStart != originalHistStart && stationarityAssessment != nil && stationarityAssessment.RecommendedWindowDays != nil {
+		if resObj, ok := res.(simulation.Result); ok {
+			resObj.Insights = append(resObj.Insights, fmt.Sprintf(
+				"[Experimental] SPA auto-window: sampling range narrowed to %d days (non-stationary process detected). Re-run without experimental mode to compare.",
+				*stationarityAssessment.RecommendedWindowDays,
+			))
+			res = resObj
+		}
 	}
 
 	if s.enableMermaidCharts && res != nil {
@@ -298,6 +317,10 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}
 
+	const walkForwardStepDays = 7
+	const walkForwardSteps = 25
+	const walkForwardDefaultLookback = walkForwardStepDays * walkForwardSteps // 175 days → 25 checkpoints
+
 	histEnd := s.Clock()
 	if sampleEndDate != "" {
 		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
@@ -305,13 +328,18 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		}
 	}
 
-	histStart := histEnd.AddDate(0, -6, 0)
+	// LookbackWindow: how far back the outer iteration runs.
+	// Default: stepSize × 25 = 175 days, always yielding 25 checkpoints. User can override.
+	lookbackDays := walkForwardDefaultLookback
+	histStart := histEnd.AddDate(0, 0, -lookbackDays)
 	if sampleStartDate != "" {
 		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
 			histStart = t
+			lookbackDays = int(histEnd.Sub(histStart).Hours() / 24)
 		}
 	} else if sampleDays > 0 {
 		histStart = histEnd.AddDate(0, 0, -sampleDays)
+		lookbackDays = sampleDays
 	}
 
 	cutoff := time.Time{}
@@ -319,8 +347,14 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		cutoff = *s.activeDiscoveryCutoff
 	}
 
-	window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
-	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
+	// Load events from the global maximum lookback so that each checkpoint's
+	// 90-day per-checkpoint histogram always has backing data. The earliest
+	// checkpoint is at histStart; its histogram reaches back another 90 days.
+	eventsStart := histStart.AddDate(0, 0, -90)
+	if s.activeDiscoveryCutoff != nil && eventsStart.Before(*s.activeDiscoveryCutoff) {
+		eventsStart = *s.activeDiscoveryCutoff
+	}
+	events := s.events.GetIssuesInRange(sourceID, eventsStart, histEnd)
 
 	wfa := simulation.NewWalkForwardEngine(events, s.activeMapping, s.activeResolutions)
 
@@ -329,6 +363,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	}
 
 	if itemsToForecast <= 0 {
+		window := stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
 		session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 		delivered := session.GetDelivered()
 		// Simple adaptive heuristic
@@ -342,17 +377,18 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, nil)
 
 	cfg := simulation.WalkForwardConfig{
-		SourceID:        sourceID,
-		SimulationMode:  mode,
-		LookbackWindow:  int(histEnd.Sub(histStart).Hours() / 24),
-		StepSize:        7,
-		ForecastHorizon: forecastHorizon,
-		ItemsToForecast: itemsToForecast,
-		IssueTypes:      issueTypes,
-		Resolutions:     s.activeResolutions,
-		EvaluationDate:  s.Clock(),
-		CommitmentPoint: analysisCtx.CommitmentPoint,
-		StatusWeights:   analysisCtx.StatusWeights,
+		SourceID:         sourceID,
+		SimulationMode:   mode,
+		LookbackWindow:   lookbackDays,
+		StepSize:         walkForwardStepDays,
+		ForecastHorizon:  forecastHorizon,
+		ItemsToForecast:  itemsToForecast,
+		IssueTypes:       issueTypes,
+		Resolutions:      s.activeResolutions,
+		EvaluationDate:   s.Clock(),
+		CommitmentPoint:  analysisCtx.CommitmentPoint,
+		StatusWeights:    analysisCtx.StatusWeights,
+		ExperimentalMode: s.experimentalMode,
 	}
 
 	res, err := wfa.Execute(cfg)

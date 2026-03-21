@@ -174,7 +174,7 @@ MCS-MCP uses a **Hybrid Simulation Model** that integrates historical capability
 
 ### 4.1 Three Layers of Accuracy
 
-1. **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 180 days).
+1. **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 90 days).
 2. **Current Reality (WIP Analysis)**: Explicitly analyzes the stability and age of in-flight work.
 3. **Demand Expansion**: Automatically models the "Invisible Friction" of background work (Bugs, Admin) based on historical type distribution.
 4. **Stratified Coordinated Sampling**: Detects and isolates distinct delivery streams to model capacity clashes (Bug-Tax).
@@ -222,7 +222,9 @@ To prevent nonsensical forecasts, the engine implements several integrity thresh
 The system provides `forecast_backtest` to validate the reliability of Monte-Carlo simulations via historical backtesting.
 
 - **Adaptive Validation Batching**: If not provided, the number of items to forecast is automatically set to **2x the median weekly throughput** of the last 10 weeks. This ensures the forecast horizon is always relevant to the team's actual velocity.
-- **Overlapping Weekly Steps**: The analysis iterates backwards through history using a **7-day step size** (overlapping windows). This increases diagnostic sensitivity and allows for earlier detection of systemic process shifts.
+- **Fixed Step Count**: The analysis produces **25 checkpoints** by default (7-day step size, 175-day lookback). This ensures a statistically meaningful sample regardless of the time range. The lookback can be overridden via `history_window_days` or `history_start_date`.
+- **Aligned Sampling Windows**: Each checkpoint builds its capability histogram from the **90 days ending at that checkpoint** — the same default as the single-run MCS. This ensures backtesting and live forecasting use consistent sampling assumptions.
+- **Full-History Event Loading**: Events are loaded from `max(globalCutoff, earliest_checkpoint − 90 days)` so that even the oldest checkpoint's histogram always has backing data.
 - **Drift Protection**: Backtesting automatically terminates if a significant process shift is detected via the Three-Way Control Chart, preventing misleading accuracy results.
 - **Midnight Alignment**: Analysis dates are truncated to midnight to eliminate "partial-day bias," ensuring that daily-bucketed simulations align with real-world outcomes.
 - **Reconstruction Hardening**: The backtesting engine uses terminal status mappings during historical reconstruction to ensure finished items in the past are accurately projected.

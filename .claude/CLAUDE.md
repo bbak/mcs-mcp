@@ -50,3 +50,30 @@ description: General user preferences and coding guidelines for the agent to fol
 - We're dealing primarily with time-series data. Therefore, we need to be careful with sorting data. Cycle-Times, Moving Ranges and similar may be heaviliy impacted, if the data is not sorted correctly.
 
 - **Golden Test Enforcement for Mathematical Changes**: Any code change that alters analytical, statistical, or mathematical logic in `stats` or `simulation` MUST trigger a run of the end-to-end golden tests. If the mathematical change is intentional and correct, the developer/agent MUST adapt the golden test baseline files (`*.json.actual` -> `*.json`) to permanently lock in the intended behavior before committing.
+
+# Experimental Feature Flag System
+
+The codebase uses a two-layer gate to protect experimental code paths from production use:
+
+- **Layer 1 — Operator gate**: `MCS_ALLOW_EXPERIMENTAL=true` in `.env`. When false (default), the `set_experimental` tool returns an error and experimental paths are completely unreachable.
+- **Layer 2 — Session activation**: The agent/user calls `set_experimental(enabled: true)` once at the start of a session. This persists until `set_experimental(enabled: false)` is called — it is **not** reset on board switches. The user controls it explicitly.
+
+Resolution in each handler: `s.allowExperimental && s.experimentalMode`
+
+**Active experiments and their documentation** are in `docs/experimental.md`. Read that file before working on any experimental code path.
+
+**Checklist when adding a new experiment:**
+
+1. Implement the experimental path inline in the relevant handler, guarded by `s.experimentalMode`.
+2. Add a structured log line at the call site:
+
+   ```go
+   log.Info().Str("tool", "<tool_name>").Bool("experimental", s.experimentalMode).Bool("gate_open", s.allowExperimental).Msg("tool executed")
+   ```
+
+3. Add a new section to `docs/experimental.md` with: hypothesis, what it changes, activation conditions, fallback behaviour, known limitations, graduation criteria.
+4. Golden tests must pass with the gate off (default) — experimental paths must not affect stable baselines.
+
+**Graduating an experiment to stable:**
+
+Once validated, remove the `s.experimentalMode` guard, remove the entry from `docs/experimental.md`, migrate the documentation to `docs/architecture.md`, and delete `MCS_ALLOW_EXPERIMENTAL` handling if no other experiments remain.

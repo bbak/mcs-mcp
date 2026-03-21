@@ -21,6 +21,7 @@ type AppConfig struct {
 	CacheDir            string
 	EnableMermaidCharts     bool
 	CommitmentBackflowReset bool // Reset WIP age clock on backflow past the commitment point
+	AllowExperimental       bool // Master gate: when false, set_experimental tool returns an error
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -80,6 +81,7 @@ func Load() (*AppConfig, error) {
 		CacheDir:            cacheDir,
 		EnableMermaidCharts:     getEnvBool("ENABLE_MERMAID_CHARTS", false),
 		CommitmentBackflowReset: getEnvBool("COMMITMENT_POINT_BACKFLOW_RESET_CLOCK", true),
+		AllowExperimental:       getEnvBool("MCS_ALLOW_EXPERIMENTAL", false),
 	}
 
 	return cfg, nil
