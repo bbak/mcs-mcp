@@ -25,6 +25,10 @@ type WalkForwardConfig struct {
 	// Stationarity tracking (Phase 2): required for per-checkpoint residence time analysis.
 	CommitmentPoint string
 	StatusWeights   map[string]int
+
+	// SimulationSeed, when non-zero, seeds each checkpoint's RNG deterministically
+	// as (SimulationSeed + checkpointIndex), making walk-forward results reproducible.
+	SimulationSeed int64
 }
 
 // ValidationCheckpoint represents a single point in the past where we ran a simulation.
@@ -152,7 +156,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 	}
 
 	// 2. Iterate Backwards
-	now := time.Now().Truncate(24 * time.Hour)
+	now := cfg.EvaluationDate.Truncate(24 * time.Hour)
 	startTime := now.AddDate(0, 0, -cfg.LookbackWindow)
 	if !driftDate.IsZero() && startTime.Before(driftDate) {
 		startTime = driftDate
@@ -160,6 +164,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 	activeHits := 0
 	totalHits := 0
+	checkpointIndex := 0
 
 	for d := now.AddDate(0, 0, -cfg.StepSize); d.After(startTime); d = d.AddDate(0, 0, -cfg.StepSize) {
 		// 3. Time Travel: State at 'd'
@@ -179,6 +184,10 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
 		engine := NewEngine(h)
+		if cfg.SimulationSeed != 0 {
+			engine.SetSeed(cfg.SimulationSeed + int64(checkpointIndex))
+		}
+		checkpointIndex++
 
 		// 3.5. Stationarity assessment at this checkpoint (if commitment point available)
 		var cpStationary bool = true
