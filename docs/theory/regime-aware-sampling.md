@@ -201,6 +201,55 @@ a circular problem. The coherence gap slope (Section 5) is a better activation s
 distinguishes *sustained directional deterioration* from transient non-stationarity. Narrowing
 should activate only when the process is actively worsening, not merely non-stationary.
 
+### w(T) Slope-Based Histogram Reweighting
+
+**What**: Compute the OLS slope of w(T) (average residence time) over a trailing weekly window,
+map it to a skew factor, and apply exponential reweighting to the throughput histogram:
+`weight[i] = exp(-skew_factor * v_i)`. Rising w(T) shifts probability mass toward lower
+throughput (pessimistic); falling w(T) shifts toward higher throughput (optimistic). This
+modifies *the shape of the distribution* rather than *which data populates it* — a fundamentally
+different axis of intervention from the window-narrowing approaches above.
+
+**Implementation**: `ApplyExponentialReweighting` on the Histogram struct, with `sampleDayIndex`
+using CDF binary search for weighted sampling. Gated on experimental mode and non-stationarity.
+
+**Iterative refinements tried**:
+
+1. **Raw integer throughput in exponent** (SENSITIVITY=2.0, MAX_SKEW=1.5): Way too strong. A
+   skew factor of 0.5 on throughput values 0–5 creates a 12× ratio between lowest and highest
+   bins. Nearly eliminates high-throughput days from sampling.
+
+2. **Reduced sensitivity** (SENSITIVITY=0.3, MAX_SKEW=0.2): Still scale-dependent — a board
+   averaging 10 items/day experiences much stronger reweighting than one averaging 1 item/day
+   with the same skew factor.
+
+3. **Normalized by mean throughput** (`exp(-skew * v_i/mean_v)`, SENSITIVITY=1.0, MAX_SKEW=0.5):
+   Makes the exponent dimensionless and consistent across boards. However, the fundamental
+   problem remained: the reweighting effect was either too weak to improve hit rates or too
+   strong and degraded them.
+
+**Why it failed**: The approach has a calibration problem that cannot be resolved by parameter
+tuning. The exponential function is inherently aggressive — it either barely tilts the
+distribution (achieving nothing) or dramatically reshapes it (causing overcorrection). The
+throughput histogram is discrete with a small number of distinct values (typically 0–5 items/day),
+so any meaningful exponential tilt creates large probability jumps between adjacent bins. There is
+no "gentle middle ground" in the parameter space where the reweighting consistently improves
+forecast accuracy across boards with different throughput scales and distributions.
+
+Additionally, the w(T) slope — while a valid leading indicator of system degradation — is too
+noisy over short windows (4–8 weeks) to serve as a reliable activation signal for histogram
+reweighting. The slope captures sustained trends but also fires on transient fluctuations,
+producing false positives that trigger unnecessary reweighting.
+
+**Key insight**: Modifying the histogram shape via exponential reweighting is the wrong
+intervention axis. The problem it tries to solve (structural optimism during degradation) may
+be better addressed by approaches that modify *how much* recent data matters rather than
+*which throughput values* are likely — or by accepting that the uniform histogram is the safest
+default and using the stationarity signal purely for user-facing warnings rather than automated
+correction.
+
+**Spec**: `docs/experimental-wt-histogram-skewing.md` (retained for reference).
+
 ## References
 
 - Stidham, S. (1972). "L = λW: A Discounted Analogue and a New Proof." *Operations Research*.

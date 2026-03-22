@@ -169,13 +169,14 @@ Make sure that the Server can write to this directory to create `cache` and `log
 
 These optional variables can be set in the `.env` file:
 
-| Variable                                | Default      | Description                                                           |
-| :-------------------------------------- | :----------- | :-------------------------------------------------------------------- |
-| `DATA_PATH`                             | (binary dir) | Base folder for logs and cache.                                       |
-| `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                     |
-| `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.      |
-| `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point. |
-| `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.    |
+| Variable                                | Default      | Description                                                                                 |
+| :-------------------------------------- | :----------- | :------------------------------------------------------------------------------------------ |
+| `DATA_PATH`                             | (binary dir) | Base folder for logs and cache.                                                             |
+| `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                                           |
+| `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.                            |
+| `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point.                       |
+| `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.                          |
+| `MCS_ALLOW_EXPERIMENTAL`                | `false`      | Enable the experimental feature gate. See [Experimental Features](#-experimental-features). |
 
 ---
 
@@ -199,6 +200,19 @@ Yet, a `.skill` file is just a ZIP-Archive with another file extension. Feel fre
 - Ask the Agent for the **diagnostic roadmap** at the start of a session. It returns a goal-oriented sequence of tools so you always have a clear path of analysis rather than guessing what to run next.
 - After a significant process change (team restructure, workflow overhaul), tell the Agent to re-run workflow discovery with a force-refresh to re-evaluate the semantic mapping against current patterns.
 - The server caches all event history locally. After the initial ingestion, most queries run entirely offline — no Jira connection needed.
+
+---
+
+## 🧪 Experimental Features
+
+MCS-MCP includes an experimental feature system for testing improvements to the forecasting engine before they become the default. Experimental features are **off by default** and require two deliberate steps to activate:
+
+1. **Operator enables the gate** by setting `MCS_ALLOW_EXPERIMENTAL=true` in `.env`.
+2. **The AI Agent activates experimental mode** for the current session by calling the `set_experimental` tool. This persists until explicitly disabled — it is not reset when switching boards.
+
+When both steps are satisfied, the forecasting tools gain access to experimental code paths. When either step is missing, the server behaves identically to stable production mode.
+
+For details on active experiments — what they do, parameters, known limitations, and graduation criteria — see **[Experimental Features Documentation](docs/experimental.md)**.
 
 ---
 
