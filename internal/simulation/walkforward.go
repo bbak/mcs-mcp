@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -203,8 +204,53 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 			}
 		}
 
+		// [Experimental] SPA Pipeline: refine histogram inputs at this checkpoint
+		var spaDiag *stats.SPAPipelineResult
+		if cfg.ExperimentalMode && cfg.CommitmentPoint != "" && len(cfg.StatusWeights) > 0 {
+			fullStart := time.Time{}
+			if globalCutoff != nil {
+				fullStart = *globalCutoff
+			}
+			fullWindow := stats.NewAnalysisWindow(fullStart, d, "day", time.Time{})
+			spaItems := stats.ExtractResidenceItems(pastIssues, cfg.CommitmentPoint,
+				cfg.StatusWeights, w.mappings, fullWindow.Start)
+
+			if len(spaItems) > 0 {
+				spaRT := stats.ComputeResidenceTimeSeries(spaItems, fullWindow)
+				spaCfg := stats.DefaultSPAPipelineConfig()
+
+				spaDiag = stats.RunSPAPipeline(
+					spaRT, spaItems, pastIssues,
+					historyStart, d,
+					cfg.CommitmentPoint, cfg.StatusWeights, w.mappings,
+					stats.NewAnalysisWindow(historyStart, d, "day", time.Time{}),
+					spaCfg,
+				)
+
+				pastIssues = spaDiag.FilteredFinished
+				historyStart = spaDiag.EffectiveStart
+			}
+		}
+
 		// Build Histogram (Capability) using historyStart.
 		h := NewHistogram(pastIssues, historyStart, d, cfg.IssueTypes, w.mappings, w.resolutions)
+
+		// [Experimental] SPA Pipeline: Step 5 post-histogram resampling
+		if cfg.ExperimentalMode && spaDiag != nil {
+			spaCfg := stats.DefaultSPAPipelineConfig()
+			if tpOverall, ok := h.Meta["throughput_overall"].(float64); ok && tpOverall > 0 {
+				wipScale := stats.ComputeWIPScaleFactor(spaDiag.RTSummary, tpOverall, spaCfg)
+				combinedFactor := wipScale * spaDiag.DivergenceScaleFactor
+				if combinedFactor != 1.0 {
+					resampleRNG := rand.New(rand.NewPCG(uint64(d.UnixNano()), 0))
+					if cfg.SimulationSeed != 0 {
+						resampleRNG = rand.New(rand.NewPCG(uint64(cfg.SimulationSeed+int64(checkpointIndex)), 1))
+					}
+					h.Resample(combinedFactor, resampleRNG)
+				}
+			}
+		}
+
 		engine := NewEngine(h)
 		if cfg.SimulationSeed != 0 {
 			engine.SetSeed(cfg.SimulationSeed + int64(checkpointIndex))

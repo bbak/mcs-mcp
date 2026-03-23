@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -127,15 +128,71 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		}
 	}
 
-	originalHistStart := histStart
-
 	log.Info().
 		Str("tool", "forecast_monte_carlo").
 		Bool("experimental", s.experimentalMode).
 		Bool("gate_open", s.allowExperimental).
 		Msg("tool executed")
 
+	// [Experimental] SPA Pipeline: Steps 1-4 (pre-histogram)
+	var spaDiagnostics *stats.SPAPipelineResult
+	if s.experimentalMode && analysisCtx.CommitmentPoint != "" {
+		// Run SPA over full history (same approach as handleAnalyzeResidenceTime)
+		fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
+		fullEvents := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
+		fullSession := stats.NewAnalysisSession(fullEvents, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+		fullAll := fullSession.GetAllIssues()
+
+		spaItems := stats.ExtractResidenceItems(fullAll, analysisCtx.CommitmentPoint,
+			analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, fullWindow.Start)
+
+		if len(spaItems) > 0 {
+			spaRT := stats.ComputeResidenceTimeSeries(spaItems, fullWindow)
+			spaCfg := stats.DefaultSPAPipelineConfig()
+
+			spaDiagnostics = stats.RunSPAPipeline(
+				spaRT, spaItems, finished,
+				window.Start, window.End,
+				analysisCtx.CommitmentPoint,
+				analysisCtx.StatusWeights,
+				analysisCtx.WorkflowMappings,
+				window, spaCfg,
+			)
+
+			// Override finished issues and window with pipeline output
+			finished = spaDiagnostics.FilteredFinished
+			histStart = spaDiagnostics.EffectiveStart
+			window = stats.NewAnalysisWindow(histStart, histEnd, "day", cutoff)
+
+			log.Info().
+				Str("tool", "forecast_monte_carlo").
+				Time("effective_start", spaDiagnostics.EffectiveStart).
+				Int("outliers_removed", spaDiagnostics.OutlierCount).
+				Str("convergence", spaDiagnostics.ConvergenceStatus).
+				Msg("SPA pipeline applied")
+		}
+	}
+
 	h := simulation.NewHistogram(finished, window.Start, window.End, issueTypes, analysisCtx.WorkflowMappings, s.activeResolutions)
+
+	// [Experimental] SPA Pipeline: Step 5 (post-histogram WIP/aging resampling)
+	if s.experimentalMode && spaDiagnostics != nil {
+		spaCfg := stats.DefaultSPAPipelineConfig()
+		if tpOverall, ok := h.Meta["throughput_overall"].(float64); ok && tpOverall > 0 {
+			wipScale := stats.ComputeWIPScaleFactor(spaDiagnostics.RTSummary, tpOverall, spaCfg)
+			combinedFactor := wipScale * spaDiagnostics.DivergenceScaleFactor
+			if combinedFactor != 1.0 {
+				// Use simulation seed for deterministic resampling in tests
+				resampleRNG := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0))
+				if s.simulationSeed != 0 {
+					resampleRNG = rand.New(rand.NewPCG(uint64(s.simulationSeed), 1))
+				}
+				h.Resample(combinedFactor, resampleRNG)
+				spaDiagnostics.WIPScaleFactor = combinedFactor
+			}
+		}
+	}
+
 	engine := simulation.NewEngine(h)
 	if s.simulationSeed != 0 {
 		engine.SetSeed(s.simulationSeed)
@@ -192,12 +249,30 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		res = resObj
 	}
 
-	// Append auto-window insight when the experimental path narrowed the sampling range.
-	if s.experimentalMode && histStart != originalHistStart && stationarityAssessment != nil && stationarityAssessment.RecommendedWindowDays != nil {
+	// [Experimental] Attach SPA pipeline diagnostics to the result
+	if s.experimentalMode && spaDiagnostics != nil {
 		if resObj, ok := res.(simulation.Result); ok {
+			if resObj.Context == nil {
+				resObj.Context = make(map[string]any)
+			}
+			resObj.Context["spa_pipeline"] = spaDiagnostics
+			if spaDiagnostics.DivergenceWarning != "" {
+				resObj.Warnings = append(resObj.Warnings, spaDiagnostics.DivergenceWarning)
+			}
+			boundaryStr := "no"
+			if spaDiagnostics.RegimeBoundaryRespected {
+				boundaryStr = "yes"
+			}
 			resObj.Insights = append(resObj.Insights, fmt.Sprintf(
-				"[Experimental] SPA auto-window: sampling range narrowed to %d days (non-stationary process detected). Re-run without experimental mode to compare.",
-				*stationarityAssessment.RecommendedWindowDays,
+				"[Experimental] Adaptive window: %d departures over %d days (window: %s to %s, regime boundary respected: %s), %d outliers removed, convergence: %s, WIP scale: %.2f. Re-run without experimental mode to compare.",
+				spaDiagnostics.AdaptiveWindowDepartures,
+				spaDiagnostics.AdaptiveWindowDays,
+				spaDiagnostics.EffectiveStart.Format("2006-01-02"),
+				spaDiagnostics.EffectiveEnd.Format("2006-01-02"),
+				boundaryStr,
+				spaDiagnostics.OutlierCount,
+				spaDiagnostics.ConvergenceStatus,
+				spaDiagnostics.WIPScaleFactor,
 			))
 			res = resObj
 		}

@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 	"slices"
@@ -178,5 +179,61 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 		Counts:           buckets,
 		StratifiedCounts: stratified,
 		Meta:             meta,
+	}
+}
+
+// Resample adjusts the histogram's effective mean throughput by duplicating or
+// removing days. factor > 1.0 duplicates random days (biased toward higher counts)
+// to scale up; factor < 1.0 removes random days to scale down. This preserves
+// integer counts and distribution shape better than multiplying and rounding.
+// StratifiedCounts are not modified — only the pooled Counts used by the engine.
+func (h *Histogram) Resample(factor float64, rng *rand.Rand) {
+	n := len(h.Counts)
+	if n == 0 || factor == 1.0 {
+		return
+	}
+
+	if factor > 1.0 {
+		// Scale up: duplicate random days, biased toward higher-count days
+		additions := int(float64(n) * (factor - 1.0))
+		if additions == 0 {
+			return
+		}
+		// Build weighted index: days with higher counts are more likely to be picked
+		weights := make([]float64, n)
+		var totalWeight float64
+		for i, c := range h.Counts {
+			w := float64(c) + 1.0 // +1 so zero-throughput days still have a small chance
+			weights[i] = w
+			totalWeight += w
+		}
+		for range additions {
+			r := rng.Float64() * totalWeight
+			var cumulative float64
+			for i, w := range weights {
+				cumulative += w
+				if r <= cumulative {
+					h.Counts = append(h.Counts, h.Counts[i])
+					break
+				}
+			}
+		}
+	} else {
+		// Scale down: remove random days
+		removals := int(float64(n) * (1.0 - factor))
+		if removals >= n {
+			removals = n - 1 // keep at least one day
+		}
+		if removals == 0 {
+			return
+		}
+		for range removals {
+			if len(h.Counts) <= 1 {
+				break
+			}
+			idx := rng.IntN(len(h.Counts))
+			h.Counts[idx] = h.Counts[len(h.Counts)-1]
+			h.Counts = h.Counts[:len(h.Counts)-1]
+		}
 	}
 }
