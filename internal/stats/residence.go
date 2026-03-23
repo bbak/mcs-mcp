@@ -255,7 +255,7 @@ func ComputeResidenceTimeSeries(
 	}
 
 	// Convergence assessment: trend of coherence gap over final quarter
-	convergence := assessConvergence(series)
+	ca := assessConvergence(series)
 
 	// Count categories
 	preWindowCount := 0
@@ -286,7 +286,7 @@ func ComputeResidenceTimeSeries(
 		FinalWPrime:       last.WPrime,
 		FinalWStar:        last.WStar,
 		FinalCoherenceGap: last.CoherenceGap,
-		Convergence:       convergence,
+		Convergence:       ca.Label,
 	}
 
 	return &ResidenceTimeResult{
@@ -299,6 +299,16 @@ func ComputeResidenceTimeSeries(
 	}
 }
 
+// convergenceAssessment holds the result of the 1/T tail regression on w(T).
+// Unexported: the Label feeds into ResidenceTimeSummary.Convergence;
+// Beta1 and RMSE are retained for internal algorithmic use (e.g., comparing
+// convergence quality before/after data filtering).
+type convergenceAssessment struct {
+	Label string  // "converging", "diverging", "metastable", "insufficient_data"
+	Beta1 float64 // OLS slope of w(T) ~ β₀ + β₁·(1/T); large positive = diverging
+	RMSE  float64 // Root mean squared error of the regression fit
+}
+
 // assessConvergence evaluates the trend of w(T) over the tail of the series using
 // a 1/T OLS regression. Theory predicts w(T) → w* as T → ∞, so a converging
 // series has w(T) ≈ β₀ + β₁·(1/T) with small |β₁| and low residual noise.
@@ -308,10 +318,10 @@ func ComputeResidenceTimeSeries(
 //   - "diverging":         slope is large and positive (w(T) still climbing)
 //   - "metastable":        tail is noisy but not clearly trending
 //   - "insufficient_data": fewer than 8 valid tail buckets
-func assessConvergence(series []ResidenceTimeBucket) string {
+func assessConvergence(series []ResidenceTimeBucket) convergenceAssessment {
 	n := len(series)
 	if n < 8 {
-		return "insufficient_data"
+		return convergenceAssessment{Label: "insufficient_data"}
 	}
 
 	// Tail = final quarter, minimum 8 points
@@ -334,7 +344,7 @@ func assessConvergence(series []ResidenceTimeBucket) string {
 		}
 	}
 	if len(pts) < 4 {
-		return "insufficient_data"
+		return convergenceAssessment{Label: "insufficient_data"}
 	}
 
 	// OLS: fit y = β₀ + β₁·x
@@ -348,7 +358,7 @@ func assessConvergence(series []ResidenceTimeBucket) string {
 	}
 	denom := np*sumXX - sumX*sumX
 	if denom == 0 {
-		return "metastable"
+		return convergenceAssessment{Label: "metastable"}
 	}
 	beta1 := (np*sumXY - sumX*sumY) / denom
 	beta0 := (sumY - beta1*sumX) / np
@@ -369,16 +379,16 @@ func assessConvergence(series []ResidenceTimeBucket) string {
 	medW := medianOfFloat64s(yVals)
 	threshold := 0.5 * medW
 	if threshold == 0 {
-		return "metastable"
+		return convergenceAssessment{Label: "metastable"}
 	}
 
 	if beta1 > threshold {
-		return "diverging" // w(T) is still climbing with 1/T term
+		return convergenceAssessment{Label: "diverging", Beta1: beta1, RMSE: rmse}
 	}
 	if math.Abs(beta1) <= threshold && rmse <= threshold {
-		return "converging" // flat tail with good fit
+		return convergenceAssessment{Label: "converging", Beta1: beta1, RMSE: rmse}
 	}
-	return "metastable"
+	return convergenceAssessment{Label: "metastable", Beta1: beta1, RMSE: rmse}
 }
 
 // medianOfFloat64s returns the median of a float64 slice (sorted in place).
