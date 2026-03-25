@@ -15,12 +15,14 @@ description: >
 
 1. Ensure both `mcs-mcp:workflow_discover_mapping` and `mcs-mcp:generate_cfd_data`
    have been called and their results are available.
-2. Create an output copy of the template file (e.g. `cfd.jsx`).
-3. In that copy, find the string `"__MCP_RESPONSE__"` and replace it with the full
-   `generate_cfd_data` tool result as an inline JSON literal.
-4. Find the string `"__CHART_ATTRS__"` and replace it with the attrs object
-   described below as an inline JSON literal.
-5. Deliver the resulting `.jsx` file to the user.
+2. Construct the `CHART_ATTRS` object as described in the schema below.
+3. Write the `generate_cfd_data` MCP tool result as JSON to `/home/claude/mcp_response.json`.
+4. Write the CHART_ATTRS object as JSON to `/home/claude/chart_attrs.json`.
+5. Copy `cfd.jsx` and `inject.py` from the skill bundle root to `/home/claude/`.
+6. Run: `python3 /home/claude/inject.py /home/claude/cfd.jsx /home/claude/mcp_response.json /home/claude/chart_attrs.json`
+7. Copy the result to `/mnt/user-data/outputs/cfd.jsx`.
+8. Call `present_files` with `/mnt/user-data/outputs/cfd.jsx`.
+9. Delete `/home/claude/mcp_response.json`, `/home/claude/chart_attrs.json`, `/home/claude/cfd.jsx`, and `/home/claude/inject.py`.
 
 ## CHART_ATTRS schema
 

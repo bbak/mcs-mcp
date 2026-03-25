@@ -14,12 +14,14 @@ description: >
 ## Workflow
 
 1. Ensure `mcs-mcp:analyze_throughput` has been called and its result is available.
-2. Create an output copy of the template file (e.g. `throughput.jsx`).
-3. In that copy, find the string `"__MCP_RESPONSE__"` and replace it with the full
-   tool result as an inline JSON literal.
-4. Find the string `"__CHART_ATTRS__"` and replace it with the attrs object
-   described below as an inline JSON literal.
-5. Deliver the resulting `.jsx` file to the user.
+2. Construct the `CHART_ATTRS` object as described in the schema below.
+3. Write the MCP tool result as JSON to `/home/claude/mcp_response.json`.
+4. Write the CHART_ATTRS object as JSON to `/home/claude/chart_attrs.json`.
+5. Copy `throughput.jsx` and `inject.py` from the skill bundle root to `/home/claude/`.
+6. Run: `python3 /home/claude/inject.py /home/claude/throughput.jsx /home/claude/mcp_response.json /home/claude/chart_attrs.json`
+7. Copy the result to `/mnt/user-data/outputs/throughput.jsx`.
+8. Call `present_files` with `/mnt/user-data/outputs/throughput.jsx`.
+9. Delete `/home/claude/mcp_response.json`, `/home/claude/chart_attrs.json`, `/home/claude/throughput.jsx`, and `/home/claude/inject.py`.
 
 ## CHART_ATTRS schema
 

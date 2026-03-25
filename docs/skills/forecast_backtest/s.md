@@ -13,16 +13,17 @@ description: >
 
 ## Workflow
 
-1. Call `mcs-mcp:forecast_backtest` in one or both modes (duration / scope)
-   if not already done.
-2. Prepare the structured `duration` and `scope` objects from each mode's response
-   (see shape below). Set to `null` if that mode was not run.
-3. Create an output copy of the template file (e.g. `backtest.jsx`).
-4. In that copy, find the string `"__MCP_RESPONSE__"` and replace it with `{}`
-   (not used directly — both mode objects are in CHART_ATTRS).
-5. Find the string `"__CHART_ATTRS__"` and replace it with the attrs object
-   described below as an inline JSON literal.
-6. Deliver the resulting `.jsx` file to the user.
+1. Call `mcs-mcp:forecast_backtest` in one or both modes (duration / scope) if not already done.
+2. Construct the `CHART_ATTRS` object as described in the schema below,
+   including the structured `duration` and/or `scope` objects from the responses.
+   Set either to `null` if that mode was not run.
+3. Write `{}` to `/home/claude/mcp_response.json`.
+4. Write the CHART_ATTRS object as JSON to `/home/claude/chart_attrs.json`.
+5. Copy `backtest.jsx` and `inject.py` from the skill bundle root to `/home/claude/`.
+6. Run: `python3 /home/claude/inject.py /home/claude/backtest.jsx /home/claude/mcp_response.json /home/claude/chart_attrs.json`
+7. Copy the result to `/mnt/user-data/outputs/backtest.jsx`.
+8. Call `present_files` with `/mnt/user-data/outputs/backtest.jsx`.
+9. Delete `/home/claude/mcp_response.json`, `/home/claude/chart_attrs.json`, `/home/claude/backtest.jsx`, and `/home/claude/inject.py`.
 
 ## CHART_ATTRS schema
 
