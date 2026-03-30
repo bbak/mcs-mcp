@@ -20,8 +20,9 @@ type AppConfig struct {
 	LogDir              string
 	CacheDir            string
 	EnableMermaidCharts     bool
-	CommitmentBackflowReset bool // Reset WIP age clock on backflow past the commitment point
-	AllowExperimental       bool // Master gate: when false, set_experimental tool returns an error
+	CommitmentBackflowReset bool           // Reset WIP age clock on backflow past the commitment point
+	Engine                  string         // MCS_ENGINE: "crude" (default), "bbak", "auto"
+	EngineWeights           map[string]int // MCS_ENGINE_<NAME>: 0 = disabled, 1-100 = weight
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -81,7 +82,11 @@ func Load() (*AppConfig, error) {
 		CacheDir:            cacheDir,
 		EnableMermaidCharts:     getEnvBool("ENABLE_MERMAID_CHARTS", false),
 		CommitmentBackflowReset: getEnvBool("COMMITMENT_POINT_BACKFLOW_RESET_CLOCK", true),
-		AllowExperimental:       getEnvBool("MCS_ALLOW_EXPERIMENTAL", false),
+		Engine:                  getEnv("MCS_ENGINE", "crude"),
+		EngineWeights: map[string]int{
+			"crude": getEnvInt("MCS_ENGINE_CRUDE", 50),
+			"bbak":  getEnvInt("MCS_ENGINE_BBAK", 50),
+		},
 	}
 
 	return cfg, nil
@@ -90,6 +95,15 @@ func Load() (*AppConfig, error) {
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
 	}
 	return fallback
 }

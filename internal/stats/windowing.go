@@ -2,7 +2,6 @@ package stats
 
 import (
 	"fmt"
-	"math"
 	"time"
 )
 
@@ -124,16 +123,28 @@ func (w AnalysisWindow) FindBucketIndex(t time.Time) int {
 	case "month":
 		return (tNorm.Year()-w.Start.Year())*12 + int(tNorm.Month()-w.Start.Month())
 	case "week":
-		// Use integer division on hours to avoid floating point issues
-		return int(tNorm.Sub(w.Start).Hours() / (24 * 7))
+		// Use calendar-day difference to avoid DST hour shifts breaking integer division.
+		days := CalendarDaysBetween(w.Start, tNorm)
+		return days / 7
 	default: // day
-		return int(tNorm.Sub(w.Start).Hours() / 24)
+		// Use calendar-day difference for the same DST-safety reason.
+		return CalendarDaysBetween(w.Start, tNorm)
 	}
+}
+
+// CalendarDaysBetween returns the number of calendar days between two timestamps.
+// DST-safe: uses date components projected to UTC rather than duration arithmetic.
+func CalendarDaysBetween(a, b time.Time) int {
+	aY, aM, aD := a.Date()
+	bY, bM, bD := b.Date()
+	aDate := time.Date(aY, aM, aD, 0, 0, 0, 0, time.UTC)
+	bDate := time.Date(bY, bM, bD, 0, 0, 0, 0, time.UTC)
+	return int(bDate.Sub(aDate).Hours() / 24)
 }
 
 // DayCount returns the number of calendar days in the window.
 func (w AnalysisWindow) DayCount() int {
-	return int(math.Ceil(w.End.Sub(w.Start).Hours() / 24.0))
+	return CalendarDaysBetween(w.Start, w.End)
 }
 
 // ActiveDayCount returns the number of days excluding partial buckets at the end.
@@ -145,7 +156,7 @@ func (w AnalysisWindow) ActiveDayCount() int {
 		if !w.IsPartial(b) {
 			switch w.Bucket {
 			case "month":
-				activeCount += int(math.Round(SnapToEnd(b, "month").Sub(b).Hours() / 24.0))
+				activeCount += CalendarDaysBetween(b, SnapToEnd(b, "month"))
 			case "week":
 				activeCount += 7
 			default:

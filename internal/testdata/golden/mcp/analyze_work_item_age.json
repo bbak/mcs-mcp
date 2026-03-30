@@ -884,7 +884,7 @@
         "Inconspicuous (within P50)": 18,
         "Warning (P85-P95)": 12
       },
-      "stability_index": 1.61
+      "stability_index": 1.6
     }
   },
   "guardrails": {

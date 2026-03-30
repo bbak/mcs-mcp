@@ -286,7 +286,3 @@ type ImportHistoryUpdateInput struct {
 	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
 }
 
-// SetExperimentalInput holds arguments for the set_experimental tool.
-type SetExperimentalInput struct {
-	Enabled bool `json:"enabled" jsonschema:"If true, activates experimental code paths for this session (requires MCS_ALLOW_EXPERIMENTAL=true in server config). If false, deactivates them."`
-}

@@ -131,7 +131,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 
 	// Compute aggregate summary with risk-band distribution and stability index
 	throughput := 0.0
-	activeDays := window.End.Sub(window.Start).Hours() / 24
+	activeDays := float64(stats.CalendarDaysBetween(window.Start, window.End))
 	if activeDays > 0 {
 		throughput = float64(len(delivered)) / activeDays
 	}

@@ -193,10 +193,11 @@
     ],
     "stability": {
       "average": 4.74,
-      "average_moving_range": 4.73,
-      "upper_natural_process_limit": 17.32,
+      "average_moving_range": 5,
+      "upper_natural_process_limit": 18.04,
       "lower_natural_process_limit": 0,
       "values": [
+        0,
         7,
         1,
         4,
@@ -222,10 +223,10 @@
         1,
         2,
         17,
-        0,
         0
       ],
       "moving_ranges": [
+        7,
         6,
         3,
         2,
@@ -250,13 +251,13 @@
         6,
         1,
         15,
-        17,
-        0
+        17
       ],
       "signals": null
     },
     "stratified_throughput": {
       "Activity": [
+        0,
         2,
         1,
         4,
@@ -282,10 +283,10 @@
         1,
         2,
         5,
-        0,
         0
       ],
       "Bug": [
+        0,
         1,
         0,
         0,
@@ -311,7 +312,6 @@
         0,
         0,
         6,
-        0,
         0
       ],
       "Defect": [
@@ -329,8 +329,8 @@
         0,
         0,
         0,
-        1,
         0,
+        1,
         0,
         0,
         0,
@@ -344,6 +344,7 @@
         0
       ],
       "Story": [
+        0,
         4,
         0,
         0,
@@ -369,11 +370,11 @@
         0,
         0,
         6,
-        0,
         0
       ]
     },
     "total_throughput": [
+      0,
       7,
       1,
       4,
@@ -399,7 +400,6 @@
       1,
       2,
       17,
-      0,
       0
     ]
   },

@@ -30,6 +30,13 @@ const (
 	SparseFatTailSymbol = 10.0
 )
 
+// Simulation trial count — controls Monte Carlo sample size.
+const (
+	// DefaultTrials is the number of Monte Carlo iterations per simulation run.
+	// Higher values improve percentile stability at the cost of latency.
+	DefaultTrials = 10000
+)
+
 // Forecast safeguards — prevent infinite loops and degenerate results.
 const (
 	// MaxForecastDays is the maximum simulated duration (10 years). Exceeding this is treated as

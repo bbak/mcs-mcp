@@ -1,21 +1,21 @@
 {
   "data": {
     "percentiles": {
-      "aggressive": 105,
-      "unlikely": 126,
-      "coin_toss": 142,
-      "probable": 158,
-      "likely": 178,
-      "conservative": 187,
-      "safe": 202,
-      "almost_certain": 229
+      "aggressive": 106,
+      "unlikely": 128,
+      "coin_toss": 144,
+      "probable": 162,
+      "likely": 181,
+      "conservative": 189,
+      "safe": 204,
+      "almost_certain": 223
     },
     "spread": {
-      "iqr": 42,
-      "inner_80": 82
+      "iqr": 44,
+      "inner_80": 83
     },
-    "fat_tail_ratio": 1.61,
-    "tail_to_median_ratio": 1.25,
+    "fat_tail_ratio": 1.55,
+    "tail_to_median_ratio": 1.26,
     "predictability": "Stable",
     "context": {
       "days_in_sample": 91,

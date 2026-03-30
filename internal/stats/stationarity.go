@@ -85,7 +85,7 @@ func AssessStationarity(result *ResidenceTimeResult) *StationarityAssessment {
 	if !a.Stationary && len(result.Series) >= 8 {
 		tailStart := len(result.Series) - len(result.Series)/4
 		inflectionDate := result.Series[tailStart].Date
-		daysFromInflection := int(s.WindowEnd.Sub(inflectionDate).Hours() / 24)
+		daysFromInflection := CalendarDaysBetween(inflectionDate, s.WindowEnd)
 
 		if daysFromInflection < minRecommendedWindowDays {
 			daysFromInflection = minRecommendedWindowDays

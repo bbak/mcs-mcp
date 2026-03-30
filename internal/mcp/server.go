@@ -12,6 +12,7 @@ import (
 	"mcs-mcp/internal/config"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
+	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/stats/discovery"
 
@@ -34,8 +35,9 @@ type Server struct {
 	enableMermaidCharts     bool
 	commitmentBackflowReset bool
 	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)
-	allowExperimental       bool  // operator gate: set at startup from MCS_ALLOW_EXPERIMENTAL
-	experimentalMode        bool  // session state: toggled by set_experimental tool
+	engineRegistry          *simulation.Registry
+	engineName              string         // from MCS_ENGINE: "crude", "bbak", "auto"
+	engineWeights           map[string]int // from MCS_ENGINE_<NAME>
 }
 
 func (s *Server) Clock() time.Time {
@@ -46,12 +48,27 @@ func (s *Server) Clock() time.Time {
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
+	reg := simulation.NewRegistry()
+	reg.Register(&simulation.CrudeEngine{})
+	reg.Register(&simulation.BbakEngine{})
+
+	engineName := cfg.Engine
+	if engineName == "" {
+		engineName = "crude"
+	}
+	engineWeights := cfg.EngineWeights
+	if engineWeights == nil {
+		engineWeights = map[string]int{"crude": 50, "bbak": 50}
+	}
+
 	s := &Server{
 		jira:                    jiraClient,
 		cacheDir:                cfg.CacheDir,
 		enableMermaidCharts:     cfg.EnableMermaidCharts,
 		commitmentBackflowReset: cfg.CommitmentBackflowReset,
-		allowExperimental:       cfg.AllowExperimental,
+		engineRegistry:          reg,
+		engineName:              engineName,
+		engineWeights:           engineWeights,
 	}
 
 	store := eventlog.NewEventStore(s.Clock)

@@ -308,15 +308,3 @@ func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr
 	return WrapResponse(map[string]string{"status": "success", "message": msg}, projectKey, boardID, nil, nil, guidance), nil
 }
 
-func (s *Server) handleSetExperimental(enabled bool) (any, error) {
-	if enabled && !s.allowExperimental {
-		return nil, fmt.Errorf("experimental features are disabled by the operator (MCS_ALLOW_EXPERIMENTAL is not set to true in the server configuration)")
-	}
-	s.experimentalMode = enabled
-	state := "disabled"
-	if enabled {
-		state = "enabled"
-	}
-	log.Info().Bool("experimental_mode", enabled).Msg("experimental mode changed")
-	return map[string]any{"experimental_mode": state}, nil
-}

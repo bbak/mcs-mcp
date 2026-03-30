@@ -18,7 +18,7 @@
     "tail_to_median_ratio": 4.09,
     "predictability": "Unstable \u0026 Volatile",
     "context": {
-      "days_in_sample": 184,
+      "days_in_sample": 183,
       "dropped_by_outcome": 40,
       "dropped_by_window": 0,
       "issues_analyzed": 139,
@@ -85,7 +85,7 @@
     },
     "throughput_trend": {
       "direction": "Increasing",
-      "percentage_change": 18.5
+      "percentage_change": 17.8
     },
     "percentile_labels": {
       "aggressive": "P10 (Aggressive / Fast Outliers)",

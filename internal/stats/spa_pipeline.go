@@ -131,7 +131,7 @@ func RunSPAPipeline(
 		rtResult.Series, windowEnd, boundaries, outlierKeys, items, cfg,
 	)
 	result.AdaptiveWindowDepartures = departures
-	result.AdaptiveWindowDays = int(windowEnd.Sub(adaptiveStart).Hours() / 24)
+	result.AdaptiveWindowDays = CalendarDaysBetween(adaptiveStart, windowEnd)
 	result.RegimeBoundaryRespected = boundaryRespected
 
 	// Don't go earlier than the original window start

@@ -125,12 +125,6 @@ var toolDescriptions = map[string]string{
 
 	"workflow_set_evaluation_date": "Set a custom evaluation date for time-sensitive analyses. All time-based calculations will use this date instead of today.",
 
-	"set_experimental": "Activate or deactivate experimental code paths for this session. " +
-		"When enabled (and the operator has set MCS_ALLOW_EXPERIMENTAL=true), tools that have experimental variants will use them instead of the stable path. " +
-		"Experimental features are unvalidated hypotheses — results may differ from the stable path. " +
-		"Call with enabled=false to return to stable behavior. " +
-		"This setting persists for the duration of the session and is not reset when switching boards.",
-
 	"analyze_item_journey": "Get a detailed breakdown of where a single item spent its time across all workflow steps. Guidance: This tool requires a Project Key and Board ID to ensure workflow interpretation is accurate.",
 
 	"guide_diagnostic_roadmap": "Returns a recommended sequence of analysis steps based on the user's specific goal (e.g., forecasting, bottleneck analysis, capacity planning). Use this to align your analytical strategy with the project's current state.",
@@ -371,12 +365,6 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 	must(addTool(mcpSrv, s, "workflow_set_evaluation_date",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetEvaluationDateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleSetEvaluationDate(args.ProjectKey, args.BoardID, args.Date)
-			return handleResult(s, data, err)
-		}))
-
-	must(addTool(mcpSrv, s, "set_experimental",
-		func(_ context.Context, _ *mcp.CallToolRequest, args SetExperimentalInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleSetExperimental(args.Enabled)
 			return handleResult(s, data, err)
 		}))
 

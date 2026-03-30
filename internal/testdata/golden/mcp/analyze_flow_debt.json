@@ -4,159 +4,159 @@
       "buckets": [
         {
           "label": "2026-W03",
+          "arrivals": 0,
+          "departures": 0,
+          "debt": 0
+        },
+        {
+          "label": "2026-W04",
           "arrivals": 12,
           "departures": 10,
           "debt": 2
         },
         {
-          "label": "2026-W04",
+          "label": "2026-W05",
           "arrivals": 7,
           "departures": 2,
           "debt": 5
         },
         {
-          "label": "2026-W05",
+          "label": "2026-W06",
           "arrivals": 10,
           "departures": 5,
           "debt": 5
         },
         {
-          "label": "2026-W06",
+          "label": "2026-W07",
           "arrivals": 9,
           "departures": 7,
           "debt": 2
         },
         {
-          "label": "2026-W07",
+          "label": "2026-W08",
           "arrivals": 3,
           "departures": 9,
           "debt": -6
         },
         {
-          "label": "2026-W08",
+          "label": "2026-W09",
           "arrivals": 7,
           "departures": 8,
           "debt": -1
         },
         {
-          "label": "2026-W09",
+          "label": "2026-W10",
           "arrivals": 10,
           "departures": 7,
           "debt": 3
         },
         {
-          "label": "2026-W10",
+          "label": "2026-W11",
           "arrivals": 6,
           "departures": 4,
           "debt": 2
         },
         {
-          "label": "2026-W11",
+          "label": "2026-W12",
           "arrivals": 4,
           "departures": 6,
           "debt": -2
         },
         {
-          "label": "2026-W12",
+          "label": "2026-W13",
           "arrivals": 6,
           "departures": 11,
           "debt": -5
         },
         {
-          "label": "2026-W13",
+          "label": "2026-W14",
           "arrivals": 10,
           "departures": 6,
           "debt": 4
         },
         {
-          "label": "2026-W14",
+          "label": "2026-W15",
           "arrivals": 8,
           "departures": 14,
           "debt": -6
         },
         {
-          "label": "2026-W15",
+          "label": "2026-W16",
           "arrivals": 5,
           "departures": 3,
           "debt": 2
         },
         {
-          "label": "2026-W16",
+          "label": "2026-W17",
           "arrivals": 12,
           "departures": 6,
           "debt": 6
         },
         {
-          "label": "2026-W17",
+          "label": "2026-W18",
           "arrivals": 9,
           "departures": 9,
           "debt": 0
         },
         {
-          "label": "2026-W18",
+          "label": "2026-W19",
           "arrivals": 18,
           "departures": 6,
           "debt": 12
         },
         {
-          "label": "2026-W19",
+          "label": "2026-W20",
           "arrivals": 2,
           "departures": 9,
           "debt": -7
         },
         {
-          "label": "2026-W20",
+          "label": "2026-W21",
           "arrivals": 2,
           "departures": 0,
           "debt": 2
         },
         {
-          "label": "2026-W21",
+          "label": "2026-W22",
           "arrivals": 7,
           "departures": 4,
           "debt": 3
         },
         {
-          "label": "2026-W22",
+          "label": "2026-W23",
           "arrivals": 4,
           "departures": 4,
           "debt": 0
         },
         {
-          "label": "2026-W23",
+          "label": "2026-W24",
           "arrivals": 6,
           "departures": 0,
           "debt": 6
         },
         {
-          "label": "2026-W24",
+          "label": "2026-W25",
           "arrivals": 3,
           "departures": 12,
           "debt": -9
         },
         {
-          "label": "2026-W25",
+          "label": "2026-W26",
           "arrivals": 6,
           "departures": 1,
           "debt": 5
         },
         {
-          "label": "2026-W26",
+          "label": "2026-W27",
           "arrivals": 11,
           "departures": 3,
           "debt": 8
         },
         {
-          "label": "2026-W27",
+          "label": "2026-W28",
           "arrivals": 14,
           "departures": 19,
           "debt": -5
-        },
-        {
-          "label": "2026-W28",
-          "arrivals": 0,
-          "departures": 0,
-          "debt": 0
         },
         {
           "label": "2026-W29",

@@ -24,8 +24,8 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 		typeMap[t] = true
 	}
 
-	// Calculate number of days in range
-	days := int(endTime.Sub(startTime).Hours()/24) + 1
+	// Calculate number of days in range (DST-safe calendar arithmetic)
+	days := stats.CalendarDaysBetween(startTime, endTime) + 1
 	if days <= 0 {
 		return &Histogram{Counts: []int{0}, StratifiedCounts: make(map[string][]int)}
 	}
@@ -64,7 +64,7 @@ func NewHistogram(issues []jira.Issue, startTime, endTime time.Time, issueTypes 
 			continue
 		}
 
-		dayIdx := int(resDate.Sub(startTime).Hours() / 24)
+		dayIdx := stats.CalendarDaysBetween(startTime, resDate)
 		if dayIdx >= 0 && dayIdx < days {
 			buckets[dayIdx]++
 			typeCounts[issue.IssueType]++

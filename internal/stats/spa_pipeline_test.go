@@ -338,7 +338,7 @@ func TestComputeAdaptiveWindow_ReachesThreshold(t *testing.T) {
 		t.Error("expected no boundary respected")
 	}
 	// Should have walked back ~25 days (50 departures / 2 per day)
-	daysBack := int(vantage.Sub(start).Hours() / 24)
+	daysBack := CalendarDaysBetween(start, vantage)
 	if daysBack < 20 || daysBack > 30 {
 		t.Errorf("expected ~25 days back, got %d", daysBack)
 	}
@@ -438,7 +438,7 @@ func TestComputeAdaptiveWindow_NoBoundariesStopsAtThreshold(t *testing.T) {
 		t.Error("expected no boundary respected with no boundaries")
 	}
 	// Should stop close to threshold: ~17 days back
-	daysBack := int(vantage.Sub(start).Hours() / 24)
+	daysBack := CalendarDaysBetween(start, vantage)
 	if daysBack > 25 {
 		t.Errorf("expected ~17 days back (no boundaries to extend to), got %d", daysBack)
 	}
@@ -463,7 +463,7 @@ func TestComputeAdaptiveWindow_HitsMaxLookback(t *testing.T) {
 		series, vantage, nil, nil, nil, cfg,
 	)
 
-	daysBack := int(vantage.Sub(start).Hours() / 24)
+	daysBack := CalendarDaysBetween(start, vantage)
 	if daysBack > 365 {
 		t.Errorf("exceeded max lookback: %d days back", daysBack)
 	}
