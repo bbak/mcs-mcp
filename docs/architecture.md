@@ -230,6 +230,96 @@ The system provides `forecast_backtest` to validate the reliability of Monte-Car
 - **Reconstruction Hardening**: The backtesting engine uses terminal status mappings during historical reconstruction to ensure finished items in the past are accurately projected.
 - **Stationarity Correlation**: At each checkpoint, a residence time stationarity assessment is computed and recorded. After all checkpoints, a `StationarityCorrelation` aggregate compares miss rates between stationary and non-stationary checkpoints. If non-stationary checkpoints miss at > 2× the rate of stationary ones, the signal is labeled `"predictive"`, empirically validating the stationarity guardrail for that project.
 
+### 4.6 Multi-Engine Framework (Empirical Engine Selection)
+
+There is no single Monte Carlo algorithm that universally yields the best forecasting results. Instead of committing to one, MCS-MCP supports **multiple simulation engines** behind a common interface and selects the best one empirically via walk-forward backtesting.
+
+#### Architecture
+
+Every engine implements the `ForecastEngine` interface:
+
+- **`Name() string`** — unique identifier (e.g., `"crude"`, `"bbak"`).
+- **`Run(req ForecastRequest) (Result, error)`** — executes the full pipeline from raw issues to a `simulation.Result`. Each engine owns the entire flow: histogram construction, optional pre-processing, Monte Carlo trials, and result assembly.
+
+Engines are registered at startup in a `Registry`. The active engine is selected via the `MCS_ENGINE` environment variable.
+
+#### Engine Selection Modes
+
+| `MCS_ENGINE` value | Behavior |
+| :--- | :--- |
+| `crude` (default) | Uses the Crude engine directly. |
+| `bbak` | Uses the Bbak engine (regime-aware sampling) directly. |
+| `auto` | Runs all enabled engines in a single walk-forward backtest pass, then uses the engine with the highest accuracy score for the actual forecast. Ties are broken by engine weight. |
+
+#### Per-Engine Weights
+
+Each engine has a corresponding `MCS_ENGINE_<NAME>` setting (integer 0–100):
+
+- **0** disables the engine entirely (excluded from `auto` mode).
+- **1–100** enables the engine. In `auto` mode, the weight is used as a tiebreaker when two engines achieve identical backtest accuracy — the higher weight wins.
+
+Example: `MCS_ENGINE_CRUDE=50`, `MCS_ENGINE_BBAK=50`.
+
+#### Auto Mode Internals
+
+When `MCS_ENGINE=auto`:
+
+1. The handler gathers context (issues, window, targets) as usual.
+2. A single walk-forward backtest loop runs all enabled engines at each checkpoint, producing per-engine accuracy scores under identical test conditions.
+3. The engine with the highest hit rate is selected. If tied, the engine with the higher `MCS_ENGINE_<NAME>` weight wins.
+4. The selected engine runs the actual forecast.
+5. The response is **identical** to a single-engine forecast — the consumer sees no difference. The selected engine name is stored internally for logging and debugging only (`Result.Context["auto_selected_engine"]`), but is not surfaced in insights or warnings.
+
+### 4.7 Engine: Crude (Baseline)
+
+The **Crude** engine is the original MCS-MCP simulation algorithm. It is the default and serves as the baseline against which other engines are compared.
+
+**Algorithm:**
+
+1. Build a throughput histogram from all delivered items within a fixed sampling window (default: 90 days).
+2. Create a Monte Carlo engine from the histogram.
+3. Run N trials (1,000 for duration mode, 10,000 for scope mode), each sampling random days from the histogram with replacement.
+4. Produce percentile-based forecasts from the trial distribution.
+
+**Characteristics:**
+
+- Uses the full, unfiltered set of delivered items in the window.
+- Fixed sampling window (user-configurable via `history_window_days` or date range parameters).
+- No outlier filtering, no adaptive windowing, no post-histogram resampling.
+- Robust and predictable; performs well when the process is stationary.
+
+**When it excels:** Stable teams with consistent throughput and no significant regime changes in the sampling window.
+
+**When it struggles:** Non-stationary processes, regime shifts within the window, or heavy outliers that skew the histogram.
+
+### 4.8 Engine: Bbak (Regime-Aware Sampling)
+
+The **Bbak** engine enhances the baseline with a 5-step pre- and post-processing pipeline (the SPA pipeline) that adapts the sampling window and histogram to the team's current process regime.
+
+**Algorithm:**
+
+1. **Convergence Gate**: Evaluate whether the process is converging, diverging, or metastable using residence time analysis (λ_implied vs. λ_observed). If diverging, compute a scale factor to adjust post-histogram throughput.
+2. **Regime Boundary Detection**: Identify process regime transitions using first-difference sign reversals of Λ(T) and W(T), smoothed over a minimum of 14 buckets.
+3. **Outlier Filtering**: Compute sojourn times and apply a Tukey IQR fence (Q3 + 1.5 × IQR). Outliers are only removed if filtering improves the convergence assessment — this prevents unnecessary data loss.
+4. **Adaptive Window**: Walk backwards through departures (not calendar days) until a minimum of 50 non-outlier items are accumulated. If the walk crosses a non-stationary regime boundary, extend to the next clean boundary. Hard ceiling: 365 days.
+5. **Post-Histogram Resampling**: After histogram construction, apply a combined WIP/aging scale factor (λ_implied / histogram mean throughput × divergence factor). Clamped to [0.5, 2.0], snapped to 1.0 within ±0.05.
+
+After pre-processing, the same Monte Carlo trial engine as Crude runs on the refined histogram.
+
+**Characteristics:**
+
+- Departure-count-based adaptive window instead of fixed calendar window.
+- Outlier-aware: removes extreme sojourn times only when it improves convergence.
+- Regime-aware: respects process boundaries, avoids mixing data from different process regimes.
+- Post-histogram resampling adjusts for WIP aging and process divergence.
+- Requires a configured commitment point and workflow mapping for residence time analysis. Falls back to Crude behavior if prerequisites are missing.
+
+**When it excels:** Teams with evolving processes, regime shifts, or significant WIP aging — where the fixed-window approach includes stale or irrelevant data.
+
+**When it struggles:** Very stable teams where the adaptive machinery adds no value (but does no harm — it converges to similar results as Crude).
+
+**Diagnostics:** When Bbak is active, SPA pipeline diagnostics (adaptive window bounds, outlier count, convergence status, scale factors) are attached to `Result.Context["spa_pipeline"]` for transparency.
+
 ---
 
 ## 5. Volatility & Predictability Metrics
