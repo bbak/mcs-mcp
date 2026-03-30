@@ -1,8 +1,6 @@
 package stats
 
 import (
-	"math"
-
 	"mcs-mcp/internal/jira"
 )
 
@@ -99,7 +97,7 @@ func CalculateProcessYield(issues []jira.Issue, mappings map[string]StatusMetada
 			Tier:       tier,
 			Count:      len(ages),
 			Percentage: float64(len(ages)) / float64(yield.TotalIngested),
-			AvgAge:     math.Round((sum/float64(len(ages)))*10) / 10,
+			AvgAge:     RoundTo(sum/float64(len(ages)), 1),
 			Severity:   severity,
 		})
 	}

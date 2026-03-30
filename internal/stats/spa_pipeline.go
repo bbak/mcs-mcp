@@ -177,7 +177,7 @@ func ComputeAdaptiveWindow(
 	if len(outlierKeys) > 0 {
 		for _, item := range items {
 			if item.End != nil && outlierKeys[item.Key] {
-				dayKey := item.End.Format("2006-01-02")
+				dayKey := item.End.Format(DateFormat)
 				outlierDeparturesPerDay[dayKey]++
 			}
 		}
@@ -252,7 +252,7 @@ func ComputeAdaptiveWindow(
 		}
 
 		// Subtract outlier departures for this bucket's date
-		if outlierCount, ok := outlierDeparturesPerDay[bucketDate.Format("2006-01-02")]; ok {
+		if outlierCount, ok := outlierDeparturesPerDay[bucketDate.Format(DateFormat)]; ok {
 			bucketDepartures -= outlierCount
 			if bucketDepartures < 0 {
 				bucketDepartures = 0
@@ -444,8 +444,8 @@ func FilterOutliersByConvergence(
 	}
 	sort.Float64s(vals)
 
-	q1 := percentileOfSorted(vals, 25)
-	q3 := percentileOfSorted(vals, 75)
+	q1 := CalculatePercentileInterpolated(vals, 25)
+	q3 := CalculatePercentileInterpolated(vals, 75)
 	iqr := q3 - q1
 	fence := q3 + cfg.IQRMultiplier*iqr
 
@@ -558,21 +558,6 @@ func signOfSum[T any](diffs []T, start, length int, extract func(T) float64) int
 		return -1
 	}
 	return 0
-}
-
-// percentileOfSorted returns the p-th percentile of a sorted float64 slice.
-func percentileOfSorted(sorted []float64, p float64) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	rank := p / 100.0 * float64(len(sorted)-1)
-	lower := int(math.Floor(rank))
-	upper := int(math.Ceil(rank))
-	if lower == upper || upper >= len(sorted) {
-		return sorted[lower]
-	}
-	frac := rank - float64(lower)
-	return sorted[lower]*(1-frac) + sorted[upper]*frac
 }
 
 // clampScale applies bounds and snap-to-1.0 logic to a scale factor.

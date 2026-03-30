@@ -40,13 +40,13 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, err
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
-	sample := stats.ProjectNeutralSample(events, 200)
+	sample := stats.ProjectNeutralSample(events, DataProbeSampleSize)
 
 	summary := discovery.AnalyzeProbe(sample, total)
 	summary.Whole.FirstEventAt = first
 	summary.Whole.LastEventAt = last
 
-	// 4. Fetch Board Metadata for the response (uses internal Jira cache)
+	// 5. Fetch Board Metadata for the response (uses internal Jira cache)
 	var board any
 	if strings.ToUpper(projectKey) == "MCSTEST" {
 		board = map[string]any{
@@ -62,7 +62,7 @@ func (s *Server) handleGetBoardDetails(projectKey string, boardID int) (any, err
 		}
 	}
 
-	// 5. Return wrapped response
+	// 6. Return wrapped response
 	res := map[string]any{
 		"board":        board,
 		"data_summary": summary,

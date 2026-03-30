@@ -13,34 +13,20 @@ import (
 )
 
 func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
+	sourceID := hctx.SourceID
 
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
-
-	// 2. Project on Demand (6-month historical window for persistence)
+	// 1. Project on Demand (6-month historical window for persistence)
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -180), s.Clock(), "day", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -DefaultPersistenceWindowDays), s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	issues := session.GetDelivered()
 	if len(issues) == 0 {
@@ -74,34 +60,20 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 }
 
 func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingType, tierFilter string) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
+	sourceID := hctx.SourceID
 
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
-
-	// 2. Project
+	// 1. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
@@ -156,25 +128,11 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 }
 
 func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -187,7 +145,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 	}
 	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), bucket, cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
 	throughput := stats.GetStratifiedThroughput(delivered, window)
@@ -200,8 +158,8 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		bucketEnd := stats.SnapToEnd(bucketStart, window.Bucket)
 		bucketMetadata = append(bucketMetadata, map[string]string{
 			"index":      fmt.Sprintf("%d", i+1),
-			"start_date": bucketStart.Format("2006-01-02"),
-			"end_date":   bucketEnd.Format("2006-01-02"),
+			"start_date": bucketStart.Format(stats.DateFormat),
+			"end_date":   bucketEnd.Format(stats.DateFormat),
 			"label":      window.GenerateLabel(bucketStart),
 			"is_partial": fmt.Sprintf("%v", window.IsPartial(bucketStart)),
 		})
@@ -224,41 +182,27 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 
 	guidance := []string{
 		"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
-		fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format("2006-01-02"), bucket),
+		fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format(stats.DateFormat), bucket),
 	}
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
 }
 
 func (s *Server) handleGetProcessStability(projectKey string, boardID int, includeRawSeries bool) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	// 2. Project
 	cutoff := time.Time{}
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -26*7), s.Clock(), "week", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -BaselineWindowWeeks*7), s.Clock(), "week", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	wip := session.GetWIP()
@@ -328,25 +272,11 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 }
 
 func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowMonths <= 0 {
 		windowMonths = 12
@@ -359,7 +289,7 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	}
 	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, -windowMonths, 0), s.Clock(), "month", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	delivered := session.GetDelivered()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, session.GetAllIssues())
@@ -386,25 +316,11 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 }
 
 func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	// 2. Project
 	cutoff := time.Time{}
@@ -413,7 +329,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	}
 	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	yield := stats.CalculateProcessYield(all, s.activeMapping, s.getResolutionMap(sourceID))
@@ -476,7 +392,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	// Finished statuses for reconstruction
 	finishedMap := make(map[string]bool)
 	for status, m := range s.activeMapping {
-		if m.Tier == "Finished" {
+		if m.Tier == stats.TierFinished {
 			finishedMap[status] = true
 		}
 	}
@@ -577,25 +493,11 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 }
 
 func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windowWeeks int) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -609,7 +511,7 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 
 	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, fullWindow)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
@@ -637,25 +539,11 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 }
 
 func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, windowWeeks int) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -669,7 +557,7 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, wi
 
 	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, fullWindow)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
@@ -701,25 +589,11 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, wi
 }
 
 func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks int, bucket string) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -736,7 +610,7 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 	now := s.Clock()
 	window := stats.NewAnalysisWindow(now.AddDate(0, 0, -windowWeeks*7), now, bucket, cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
@@ -757,25 +631,11 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, windowWeeks i
 }
 
 func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks int, granularity string) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 26
@@ -846,25 +706,11 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, windowWeeks in
 }
 
 func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, windowWeeks int, issueTypes []string, granularity string) (any, error) {
-	if err := s.anchorContext(projectKey, boardID); err != nil {
-		return nil, err
-	}
-
-	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
-	sourceID := getCombinedID(projectKey, boardID)
-
-	// 1. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
-	if err != nil {
-		return nil, err
-	}
-	s.activeRegistry = reg
-	if err := s.saveWorkflow(projectKey, boardID); err != nil {
-		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
-	}
+	sourceID := hctx.SourceID
 
 	if windowWeeks <= 0 {
 		windowWeeks = 52
@@ -881,7 +727,7 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, wind
 
 	fullWindow := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, fullWindow.Start, fullWindow.End)
-	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, fullWindow)
+	session := stats.NewAnalysisSession(events, sourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, fullWindow)
 
 	all := session.GetAllIssues()
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)

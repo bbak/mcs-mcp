@@ -17,6 +17,8 @@ func NewRegistry() *Registry {
 }
 
 // Register adds an engine to the registry. Panics on duplicate names.
+// This is intentional: registration happens only during init() at startup,
+// so a duplicate is a programmer error that should fail fast (Go convention).
 func (r *Registry) Register(e ForecastEngine) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

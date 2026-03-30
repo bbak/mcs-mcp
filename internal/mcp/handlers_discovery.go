@@ -36,7 +36,7 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
 
-	issues := stats.ProjectNeutralSample(events, 200)
+	issues := stats.ProjectNeutralSample(events, DataProbeSampleSize)
 
 	discoveryResult := discovery.DiscoverWorkflow(events, issues, s.getResolutionMap(sourceID))
 
@@ -285,7 +285,7 @@ func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr
 	if dateStr == "" {
 		s.activeEvaluationDate = nil
 	} else {
-		t, err := time.Parse("2006-01-02", dateStr)
+		t, err := time.Parse(stats.DateFormat, dateStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid evaluation date format: %w", err)
 		}
@@ -301,7 +301,7 @@ func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr
 	var guidance []string
 	msg := "Successfully cleared the evaluation date. Analysis will use real-time time.Now()."
 	if s.activeEvaluationDate != nil {
-		msg = fmt.Sprintf("Successfully set the evaluation date to %s. All analysis models will be evaluated relative to this date.", s.activeEvaluationDate.Format("2006-01-02"))
+		msg = fmt.Sprintf("Successfully set the evaluation date to %s. All analysis models will be evaluated relative to this date.", s.activeEvaluationDate.Format(stats.DateFormat))
 		guidance = append(guidance, "If shifting significantly into the past, you may need to use `import_history_expand` to fetch more historical data.")
 	}
 

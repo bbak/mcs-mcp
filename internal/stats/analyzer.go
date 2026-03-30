@@ -42,9 +42,9 @@ func HasExited(issue jira.Issue) bool {
 // isFinishedInMapping checks, via ID-first then name fallback, whether a status is in the Finished tier.
 func isFinishedInMapping(statusID, statusName string, mappings map[string]StatusMetadata) bool {
 	if m, ok := mappings[statusID]; ok {
-		return m.Tier == "Finished"
+		return m.Tier == TierFinished
 	}
-	return mappings[statusName].Tier == "Finished"
+	return mappings[statusName].Tier == TierFinished
 }
 
 // DetermineOutcome identifies the terminal outcome of an issue (e.g., "delivered", "abandoned")
@@ -149,8 +149,8 @@ func SynthesizeResolutionDate(issue *jira.Issue, mappings map[string]StatusMetad
 // DetermineTier identifies whether an issue is in Demand, Upstream, Downstream, or Finished
 // based on the provided commitment point and mappings.
 func DetermineTier(issue jira.Issue, commitmentPoint string, mappings map[string]StatusMetadata) string {
-	if mappings[issue.StatusID].Tier == "Finished" || mappings[issue.Status].Tier == "Finished" {
-		return "Finished"
+	if mappings[issue.StatusID].Tier == TierFinished || mappings[issue.Status].Tier == TierFinished {
+		return TierFinished
 	}
 	// Simplified active tier logic based on metadata (the UI specifies the tier for each status)
 	if m, ok := mappings[issue.StatusID]; ok && m.Tier != "" {

@@ -98,7 +98,13 @@ Every status is mapped to a logical process layer to ensure specialized clock be
 | **Downstream** | Actual Implementation (WIP).     | Active clock (Execution).                             |
 | **Finished**   | Terminal exit point.             | **Clock Stops**. Duration becomes fixed "Cycle Time". |
 
-### 2.1.1 Backflow & Clock Reset Behavior
+### 2.1.1 Work In Progress (WIP) Definition
+
+An item is considered **Work In Progress (WIP)** once it crosses the **Commitment Point**. WIP encompasses all statuses whose workflow weight is at or above the commitment point weight, up to (but excluding) the **Finished** tier. The commitment point is freely configurable and may sit anywhere in the workflow — including within the Upstream tier, between Upstream and Downstream, or within Downstream itself. This means WIP is not synonymous with "Downstream": when the commitment point sits within the Upstream tier, upstream statuses at or past that point also contribute to WIP time.
+
+The `cumulative_wip_days` metric in inventory aging analysis reflects this definition: it sums residency time across all statuses from the commitment point onward, excluding Finished.
+
+### 2.1.2 Backflow & Clock Reset Behavior
 
 A **backflow** occurs when an item transitions to a status whose weight is below the **commitment point** weight — i.e., the item moves backwards past the point where work was considered committed. Backflow is detected purely via weight comparison against the commitment point, not via tier membership, because the commitment point is freely configurable and may sit anywhere in the workflow (including mid-Downstream).
 

@@ -20,7 +20,7 @@ type XmRResult struct {
 // If the original value is positive, the result is floored to 0.01 to avoid
 // misleading "0.00" output (same rationale as the Zero-Day Safeguard in §8.7).
 func Round2(v float64) float64 {
-	r := math.Round(v*100) / 100
+	r := RoundTo(v, 2)
 	if r == 0 && v > 0 {
 		return 0.01
 	}
@@ -116,7 +116,7 @@ func LittlesLawIndex(currentWIP int, throughput, avgCycleTime float64) float64 {
 	if currentWIP < 0 || throughput <= 0 || avgCycleTime <= 0 {
 		return 0
 	}
-	return math.Round(float64(currentWIP)/(throughput*avgCycleTime)*100) / 100
+	return RoundTo(float64(currentWIP)/(throughput*avgCycleTime), 2)
 }
 
 // CalculateProcessStability evaluates the system's predictability using cycle times and WIP.
@@ -142,7 +142,7 @@ func CalculateProcessStability(issues []jira.Issue, cycleTimes []float64, wipCou
 	return StabilityResult{
 		XmR:              xmr,
 		StabilityIndex:   stabilityIndex,
-		ExpectedLeadTime: math.Round(expectedLeadTime*10) / 10,
+		ExpectedLeadTime: RoundTo(expectedLeadTime, 1),
 		Signals:          xmr.Signals,
 	}
 }
@@ -342,7 +342,7 @@ func BuildScatterplot(issues []jira.Issue, cycleTimes []float64) []ScatterPoint 
 		}
 
 		p := ScatterPoint{
-			Date:      iss.OutcomeDate.Format("2006-01-02"),
+			Date:      iss.OutcomeDate.Format(DateFormat),
 			Value:     Round2(cycleTimes[i]),
 			Key:       iss.Key,
 			IssueType: iss.IssueType,
@@ -385,7 +385,7 @@ func CalculateSystemPressure(activeIssues []jira.Issue) SystemPressureResult {
 	}
 
 	if result.TotalWIP > 0 {
-		result.PressureRatio = math.Round((float64(flagged)/float64(result.TotalWIP))*100) / 100
+		result.PressureRatio = RoundTo(float64(flagged)/float64(result.TotalWIP), 2)
 	}
 
 	return result

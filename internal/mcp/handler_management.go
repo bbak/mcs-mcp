@@ -3,6 +3,8 @@ package mcp
 import (
 	"fmt"
 
+	"mcs-mcp/internal/stats"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -74,7 +76,7 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 
 	cutoffStr := "N/A"
 	if s.activeDiscoveryCutoff != nil {
-		cutoffStr = s.activeDiscoveryCutoff.Format("2006-01-02")
+		cutoffStr = s.activeDiscoveryCutoff.Format(stats.DateFormat)
 	}
 
 	msg := fmt.Sprintf("%d work items fetched that were updated before %s. Updated DiscoveryCutoff: %s.",

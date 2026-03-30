@@ -187,8 +187,8 @@ func TestThroughputProjection_BoundaryResolved_Impact(t *testing.T) {
 		t.Fatalf("Expected 1 throughput bucket, got %d. Events: %+v", len(throughput), events)
 	}
 
-	expectedDate := tMove.Format("2006-01-02")
-	actualDate := throughput[0].Date.Format("2006-01-02")
+	expectedDate := tMove.Format(DateFormat)
+	actualDate := throughput[0].Date.Format(DateFormat)
 
 	if actualDate != expectedDate {
 		t.Errorf("Throughput counted at WRONG date. Expected %s (Move), got %s (BioBirth)", expectedDate, actualDate)

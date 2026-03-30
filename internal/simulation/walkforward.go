@@ -147,7 +147,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 					if _, err := fmt.Sscanf(label, "%d-W%d", &year, &week); err == nil {
 						// Convert ISO week to rough date (approximate start of week)
 						driftDate = isoWeekToDate(year, week)
-						result.DriftWarning = fmt.Sprintf("Systemic Process Drift detected around %s. Backtesting capped at this date.", driftDate.Format("2006-01-02"))
+						result.DriftWarning = fmt.Sprintf("Systemic Process Drift detected around %s. Backtesting capped at this date.", driftDate.Format(stats.DateFormat))
 					}
 				}
 				break
@@ -208,7 +208,7 @@ func (w *WalkForwardEngine) Execute(cfg WalkForwardConfig) (WalkForwardResult, e
 
 		// 4. Run Simulation & Verify
 		cp := ValidationCheckpoint{
-			Date:          d.Format("2006-01-02"),
+			Date:          d.Format(stats.DateFormat),
 			Convergence:   cpConvergence,
 			NonStationary: !cpStationary,
 		}

@@ -14,7 +14,7 @@ func makeSeries(n int, lFunc, lambdaFunc, wFunc func(i int) float64) []Residence
 	for i := range n {
 		series[i] = ResidenceTimeBucket{
 			Date:   start.AddDate(0, 0, i),
-			Label:  start.AddDate(0, 0, i).Format("2006-01-02"),
+			Label:  start.AddDate(0, 0, i).Format(DateFormat),
 			N:      1,
 			L:      lFunc(i),
 			Lambda: lambdaFunc(i),
@@ -37,7 +37,7 @@ func makeSeriesWithDepartures(n int, departuresPerDay func(i int) int) []Residen
 		cumulativeD += departuresPerDay(i)
 		series[i] = ResidenceTimeBucket{
 			Date:   start.AddDate(0, 0, i),
-			Label:  start.AddDate(0, 0, i).Format("2006-01-02"),
+			Label:  start.AddDate(0, 0, i).Format(DateFormat),
 			N:      1,
 			L:      5.0,
 			Lambda: 1.0,
@@ -127,7 +127,7 @@ func TestDetectRegimeBoundaries_SingleRegime(t *testing.T) {
 		t.Errorf("expected no regime boundaries for monotone series, got %d", len(boundaries))
 	}
 	if !regimeStart.Equal(series[0].Date) {
-		t.Errorf("expected regime start at series start, got %s", regimeStart.Format("2006-01-02"))
+		t.Errorf("expected regime start at series start, got %s", regimeStart.Format(DateFormat))
 	}
 }
 
@@ -152,7 +152,7 @@ func TestDetectRegimeBoundaries_TwoRegimes(t *testing.T) {
 	}
 	// Regime boundary should be around day 40
 	if regimeStart.Before(series[25].Date) || regimeStart.After(series[55].Date) {
-		t.Errorf("regime boundary at unexpected position: %s", regimeStart.Format("2006-01-02"))
+		t.Errorf("regime boundary at unexpected position: %s", regimeStart.Format(DateFormat))
 	}
 }
 
@@ -383,7 +383,7 @@ func TestComputeAdaptiveWindow_CrossesBoundaryNonStationaryExtends(t *testing.T)
 		cumulativeD++
 		series[i] = ResidenceTimeBucket{
 			Date:   startDate.AddDate(0, 0, i),
-			Label:  startDate.AddDate(0, 0, i).Format("2006-01-02"),
+			Label:  startDate.AddDate(0, 0, i).Format(DateFormat),
 			N:      1,
 			L:      5.0,
 			Lambda: 2.0, // arrivals much higher than departures
@@ -411,7 +411,7 @@ func TestComputeAdaptiveWindow_CrossesBoundaryNonStationaryExtends(t *testing.T)
 	// Should have stopped at boundary2 (day 120)
 	if windowStart.Before(boundary2) {
 		t.Errorf("window start %s crossed boundary2 %s",
-			windowStart.Format("2006-01-02"), boundary2.Format("2006-01-02"))
+			windowStart.Format(DateFormat), boundary2.Format(DateFormat))
 	}
 	if departures < 50 {
 		t.Errorf("expected >= 50 departures, got %d", departures)
@@ -507,7 +507,7 @@ func TestComputeAdaptiveWindow_ExcludesOutliers(t *testing.T) {
 	// With outliers excluded, the window should start earlier (wider window needed)
 	if !startWithExclude.Before(startNoExclude) {
 		t.Errorf("expected outlier-excluded window to start earlier: without=%s with=%s",
-			startNoExclude.Format("2006-01-02"), startWithExclude.Format("2006-01-02"))
+			startNoExclude.Format(DateFormat), startWithExclude.Format(DateFormat))
 	}
 }
 
@@ -528,7 +528,7 @@ func TestComputeAdaptiveWindow_InsufficientData(t *testing.T) {
 	}
 	// Should return the earliest bucket
 	if !start.Equal(series[0].Date) {
-		t.Errorf("expected earliest date, got %s", start.Format("2006-01-02"))
+		t.Errorf("expected earliest date, got %s", start.Format(DateFormat))
 	}
 }
 
@@ -541,7 +541,7 @@ func TestComputeAdaptiveWindow_EmptySeries(t *testing.T) {
 	)
 
 	if !start.Equal(vantage) {
-		t.Errorf("expected vantage date returned for empty series, got %s", start.Format("2006-01-02"))
+		t.Errorf("expected vantage date returned for empty series, got %s", start.Format(DateFormat))
 	}
 	if departures != 0 {
 		t.Errorf("expected 0 departures, got %d", departures)

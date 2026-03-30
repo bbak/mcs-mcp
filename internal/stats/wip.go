@@ -75,7 +75,7 @@ func AnalyzeHistoricalWIP(issues []jira.Issue, window AnalysisWindow, commitment
 	// on the daily points against the weekly-derived limits.
 	var dailySignals []Signal
 	for i, point := range runChart {
-		key := point.Date.Format("2006-01-02")
+		key := point.Date.Format(DateFormat)
 		val := float64(point.Count)
 
 		if val > xmr.UNPL {
@@ -343,9 +343,9 @@ func CalculateTotalWIPAgeRunChart(issues []jira.Issue, window AnalysisWindow, co
 
 		chart[i] = WIPAgeRunChartPoint{
 			Date:       d,
-			TotalAge:   math.Round(totalAge*10) / 10,
+			TotalAge:   RoundTo(totalAge, 1),
 			Count:      count,
-			AverageAge: math.Round(avgAge*10) / 10,
+			AverageAge: RoundTo(avgAge, 1),
 		}
 	}
 
@@ -398,7 +398,7 @@ func AnalyzeHistoricalWIPAge(issues []jira.Issue, window AnalysisWindow, commitm
 	// 3. Sweep daily values against weekly-derived limits for daily signals
 	var dailySignals []Signal
 	for i, point := range runChart {
-		key := point.Date.Format("2006-01-02")
+		key := point.Date.Format(DateFormat)
 		val := point.TotalAge
 
 		if val > xmr.UNPL {

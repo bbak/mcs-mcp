@@ -248,7 +248,7 @@ func TestAssessStationarity_WindowRecommendationDate(t *testing.T) {
 	}
 
 	// Verify the rationale mentions the inflection date
-	expectedDate := start.AddDate(0, 0, 75).Format("2006-01-02")
+	expectedDate := start.AddDate(0, 0, 75).Format(DateFormat)
 	if a.WindowRationale == "" {
 		t.Fatal("expected non-empty rationale")
 	}

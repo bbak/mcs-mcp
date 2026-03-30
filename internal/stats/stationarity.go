@@ -94,7 +94,7 @@ func AssessStationarity(result *ResidenceTimeResult) *StationarityAssessment {
 		a.WindowRationale = fmt.Sprintf(
 			"Process divergence detected in the final quarter of the observation window (from %s). "+
 				"Earlier data may not reflect current throughput.",
-			inflectionDate.Format("2006-01-02"))
+			inflectionDate.Format(DateFormat))
 	}
 
 	return a

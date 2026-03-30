@@ -179,6 +179,6 @@ func (w AnalysisWindow) GenerateLabel(t time.Time) string {
 		year, week := t.ISOWeek()
 		return fmt.Sprintf("%d-W%02d", year, week)
 	default: // day
-		return t.Format("2006-01-02")
+		return t.Format(DateFormat)
 	}
 }

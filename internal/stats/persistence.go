@@ -2,7 +2,6 @@ package stats
 
 import (
 	"cmp"
-	"math"
 	"mcs-mcp/internal/jira"
 	"slices"
 )
@@ -85,13 +84,13 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 		sp := StatusPersistence{
 			StatusID:   statusID,
 			StatusName: idToName[statusID],
-			Share:      math.Round(share*1000) / 1000,
-			P50:        math.Round(CalculatePercentile(durations, 0.50)*10) / 10,
-			P70:        math.Round(CalculatePercentile(durations, 0.70)*10) / 10,
-			P85:        math.Round(CalculatePercentile(durations, 0.85)*10) / 10,
-			P95:        math.Round(CalculatePercentile(durations, 0.95)*10) / 10,
-			IQR:        math.Round((CalculatePercentile(durations, 0.75)-CalculatePercentile(durations, 0.25))*10) / 10,
-			Inner80:    math.Round((CalculatePercentile(durations, 0.90)-CalculatePercentile(durations, 0.10))*10) / 10,
+			Share:      RoundTo(share, 3),
+			P50:        RoundTo(CalculatePercentile(durations, 0.50), 1),
+			P70:        RoundTo(CalculatePercentile(durations, 0.70), 1),
+			P85:        RoundTo(CalculatePercentile(durations, 0.85), 1),
+			P95:        RoundTo(CalculatePercentile(durations, 0.95), 1),
+			IQR:        RoundTo(CalculatePercentile(durations, 0.75)-CalculatePercentile(durations, 0.25), 1),
+			Inner80:    RoundTo(CalculatePercentile(durations, 0.90)-CalculatePercentile(durations, 0.10), 1),
 		}
 
 		if sp.StatusName == "" {
@@ -102,8 +101,8 @@ func CalculateStatusPersistence(issues []jira.Issue) []StatusPersistence {
 			slices.Sort(bd)
 			bn := len(bd)
 			sp.BlockedCount = bn
-			sp.BlockedP50 = math.Round(bd[int(float64(bn)*0.50)]*10) / 10
-			sp.BlockedP85 = math.Round(bd[int(float64(bn)*0.85)]*10) / 10
+			sp.BlockedP50 = RoundTo(bd[int(float64(bn)*0.50)], 1)
+			sp.BlockedP85 = RoundTo(bd[int(float64(bn)*0.85)], 1)
 		}
 
 		results = append(results, sp)
@@ -135,7 +134,7 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 		case "queue":
 			s.Interpretation = "This is a queue/waiting stage. Residency here is 'Flow Debt'. It is NOT completion time."
 		case "active":
-			if s.Tier == "Demand" {
+			if s.Tier == TierDemand {
 				s.Interpretation = "This is item storage; high residency here is expected and does not impact lead time."
 			} else {
 				s.Interpretation = "This is an active working stage. High residency indicates a local bottleneck at this step."
@@ -149,7 +148,7 @@ func EnrichStatusPersistence(results []StatusPersistence, mappings map[string]St
 	// not operational flow stages, and have no meaningful residency.
 	filtered := results[:0]
 	for _, s := range results {
-		if s.Tier != "Finished" {
+		if s.Tier != TierFinished {
 			filtered = append(filtered, s)
 		}
 	}
@@ -174,7 +173,7 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 			tier := DetermineTier(jira.Issue{Status: status}, "", mappings)
 
 			// Skip terminal tier analysis in persistence overview
-			if tier == "Finished" {
+			if tier == TierFinished {
 				continue
 			}
 
@@ -212,18 +211,18 @@ func CalculateTierSummary(issues []jira.Issue, mappings map[string]StatusMetadat
 
 		interpretation := ""
 		switch tier {
-		case "Demand":
+		case TierDemand:
 			interpretation = "Total time spent in the backlog/discovery phase. High numbers here are non-blocking."
-		case "Upstream":
+		case TierUpstream:
 			interpretation = "Total time spent in definition/refinement. Key indicator of 'Definition Bottlenecks'."
-		case "Downstream":
+		case TierDownstream:
 			interpretation = "Total time spent in implementation/testing. This is your primary delivery capacity."
 		}
 
 		summary[tier] = TierSummary{
 			Count:          n,
-			Median:         math.Round(CalculatePercentile(durations, 0.50)*10) / 10,
-			P85:            math.Round(CalculatePercentile(durations, 0.85)*10) / 10,
+			Median:         RoundTo(CalculatePercentile(durations, 0.50), 1),
+			P85:            RoundTo(CalculatePercentile(durations, 0.85), 1),
 			Statuses:       statuses,
 			Interpretation: interpretation,
 		}

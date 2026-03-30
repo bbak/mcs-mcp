@@ -242,15 +242,15 @@ func ComputeResidenceTimeSeries(
 			Label:        window.GenerateLabel(bucketDate),
 			N:            n,
 			H:            cumulativeH,
-			L:            roundTo(lT, 4),
+			L:            RoundTo(lT, 4),
 			A:            aT,
-			Lambda:       roundTo(lambdaT, 4),
-			W:            roundTo(wT, 4),
-			WPrime:       roundTo(wPrimeT, 4),
+			Lambda:       RoundTo(lambdaT, 4),
+			W:            RoundTo(wT, 4),
+			WPrime:       RoundTo(wPrimeT, 4),
 			D:            dT,
-			Theta:        roundTo(thetaT, 4),
-			WStar:        roundTo(wStarT, 4),
-			CoherenceGap: roundTo(coherenceGap, 4),
+			Theta:        RoundTo(thetaT, 4),
+			WStar:        RoundTo(wStarT, 4),
+			CoherenceGap: RoundTo(coherenceGap, 4),
 		}
 	}
 
@@ -294,7 +294,7 @@ func ComputeResidenceTimeSeries(
 		Summary: summary,
 		Validation: ResidenceTimeValidation{
 			IdentityVerified: identityHolds,
-			MaxDeviation:     roundTo(maxDeviation, 10),
+			MaxDeviation:     RoundTo(maxDeviation, 10),
 		},
 	}
 }
@@ -376,7 +376,7 @@ func assessConvergence(series []ResidenceTimeBucket) convergenceAssessment {
 	for i, p := range pts {
 		yVals[i] = p.y
 	}
-	medW := medianOfFloat64s(yVals)
+	medW := CalculateMedianContinuous(yVals)
 	threshold := 0.5 * medW
 	if threshold == 0 {
 		return convergenceAssessment{Label: "metastable"}
@@ -391,26 +391,3 @@ func assessConvergence(series []ResidenceTimeBucket) convergenceAssessment {
 	return convergenceAssessment{Label: "metastable", Beta1: beta1, RMSE: rmse}
 }
 
-// medianOfFloat64s returns the median of a float64 slice (sorted in place).
-func medianOfFloat64s(vals []float64) float64 {
-	if len(vals) == 0 {
-		return 0
-	}
-	for i := 0; i < len(vals); i++ {
-		for j := i + 1; j < len(vals); j++ {
-			if vals[j] < vals[i] {
-				vals[i], vals[j] = vals[j], vals[i]
-			}
-		}
-	}
-	mid := len(vals) / 2
-	if len(vals)%2 == 0 {
-		return (vals[mid-1] + vals[mid]) / 2
-	}
-	return vals[mid]
-}
-
-func roundTo(val float64, places int) float64 {
-	pow := math.Pow(10, float64(places))
-	return math.Round(val*pow) / pow
-}

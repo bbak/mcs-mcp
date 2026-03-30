@@ -1,5 +1,7 @@
 package mcp
 
+import "mcs-mcp/internal/stats"
+
 // --- Enum types ---
 
 // SimulationMode represents the simulation mode for forecasting tools.
@@ -52,10 +54,10 @@ const (
 type WorkflowTier string
 
 const (
-	TierDemand     WorkflowTier = "Demand"
-	TierUpstream   WorkflowTier = "Upstream"
-	TierDownstream WorkflowTier = "Downstream"
-	TierFinished   WorkflowTier = "Finished"
+	TierDemand     WorkflowTier = WorkflowTier(stats.TierDemand)
+	TierUpstream   WorkflowTier = WorkflowTier(stats.TierUpstream)
+	TierDownstream WorkflowTier = WorkflowTier(stats.TierDownstream)
+	TierFinished   WorkflowTier = WorkflowTier(stats.TierFinished)
 )
 
 // WorkflowRole represents a workflow role in the semantic mapping.

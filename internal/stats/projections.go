@@ -33,7 +33,7 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 
 	finishedMap := make(map[string]bool)
 	for name, m := range mappings {
-		if m.Tier == "Finished" {
+		if m.Tier == TierFinished {
 			finishedMap[name] = true
 		}
 	}
@@ -62,11 +62,11 @@ func ProjectScope(events []eventlog.IssueEvent, window AnalysisWindow, commitmen
 		// 2. Classify by Tier at the end of the window
 		tier := DetermineTier(issue, commitmentPoint, mappings)
 		switch tier {
-		case "Downstream":
+		case TierDownstream:
 			downstream = append(downstream, issue)
-		case "Upstream":
+		case TierUpstream:
 			upstream = append(upstream, issue)
-		case "Demand", "Unknown":
+		case TierDemand, "Unknown":
 			demand = append(demand, issue)
 		}
 	}
@@ -220,7 +220,7 @@ func BuildWIPProjection(events []eventlog.IssueEvent, commitmentPoint string, ma
 		// Reactive check: Update finished state based on target status if present
 		if e.ToStatus != "" {
 			if m, ok := mappings[s.currentStatus]; ok {
-				if m.Tier == "Finished" {
+				if m.Tier == TierFinished {
 					s.isFinished = true
 				} else {
 					s.isFinished = false
@@ -294,7 +294,7 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 
 		// Count only the first transition into a delivered state per issue
 		if nowDelivered && !wasDelivered {
-			dateStr := time.UnixMicro(e.Timestamp).Format("2006-01-02")
+			dateStr := time.UnixMicro(e.Timestamp).Format(DateFormat)
 			counts[dateStr]++
 			s.isDelivered = true
 		} else if !nowDelivered && e.IsUnresolved {
@@ -305,7 +305,7 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 
 	var result []ThroughputBucket
 	for dStr, count := range counts {
-		t, _ := time.Parse("2006-01-02", dStr)
+		t, _ := time.Parse(DateFormat, dStr)
 		result = append(result, ThroughputBucket{Date: t, Count: count})
 	}
 

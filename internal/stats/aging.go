@@ -27,7 +27,7 @@ type InventoryAge struct {
 	IsCompleted              bool     `json:"is_completed"`                        // True if in 'Finished' tier
 	TotalAgeSinceCreation    float64  `json:"total_age_since_creation_days"`       // Caps at entry to Finished tier
 	AgeSinceCommitment       *float64 `json:"age_since_commitment_days,omitempty"` // WIP Age (since last commitment)
-	CumulativeWIPDays        float64  `json:"cumulative_wip_days"`                 // Total time spent in Downstream statuses
+	CumulativeWIPDays        float64  `json:"cumulative_wip_days"`                 // Total time in statuses from commitment point onward, excluding Finished
 	AgeInCurrentStatus       float64  `json:"age_in_current_status_days"`
 	CumulativeUpstreamDays   float64  `json:"cumulative_upstream_days"`
 	CumulativeDownstreamDays float64  `json:"cumulative_downstream_days"`
@@ -136,7 +136,7 @@ func downstreamSince(issue jira.Issue, since time.Time, mappings map[string]Stat
 		seg := segments[i]
 		dur := segments[i+1].start.Sub(seg.start).Seconds()
 		t := DetermineTier(jira.Issue{StatusID: seg.statusID, Status: seg.status}, startStatus, mappings)
-		if t == "Downstream" {
+		if t == TierDownstream {
 			totalSeconds += dur
 		}
 	}
@@ -149,7 +149,7 @@ func downstreamSince(issue jira.Issue, since time.Time, mappings map[string]Stat
 	}
 	dur := endTime.Sub(last.start).Seconds()
 	t := DetermineTier(jira.Issue{StatusID: last.statusID, Status: last.status}, startStatus, mappings)
-	if t == "Downstream" {
+	if t == TierDownstream {
 		totalSeconds += dur
 	}
 
@@ -185,7 +185,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		// 0. Determine Tier Context
 		currentTier := DetermineTier(issue, startStatus, mappings)
 		isFinished := false
-		if currentTier == "Finished" {
+		if currentTier == TierFinished {
 			isFinished = true
 		}
 
@@ -208,7 +208,15 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 		stepDays := math.Ceil((float64(stepSeconds)/86400.0)*10) / 10
 
 		// 2. Tier Residency & Total Age (Stop the clock)
-		var upstreamDays, downstreamDays, totalDays float64
+		var upstreamDays, downstreamDays, wipDays, totalDays float64
+
+		// Resolve commitment point weight once per issue
+		commitmentWeight := 0
+		if startStatus != "" {
+			if w, ok := statusWeights[startStatus]; ok {
+				commitmentWeight = w
+			}
+		}
 
 		// Re-evaluate residency loop with ID robustness
 		for status, seconds := range issue.StatusResidency {
@@ -220,37 +228,37 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			// But mappings map can contain Names too.
 			t := DetermineTier(jira.Issue{Status: status}, startStatus, mappings)
 			switch t {
-			case "Upstream", "Demand":
+			case TierUpstream, TierDemand:
 				upstreamDays += days
-			case "Downstream":
+			case TierDownstream:
 				downstreamDays += days
+			}
+
+			// WIP = all statuses from commitment point onward, excluding Finished
+			if t != TierFinished && commitmentWeight > 0 {
+				statusKey := status
+				if w, ok := statusWeights[statusKey]; ok && w >= commitmentWeight {
+					wipDays += days
+				}
 			}
 		}
 
 		// 2b. Backflow-aware downstream residency override
 		// When enabled, only count downstream time from the last backflow forward.
 		// Total age and upstream days remain based on full history.
-		if commitmentBackflowReset && agingType == "wip" {
-			commitmentWeight := 0
-			if startStatus != "" {
-				if w, ok := statusWeights[startStatus]; ok {
-					commitmentWeight = w
+		if commitmentBackflowReset && agingType == "wip" && commitmentWeight > 0 {
+			lastBackflowIdx := -1
+			for j, t := range issue.Transitions {
+				sid := t.ToStatusID
+				if sid == "" {
+					sid = t.ToStatus
+				}
+				if w, ok := statusWeights[sid]; ok && w < commitmentWeight {
+					lastBackflowIdx = j
 				}
 			}
-			if commitmentWeight > 0 {
-				lastBackflowIdx := -1
-				for j, t := range issue.Transitions {
-					sid := t.ToStatusID
-					if sid == "" {
-						sid = t.ToStatus
-					}
-					if w, ok := statusWeights[sid]; ok && w < commitmentWeight {
-						lastBackflowIdx = j
-					}
-				}
-				if lastBackflowIdx >= 0 {
-					downstreamDays = downstreamSince(issue, issue.Transitions[lastBackflowIdx].Date, mappings, startStatus, evaluationTime)
-				}
+			if lastBackflowIdx >= 0 {
+				downstreamDays = downstreamSince(issue, issue.Transitions[lastBackflowIdx].Date, mappings, startStatus, evaluationTime)
 			}
 		}
 
@@ -270,7 +278,7 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			// 1. It is explicitly in the Downstream or Finished tier
 			// 2. Its current status weight is >= the startStatus weight
 			isStarted := false
-			if currentTier == "Downstream" || currentTier == "Finished" {
+			if currentTier == TierDownstream || currentTier == TierFinished {
 				isStarted = true
 			} else if startStatus != "" {
 				commitmentWeight, okC := statusWeights[startStatus]
@@ -297,11 +305,11 @@ func CalculateInventoryAge(wipIssues []jira.Issue, startStatus string, statusWei
 			Tier:                     currentTier,
 			IsCompleted:              isFinished,
 			AgeInCurrentStatus:       stepDays,
-			TotalAgeSinceCreation:    math.Round(totalAgeRaw*10) / 10,
+			TotalAgeSinceCreation:    RoundTo(totalAgeRaw, 1),
 			AgeSinceCommitment:       ageSinceCommitment,
-			CumulativeWIPDays:        math.Round(downstreamDays*10) / 10,
-			CumulativeUpstreamDays:   math.Round(upstreamDays*10) / 10,
-			CumulativeDownstreamDays: math.Round(downstreamDays*10) / 10,
+			CumulativeWIPDays:        RoundTo(wipDays, 1),
+			CumulativeUpstreamDays:   RoundTo(upstreamDays, 1),
+			CumulativeDownstreamDays: RoundTo(downstreamDays, 1),
 		}
 
 		if agingType == "total" {
@@ -368,9 +376,9 @@ func CalculateAgingSummary(ages []InventoryAge, cycleTimes []float64, wipCount i
 	p85 := CalculatePercentile(sorted, 0.85)
 	p95 := CalculatePercentile(sorted, 0.95)
 
-	summary.P50Threshold = math.Round(p50*10) / 10
-	summary.P85Threshold = math.Round(p85*10) / 10
-	summary.P95Threshold = math.Round(p95*10) / 10
+	summary.P50Threshold = RoundTo(p50, 1)
+	summary.P85Threshold = RoundTo(p85, 1)
+	summary.P95Threshold = RoundTo(p95, 1)
 
 	for _, a := range ages {
 		age := 0.0

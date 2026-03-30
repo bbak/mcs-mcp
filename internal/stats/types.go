@@ -4,6 +4,17 @@ import (
 	"time"
 )
 
+// DateFormat is the canonical date layout used across the codebase (ISO 8601 date-only).
+const DateFormat = "2006-01-02"
+
+// Workflow tier names used throughout the stats and mcp packages.
+const (
+	TierDemand     = "Demand"
+	TierUpstream   = "Upstream"
+	TierDownstream = "Downstream"
+	TierFinished   = "Finished"
+)
+
 // StatusMetadata holds the user-confirmed semantic mapping for a status.
 type StatusMetadata struct {
 	Name    string `json:"name,omitempty"` // For display/AI lookup

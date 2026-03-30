@@ -25,15 +25,15 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	// 1. Determine Sampling Window
 	histEnd := s.Clock()
 	if sampleEndDate != "" {
-		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
+		if t, err := time.Parse(stats.DateFormat, sampleEndDate); err == nil {
 			histEnd = t
 		} else {
 			return nil, fmt.Errorf("invalid sample_end_date format: %w", err)
 		}
 	}
-	histStart := histEnd.AddDate(0, 0, -90) // Default 90 days
+	histStart := histEnd.AddDate(0, 0, -DefaultForecastSampleDays) // Default 90 days
 	if sampleStartDate != "" {
-		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
+		if t, err := time.Parse(stats.DateFormat, sampleStartDate); err == nil {
 			histStart = t
 		} else {
 			return nil, fmt.Errorf("invalid sample_start_date format: %w", err)
@@ -135,7 +135,7 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	// Resolve target days for scope mode
 	finalTargetDays := targetDays
 	if mode == "scope" && targetDate != "" {
-		t, err := time.Parse("2006-01-02", targetDate)
+		t, err := time.Parse(stats.DateFormat, targetDate)
 		if err != nil {
 			return nil, fmt.Errorf("invalid target_date format: %w", err)
 		}
@@ -247,7 +247,7 @@ func (s *Server) runMultiEngineBacktest(req simulation.ForecastRequest, engines 
 
 	histEnd := req.Clock
 	histStart := histEnd.AddDate(0, 0, -lookbackDays)
-	eventsStart := histStart.AddDate(0, 0, -90)
+	eventsStart := histStart.AddDate(0, 0, -DefaultForecastSampleDays)
 
 	if s.activeDiscoveryCutoff != nil && eventsStart.Before(*s.activeDiscoveryCutoff) {
 		eventsStart = *s.activeDiscoveryCutoff
@@ -297,7 +297,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -26*7), s.Clock(), "day", cutoff)
+	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -BaselineWindowWeeks*7), s.Clock(), "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 
@@ -372,7 +372,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 
 	histEnd := s.Clock()
 	if sampleEndDate != "" {
-		if t, err := time.Parse("2006-01-02", sampleEndDate); err == nil {
+		if t, err := time.Parse(stats.DateFormat, sampleEndDate); err == nil {
 			histEnd = t
 		}
 	}
@@ -382,7 +382,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	lookbackDays := walkForwardDefaultLookback
 	histStart := histEnd.AddDate(0, 0, -lookbackDays)
 	if sampleStartDate != "" {
-		if t, err := time.Parse("2006-01-02", sampleStartDate); err == nil {
+		if t, err := time.Parse(stats.DateFormat, sampleStartDate); err == nil {
 			histStart = t
 			lookbackDays = stats.CalendarDaysBetween(histStart, histEnd)
 		}
@@ -399,7 +399,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	// Load events from the global maximum lookback so that each checkpoint's
 	// 90-day per-checkpoint histogram always has backing data. The earliest
 	// checkpoint is at histStart; its histogram reaches back another 90 days.
-	eventsStart := histStart.AddDate(0, 0, -90)
+	eventsStart := histStart.AddDate(0, 0, -DefaultForecastSampleDays)
 	if s.activeDiscoveryCutoff != nil && eventsStart.Before(*s.activeDiscoveryCutoff) {
 		eventsStart = *s.activeDiscoveryCutoff
 	}

@@ -17,6 +17,34 @@ func getCombinedID(projectKey string, boardID int) string {
 	return fmt.Sprintf("%s_%d", projectKey, boardID)
 }
 
+// handlerContext holds the resolved context for a standard handler invocation.
+type handlerContext struct {
+	SourceID string
+	Ctx      *jira.SourceContext
+}
+
+// prepareHandler performs the standard handler setup: anchor context, resolve source,
+// hydrate the event log, and persist workflow metadata.
+func (s *Server) prepareHandler(projectKey string, boardID int) (*handlerContext, error) {
+	if err := s.anchorContext(projectKey, boardID); err != nil {
+		return nil, err
+	}
+	ctx, err := s.resolveSourceContext(projectKey, boardID)
+	if err != nil {
+		return nil, err
+	}
+	sourceID := getCombinedID(projectKey, boardID)
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	if err != nil {
+		return nil, err
+	}
+	s.activeRegistry = reg
+	if err := s.saveWorkflow(projectKey, boardID); err != nil {
+		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
+	}
+	return &handlerContext{SourceID: sourceID, Ctx: ctx}, nil
+}
+
 func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.SourceContext, error) {
 	if projectKey == "MCSTEST" {
 		return &jira.SourceContext{

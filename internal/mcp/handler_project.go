@@ -43,7 +43,7 @@ func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 	// 4. Data Probe (Tier-Neutral Discovery)
 	events := s.events.GetIssuesInRange(projectKey, time.Time{}, s.Clock())
 	first, last, total := stats.DiscoverDatasetBoundaries(events)
-	sample := stats.ProjectNeutralSample(events, 200)
+	sample := stats.ProjectNeutralSample(events, DataProbeSampleSize)
 
 	summary := discovery.AnalyzeProbe(sample, total)
 	summary.Whole.FirstEventAt = first

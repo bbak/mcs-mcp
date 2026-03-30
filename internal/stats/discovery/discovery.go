@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"math"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -46,7 +45,7 @@ func AnalyzeProbe(sample []jira.Issue, totalCount int) stats.MetadataSummary {
 	}
 
 	if totalCount > 0 {
-		summary.Sample.PercentageOfWhole = math.Round((float64(len(sample))/float64(totalCount))*1000) / 10
+		summary.Sample.PercentageOfWhole = stats.RoundTo((float64(len(sample))/float64(totalCount))*100, 1)
 	}
 
 	if len(sample) == 0 {
@@ -67,7 +66,7 @@ func AnalyzeProbe(sample []jira.Issue, totalCount int) stats.MetadataSummary {
 
 	// Calculate distributions
 	for t, count := range typeCounts {
-		summary.Sample.WorkItemWeights[t] = math.Round((float64(count)/float64(len(sample)))*100) / 100
+		summary.Sample.WorkItemWeights[t] = stats.RoundTo(float64(count)/float64(len(sample)), 2)
 	}
 
 	for name := range resNames {
@@ -75,7 +74,7 @@ func AnalyzeProbe(sample []jira.Issue, totalCount int) stats.MetadataSummary {
 	}
 	slices.Sort(summary.Sample.ResolutionNames)
 
-	summary.Sample.ResolutionDensity = math.Round((float64(resolvedCount)/float64(len(sample)))*100) / 100
+	summary.Sample.ResolutionDensity = stats.RoundTo(float64(resolvedCount)/float64(len(sample)), 2)
 
 	return summary
 }
