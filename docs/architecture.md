@@ -613,3 +613,64 @@ To ensure universal validity of the internal analytical logic, the system's core
 
 > [!IMPORTANT]
 > These metrics have been mathematically verified and hardened. Any modification to the underlying statistical functions (`internal/stats` or `internal/simulation`) must be accompanied by a re-verification against these benchmarks and an update to the Golden File baseline.
+
+---
+
+## 12. Server-Side Chart Rendering
+
+MCS-MCP can render interactive charts server-side, eliminating the need for agents to write large JSON payloads into JSX templates.
+
+### 12.1 Architecture
+
+When `MCS_CHARTS_BUFFER_SIZE` is set to 1-100 in `.env`, the server:
+
+1. Starts an HTTP listener on a random localhost port (3000-4000) alongside the stdio MCP transport.
+2. Maintains an MRU (Most Recently Used) buffer of the configured size, storing the JSON results of analytical tool calls.
+3. Injects a `chart_url` into the `context` field of every chart-eligible tool response.
+
+When the URL is accessed (browser or agent), the server:
+
+1. Looks up the UUID in the MRU buffer.
+2. Loads the corresponding JSX template from an embedded filesystem.
+3. Bundles it with esbuild (Go API, in-process) using pre-bundled React/Recharts vendor libraries.
+4. Serves a self-contained HTML page with the chart.
+
+### 12.2 Packages
+
+| Package | Responsibility |
+| :--- | :--- |
+| `internal/chartbuf` | Thread-safe MRU ring buffer for tool results |
+| `internal/charts` | esbuild-based JSX-to-HTML renderer with embedded templates and vendor bundle |
+| `internal/httpd` | Lightweight localhost HTTP server for chart serving |
+
+### 12.3 Template Data Interface
+
+Chart templates receive data via `window.__MCS_PAYLOAD__` with the structure:
+
+- `data` — the tool's `ResponseEnvelope.data` field
+- `guardrails` — the tool's `ResponseEnvelope.guardrails` field
+- `workflow` — active workflow metadata (`board_id`, `project_key`, `board_name`, `project_name`, `status_order`, `status_order_names`, `commitment_point`)
+
+### 12.4 Configuration
+
+- `MCS_CHARTS_BUFFER_SIZE=0` (default): Chart rendering disabled, no HTTP server started.
+- `MCS_CHARTS_BUFFER_SIZE=20`: Buffer holds 20 most recent results, HTTP server active.
+- Values above 100 cause the server to refuse to start.
+
+### 12.5 Agent Guidance: Opening Chart URLs
+
+Every chart-eligible tool response includes a `chart_url` in its `context` field, e.g.:
+
+```
+http://localhost:3412/render-charts/550e8400-e29b-41d4-a716-446655440000
+```
+
+**How to surface charts to the user:**
+
+- **Claude Desktop + browser extension**: The Claude browser extension (Chrome/Firefox) allows Claude to open localhost URLs directly in the user's browser. Present the URL as a clickable link or use the extension's open-URL capability.
+- **Without browser extension**: Present the `chart_url` to the user and ask them to open it in a browser. The page is fully self-contained — no active server interaction is required beyond the initial HTTP GET.
+- **Do not embed the URL in markdown image syntax** (`![](url)`) — it will not render, since the server returns HTML, not an image.
+
+**Important**: The URL is only valid while the MCP server process is running and the result remains in the MRU buffer. URLs are evicted when the buffer fills. If a URL returns 404, the user should re-run the analysis tool to generate a fresh one.
+
+**Removed: Skills-based rendering**: The previous agent-side chart rendering approach (`docs/skills/`, `inject.py`) has been removed. Do not attempt to use `inject.py` or `.skill` files — they are no longer present in the repository.

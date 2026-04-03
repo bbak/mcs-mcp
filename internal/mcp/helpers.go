@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mcs-mcp/internal/charts"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
@@ -77,6 +78,12 @@ func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.Sou
 	boardProjectKey := ""
 	if loc, ok := cMap["location"].(map[string]any); ok {
 		boardProjectKey = asString(loc["projectKey"])
+		if name := asString(loc["projectName"]); name != "" {
+			s.activeProjectName = name
+		}
+	}
+	if name := asString(cMap["name"]); name != "" {
+		s.activeBoardName = name
 	}
 
 	if projectKey != "" && boardProjectKey != "" && projectKey != boardProjectKey {
@@ -191,6 +198,38 @@ func WrapResponse(data any, proj string, board int, diagnostics map[string]any, 
 			Warnings: warnings,
 		},
 	}
+}
+
+// injectChartURL pushes the tool result into the MRU buffer and returns the
+// data with a chart_url injected into the ResponseEnvelope's Context.
+// If the tool has no chart template or charting is disabled, data is returned unchanged.
+func (s *Server) injectChartURL(toolName string, data any) any {
+	if s.chartBuf == nil || !charts.HasTemplate(toolName) {
+		return data
+	}
+
+	envelope, ok := data.(ResponseEnvelope)
+	if !ok {
+		return data
+	}
+
+	// Serialize the full envelope for the buffer (the HTTP handler will
+	// extract .data and .guardrails from it).
+	envelopeJSON, err := json.Marshal(envelope)
+	if err != nil {
+		log.Warn().Err(err).Str("tool", toolName).Msg("Failed to serialize envelope for chart buffer")
+		return data
+	}
+
+	workflowJSON := s.workflowJSON()
+	uuid := s.chartBuf.Push(toolName, envelopeJSON, workflowJSON)
+
+	if envelope.Context == nil {
+		envelope.Context = map[string]any{}
+	}
+	envelope.Context["chart_url"] = fmt.Sprintf("http://localhost:%d/render-charts/%s", s.httpPort, uuid)
+
+	return envelope
 }
 
 func (s *Server) getResolutionMap(sourceID string) map[string]string {

@@ -176,27 +176,30 @@ These optional variables can be set in the `.env` file:
 | `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.                            |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point.                       |
 | `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.                          |
+| `MCS_CHARTS_BUFFER_SIZE`                | `0`          | Chart rendering buffer (0=off, 1-100=on). Starts HTTP server on localhost.                  |
 | `MCS_ALLOW_EXPERIMENTAL`                | `false`      | Enable the experimental feature gate. See [Experimental Features](#-experimental-features). |
 
 ---
 
-## 🧩 Skills
+## 📊 Chart Rendering
 
-MCS-MCP comes with Skills that can be used by an Agent to create Charts from the data sent by the MCP-Server. All tools are covered.
+MCS-MCP renders interactive charts server-side. When `MCS_CHARTS_BUFFER_SIZE` is set to a value between 1 and 100, the server starts an HTTP listener on a random localhost port (3000-4000). Each analytical tool response includes a `chart_url` in the `context` field. Opening that URL in a browser renders a self-contained React/Recharts chart with the tool's data.
 
-This is tested only in Claude Desktop. And even though I did my best to make it Agent agnostic, the approach taken was necessary to prevent high Token consumption, context window bloat and achieve a acceptable performance.
+The server buffers the most recent N tool results (MRU). Older entries are evicted when the buffer is full. Charts are rendered on demand when the URL is accessed.
 
-Yet, a `.skill` file is just a ZIP-Archive with another file extension. Feel free to adopt them to your (visual) needs.
+### Opening Chart URLs from an AI Agent
 
-1. Import `mcs-mcp.skill` as SKILL file.
-2. Start a new session.
-3. Run some analysis or forecast and tell the Agent (Claude) to also create a Chart.
+For charts to open automatically (without manual copy-paste), the AI agent needs to be able to open a localhost URL in a browser:
+
+- **Claude Desktop**: Install the [Claude Extension for Chrome/Firefox](https://claude.ai/download). With the browser extension active, Claude can open `chart_url` links directly in your browser.
+- **Without the extension**: Copy the `chart_url` from the tool response and paste it into any browser manually. The chart is fully self-contained and requires no active server connection beyond the initial load.
+
+> **Note for users of previous versions:** The old Skills-based chart rendering (`docs/skills/`, `inject.py`) has been removed. Charts are now rendered entirely server-side. If you have the `mcs-mcp.skill` file installed in Claude Desktop, you should uninstall or disable it to avoid conflicts.
 
 ---
 
 ## 👉 Usage Tips
 
-- Many Agents can create Charts directly from the data returned by the MCP-Server. In Claude Desktop, a prompt like _"Please create a Chart for WIP"_ works well. For specific chart types, install the relevant Skill from the `docs/skills/` directory.
 - Ask the Agent for the **diagnostic roadmap** at the start of a session. It returns a goal-oriented sequence of tools so you always have a clear path of analysis rather than guessing what to run next.
 - After a significant process change (team restructure, workflow overhaul), tell the Agent to re-run workflow discovery with a force-refresh to re-evaluate the semantic mapping against current patterns.
 - The server caches all event history locally. After the initial ingestion, most queries run entirely offline — no Jira connection needed.

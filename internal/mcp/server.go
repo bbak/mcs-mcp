@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"mcs-mcp/internal/chartbuf"
 	"mcs-mcp/internal/config"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
@@ -38,6 +39,10 @@ type Server struct {
 	engineRegistry          *simulation.Registry
 	engineName              string         // from MCS_ENGINE: "crude", "bbak", "auto"
 	engineWeights           map[string]int // from MCS_ENGINE_<NAME>
+	activeBoardName         string         // human-readable board name from Jira API
+	activeProjectName       string         // human-readable project name from Jira API
+	chartBuf                *chartbuf.Buffer
+	httpPort                int
 }
 
 func (s *Server) Clock() time.Time {
@@ -71,10 +76,62 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 		engineWeights:           engineWeights,
 	}
 
+	if cfg.ChartsBufferSize > 0 {
+		s.chartBuf = chartbuf.NewBuffer(cfg.ChartsBufferSize)
+	}
+
 	store := eventlog.NewEventStore(s.Clock)
 	s.events = eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir)
 
 	return s
+}
+
+// ChartBuf returns the chart MRU buffer, or nil if chart rendering is disabled.
+func (s *Server) ChartBuf() *chartbuf.Buffer {
+	return s.chartBuf
+}
+
+// SetHTTPPort sets the port of the chart HTTP server so tool responses can
+// include the chart URL.
+func (s *Server) SetHTTPPort(port int) {
+	s.httpPort = port
+}
+
+// workflowJSON returns the current active workflow state serialized as JSON,
+// suitable for injection into chart templates.
+func (s *Server) workflowJSON() json.RawMessage {
+	// Parse board_id and project_key from activeSourceID (format: "KEY_ID").
+	var projectKey string
+	var boardID int
+	if parts := strings.SplitN(s.activeSourceID, "_", 2); len(parts) == 2 {
+		projectKey = parts[0]
+		fmt.Sscanf(parts[1], "%d", &boardID)
+	}
+
+	// Build status order with human-readable names for templates.
+	var statusOrderNames []string
+	if s.activeRegistry != nil {
+		for _, id := range s.activeStatusOrder {
+			if name := s.activeRegistry.GetStatusName(id); name != "" {
+				statusOrderNames = append(statusOrderNames, name)
+			} else {
+				statusOrderNames = append(statusOrderNames, id)
+			}
+		}
+	}
+
+	wf := map[string]any{
+		"board_id":           boardID,
+		"project_key":        projectKey,
+		"board_name":         s.activeBoardName,
+		"project_name":       s.activeProjectName,
+		"status_order":       s.activeStatusOrder,
+		"status_order_names": statusOrderNames,
+		"commitment_point":   s.activeCommitmentPoint,
+	}
+
+	out, _ := json.Marshal(wf)
+	return out
 }
 
 // NewMCPServer creates an SDK MCP server wired to all tools on the given app server.

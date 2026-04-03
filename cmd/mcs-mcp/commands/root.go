@@ -3,13 +3,16 @@ package commands
 import (
 	"context"
 
+	"mcs-mcp/internal/charts"
 	"mcs-mcp/internal/config"
+	"mcs-mcp/internal/httpd"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/logging"
 	"mcs-mcp/internal/mcp"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -48,10 +51,28 @@ using Monte-Carlo-Simulation based on Jira data.`,
 			Msg("MCS-MCP starting")
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Info().Msg("MCP Server starting Stdio loop")
 		server := mcp.NewServer(cfg, jiraClient)
-		if err := server.Run(context.Background(), Version); err != nil {
-			log.Fatal().Err(err).Msg("MCP server exited with error")
+
+		// If chart rendering is enabled, start the HTTP server alongside stdio.
+		if server.ChartBuf() != nil {
+			httpSrv, err := httpd.New(server.ChartBuf(), charts.RenderChart)
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to start chart HTTP server")
+			}
+			server.SetHTTPPort(httpSrv.Port())
+
+			g, ctx := errgroup.WithContext(context.Background())
+			g.Go(func() error { return httpSrv.Start(ctx) })
+			g.Go(func() error { return server.Run(ctx, Version) })
+
+			if err := g.Wait(); err != nil {
+				log.Fatal().Err(err).Msg("Server exited with error")
+			}
+		} else {
+			log.Info().Msg("MCP Server starting Stdio loop (chart rendering disabled)")
+			if err := server.Run(context.Background(), Version); err != nil {
+				log.Fatal().Err(err).Msg("MCP server exited with error")
+			}
 		}
 	},
 }

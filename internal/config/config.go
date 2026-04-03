@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"mcs-mcp/internal/chartbuf"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/paths"
 
@@ -23,6 +25,7 @@ type AppConfig struct {
 	CommitmentBackflowReset bool           // Reset WIP age clock on backflow past the commitment point
 	Engine                  string         // MCS_ENGINE: "crude" (default), "bbak", "auto"
 	EngineWeights           map[string]int // MCS_ENGINE_<NAME>: 0 = disabled, 1-100 = weight
+	ChartsBufferSize        int            // MCS_CHARTS_BUFFER_SIZE: 0 = disabled, 1-100 = enabled
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -64,6 +67,11 @@ func Load() (*AppConfig, error) {
 		delaySecs = 10
 	}
 
+	chartsBufferSize := getEnvInt("MCS_CHARTS_BUFFER_SIZE", 0)
+	if chartsBufferSize > chartbuf.MaxBufferSize {
+		return nil, fmt.Errorf("MCS_CHARTS_BUFFER_SIZE=%d exceeds maximum %d", chartsBufferSize, chartbuf.MaxBufferSize)
+	}
+
 	cfg := &AppConfig{
 		Jira: jira.Config{
 			BaseURL:      getEnv("JIRA_URL", ""),
@@ -87,6 +95,7 @@ func Load() (*AppConfig, error) {
 			"crude": getEnvInt("MCS_ENGINE_CRUDE", 50),
 			"bbak":  getEnvInt("MCS_ENGINE_BBAK", 50),
 		},
+		ChartsBufferSize: chartsBufferSize,
 	}
 
 	return cfg, nil
