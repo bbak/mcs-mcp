@@ -186,6 +186,14 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		Total:           backlogCount + wipCount + additionalItems,
 	}
 
+	if resObj.Context == nil {
+		resObj.Context = make(map[string]any)
+	}
+	resObj.Context["simulation_mode"] = mode
+	if mode == "scope" {
+		resObj.Context["target_days"] = finalTargetDays
+	}
+
 	if s.enableMermaidCharts {
 		resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, mode)
 	}

@@ -209,25 +209,25 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 	must(addTool(mcpSrv, s, "import_projects",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportProjectsInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleImportProjects(args.Query)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_projects", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_boards",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportBoardsInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleImportBoards(args.ProjectKey, args.NameFilter)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_boards", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_project_context",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportProjectContextInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProjectDetails(args.ProjectKey)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_project_context", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_board_context",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportBoardContextInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetBoardDetails(args.ProjectKey, args.BoardID)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_board_context", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "forecast_monte_carlo",
@@ -241,25 +241,25 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				args.HistoryWindowDays, args.HistoryStartDate, args.HistoryEndDate,
 				args.Targets, args.MixOverrides,
 			)
-			return handleResult(s, data, err)
+			return handleResult(s, "forecast_monte_carlo", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_cycle_time",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeCycleTimeInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetCycleTimeAssessment(args.ProjectKey, args.BoardID, args.StartStatus, args.EndStatus, args.IssueTypes)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_cycle_time", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_status_persistence",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeStatusPersistenceInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetStatusPersistence(args.ProjectKey, args.BoardID)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_status_persistence", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_work_item_age",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWorkItemAgeInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetAgingAnalysis(args.ProjectKey, args.BoardID, string(args.AgeType), string(args.TierFilter))
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_work_item_age", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_throughput",
@@ -269,37 +269,37 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				bucket = "week"
 			}
 			data, err := s.handleGetDeliveryCadence(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, bucket, args.IncludeAbandoned)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_throughput", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_process_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeProcessStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProcessStability(args.ProjectKey, args.BoardID, args.IncludeRawSeries)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_process_stability", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_flow_debt",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeFlowDebtInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetFlowDebt(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.BucketSize)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_flow_debt", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "generate_cfd_data",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GenerateCFDDataInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, string(args.Granularity))
-			return handleResult(s, data, err)
+			return handleResult(s, "generate_cfd_data", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_wip_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleAnalyzeWIPStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_wip_stability", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_wip_age_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPAgeStabilityInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleAnalyzeWIPAgeStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_wip_age_stability", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_residence_time",
@@ -311,7 +311,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				granularity = "day"
 			}
 			data, err := s.handleAnalyzeResidenceTime(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.IssueTypes, granularity)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_residence_time", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_process_evolution",
@@ -321,19 +321,19 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				window = 12
 			}
 			data, err := s.handleGetProcessEvolution(args.ProjectKey, args.BoardID, window)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_process_evolution", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_yield",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeYieldInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetProcessYield(args.ProjectKey, args.BoardID)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_yield", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "workflow_discover_mapping",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowDiscoverMappingInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetWorkflowDiscovery(args.ProjectKey, args.BoardID, args.ForceRefresh)
-			return handleResult(s, data, err)
+			return handleResult(s, "workflow_discover_mapping", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "workflow_set_mapping",
@@ -358,31 +358,31 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				}
 			}
 			data, err := s.handleSetWorkflowMapping(args.ProjectKey, args.BoardID, mappingAny, resolutionsAny, args.CommitmentPoint)
-			return handleResult(s, data, err)
+			return handleResult(s, "workflow_set_mapping", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "workflow_set_order",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetOrderInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleSetWorkflowOrder(args.ProjectKey, args.BoardID, args.Order)
-			return handleResult(s, data, err)
+			return handleResult(s, "workflow_set_order", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "workflow_set_evaluation_date",
 		func(_ context.Context, _ *mcp.CallToolRequest, args WorkflowSetEvaluationDateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleSetEvaluationDate(args.ProjectKey, args.BoardID, args.Date)
-			return handleResult(s, data, err)
+			return handleResult(s, "workflow_set_evaluation_date", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_item_journey",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeItemJourneyInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetItemJourney(args.ProjectKey, args.BoardID, args.IssueKey)
-			return handleResult(s, data, err)
+			return handleResult(s, "analyze_item_journey", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "guide_diagnostic_roadmap",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GuideDiagnosticRoadmapInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetDiagnosticRoadmap(string(args.Goal))
-			return handleResult(s, data, err)
+			return handleResult(s, "guide_diagnostic_roadmap", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "forecast_backtest",
@@ -393,25 +393,25 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				args.IssueTypes, args.HistoryWindowDays,
 				args.HistoryStartDate, args.HistoryEndDate,
 			)
-			return handleResult(s, data, err)
+			return handleResult(s, "forecast_backtest", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_history_expand",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryExpandInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleCacheExpandHistory(args.ProjectKey, args.BoardID, args.Chunks)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_history_expand", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_history_update",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryUpdateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleCacheCatchUp(args.ProjectKey, args.BoardID)
-			return handleResult(s, data, err)
+			return handleResult(s, "import_history_update", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "open_in_browser",
 		func(_ context.Context, _ *mcp.CallToolRequest, args OpenInBrowserInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleOpenInBrowser(args.URL)
-			return handleResult(s, data, err)
+			return handleResult(s, "open_in_browser", data, err)
 		}))
 
 	return errors.Join(errs...)
@@ -467,9 +467,12 @@ func withPanicRecovery[In any](name string, handler func(context.Context, *mcp.C
 }
 
 // handleResult converts a (data, error) pair to the SDK's 3-return convention.
-func handleResult(s *Server, data any, err error) (*mcp.CallToolResult, any, error) {
+// For chart-eligible tools, it also pushes the result into the MRU buffer and
+// injects a chart_url into the response context.
+func handleResult(s *Server, toolName string, data any, err error) (*mcp.CallToolResult, any, error) {
 	if err != nil {
 		return formatToolError(err), nil, nil
 	}
+	data = s.injectChartURL(toolName, data)
 	return formatToolResult(s, data), nil, nil
 }

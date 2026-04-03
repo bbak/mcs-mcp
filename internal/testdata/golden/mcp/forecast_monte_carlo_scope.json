@@ -24,6 +24,7 @@
       "issues_analyzed": 56,
       "issues_total": 76,
       "modeling_insight": "Pooled: Overall process is homogeneous enough for single-stream modeling.",
+      "simulation_mode": "scope",
       "stationarity_assessment": {
         "convergence": "diverging",
         "lambda_theta_ratio": 1.34,
@@ -68,6 +69,7 @@
       ],
       "stratification_dependencies": {},
       "stratification_eligible": {},
+      "target_days": 60,
       "throughput_overall": 0.62,
       "throughput_recent": 0.9,
       "type_counts": {
