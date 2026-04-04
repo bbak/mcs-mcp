@@ -3,6 +3,8 @@ import {
   BarChart, Bar, Cell, ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -13,25 +15,7 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
-const SEVERE    = "#ff9b6b";
-
-const TYPE_COLORS = {
-  Story:    PRIMARY,
-  Activity: SECONDARY,
-  Bug:      ALARM,
-  Defect:   CAUTION,
-};
-const TYPE_FALLBACK = ["#6bffb8", "#c97eb2", "#e2a97e", "#d946ef"];
+const SEVERE = "#ff9b6b";
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -48,7 +32,6 @@ const P95       = d.summary.p95_threshold_days;
 const TOTAL     = d.summary.total_items;
 const OUTLIER_COUNT = d.summary.outlier_count;
 const STABILITY = d.summary.stability_index;
-const DIST      = d.summary.distribution;
 
 const AGING = d.aging.map(item => ({
   key:       item.key,
@@ -61,14 +44,12 @@ const AGING = d.aging.map(item => ({
 }));
 
 const sorted     = [...AGING].sort((a, b) => b.wip - a.wip);
-const oldest     = sorted[0] || { key: "—", wip: 0, status: "—" };
 const medianItem = sorted[Math.floor(sorted.length / 2)] || { wip: 0 };
 
 const presentTypes = [...new Set(AGING.map(d => d.type))].sort();
 
-// Assign colors to types not in the hardcoded map
 const typeColorMap = Object.fromEntries(
-  presentTypes.map((t, i) => [t, TYPE_COLORS[t] ?? TYPE_FALLBACK[i % TYPE_FALLBACK.length]])
+  presentTypes.map(t => [t, typeColor(t, presentTypes)])
 );
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -98,20 +79,6 @@ function siVerdict(si) {
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 const Swatch = ({ color, label }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -126,8 +93,8 @@ const RankingTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.key}</div>
       <div style={{ color: typeColorMap[d.type] || MUTED, fontSize: 11, marginBottom: 6 }}>{d.type} · {d.status}</div>
       <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
@@ -144,8 +111,8 @@ const StatusTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.fullStatus}</div>
       <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
         <div>Outliers: <span style={{ color: ALARM }}>{d.outliers}</span></div>
@@ -161,8 +128,8 @@ const TypeTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, color: typeColorMap[d.type] || TEXT, marginBottom: 6 }}>{d.type}</div>
       <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
         <div>Total WIP: {d.total}</div>
@@ -219,7 +186,7 @@ export default function WipItemAgeChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -247,7 +214,6 @@ export default function WipItemAgeChart() {
         {/* Badges + View toggles */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20, alignItems: "center" }}>
           <Badge text={`⚠ ${OUTLIER_COUNT} aging outliers — ${TOTAL > 0 ? ((OUTLIER_COUNT / TOTAL) * 100).toFixed(0) : 0}% of WIP exceeds P85`} color={ALARM} />
-          <Badge text={`Oldest: ${oldest.key} — ${oldest.wip.toFixed(0)}d in ${oldest.status}`} color={ALARM} />
           <Badge text={`P85: ${P85.toFixed(0)}d`} color={CAUTION} />
           <div style={{ flex: 1 }} />
           {["ranking", "status", "type"].map(v => (
@@ -256,7 +222,7 @@ export default function WipItemAgeChart() {
               background: view === v ? `${PRIMARY}18` : PANEL_BG,
               border: `1.5px solid ${view === v ? PRIMARY : BORDER}`,
               color: view === v ? PRIMARY : MUTED,
-              fontFamily: "'Courier New', monospace", fontWeight: 700,
+              fontFamily: FONT_STACK, fontWeight: 700,
             }}>
               {v === "ranking" ? "AGE RANKING" : v === "status" ? "BY STATUS" : "BY TYPE"}
             </button>
@@ -275,7 +241,7 @@ export default function WipItemAgeChart() {
                   background: active ? `${c}18` : PANEL_BG,
                   border: `1.5px solid ${active ? c : BORDER}`,
                   color: active ? c : MUTED,
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: FONT_STACK,
                 }}>
                   {t}
                 </button>
@@ -298,9 +264,9 @@ export default function WipItemAgeChart() {
                   margin={{ top: 4, right: 80, bottom: 4, left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
                   <XAxis type="number" tickFormatter={v => v + "d"}
-                    tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                    tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <YAxis type="category" dataKey="key" width={138}
-                    tick={{ fill: MUTED, fontSize: 9, fontFamily: "'Courier New', monospace" }} />
+                    tick={{ fill: MUTED, fontSize: 9, fontFamily: FONT_STACK }} />
                   <Tooltip content={<RankingTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="wip" radius={[0, 3, 3, 0]} isAnimationActive={false}>
                     {filtered.map((d, i) => (
@@ -348,8 +314,8 @@ export default function WipItemAgeChart() {
                 <BarChart data={byStatus}>
                   <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                   <XAxis dataKey="status" angle={-35} textAnchor="end" height={70}
-                    tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
-                  <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                    tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+                  <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <Tooltip content={<StatusTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="outliers" stackId="s" fill={ALARM}   fillOpacity={0.85} isAnimationActive={false} />
                   <Bar dataKey="normal"   stackId="s" fill={PRIMARY} fillOpacity={0.5}  radius={[3, 3, 0, 0]} isAnimationActive={false} />
@@ -371,8 +337,8 @@ export default function WipItemAgeChart() {
                 <BarChart data={byType}>
                   <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                   <XAxis dataKey="type"
-                    tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
-                  <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                    tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+                  <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <Tooltip content={<TypeTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="outliers" stackId="t" fill={ALARM}   fillOpacity={0.85} isAnimationActive={false} />
                   <Bar dataKey="normal"   stackId="t" fill={PRIMARY} fillOpacity={0.5}  radius={[3, 3, 0, 0]} isAnimationActive={false} />

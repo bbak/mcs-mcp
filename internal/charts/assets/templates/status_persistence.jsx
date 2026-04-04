@@ -2,6 +2,8 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, tierColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -12,21 +14,7 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
-
-const TIER_COLORS = { Demand: CAUTION, Upstream: PRIMARY, Downstream: SECONDARY };
 const ROLE_COLORS = { active: SECONDARY, queue: ALARM };
-
-const ISSUE_TYPE_PALETTE = [PRIMARY, ALARM, SECONDARY, CAUTION, POSITIVE, "#f97316"];
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +40,7 @@ const STRATIFIED = Object.fromEntries(
 );
 
 const ISSUE_TYPE_COLORS = Object.fromEntries(
-  ALL_ISSUE_TYPES.map((t, i) => [t, ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length]])
+  ALL_ISSUE_TYPES.map(t => [t, typeColor(t, ALL_ISSUE_TYPES)])
 );
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -107,31 +95,17 @@ const maxTypeP85 = Math.max(
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 function TierTick({ x, y, payload }) {
   const row = POOL_DATA.find(dd => dd.statusName === payload.value);
-  const tierColor = row ? TIER_COLORS[row.tier] || MUTED : MUTED;
+  const tierColor = row ? tierColor(row.tier) || MUTED : MUTED;
   const roleColor = row ? ROLE_COLORS[row.role] || MUTED : MUTED;
   return (
     <g transform={`translate(${x},${y})`}>
       <circle cx={-8} cy={0} r={3} fill={tierColor} opacity={0.8} />
       <text x={-16} y={0} dy={4} textAnchor="end"
         fill={roleColor} fontSize={10}
-        fontFamily="'Courier New', monospace">{abbrev(payload.value)}</text>
+        fontFamily={FONT_STACK}>{abbrev(payload.value)}</text>
     </g>
   );
 }
@@ -140,11 +114,11 @@ const PoolTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const dd = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{dd.statusName}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
-        <span style={{ color: TIER_COLORS[dd.tier] || MUTED }}>Tier</span><span>{dd.tier}</span>
+        <span style={{ color: tierColor(dd.tier) }}>Tier</span><span>{dd.tier}</span>
         <span style={{ color: ROLE_COLORS[dd.role] || MUTED }}>Role</span><span>{dd.role}</span>
         <span style={{ color: MUTED }}>Share</span><span>{Math.round(dd.share * 100)}%</span>
         <span style={{ color: SECONDARY }}>P50</span><span>{dd.coin_toss}d</span>
@@ -162,8 +136,8 @@ const StratTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   const row = typeChartData.find(dd => dd.label === label);
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{row?.statusName || label}</div>
       {ALL_ISSUE_TYPES.map(t => {
         const v = row?.[t];
@@ -183,7 +157,7 @@ const StratTooltip = ({ active, payload, label }) => {
 export default function StatusPersistenceChart() {
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -223,7 +197,7 @@ export default function StatusPersistenceChart() {
           {["Demand", "Upstream", "Downstream"].map(tier => {
             const ts = TIER_SUMMARY[tier];
             if (!ts) return null;
-            const tc = TIER_COLORS[tier];
+            const tc = tierColor(tier);
             return (
               <div key={tier} style={{ flex: "1 1 200px", background: PAGE_BG,
                 border: `1px solid ${tc}4d`, borderRadius: 10, padding: "14px 16px" }}>
@@ -250,7 +224,7 @@ export default function StatusPersistenceChart() {
               margin={{ top: 4, right: 80, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
               <XAxis type="number" domain={[0, maxPoolP95 * 1.05]} tickFormatter={v => `${v}d`}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="statusName" width={200}
                 tick={<TierTick />} />
               <Tooltip content={<PoolTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
@@ -281,7 +255,7 @@ export default function StatusPersistenceChart() {
             <div style={{ width: 1, height: 14, background: BORDER }} />
             {["Demand", "Upstream", "Downstream"].map(tier => (
               <div key={tier} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={10} height={10}><circle cx={5} cy={5} r={3} fill={TIER_COLORS[tier]} opacity={0.8} /></svg>
+                <svg width={10} height={10}><circle cx={5} cy={5} r={3} fill={tierColor(tier)} opacity={0.8} /></svg>
                 <span style={{ fontSize: 10, color: MUTED }}>{tier}</span>
               </div>
             ))}
@@ -301,9 +275,9 @@ export default function StatusPersistenceChart() {
                 margin={{ top: 4, right: 80, left: 10, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
                 <XAxis type="number" domain={[0, maxTypeP85 * 1.05]} tickFormatter={v => `${v}d`}
-                  tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                  tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                 <YAxis type="category" dataKey="label" width={200}
-                  tick={{ fill: TEXT, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                  tick={{ fill: TEXT, fontSize: 10, fontFamily: FONT_STACK }} />
                 <Tooltip content={<StratTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
                 {ALL_ISSUE_TYPES.map(t => (
                   <Bar key={t} dataKey={t} barSize={7} radius={[0, 3, 3, 0]}

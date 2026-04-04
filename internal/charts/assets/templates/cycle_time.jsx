@@ -3,6 +3,8 @@ import {
   ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, percColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -13,27 +15,6 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
-
-const PERC_COLORS = {
-  aggressive:     POSITIVE,
-  unlikely:       "#4ade80",
-  coin_toss:      SECONDARY,
-  probable:       PRIMARY,
-  likely:         CAUTION,
-  conservative:   "#f97316",
-  safe:           ALARM,
-  almost_certain: "#c026d3",
-};
 
 const PERC_KEYS = [
   "aggressive","unlikely","coin_toss","probable",
@@ -51,10 +32,6 @@ const PERC_SHORT = {
   almost_certain: "P98 · Almost Certain",
 };
 
-const ISSUE_TYPE_PALETTE = [
-  "#6b7de8","#ff6b6b","#7edde2","#e2c97e",
-  "#6bffb8","#f97316","#8b5cf6","#ec4899",
-];
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -89,7 +66,7 @@ const TYPE_SLES = Object.fromEntries(
   }])
 );
 const ISSUE_TYPE_COLORS = Object.fromEntries(
-  ALL_ISSUE_TYPES.map((t, i) => [t, ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length]])
+  ALL_ISSUE_TYPES.map(t => [t, typeColor(t, ALL_ISSUE_TYPES)])
 );
 
 const eligibleTypes   = ALL_ISSUE_TYPES.filter(t => TYPE_SLES[t].eligible);
@@ -102,7 +79,7 @@ const poolData = PERC_KEYS.map(k => ({
   key:   k,
   label: PERC_SHORT[k],
   days:  round1(POOL[k]),
-  color: PERC_COLORS[k],
+  color: percColor(k),
   isSLE: k === "likely",
 }));
 
@@ -145,8 +122,7 @@ const scatterInterval = Math.max(1, Math.floor(scatterData.length / 9));
 
 const ScatterDot = ({ cx, cy, payload }) => {
   if (!cx || !cy) return null;
-  const typeIdx = ALL_ISSUE_TYPES.indexOf(payload.issueType);
-  const color = ISSUE_TYPE_PALETTE[typeIdx >= 0 ? typeIdx % ISSUE_TYPE_PALETTE.length : 0];
+  const color = ISSUE_TYPE_COLORS[payload.issueType] ?? PRIMARY;
   if (payload.aboveSLE)
     return <circle cx={cx} cy={cy} r={4} fill={color} stroke={CAUTION} strokeWidth={1.5}/>;
   return <circle cx={cx} cy={cy} r={2.5} fill={color} fillOpacity={0.5} stroke="none"/>;
@@ -155,11 +131,10 @@ const ScatterDot = ({ cx, cy, payload }) => {
 const ScatterTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const pt = payload[0].payload;
-  const typeIdx = ALL_ISSUE_TYPES.indexOf(pt.issueType);
-  const color = ISSUE_TYPE_PALETTE[typeIdx >= 0 ? typeIdx % ISSUE_TYPE_PALETTE.length : 0];
+  const color = ISSUE_TYPE_COLORS[pt.issueType] ?? PRIMARY;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{pt.key}</div>
       <div style={{ color: MUTED, marginBottom: 6 }}>{formatDate(pt.date)}</div>
       <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
@@ -181,27 +156,13 @@ const predColor = (PREDICTABILITY || "").toLowerCase().includes("unstable") ||
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 const PoolTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, color: d.color, marginBottom: 4 }}>{d.label}</div>
       <div>{d.days}d</div>
       {d.isSLE && <div style={{ color: CAUTION, marginTop: 4 }}>← canonical SLE</div>}
@@ -212,8 +173,8 @@ const PoolTooltip = ({ active, payload }) => {
 const TypeTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
       {eligibleTypes.map(t => {
         const v = payload.find(p => p.dataKey === t)?.value;
@@ -235,7 +196,7 @@ export default function CycleTimeSleChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -250,9 +211,9 @@ export default function CycleTimeSleChart() {
 
         {/* Stat cards */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-          <StatCard label="P50 MEDIAN"   value={`${round1(POOL.coin_toss)}d`}  color={SECONDARY} />
-          <StatCard label="P85 SLE"      value={`${P85}d`}                      color={CAUTION} />
-          <StatCard label="P95 SAFE BET" value={`${round1(POOL.safe)}d`}        color={ALARM} />
+          <StatCard label="P50 MEDIAN"   value={`${round1(POOL.coin_toss)}d`}  color={percColor("coin_toss")} />
+          <StatCard label="P85 SLE"      value={`${P85}d`}                      color={percColor("likely")} />
+          <StatCard label="P95 SAFE BET" value={`${round1(POOL.safe)}d`}        color={percColor("safe")} />
           <StatCard label="FAT-TAIL ×"   value={`${FAT_TAIL_RATIO}×`}
             sub="≥5.6 = extreme"                                                 color={ALARM} />
           <StatCard label="ANALYZED"     value={`${ISSUES_ANALYZED} / ${ISSUES_TOTAL}`}
@@ -286,20 +247,20 @@ export default function CycleTimeSleChart() {
               background: `${PRIMARY}4d`, borderRadius: 3 }} />
             {/* P50 tick */}
             <div style={{ position: "absolute", top: 0, bottom: 0, width: 2,
-              left: scale(round1(POOL.coin_toss)), background: SECONDARY }} />
+              left: scale(round1(POOL.coin_toss)), background: percColor("coin_toss") }} />
             {/* P85 tick */}
             <div style={{ position: "absolute", top: 0, bottom: 0, width: 2,
-              left: scale(P85), background: CAUTION }} />
+              left: scale(P85), background: percColor("likely") }} />
             {/* P98 tick */}
             <div style={{ position: "absolute", top: 0, bottom: 0, width: 2,
-              right: 0, background: ALARM }} />
+              right: 0, background: percColor("almost_certain") }} />
           </div>
 
           <div style={{ display: "flex", gap: 16, justifyContent: "center", fontSize: 10, color: MUTED }}>
-            <span><span style={{ color: POSITIVE }}>●</span> P10</span>
-            <span><span style={{ color: SECONDARY }}>●</span> P50</span>
-            <span><span style={{ color: CAUTION }}>●</span> P85</span>
-            <span><span style={{ color: ALARM }}>●</span> P98</span>
+            <span><span style={{ color: percColor("aggressive") }}>●</span> P10</span>
+            <span><span style={{ color: percColor("coin_toss") }}>●</span> P50</span>
+            <span><span style={{ color: percColor("likely") }}>●</span> P85</span>
+            <span><span style={{ color: percColor("almost_certain") }}>●</span> P98</span>
           </div>
         </div>
 
@@ -314,17 +275,17 @@ export default function CycleTimeSleChart() {
               margin={{ top: 4, right: 80, left: 140, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
               <XAxis type="number" domain={[0, P98 * 1.05]} tickFormatter={v => `${v}d`}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="label" width={130}
-                tick={{ fill: TEXT, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: TEXT, fontSize: 10, fontFamily: FONT_STACK }} />
               <Tooltip content={<PoolTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="days" radius={[0, 4, 4, 0]} barSize={22} isAnimationActive={false}>
                 {poolData.map((d, i) => (
                   <Cell key={`cell-${i}`} fill={d.color} fillOpacity={d.isSLE ? 1.0 : 0.55} />
                 ))}
               </Bar>
-              <ReferenceLine x={P85} stroke={CAUTION} strokeDasharray="4 3" strokeWidth={1.5}
-                label={{ value: `SLE ${P85}d`, fill: CAUTION, fontSize: 10, position: "right" }} />
+              <ReferenceLine x={P85} stroke={percColor("likely")} strokeDasharray="4 3" strokeWidth={1.5}
+                label={{ value: `SLE ${P85}d`, fill: percColor("likely"), fontSize: 10, position: "right" }} />
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "flex", gap: 16, justifyContent: "center", fontSize: 10, color: MUTED, marginTop: 6 }}>
@@ -345,13 +306,13 @@ export default function CycleTimeSleChart() {
                 margin={{ top: 4, right: 80, left: 140, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
                 <XAxis type="number" domain={[0, maxTypeP98 * 1.05]} tickFormatter={v => `${v}d`}
-                  tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                  tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                 <YAxis type="category" dataKey="label" width={130}
                   tick={({ x, y, payload }) => (
                     <text x={x} y={y} dy={4} textAnchor="end"
-                      fill={payload.value === PERC_SHORT.likely ? CAUTION : TEXT}
+                      fill={payload.value === PERC_SHORT.likely ? percColor("likely") : TEXT}
                       fontWeight={payload.value === PERC_SHORT.likely ? 700 : 400}
-                      fontSize={10} fontFamily="'Courier New', monospace">
+                      fontSize={10} fontFamily={FONT_STACK}>
                       {payload.value}
                     </text>
                   )} />
@@ -403,41 +364,41 @@ export default function CycleTimeSleChart() {
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={formatDate} interval={scatterInterval}
                   angle={-45} textAnchor="end" height={60}
-                  tick={{ fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
                 <YAxis domain={[0, scatterYMax]} tickFormatter={v => `${v}d`}
-                  tick={{ fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
                   label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
-                    fill: MUTED, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                    fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
                 <Tooltip content={<ScatterTooltip />} />
-                <ReferenceLine y={P50} stroke={SECONDARY} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P50 ${P50}d`, fill: SECONDARY, fontSize: 10,
-                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
-                <ReferenceLine y={P70} stroke={PRIMARY} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P70 ${P70}d`, fill: PRIMARY, fontSize: 10,
-                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
-                <ReferenceLine y={P85} stroke={CAUTION} strokeDasharray="6 3" strokeWidth={1.5}
-                  label={{ value: `P85 SLE ${P85}d`, fill: CAUTION, fontSize: 10,
-                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
-                <ReferenceLine y={P95} stroke={ALARM} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P95 ${P95}d`, fill: ALARM, fontSize: 10,
-                    fontFamily: "'Courier New', monospace", position: "insideTopRight" }} />
+                <ReferenceLine y={P50} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P50 ${P50}d`, fill: percColor("coin_toss"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P70} stroke={percColor("probable")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P70 ${P70}d`, fill: percColor("probable"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P85} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}
+                  label={{ value: `P85 SLE ${P85}d`, fill: percColor("likely"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P95} stroke={percColor("safe")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P95 ${P95}d`, fill: percColor("safe"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
                 <Scatter dataKey="value" shape={<ScatterDot />} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
-              {ALL_ISSUE_TYPES.map((t, i) => (
+              {ALL_ISSUE_TYPES.map(t => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <div style={{ width: 10, height: 10, borderRadius: "50%",
-                    background: ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length] }} />
+                    background: ISSUE_TYPE_COLORS[t] ?? PRIMARY }} />
                   <span style={{ fontSize: 10, color: MUTED }}>{t}</span>
                 </div>
               ))}
               {[
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P50 Median" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={PRIMARY} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P70 Probable" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={CAUTION} strokeDasharray="6 3" strokeWidth={1.5}/>, label: "P85 SLE" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={ALARM} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P95 Safe Bet" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P50 Median" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("probable")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P70 Probable" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}/>, label: "P85 SLE" },
+                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("safe")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P95 Safe Bet" },
               ].map(({ svg, label }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <svg width={24} height={12}>{svg}</svg>

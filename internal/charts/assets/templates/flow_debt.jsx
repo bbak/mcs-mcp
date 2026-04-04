@@ -3,6 +3,8 @@ import {
   ComposedChart, Bar, Line, Area, ReferenceLine,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -12,18 +14,6 @@ const __MCS_DATA__ = __MCS_ENVELOPE__.data;
 const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const MUTED_DK  = "#4a5270";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -52,21 +42,6 @@ const round1 = v => Math.round((v || 0) * 10) / 10;
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
-
 const debtDotColor = d => d > 0 ? ALARM : d < 0 ? POSITIVE : MUTED;
 
 const MainTooltip = ({ active, payload }) => {
@@ -74,8 +49,8 @@ const MainTooltip = ({ active, payload }) => {
   const d = payload[0].payload;
   const dc = debtDotColor(d.debt);
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.label}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
         <span style={{ color: PRIMARY }}>Arrivals</span><span>{d.arrivals}</span>
@@ -93,8 +68,8 @@ const CumTooltip = ({ active, payload }) => {
   const wc = debtDotColor(d.debt);
   const cc = debtDotColor(d.cumDebt);
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.label}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
         <span style={{ color: wc }}>Week debt</span>
@@ -132,7 +107,7 @@ export default function FlowDebtChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -174,14 +149,14 @@ export default function FlowDebtChart() {
             <ComposedChart data={enriched} margin={{ top: 8, right: 24, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="short" tickFormatter={xTick}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis yAxisId="vol" domain={[0, maxVol * 1.15]}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "items", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 10 }} />
               <YAxis yAxisId="debt" orientation="right"
-                domain={[-debtExtent * 1.2, debtExtent * 1.2]}
-                tick={{ fill: CAUTION, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                domain={[round1(-debtExtent * 1.2), round1(debtExtent * 1.2)]}
+                tick={{ fill: CAUTION, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "debt", angle: 90, position: "insideRight",
                   fill: CAUTION, fontSize: 10, dy: -20 }} />
               <ReferenceLine yAxisId="debt" y={0} stroke={MUTED} strokeDasharray="4 4" />
@@ -237,12 +212,12 @@ export default function FlowDebtChart() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="short" tickFormatter={xTick}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
-              <YAxis domain={[-cumExtent * 1.2, cumExtent * 1.2]}
-                tick={{ fill: ALARM, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+              <YAxis domain={[round1(-cumExtent * 1.2), round1(cumExtent * 1.2)]}
+                tick={{ fill: ALARM, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "cumulative debt", angle: -90, position: "insideLeft",
                   fill: ALARM, fontSize: 10, dy: 50 }} />
-              <ReferenceLine y={0} stroke={MUTED_DK} strokeDasharray="4 4" />
+              <ReferenceLine y={0} stroke={MUTED} strokeDasharray="4 4" />
               <Tooltip content={<CumTooltip />} />
               <Area dataKey="cumDebt" type="monotone"
                 stroke={ALARM} strokeWidth={2} fill="url(#cumGrad)"
