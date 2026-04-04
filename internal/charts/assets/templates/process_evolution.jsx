@@ -4,6 +4,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Customized,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, XMR_UNPL, XMR_MEAN, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -14,15 +16,6 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -85,26 +78,12 @@ const avgBarData = SUBGROUPS.map((sg, idx) => ({
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
-
 const DotTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "8px 12px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "8px 12px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.label}</div>
       <div>Cycle Time: <b>{d.y.toFixed(1)}d</b></div>
     </div>
@@ -158,7 +137,7 @@ export default function ProcessEvolutionChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -173,8 +152,8 @@ export default function ProcessEvolutionChart() {
 
         {/* Stat cards */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-          <StatCard label="PROCESS AVG (X̄)" value={`${MEAN.toFixed(1)}d`} color={PRIMARY} />
-          <StatCard label="UNPL"             value={`${UNPL.toFixed(1)}d`} color={ALARM} />
+          <StatCard label="PROCESS AVG (X̄)" value={`${MEAN.toFixed(1)}d`} color={XMR_MEAN} />
+          <StatCard label="UNPL"             value={`${UNPL.toFixed(1)}d`} color={XMR_UNPL} />
           <StatCard label="ITEMS"            value={totalItems}            color={SECONDARY} />
           <StatCard label="MONTHS"           value={SUBGROUPS.length}      color={MUTED} />
         </div>
@@ -191,7 +170,7 @@ export default function ProcessEvolutionChart() {
             background: showLog ? `${SECONDARY}18` : BORDER,
             border: `1.5px solid ${showLog ? SECONDARY : "#404660"}`,
             color: showLog ? SECONDARY : TEXT,
-            fontFamily: "'Courier New', monospace", fontWeight: 700,
+            fontFamily: FONT_STACK, fontWeight: 700,
           }}>
             {showLog ? "▾ Log Scale" : "▾ Linear Scale"}
           </button>
@@ -210,7 +189,7 @@ export default function ProcessEvolutionChart() {
                 ticks={SUBGROUPS.map((_, i) => i)}
                 tickFormatter={i => shortLabel(SUBGROUPS[i]?.label || "")}
                 angle={-45} textAnchor="end" height={60}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="number"
                 dataKey="y"
                 name="y"
@@ -218,9 +197,9 @@ export default function ProcessEvolutionChart() {
                 domain={showLog ? [0.5, 1000] : [0, linearYMax]}
                 allowDataOverflow
                 tickFormatter={v => `${v}d`}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
-                  fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                  fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <Tooltip content={<DotTooltip />} cursor={false} />
 
               {HAS_SHIFT && (
@@ -230,12 +209,12 @@ export default function ProcessEvolutionChart() {
                   stroke={CAUTION} strokeDasharray="4 4" strokeOpacity={0.3} />
               )}
 
-              <ReferenceLine y={UNPL} stroke={ALARM} strokeDasharray="6 3" strokeWidth={1.5}
-                label={{ value: `UNPL ${UNPL.toFixed(1)}d`, fill: ALARM,
-                  fontSize: 10, position: "right", fontFamily: "'Courier New', monospace" }} />
-              <ReferenceLine y={MEAN} stroke={PRIMARY} strokeDasharray="4 4" strokeWidth={1.5}
-                label={{ value: `X̄ ${MEAN.toFixed(1)}d`, fill: PRIMARY,
-                  fontSize: 10, position: "right", fontFamily: "'Courier New', monospace" }} />
+              <ReferenceLine y={UNPL} stroke={XMR_UNPL} strokeDasharray="6 3" strokeWidth={1.5}
+                label={{ value: `UNPL ${UNPL.toFixed(1)}d`, fill: XMR_UNPL,
+                  fontSize: 10, position: "right", fontFamily: FONT_STACK }} />
+              <ReferenceLine y={MEAN} stroke={XMR_MEAN} strokeDasharray="4 4" strokeWidth={1.5}
+                label={{ value: `X̄ ${MEAN.toFixed(1)}d`, fill: XMR_MEAN,
+                  fontSize: 10, position: "right", fontFamily: FONT_STACK }} />
 
               <Scatter data={dots} shape={DotShape} isAnimationActive={false} />
 
@@ -271,8 +250,8 @@ export default function ProcessEvolutionChart() {
             ))}
             <div style={{ width: 1, height: 14, background: BORDER }} />
             {[
-              { stroke: PRIMARY, dash: "4 4", label: "X̄ avg" },
-              { stroke: ALARM,   dash: "6 3", label: "UNPL" },
+              { stroke: XMR_MEAN, dash: "4 4", label: "X̄ avg" },
+              { stroke: XMR_UNPL, dash: "6 3", label: "UNPL" },
             ].map(({ stroke, dash, label }) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <svg width={24} height={12}>

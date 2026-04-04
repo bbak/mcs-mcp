@@ -82,14 +82,16 @@ createRoot(document.getElementById("root")).render(React.createElement(Chart));
 	return buildHTML(Title(toolName), string(payloadJSON), string(vendorJS), bundleJS), nil
 }
 
-// templatePlugin returns an esbuild plugin that resolves the template file
-// import from the synthesized entry point to the embedded JSX content.
+// templatePlugin returns an esbuild plugin that resolves the primary template
+// file import and any relative sibling .jsx imports (e.g. ./shared.jsx) from
+// the embedded FS.
 func templatePlugin(filename string, content []byte) api.Plugin {
 	return api.Plugin{
 		Name: "mcs-template",
 		Setup: func(build api.PluginBuild) {
-			filter := fmt.Sprintf(`\./%s$`, strings.ReplaceAll(filename, ".", `\.`))
-			build.OnResolve(api.OnResolveOptions{Filter: filter},
+			// Intercept the primary template import (e.g. ./cycle_time.jsx).
+			primaryFilter := fmt.Sprintf(`\./%s$`, strings.ReplaceAll(filename, ".", `\.`))
+			build.OnResolve(api.OnResolveOptions{Filter: primaryFilter},
 				func(args api.OnResolveArgs) (api.OnResolveResult, error) {
 					return api.OnResolveResult{
 						Path:      filename,
@@ -97,9 +99,29 @@ func templatePlugin(filename string, content []byte) api.Plugin {
 					}, nil
 				},
 			)
+			// Intercept any other relative .jsx sibling import (e.g. ./shared.jsx).
+			build.OnResolve(api.OnResolveOptions{Filter: `^\./[^/]+\.jsx$`},
+				func(args api.OnResolveArgs) (api.OnResolveResult, error) {
+					return api.OnResolveResult{
+						Path:      strings.TrimPrefix(args.Path, "./"),
+						Namespace: "mcs-template",
+					}, nil
+				},
+			)
+			// Load handler: serve the primary template from the pre-read content
+			// buffer; load any other file directly from the embedded FS.
 			build.OnLoad(api.OnLoadOptions{Filter: `.*`, Namespace: "mcs-template"},
 				func(args api.OnLoadArgs) (api.OnLoadResult, error) {
-					c := string(content)
+					var c string
+					if args.Path == filename {
+						c = string(content)
+					} else {
+						b, err := templatesFS.ReadFile("assets/templates/" + args.Path)
+						if err != nil {
+							return api.OnLoadResult{}, fmt.Errorf("load shared template %s: %w", args.Path, err)
+						}
+						c = string(b)
+					}
 					return api.OnLoadResult{
 						Contents: &c,
 						Loader:   api.LoaderJSX,
@@ -124,14 +146,7 @@ func buildHTML(title, payloadJSON, vendorScript, chartBundle string) string {
 	b.WriteString(`</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #root {
-    height: 100%; width: 100%;
-    background: #080a0f; color: #dde1ef;
-    font-family: 'JetBrains Mono', 'Aptos Mono', 'Cascadia Code', Menlo, monospace;
-    font-size: 13px;
-    -webkit-font-smoothing: antialiased;
-  }
-  #root { padding: 24px; }
+  html, body, #root { height: 100%; width: 100%; -webkit-font-smoothing: antialiased; }
 </style>
 </head>
 <body>

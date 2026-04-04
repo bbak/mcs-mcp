@@ -2,6 +2,8 @@ import {
   ComposedChart, Bar, Cell, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -12,16 +14,6 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
 
 function accuracyColor(score) {
   if (score >= 0.80) return POSITIVE;
@@ -59,20 +51,6 @@ const isDuration = false;
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 function Swatch({ color, label, dashed }) {
   return (
@@ -86,7 +64,7 @@ function Swatch({ color, label, dashed }) {
             borderRadius: 2, opacity: 0.85 }} />
       }
       <span style={{ fontSize: 11, color: MUTED,
-        fontFamily: "'Courier New', monospace" }}>{label}</span>
+        fontFamily: FONT_STACK }}>{label}</span>
     </div>
   );
 }
@@ -121,8 +99,8 @@ function BacktestPanel({ data, isDuration }) {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (
-      <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-        padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+      <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+        padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.date}</div>
         <div style={{ color: d.hit ? POSITIVE : ALARM, fontWeight: 700 }}>
           Actual: {d.actual.toFixed(1)}{unitLong}
@@ -203,10 +181,10 @@ function BacktestPanel({ data, isDuration }) {
             margin={{ top: 8, right: 20, left: 10, bottom: 50 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
             <XAxis dataKey="date" tickFormatter={shortDate}
-              tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+              tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
               angle={-45} textAnchor="end" height={50} interval={1} />
             <YAxis domain={[0, yMax]} tickFormatter={v => `${v}${unitShort}`}
-              tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+              tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
             <Tooltip content={<CheckpointTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
             <Bar dataKey="actual" barSize={16} radius={[3, 3, 0, 0]} isAnimationActive={false}>
               {chartData.map((d, i) => (
@@ -276,7 +254,7 @@ export default function BacktestChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}

@@ -2,6 +2,8 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, tierColor, severityColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -11,21 +13,6 @@ const __MCS_DATA__ = __MCS_ENVELOPE__.data;
 const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
-
-const TIER_COLORS     = { Demand: CAUTION, Upstream: PRIMARY, Downstream: ALARM };
-const SEVERITY_COLORS = { Low: POSITIVE, Medium: CAUTION, High: ALARM };
-const ISSUE_TYPE_PALETTE = [PRIMARY, ALARM, SECONDARY, CAUTION, POSITIVE, "#f97316"];
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -40,7 +27,7 @@ const STRATIFIED = dd.stratified;
 const ALL_ISSUE_TYPES = Object.keys(STRATIFIED);
 
 const ISSUE_TYPE_COLORS = Object.fromEntries(
-  ALL_ISSUE_TYPES.map((t, i) => [t, ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length]])
+  ALL_ISSUE_TYPES.map(t => [t, typeColor(t, ALL_ISSUE_TYPES)])
 );
 
 const inFlight = POOL.totalIngested - POOL.deliveredCount - POOL.abandonedCount;
@@ -76,20 +63,6 @@ const maxLoss = Math.max(...lossRows.map(r => tiers.reduce((s, t) => s + r[t], 0
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 const YieldDonut = ({ data, size = 64 }) => {
   const other = data.totalIngested - data.deliveredCount - data.abandonedCount;
@@ -122,8 +95,8 @@ const LossTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.type}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
         <span style={{ color: MUTED }}>Ingested</span><span>{d.totalIngested}</span>
@@ -140,19 +113,19 @@ const BreakdownTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.type}</div>
       {tiers.map(tier => {
         if (!d[tier]) return null;
         const sev = d[`${tier}_sev`];
         return (
           <div key={tier} style={{ marginBottom: 4 }}>
-            <div style={{ color: TIER_COLORS[tier] }}>
+            <div style={{ color: tierColor(tier) }}>
               {tier}: {d[tier]} items ({pct(d[`${tier}_pct`])})
             </div>
             {sev && (
-              <div style={{ fontSize: 10, color: SEVERITY_COLORS[sev] || MUTED }}>
+              <div style={{ fontSize: 10, color: severityColor(sev) }}>
                 severity: {sev} · avg age {d[`${tier}_avgAge`]?.toFixed(0)}d
               </div>
             )}
@@ -170,7 +143,7 @@ export default function YieldChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -215,9 +188,9 @@ export default function YieldChart() {
               margin={{ top: 4, right: 60, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
               <XAxis type="number" domain={[0, 1]} tickFormatter={v => `${Math.round(v * 100)}%`}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="type" width={70}
-                tick={{ fill: TEXT, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
               <Tooltip content={<LossTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="overallYieldRate" barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {yieldData.map((d, i) => (
@@ -244,21 +217,21 @@ export default function YieldChart() {
               margin={{ top: 4, right: 60, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
               <XAxis type="number" domain={[0, maxLoss * 1.2]}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "abandoned items", position: "insideBottom", offset: -2,
                   fill: MUTED, fontSize: 10 }} />
               <YAxis type="category" dataKey="type" width={70}
-                tick={{ fill: TEXT, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
               <Tooltip content={<BreakdownTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
-              <Bar dataKey="Demand"     stackId="a" fill={TIER_COLORS.Demand}     fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="Upstream"   stackId="a" fill={TIER_COLORS.Upstream}   fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="Downstream" stackId="a" fill={TIER_COLORS.Downstream} fillOpacity={0.75} barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false} />
+              <Bar dataKey="Demand"     stackId="a" fill={tierColor("Demand")}     fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="Upstream"   stackId="a" fill={tierColor("Upstream")}   fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="Downstream" stackId="a" fill={tierColor("Downstream")} fillOpacity={0.75} barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
             {tiers.map(tier => (
               <div key={tier} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 10, background: TIER_COLORS[tier], borderRadius: 2, opacity: 0.75 }} />
+                <div style={{ width: 14, height: 10, background: tierColor(tier), borderRadius: 2, opacity: 0.75 }} />
                 <span style={{ fontSize: 10, color: MUTED }}>{tier}</span>
               </div>
             ))}
@@ -289,16 +262,16 @@ export default function YieldChart() {
                 {(td.lossPoints || []).map(lp => (
                   <div key={lp.tier} style={{ marginBottom: 6 }}>
                     <div style={{ fontSize: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ color: TIER_COLORS[lp.tier] }}>{lp.tier}</span>
+                      <span style={{ color: tierColor(lp.tier) }}>{lp.tier}</span>
                       <span style={{ color: MUTED }}>{lp.count} · {pct(lp.percentage)}</span>
                       {lp.avgAge != null && <span style={{ color: MUTED }}>avg {lp.avgAge.toFixed(0)}d</span>}
-                      <span style={{ color: SEVERITY_COLORS[lp.severity] || MUTED }}>{lp.severity}</span>
+                      <span style={{ color: severityColor(lp.severity) }}>{lp.severity}</span>
                     </div>
                     <div style={{ height: 4, borderRadius: 2, marginTop: 3,
                       background: BORDER, overflow: "hidden" }}>
                       <div style={{ height: "100%", borderRadius: 2,
                         width: `${Math.min(lp.percentage / 0.15 * 100, 100)}%`,
-                        background: SEVERITY_COLORS[lp.severity] || MUTED, opacity: 0.7 }} />
+                        background: severityColor(lp.severity), opacity: 0.7 }} />
                     </div>
                   </div>
                 ))}

@@ -2,6 +2,8 @@ import {
   BarChart, Bar, Cell, ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, percColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -12,21 +14,7 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
 
-const PERC_COLORS = {
-  aggressive: ALARM, unlikely: CAUTION, coin_toss: CAUTION, probable: PRIMARY,
-  likely: POSITIVE, conservative: POSITIVE, safe: POSITIVE, almost_certain: POSITIVE,
-};
 const PERC_ORDER = [
   "aggressive","unlikely","coin_toss","probable",
   "likely","conservative","safe","almost_certain",
@@ -68,30 +56,15 @@ const TARGET_DAYS = SIM.context?.target_days || null;
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, sub, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-    {sub && <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{sub}</div>}
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
-
 const PercTooltip = ({ active, payload, isDuration, labels }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
-      <div style={{ fontWeight: 700, color: PERC_COLORS[d.key], marginBottom: 2 }}>{d.label}</div>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
+      <div style={{ fontWeight: 700, color: percColor(d.key), marginBottom: 2 }}>{d.label}</div>
       <div style={{ fontSize: 10, color: MUTED, marginBottom: 6 }}>{labels?.[d.key] || ""}</div>
-      <div style={{ color: PERC_COLORS[d.key] }}>{d.value}{d.unit}</div>
+      <div style={{ color: percColor(d.key) }}>{d.value}{d.unit}</div>
     </div>
   );
 };
@@ -120,7 +93,7 @@ export default function MonteCarloChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -197,27 +170,29 @@ export default function MonteCarloChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
               <XAxis type="number" domain={[0, maxPerc * 1.1]}
                 tickFormatter={isDuration ? (v => `${v}d`) : (v => `${v}`)}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="label" width={36}
-                tick={{ fill: TEXT, fontSize: 11, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
               <Tooltip content={<PercTooltip isDuration={isDuration} labels={SIM.labels} />}
                 cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {percData.map((d, i) => (
-                  <Cell key={`cell-${i}`} fill={PERC_COLORS[d.key]} fillOpacity={0.8} />
+                  <Cell key={`cell-${i}`} fill={percColor(d.key)} fillOpacity={0.8} />
                 ))}
               </Bar>
-              <ReferenceLine x={SIM.percentiles.likely} stroke={CAUTION} strokeDasharray="4 4"
+              <ReferenceLine x={SIM.percentiles.likely} stroke={percColor("likely")} strokeDasharray="4 4"
                 label={{ value: `P85: ${SIM.percentiles.likely}${isDuration ? "d" : ""}`, position: "top",
-                  fill: CAUTION, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                  fill: percColor("likely"), fontSize: 10, fontFamily: FONT_STACK }} />
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
             {[
-              { color: ALARM,    label: "P10 — Aggressive / high risk" },
-              { color: CAUTION,  label: "P30–P50 — Unlikely to median" },
-              { color: PRIMARY,  label: "P70 — Probable" },
-              { color: POSITIVE, label: "P85–P98 — Likely to near-certain" },
+              { color: percColor("aggressive"), label: "P10 — Aggressive / low risk" },
+              { color: percColor("unlikely"),   label: "P30 — Unlikely" },
+              { color: percColor("coin_toss"),  label: "P50 — Median" },
+              { color: percColor("probable"),   label: "P70 — Probable" },
+              { color: percColor("likely"),     label: "P85 — SLE / likely" },
+              { color: percColor("safe"),       label: "P95–P98 — Safe to near-certain" },
             ].map(({ color, label }) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <div style={{ width: 14, height: 10, background: color, borderRadius: 2, opacity: 0.8 }} />

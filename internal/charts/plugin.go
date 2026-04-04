@@ -50,6 +50,72 @@ var vendorShims = map[string]string{
 		export var XAxis = R.XAxis;
 		export var YAxis = R.YAxis;
 		export var ZAxis = R.ZAxis;
+		export var Customized = R.Customized;
+	`,
+	"mcs-mcp": `
+		export var ALARM     = "#ff6b6b";
+		export var CAUTION   = "#e2c97e";
+		export var PRIMARY   = "#6b7de8";
+		export var SECONDARY = "#7edde2";
+		export var TERTIARY  = "#c084fc";
+		export var POSITIVE  = "#6bffb8";
+		export var TEXT      = "#dde1ef";
+		export var MUTED     = "#505878";
+		export var PAGE_BG   = "#080a0f";
+		export var PANEL_BG  = "#1d1d2c";
+		export var BORDER    = "#252a42";
+
+		var ISSUE_TYPE_PALETTE = [
+			"#6b7de8","#ff6b6b","#7edde2","#e2c97e",
+			"#53fdab","#ef863a","#8b5cf6","#f43e99"
+		];
+
+		export function typeColor(name, allTypes) {
+			var sorted = allTypes.slice().sort();
+			var idx    = sorted.indexOf(name);
+			return ISSUE_TYPE_PALETTE[(idx < 0 ? 0 : idx) % ISSUE_TYPE_PALETTE.length];
+		}
+
+		// Typography — matches the Go-side font stack in render.go.
+		export var FONT_STACK = "'JetBrains Mono', 'Aptos Mono', 'Cascadia Code', Menlo, monospace";
+
+		// XmR reference line colors.
+		export var XMR_UNPL = ALARM;    // upper natural process limit  → red
+		export var XMR_MEAN = TERTIARY; // process mean (X̄)             → purple
+		export var XMR_LNPL = POSITIVE; // lower natural process limit  → green
+
+		// Percentile color mapping — stable because the percentile slots are fixed.
+		// Reads as a risk gradient: green (fast/safe) → teal → purple → blue → amber → red (slow/risky).
+		var PERC_COLOR_MAP = {
+			aggressive:     POSITIVE,  // P10
+			unlikely:       POSITIVE,  // P30
+			coin_toss:      SECONDARY, // P50
+			probable:       TERTIARY,  // P70
+			likely:         PRIMARY,   // P85 — canonical SLE
+			conservative:   CAUTION,   // P90
+			safe:           ALARM,     // P95
+			almost_certain: ALARM,     // P98
+		};
+
+		export function percColor(key) {
+			return PERC_COLOR_MAP[key] || MUTED;
+		}
+
+		// Workflow tier colors — stable domain: Demand, Upstream, Downstream.
+		export function tierColor(tier) {
+			if (tier === "Demand")     return CAUTION;   // amber  — demand pressure
+			if (tier === "Upstream")   return PRIMARY;   // blue   — upstream flow
+			if (tier === "Downstream") return SECONDARY; // teal   — downstream delivery
+			return MUTED;
+		}
+
+		// Severity colors — stable domain: Low, Medium, High.
+		export function severityColor(severity) {
+			if (severity === "Low")    return POSITIVE; // green
+			if (severity === "Medium") return CAUTION;  // amber
+			if (severity === "High")   return ALARM;    // red
+			return MUTED;
+		}
 	`,
 }
 
@@ -61,7 +127,7 @@ func vendorPlugin() api.Plugin {
 		Name: "mcs-vendor-shim",
 		Setup: func(build api.PluginBuild) {
 			// Intercept bare specifiers.
-			build.OnResolve(api.OnResolveOptions{Filter: `^(react|react/jsx-runtime|react-dom/client|recharts)$`},
+			build.OnResolve(api.OnResolveOptions{Filter: `^(react|react/jsx-runtime|react-dom/client|recharts|mcs-mcp)$`},
 				func(args api.OnResolveArgs) (api.OnResolveResult, error) {
 					return api.OnResolveResult{
 						Path:      args.Path,

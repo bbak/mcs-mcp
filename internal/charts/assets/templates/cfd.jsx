@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import {
   ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, FONT_STACK } from "mcs-mcp";
+import { StatCard, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -12,25 +14,12 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
-
 const CFD_PALETTE = [
   "#ef4444","#f97316","#eab308","#22c55e","#06b6d4",
   "#0ea5e9","#3b82f6","#8b5cf6","#d946ef","#ec4899",
   "#10b981","#14b8a6",
 ];
 
-const ISSUE_TYPE_PALETTE = [
-  "#6b7de8","#ff6b6b","#7edde2","#e2c97e",
-  "#6bffb8","#f97316","#8b5cf6","#ec4899",
-];
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -54,7 +43,7 @@ const statusColors = Object.fromEntries(
 // Issue types — from CFD data
 const ALL_ISSUE_TYPES = cfd.availableIssueTypes;
 const ISSUE_TYPE_COLORS = Object.fromEntries(
-  ALL_ISSUE_TYPES.map((t, i) => [t, ISSUE_TYPE_PALETTE[i % ISSUE_TYPE_PALETTE.length]])
+  ALL_ISSUE_TYPES.map(t => [t, typeColor(t, ALL_ISSUE_TYPES)])
 );
 
 // Raw stratified data — downsample if needed
@@ -92,14 +81,6 @@ function buildChartData(raw, selectedTypes) {
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-  </div>
-);
-
 const CustomTooltip = ({ active, payload, label, visibleStatuses }) => {
   if (!active || !payload?.length) return null;
   const byName = Object.fromEntries(payload.map(p => [p.dataKey, p.value]));
@@ -112,8 +93,8 @@ const CustomTooltip = ({ active, payload, label, visibleStatuses }) => {
   };
 
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT,
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT,
       minWidth: 180 }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{fmtDate(label)}</div>
       {statusesForLegend.map(s => {
@@ -187,7 +168,7 @@ export default function CfdChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -220,7 +201,7 @@ export default function CfdChart() {
                 background: active ? `${color}18` : "#1a1d2e",
                 border: `1.5px solid ${active ? color : "#404660"}`,
                 color: active ? color : "#505878",
-                fontFamily: "'Courier New', monospace", fontWeight: 700,
+                fontFamily: FONT_STACK, fontWeight: 700,
                 transition: "all 0.2s ease",
               }}>{type}</button>
             );
@@ -235,8 +216,8 @@ export default function CfdChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="date" tickFormatter={fmtX} interval={interval}
                 angle={-45} textAnchor="end" height={60}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
-              <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+              <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "Items", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 10 }} />
               <Tooltip content={props =>
@@ -264,7 +245,7 @@ export default function CfdChart() {
                   color: active ? statusColors[s] : "#505878",
                   borderRadius: 6, cursor: "pointer", fontSize: 10,
                   opacity: active ? 1 : 0.45,
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: FONT_STACK,
                   transition: "all 0.2s ease",
                 }}>{s}</button>
               );

@@ -3,6 +3,8 @@ import {
   ComposedChart, Area, Line, ReferenceLine,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, TERTIARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, FONT_STACK } from "mcs-mcp";
+import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
 // Payload is injected by the MCS chart renderer as window.__MCS_PAYLOAD__.
@@ -13,17 +15,6 @@ const __MCS_GUARDRAILS__ = __MCS_ENVELOPE__.guardrails;
 const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-const ALARM     = "#ff6b6b";
-const CAUTION   = "#e2c97e";
-const PRIMARY   = "#6b7de8";
-const SECONDARY = "#7edde2";
-const VIOLET    = "#c084fc";
-const POSITIVE  = "#6bffb8";
-const TEXT      = "#dde1ef";
-const MUTED     = "#505878";
-const PAGE_BG   = "#080a0f";
-const PANEL_BG  = "#0c0e16";
-const BORDER    = "#1a1d2e";
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -99,31 +90,18 @@ const xInterval = isWeekly ? 3 : 6;
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, value, color }) => (
-  <div style={{ background: PANEL_BG, border: `1px solid ${color}33`,
-    borderRadius: 8, padding: "8px 14px", minWidth: 110 }}>
-    <div style={{ fontSize: 10, color: MUTED, marginBottom: 3, letterSpacing: "0.05em" }}>{label}</div>
-    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
-  </div>
-);
-
-const Badge = ({ text, color }) => (
-  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4,
-    background: `${color}15`, border: `1px solid ${color}40`, color,
-    fontFamily: "'Courier New', monospace" }}>{text}</span>
-);
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{ background: "#0f1117", border: `1px solid ${BORDER}`, borderRadius: 8,
-      padding: "10px 14px", fontFamily: "'Courier New', monospace", fontSize: 12, color: TEXT }}>
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.date}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 3, columnGap: 16 }}>
         <span style={{ color: PRIMARY }}>Residence w̄(T)</span>
         <span>{d.w?.toFixed(1)}d</span>
-        <span style={{ color: VIOLET }}>w′(T) per dep.</span>
+        <span style={{ color: TERTIARY }}>w′(T) per dep.</span>
         <span>{d.w_prime?.toFixed(1)}d</span>
         <span style={{ color: CAUTION }}>Sojourn W*(T)</span>
         <span>{d.w_star?.toFixed(1)}d</span>
@@ -155,7 +133,7 @@ export default function ResidenceTimeChart() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
-      fontFamily: "'Courier New', monospace", color: TEXT }}>
+      fontFamily: FONT_STACK, color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
         {/* Header */}
@@ -171,7 +149,7 @@ export default function ResidenceTimeChart() {
         {/* Stat cards */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
           <StatCard label="RESIDENCE w̄(T)"  value={`${FINAL_W.toFixed(1)}d`}                    color={PRIMARY} />
-          <StatCard label="w′(T) PER DEP."   value={`${FINAL_W_PRIME.toFixed(1)}d`}              color={VIOLET} />
+          <StatCard label="w′(T) PER DEP."   value={`${FINAL_W_PRIME.toFixed(1)}d`}              color={TERTIARY} />
           <StatCard label="SOJOURN W*(T)"    value={`${FINAL_W_STAR.toFixed(1)}d`}               color={CAUTION} />
           <StatCard label="COHERENCE GAP"    value={`${FINAL_GAP.toFixed(1)}d`}                  color={ALARM} />
           <StatCard label="Λ(T) ARRIVAL"     value={`${FINAL_LAMBDA.toFixed(2)}/${periodLabel}`} color={SECONDARY} />
@@ -209,14 +187,14 @@ export default function ResidenceTimeChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="date" tickFormatter={formatDate} interval={xInterval}
                 angle={-45} textAnchor="end" height={60}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis yAxisId="left" domain={[0, Y_L_MAX]} tickFormatter={v => `${v}d`}
-                tick={{ fill: PRIMARY, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: PRIMARY, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "Days", angle: -90, position: "insideLeft",
                   fill: PRIMARY, fontSize: 10, dy: 20 }} />
               <YAxis yAxisId="right" orientation="right" domain={[Y_R_MIN, Y_R_MAX]}
                 tickFormatter={v => `${v}d`}
-                tick={{ fill: CAUTION, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: CAUTION, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "W* (days)", angle: 90, position: "insideRight",
                   fill: CAUTION, fontSize: 10, dy: -30 }} />
               <Tooltip content={<CustomTooltip />} />
@@ -225,7 +203,7 @@ export default function ResidenceTimeChart() {
                 dot={false} activeDot={false} isAnimationActive={false} />
               <Line yAxisId="left" dataKey="w" stroke={PRIMARY} strokeWidth={2}
                 dot={false} activeDot={false} isAnimationActive={false} />
-              <Line yAxisId="left" dataKey="w_prime" stroke={VIOLET} strokeWidth={2}
+              <Line yAxisId="left" dataKey="w_prime" stroke={TERTIARY} strokeWidth={2}
                 strokeDasharray="6 2" dot={false} activeDot={false} isAnimationActive={false} />
               <Line yAxisId="right" dataKey="w_star" stroke={CAUTION} strokeWidth={2}
                 strokeDasharray="4 3" dot={false} activeDot={false} isAnimationActive={false} />
@@ -239,7 +217,7 @@ export default function ResidenceTimeChart() {
               <span style={{ fontSize: 11, color: MUTED }}>Residence w̄(T)</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={VIOLET} strokeWidth={2} strokeDasharray="6 2" /></svg>
+              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={TERTIARY} strokeWidth={2} strokeDasharray="6 2" /></svg>
               <span style={{ fontSize: 11, color: MUTED }}>w′(T) per departure</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -264,9 +242,9 @@ export default function ResidenceTimeChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="date" tickFormatter={formatDate} interval={xInterval}
                 angle={-45} textAnchor="end" height={60}
-                tick={{ fill: MUTED, fontSize: 10, fontFamily: "'Courier New', monospace" }} />
+                tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis domain={[0, Y_L_MAX2]} tickFormatter={v => v.toFixed(1)}
-                tick={{ fill: SECONDARY, fontSize: 10, fontFamily: "'Courier New', monospace" }}
+                tick={{ fill: SECONDARY, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: `rate (/${periodLabel})`, angle: -90, position: "insideLeft",
                   fill: SECONDARY, fontSize: 10, dy: 40 }} />
               <Tooltip content={<CustomTooltip />} />
