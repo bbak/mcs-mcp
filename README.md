@@ -13,6 +13,7 @@
 
 ## 🚀 Key Capabilities
 
+- **Interactive Chart Rendering**: Every analytical tool can render an interactive chart — served directly from the MCP server over localhost HTTP. Charts are self-contained React/Recharts pages requiring no external dependencies. Enable via `MCS_CHARTS_BUFFER_SIZE` in `.env`; each tool response includes a `chart_url` ready to open in any browser.
 - **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Uses your team's actual historical throughput, not estimates.
 - **Forecast Backtesting**: Empirically validate how accurate the forecasts would have been by replaying them against your own historical data (Walk-Forward Analysis).
 - **Predictability Guardrails**: Detect "Special Cause" variation using XmR Control Charts — assesses process stability for Cycle Time, WIP populations, and Delivery Cadence.
@@ -189,10 +190,9 @@ The server buffers the most recent N tool results (MRU). Older entries are evict
 
 ### Opening Chart URLs from an AI Agent
 
-For charts to open automatically (without manual copy-paste), the AI agent needs to be able to open a localhost URL in a browser:
+The server exposes an `open_in_browser` tool that AI agents can call to open a `chart_url` directly in your system's default browser — no browser extension or manual copy-paste required. After running any analytical tool, the agent can immediately follow up with `open_in_browser` to display the chart.
 
-- **Claude Desktop**: Install the [Claude Extension for Chrome/Firefox](https://claude.ai/download). With the browser extension active, Claude can open `chart_url` links directly in your browser.
-- **Without the extension**: Copy the `chart_url` from the tool response and paste it into any browser manually. The chart is fully self-contained and requires no active server connection beyond the initial load.
+If for any reason the agent doesn't call `open_in_browser`, you can always copy the `chart_url` from the tool response and paste it into any browser manually. The chart is fully self-contained and requires no active server connection beyond the initial load.
 
 > **Note for users of previous versions:** The old Skills-based chart rendering (`docs/skills/`, `inject.py`) has been removed. Charts are now rendered entirely server-side. If you have the `mcs-mcp.skill` file installed in Claude Desktop, you should uninstall or disable it to avoid conflicts.
 

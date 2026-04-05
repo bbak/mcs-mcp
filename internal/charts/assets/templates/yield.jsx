@@ -59,12 +59,12 @@ const lossRows = yieldData.map(d => {
   });
   return row;
 });
-const maxLoss = Math.max(...lossRows.map(r => tiers.reduce((s, t) => s + r[t], 0)), 1);
+const maxLoss = Math.ceil(Math.max(...lossRows.map(r => tiers.reduce((s, t) => s + r[t], 0)), 1) * 1.2);
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
 
-const YieldDonut = ({ data, size = 64 }) => {
+function YieldDonut({ data, size = 64 }) {
   const other = data.totalIngested - data.deliveredCount - data.abandonedCount;
   const slices = [
     { name: "Delivered", value: data.deliveredCount, color: POSITIVE },
@@ -89,9 +89,9 @@ const YieldDonut = ({ data, size = 64 }) => {
       </div>
     </div>
   );
-};
+}
 
-const LossTooltip = ({ active, payload }) => {
+function LossTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -107,34 +107,79 @@ const LossTooltip = ({ active, payload }) => {
       </div>
     </div>
   );
-};
+}
 
-const BreakdownTooltip = ({ active, payload }) => {
+function BreakdownTierRow({ tier, d }) {
+  if (d[tier] == null || d[tier] === 0) return null;
+  const sev = d[`${tier}_sev`];
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ color: tierColor(tier) }}>
+        {tier}: {d[tier]} items ({pct(d[`${tier}_pct`])})
+      </div>
+      {sev && (
+        <div style={{ fontSize: 10, color: severityColor(sev) }}>
+          severity: {sev} · avg age {d[`${tier}_avgAge`]?.toFixed(0)}d
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BreakdownTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
       padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{d.type}</div>
-      {tiers.map(tier => {
-        if (!d[tier]) return null;
-        const sev = d[`${tier}_sev`];
-        return (
-          <div key={tier} style={{ marginBottom: 4 }}>
-            <div style={{ color: tierColor(tier) }}>
-              {tier}: {d[tier]} items ({pct(d[`${tier}_pct`])})
-            </div>
-            {sev && (
-              <div style={{ fontSize: 10, color: severityColor(sev) }}>
-                severity: {sev} · avg age {d[`${tier}_avgAge`]?.toFixed(0)}d
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {tiers.map(tier => <BreakdownTierRow key={tier} tier={tier} d={d} />)}
     </div>
   );
-};
+}
+
+// ── TYPE CARD ─────────────────────────────────────────────────────────────────
+
+function LossPointRow({ lp }) {
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ fontSize: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ color: tierColor(lp.tier) }}>{lp.tier}</span>
+        <span style={{ color: MUTED }}>{lp.count} · {pct(lp.percentage)}</span>
+        {lp.avgAge != null && <span style={{ color: MUTED }}>avg {lp.avgAge.toFixed(0)}d</span>}
+        <span style={{ color: severityColor(lp.severity) }}>{lp.severity}</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, marginTop: 3,
+        background: BORDER, overflow: "hidden" }}>
+        <div style={{ height: "100%", borderRadius: 2,
+          width: `${Math.min(lp.percentage / 0.15 * 100, 100)}%`,
+          background: severityColor(lp.severity), opacity: 0.7 }} />
+      </div>
+    </div>
+  );
+}
+
+function TypeCard({ type }) {
+  const td = STRATIFIED[type];
+  const tc = ISSUE_TYPE_COLORS[type];
+  return (
+    <div style={{ flex: "1 1 300px", minWidth: 280, maxWidth: "calc(33.33% - 8px)",
+      background: PAGE_BG, border: `1px solid ${tc}4d`, borderRadius: 10, padding: "14px 16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 10 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: tc }}>{type}</span>
+        <YieldDonut data={td} size={64} />
+      </div>
+      <div style={{ fontSize: 11, color: MUTED, display: "grid",
+        gridTemplateColumns: "1fr auto", rowGap: 3, marginBottom: 8 }}>
+        <span>Ingested</span><span style={{ color: TEXT }}>{td.totalIngested}</span>
+        <span>Delivered</span><span style={{ color: POSITIVE }}>{td.deliveredCount}</span>
+        <span>Abandoned</span><span style={{ color: ALARM }}>{td.abandonedCount}</span>
+      </div>
+      {(td.lossPoints || []).map(lp => <LossPointRow key={lp.tier} lp={lp} />)}
+    </div>
+  );
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -191,7 +236,7 @@ export default function YieldChart() {
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="type" width={70}
                 tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
-              <Tooltip content={<LossTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+              <Tooltip content={LossTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="overallYieldRate" barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {yieldData.map((d, i) => (
                   <Cell key={`cell-${i}`}
@@ -216,68 +261,37 @@ export default function YieldChart() {
             <BarChart data={lossRows} layout="vertical"
               margin={{ top: 4, right: 60, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-              <XAxis type="number" domain={[0, maxLoss * 1.2]}
+              <XAxis type="number" domain={[0, maxLoss]}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "abandoned items", position: "insideBottom", offset: -2,
                   fill: MUTED, fontSize: 10 }} />
               <YAxis type="category" dataKey="type" width={70}
                 tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
-              <Tooltip content={<BreakdownTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+              <Tooltip content={BreakdownTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="Demand"     stackId="a" fill={tierColor("Demand")}     fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
               <Bar dataKey="Upstream"   stackId="a" fill={tierColor("Upstream")}   fillOpacity={0.75} barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false} />
               <Bar dataKey="Downstream" stackId="a" fill={tierColor("Downstream")} fillOpacity={0.75} barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {tiers.map(tier => (
-              <div key={tier} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 10, background: tierColor(tier), borderRadius: 2, opacity: 0.75 }} />
-                <span style={{ fontSize: 10, color: MUTED }}>{tier}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: tierColor("Demand"), borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Demand</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: tierColor("Upstream"), borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Upstream</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: tierColor("Downstream"), borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Downstream</span>
+            </div>
           </div>
         </div>
 
         {/* Panel 3: Per-Type Detail Cards */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-          {ALL_ISSUE_TYPES.map(type => {
-            const td = STRATIFIED[type];
-            const tc = ISSUE_TYPE_COLORS[type];
-            return (
-              <div key={type} style={{ flex: "1 1 300px", minWidth: 280,
-                maxWidth: "calc(33.33% - 8px)",
-                background: PAGE_BG, border: `1px solid ${tc}4d`, borderRadius: 10,
-                padding: "14px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                  marginBottom: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: tc }}>{type}</span>
-                  <YieldDonut data={td} size={64} />
-                </div>
-                <div style={{ fontSize: 11, color: MUTED, display: "grid",
-                  gridTemplateColumns: "1fr auto", rowGap: 3, marginBottom: 8 }}>
-                  <span>Ingested</span><span style={{ color: TEXT }}>{td.totalIngested}</span>
-                  <span>Delivered</span><span style={{ color: POSITIVE }}>{td.deliveredCount}</span>
-                  <span>Abandoned</span><span style={{ color: ALARM }}>{td.abandonedCount}</span>
-                </div>
-                {(td.lossPoints || []).map(lp => (
-                  <div key={lp.tier} style={{ marginBottom: 6 }}>
-                    <div style={{ fontSize: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ color: tierColor(lp.tier) }}>{lp.tier}</span>
-                      <span style={{ color: MUTED }}>{lp.count} · {pct(lp.percentage)}</span>
-                      {lp.avgAge != null && <span style={{ color: MUTED }}>avg {lp.avgAge.toFixed(0)}d</span>}
-                      <span style={{ color: severityColor(lp.severity) }}>{lp.severity}</span>
-                    </div>
-                    <div style={{ height: 4, borderRadius: 2, marginTop: 3,
-                      background: BORDER, overflow: "hidden" }}>
-                      <div style={{ height: "100%", borderRadius: 2,
-                        width: `${Math.min(lp.percentage / 0.15 * 100, 100)}%`,
-                        background: severityColor(lp.severity), opacity: 0.7 }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+          {ALL_ISSUE_TYPES.map(type => <TypeCard key={type} type={type} />)}
         </div>
 
         {/* Footer */}

@@ -667,10 +667,191 @@ http://localhost:3412/render-charts/550e8400-e29b-41d4-a716-446655440000
 
 **How to surface charts to the user:**
 
-- **Claude Desktop + browser extension**: The Claude browser extension (Chrome/Firefox) allows Claude to open localhost URLs directly in the user's browser. Present the URL as a clickable link or use the extension's open-URL capability.
-- **Without browser extension**: Present the `chart_url` to the user and ask them to open it in a browser. The page is fully self-contained — no active server interaction is required beyond the initial HTTP GET.
+- **Preferred**: Call the `open_in_browser` tool with the `chart_url`. The server opens the URL in the user's system default browser directly — no browser extension or manual action required.
+- **Fallback**: Present the `chart_url` to the user and ask them to open it in a browser. The page is fully self-contained — no active server interaction is required beyond the initial HTTP GET.
 - **Do not embed the URL in markdown image syntax** (`![](url)`) — it will not render, since the server returns HTML, not an image.
 
 **Important**: The URL is only valid while the MCP server process is running and the result remains in the MRU buffer. URLs are evicted when the buffer fills. If a URL returns 404, the user should re-run the analysis tool to generate a fresh one.
 
 **Removed: Skills-based rendering**: The previous agent-side chart rendering approach (`docs/skills/`, `inject.py`) has been removed. Do not attempt to use `inject.py` or `.skill` files — they are no longer present in the repository.
+
+### 12.6 JSX Template Authoring Rules
+
+Templates are bundled by esbuild with `MinifyWhitespace: true` and `MinifySyntax: true`. These flags have specific, non-obvious effects on JSX that **must** be understood when writing or modifying templates. `MinifyIdentifiers` is intentionally **disabled** — enabling it causes renamed map-callback parameters to silently collide with outer-scope identifiers, dropping JSX children.
+
+#### Rule 1 — Always use named `function` declarations for components
+
+`MinifySyntax` treats `const F = () => <JSX>` arrow-function components as potentially-eliminatable pure expressions, especially when the body contains `.map()`. Named function declarations are preserved unconditionally.
+
+```jsx
+// ✗ BROKEN — MinifySyntax may eliminate the body
+const MyComponent = ({ item }) => (
+  <div>{items.map(x => <span>{x}</span>)}</div>
+);
+
+// ✓ CORRECT — always preserved
+function MyComponent({ item }) {
+  return <div>{items.map(x => <span>{x}</span>)}</div>;
+}
+```
+
+This applies to: top-level components, tooltips, sub-panels, row components, and any inner component declared inside a parent (e.g. `TooltipWithState` inside `CfdChart`).
+
+#### Rule 2 — Extract named components for `.map()` that returns complex JSX
+
+When `.map()` returns any element with multiple styled children — a `<tr>`, a card `<div>`, or even a tooltip row `<div>` — `MinifySyntax` may drop the children of the returned element. This applies **everywhere** `.map()` is used: table bodies, card lists, and inside tooltip function bodies. The fix is always the same: extract a named function component and map to it.
+
+```jsx
+// ✗ BROKEN — children of <tr> are dropped
+{rows.map((row, i) => (
+  <tr key={row.id}>
+    <td style={{ color: RED }}>{row.name}</td>
+    <td>{row.value}</td>
+  </tr>
+))}
+
+// ✓ CORRECT — extract a named component
+function DataRow({ row, i }) {
+  return (
+    <tr style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
+      <td style={{ color: RED }}>{row.name}</td>
+      <td>{row.value}</td>
+    </tr>
+  );
+}
+// ...
+{rows.map((row, i) => <DataRow key={row.id} row={row} i={i} />)}
+```
+
+This rule also applies inside **tooltip functions** when they map over dynamic data rows:
+
+```jsx
+// ✗ BROKEN — <span> children inside tooltip map are dropped
+function MyTooltip({ active, payload }) {
+  return (
+    <div>
+      {items.map(item => (
+        <div key={item.t} style={{ display: "flex", justifyContent: "space-between" }}>
+          <span style={{ color: COLORS[item.t] }}>{item.t}</span>
+          <span>{item.v}d</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ✓ CORRECT — row extracted to named component
+function TooltipRow({ t, v }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <span style={{ color: COLORS[t] }}>{t}</span>
+      <span>{v}d</span>
+    </div>
+  );
+}
+function MyTooltip({ active, payload }) {
+  return (
+    <div>
+      {items.map(item => <TooltipRow key={item.t} t={item.t} v={item.v} />)}
+    </div>
+  );
+}
+```
+
+#### Rule 3 — Use `<span style={{ color }}>●</span>` for dynamic color indicators in legends
+
+`<div style={{ background: DYNAMIC_COLOR }} />` inside a `.map()` has its children dropped. The CSS `color` property on a `<span>` containing a bullet character survives because the span itself is the text node — there are no dropped children.
+
+```jsx
+// ✗ BROKEN — inner <div> and <span> dropped from map
+{types.map(t => (
+  <div key={t} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div style={{ width: 14, height: 10, background: TYPE_COLORS[t] }} />
+    <span>{t}</span>
+  </div>
+))}
+
+// ✓ CORRECT — single node, color applied via CSS color property
+{types.map(t => (
+  <span key={t} style={{ fontSize: 11, color: MUTED }}>
+    <span style={{ color: TYPE_COLORS[t] }}>●</span>{" "}{t}
+  </span>
+))}
+```
+
+Static legend entries (not inside `.map()`) can still use `<div style={{ background: COLOR }} />` safely.
+
+#### Rule 4 — Never use `.map()` over a fixed known set; inline instead
+
+For small, fixed sets (e.g. tier names `["Demand", "Upstream", "Downstream"]`), inline each element as an explicit sibling rather than mapping. This avoids the map-drop risk entirely and is clearer.
+
+```jsx
+// ✗ RISKY
+{["Demand", "Upstream", "Downstream"].map(tier => (
+  <TierCard key={tier} data={TIER_SUMMARY[tier]} />
+))}
+
+// ✓ CORRECT
+{TIER_SUMMARY["Demand"]     && <TierCard data={TIER_SUMMARY["Demand"]} />}
+{TIER_SUMMARY["Upstream"]   && <TierCard data={TIER_SUMMARY["Upstream"]} />}
+{TIER_SUMMARY["Downstream"] && <TierCard data={TIER_SUMMARY["Downstream"]} />}
+```
+
+#### Rule 5 — Pass Recharts `content` prop as a component reference, not a JSX element or arrow
+
+Recharts calls the `content` prop as a function — it must receive a component reference, not a rendered JSX element. There are two broken forms:
+
+```jsx
+// ✗ BROKEN form 1 — JSX element, not a reference; Recharts cannot call it as a function
+<Tooltip content={<CustomTooltip />} />
+
+// ✗ BROKEN form 2 — arrow prop body may be eliminated by MinifySyntax
+<Tooltip content={props => <CustomTooltip {...props} />} />
+
+// ✓ CORRECT — bare component reference
+<Tooltip content={CustomTooltip} />
+```
+
+When the tooltip needs component state (e.g. `visibleStatuses`) that is not available at module scope, declare a named inner function inside the parent component that closes over the state, then pass it by reference:
+
+```jsx
+// ✓ CORRECT — named inner function declaration capturing state, passed by reference
+function TooltipWithState(props) {
+  return <CustomTooltip {...props} visibleStatuses={visibleStatuses} />;
+}
+// ...
+<Tooltip content={TooltipWithState} />
+```
+
+The same applies when extra props need to be forwarded from a parent component's local variables.
+
+#### Rule 6 — Inline `<thead>` cells; never map over header label arrays
+
+```jsx
+// ✗ BROKEN — <th> children dropped
+{["NAME", "VALUE", "PCT"].map(h => (
+  <th key={h} style={{ color: MUTED }}>{h}</th>
+))}
+
+// ✓ CORRECT — one <th> per column
+<th style={{ color: MUTED }}>NAME</th>
+<th style={{ color: MUTED }}>VALUE</th>
+<th style={{ color: MUTED }}>PCT</th>
+```
+
+#### Summary table
+
+| Pattern | Status | Reason |
+| :--- | :--- | :--- |
+| `const F = () => <JSX>` component | ✗ Broken | `MinifySyntax` eliminates arrow-function bodies |
+| `function F() { return <JSX>; }` component | ✓ Safe | Declarations are always preserved |
+| `.map()` returning multi-child `<tr>` / card | ✗ Broken | Children of returned element are dropped |
+| `.map()` to named component `<Row />` | ✓ Safe | Named component call preserved |
+| `<div style={{ background: DYNAMIC }}>` in map | ✗ Broken | Children dropped by minifier |
+| `<span style={{ color: DYNAMIC }}>●</span>` | ✓ Safe | Single text node, no dropped children |
+| `.map()` over fixed known set | ✗ Risky | Prefer inlined explicit siblings |
+| `content={<Tooltip />}` JSX element | ✗ Broken | Recharts cannot call a rendered element as a function |
+| `content={props => <Tooltip />}` arrow | ✗ Broken | Arrow prop body eliminated |
+| `content={NamedFn}` reference | ✓ Safe | Component reference, not an expression |
+| `.map()` for `<th>` headers | ✗ Broken | Children dropped |
+| Explicit `<th>` per column | ✓ Safe | Static JSX preserved |

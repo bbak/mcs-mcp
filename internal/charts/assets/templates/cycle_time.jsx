@@ -120,15 +120,15 @@ const scatterYMax = scatterData.length > 0
 
 const scatterInterval = Math.max(1, Math.floor(scatterData.length / 9));
 
-const ScatterDot = ({ cx, cy, payload }) => {
+function ScatterDot({ cx, cy, payload }) {
   if (!cx || !cy) return null;
   const color = ISSUE_TYPE_COLORS[payload.issueType] ?? PRIMARY;
   if (payload.aboveSLE)
     return <circle cx={cx} cy={cy} r={4} fill={color} stroke={CAUTION} strokeWidth={1.5}/>;
   return <circle cx={cx} cy={cy} r={2.5} fill={color} fillOpacity={0.5} stroke="none"/>;
-};
+}
 
-const ScatterTooltip = ({ active, payload }) => {
+function ScatterTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const pt = payload[0].payload;
   const color = ISSUE_TYPE_COLORS[pt.issueType] ?? PRIMARY;
@@ -145,7 +145,7 @@ const ScatterTooltip = ({ active, payload }) => {
       </div>
     </div>
   );
-};
+}
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ const predColor = (PREDICTABILITY || "").toLowerCase().includes("unstable") ||
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
 
-const PoolTooltip = ({ active, payload }) => {
+function PoolTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
@@ -168,26 +168,28 @@ const PoolTooltip = ({ active, payload }) => {
       {d.isSLE && <div style={{ color: CAUTION, marginTop: 4 }}>← canonical SLE</div>}
     </div>
   );
-};
+}
 
-const TypeTooltip = ({ active, payload, label }) => {
+function TypeTooltipRow({ t, v }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <span style={{ color: ISSUE_TYPE_COLORS[t] }}>{t}</span>
+      <span>{v}d</span>
+    </div>
+  );
+}
+
+function TypeTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
+  const rows = eligibleTypes.map(t => ({ t, v: payload.find(p => p.dataKey === t)?.value })).filter(r => r.v != null);
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
       padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-      {eligibleTypes.map(t => {
-        const v = payload.find(p => p.dataKey === t)?.value;
-        return v != null ? (
-          <div key={t} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-            <span style={{ color: ISSUE_TYPE_COLORS[t] }}>{t}</span>
-            <span>{v}d</span>
-          </div>
-        ) : null;
-      })}
+      {rows.map(({ t, v }) => <TypeTooltipRow key={t} t={t} v={v} />)}
     </div>
   );
-};
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -274,11 +276,11 @@ export default function CycleTimeSleChart() {
             <BarChart data={poolData} layout="vertical"
               margin={{ top: 4, right: 80, left: 140, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-              <XAxis type="number" domain={[0, P98 * 1.05]} tickFormatter={v => `${v}d`}
+              <XAxis type="number" domain={[0, Math.ceil(P98 * 1.05)]} tickFormatter={v => `${v}d`}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="label" width={130}
                 tick={{ fill: TEXT, fontSize: 10, fontFamily: FONT_STACK }} />
-              <Tooltip content={<PoolTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+              <Tooltip content={PoolTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="days" radius={[0, 4, 4, 0]} barSize={22} isAnimationActive={false}>
                 {poolData.map((d, i) => (
                   <Cell key={`cell-${i}`} fill={d.color} fillOpacity={d.isSLE ? 1.0 : 0.55} />
@@ -305,7 +307,7 @@ export default function CycleTimeSleChart() {
               <BarChart data={typeData} layout="vertical"
                 margin={{ top: 4, right: 80, left: 140, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-                <XAxis type="number" domain={[0, maxTypeP98 * 1.05]} tickFormatter={v => `${v}d`}
+                <XAxis type="number" domain={[0, Math.ceil(maxTypeP98 * 1.05)]} tickFormatter={v => `${v}d`}
                   tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                 <YAxis type="category" dataKey="label" width={130}
                   tick={({ x, y, payload }) => (
@@ -316,7 +318,7 @@ export default function CycleTimeSleChart() {
                       {payload.value}
                     </text>
                   )} />
-                <Tooltip content={<TypeTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+                <Tooltip content={TypeTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
                 {eligibleTypes.map(t => (
                   <Bar key={t} dataKey={t} barSize={7} radius={[0, 3, 3, 0]}
                     fill={ISSUE_TYPE_COLORS[t]} fillOpacity={0.75} isAnimationActive={false} />
@@ -340,11 +342,9 @@ export default function CycleTimeSleChart() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center",
               marginTop: 8 }}>
               {eligibleTypes.map(t => (
-                <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%",
-                    background: ISSUE_TYPE_COLORS[t] }} />
-                  <span style={{ fontSize: 10, color: MUTED }}>{t} (n={TYPE_SLES[t].volume})</span>
-                </div>
+                <span key={t} style={{ fontSize: 10, color: MUTED }}>
+                  <span style={{ color: ISSUE_TYPE_COLORS[t] }}>●</span>{" "}{t} (n={TYPE_SLES[t].volume})
+                </span>
               ))}
             </div>
           </div>
@@ -360,7 +360,7 @@ export default function CycleTimeSleChart() {
             </div>
 
             <ResponsiveContainer width="100%" height={380}>
-              <ComposedChart data={scatterData} margin={{ top: 10, right: 20, bottom: 60, left: 10 }}>
+              <ComposedChart data={scatterData} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={formatDate} interval={scatterInterval}
                   angle={-45} textAnchor="end" height={60}
@@ -369,7 +369,7 @@ export default function CycleTimeSleChart() {
                   tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
                   label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
                     fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
-                <Tooltip content={<ScatterTooltip />} />
+                <Tooltip content={ScatterTooltip} />
                 <ReferenceLine y={P50} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}
                   label={{ value: `P50 ${P50}d`, fill: percColor("coin_toss"), fontSize: 10,
                     fontFamily: FONT_STACK, position: "insideTopRight" }} />
@@ -388,23 +388,26 @@ export default function CycleTimeSleChart() {
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
               {ALL_ISSUE_TYPES.map(t => (
-                <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%",
-                    background: ISSUE_TYPE_COLORS[t] ?? PRIMARY }} />
-                  <span style={{ fontSize: 10, color: MUTED }}>{t}</span>
-                </div>
+                <span key={t} style={{ fontSize: 10, color: MUTED }}>
+                  <span style={{ color: ISSUE_TYPE_COLORS[t] ?? PRIMARY }}>●</span>{" "}{t}
+                </span>
               ))}
-              {[
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P50 Median" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("probable")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P70 Probable" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}/>, label: "P85 SLE" },
-                { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={percColor("safe")} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "P95 Safe Bet" },
-              ].map(({ svg, label }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <svg width={24} height={12}>{svg}</svg>
-                  <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-                </div>
-              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("coin_toss")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P50 Median</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("probable")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P70 Probable</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("likely")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P85 SLE</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("safe")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P95 Safe Bet</span>
+              </div>
             </div>
           </div>
         )}

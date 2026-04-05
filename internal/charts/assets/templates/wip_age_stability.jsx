@@ -177,7 +177,7 @@ export default function WipAgeStabilityChart() {
                 tick={{ fill: SECONDARY, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "WIP Count", angle: 90, position: "insideRight",
                   fill: SECONDARY, fontSize: 10, dy: -40 }} />
-              <Tooltip content={<TT />} />
+              <Tooltip content={TT} />
               <Area yAxisId="age" dataKey="total_age" fill="url(#ageGrad)"
                 stroke="none" dot={false} activeDot={false} isAnimationActive={false} />
               <Line yAxisId="age"   dataKey="total_age" stroke={PRIMARY}   strokeWidth={1.5}
@@ -194,20 +194,34 @@ export default function WipAgeStabilityChart() {
           </ResponsiveContainer>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 8 }}>
-            {[
-              [<line x1={0} y1={6} x2={24} y2={6} stroke={PRIMARY}   strokeWidth={1.5} />,                      "Total WIP Age"],
-              [<line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeDasharray="3 3" strokeWidth={1} />,  "WIP Count (right axis)"],
-              [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_UNPL} strokeDasharray="6 3" strokeWidth={1.5} />, "UNPL"],
-              [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_MEAN} strokeDasharray="4 4" strokeWidth={1.5} />, "X̄ Mean"],
-              [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_LNPL} strokeDasharray="6 3" strokeWidth={1} />,   "LNPL"],
-              [<circle cx={6} cy={6} r={4} fill={ALARM} />,                                                      "Above UNPL"],
-              [<circle cx={6} cy={6} r={4} fill={POSITIVE} />,                                                   "Below LNPL"],
-            ].map(([el, label]) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={24} height={12}>{el}</svg>
-                <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 1.5, background: PRIMARY }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Total WIP Age</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1px dashed ${SECONDARY}` }} />
+              <span style={{ fontSize: 10, color: MUTED }}>WIP Count (right axis)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_UNPL}` }} />
+              <span style={{ fontSize: 10, color: MUTED }}>UNPL</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_MEAN}` }} />
+              <span style={{ fontSize: 10, color: MUTED }}>X̄ Mean</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1px dashed ${XMR_LNPL}` }} />
+              <span style={{ fontSize: 10, color: MUTED }}>LNPL</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: ALARM }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Above UNPL</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: POSITIVE }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Below LNPL</span>
+            </div>
           </div>
         </div>
 

@@ -2,7 +2,7 @@ import {
   BarChart, Bar, Cell, ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { ALARM, CAUTION, PRIMARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, percColor, FONT_STACK } from "mcs-mcp";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, percColor, FONT_STACK } from "mcs-mcp";
 import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
@@ -54,6 +54,20 @@ const MODE = SIM.context?.simulation_mode || (SIM.composition?.total > 0 ? "dura
 const isDuration = MODE === "duration";
 const TARGET_DAYS = SIM.context?.target_days || null;
 
+// ── TABLE ROW COMPONENTS ──────────────────────────────────────────────────────
+
+function StratRow({ s, i }) {
+  return (
+    <tr style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
+      <td style={{ padding: "8px 8px", color: s.eligible ? TEXT : MUTED, whiteSpace: "nowrap" }}>{s.type}</td>
+      <td style={{ padding: "8px 8px", color: s.eligible ? POSITIVE : ALARM, whiteSpace: "nowrap" }}>{s.eligible ? "Yes" : "No"}</td>
+      <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{s.volume}</td>
+      <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{s.p85_cycle_time?.toFixed(1) || "—"}d</td>
+      <td style={{ padding: "8px 8px", color: MUTED, fontSize: 10 }}>{s.reason || (s.eligible ? "independently modeled" : "")}</td>
+    </tr>
+  );
+}
+
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
 const PercTooltip = ({ active, payload, isDuration, labels }) => {
@@ -84,12 +98,16 @@ export default function MonteCarloChart() {
     value: SIM.percentiles[key],
     unit:  isDuration ? "d" : " items",
   }));
-  const maxPerc = Math.max(...percData.map(d => d.value));
+  const maxPerc = Math.ceil(Math.max(...percData.map(d => d.value)) * 1.1);
 
   // Stratification table
   const strat = ctx.stratification_decisions || [];
 
   const modeLabel = isDuration ? "Duration mode" : "Scope mode";
+
+  function PercTooltipWithCtx(props) {
+    return <PercTooltip {...props} isDuration={isDuration} labels={SIM.labels} />;
+  }
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
@@ -168,12 +186,12 @@ export default function MonteCarloChart() {
             <BarChart data={percData} layout="vertical"
               margin={{ top: 4, right: 60, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-              <XAxis type="number" domain={[0, maxPerc * 1.1]}
+              <XAxis type="number" domain={[0, maxPerc]}
                 tickFormatter={isDuration ? (v => `${v}d`) : (v => `${v}`)}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="label" width={36}
                 tick={{ fill: TEXT, fontSize: 11, fontFamily: FONT_STACK }} />
-              <Tooltip content={<PercTooltip isDuration={isDuration} labels={SIM.labels} />}
+              <Tooltip content={PercTooltipWithCtx}
                 cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="value" barSize={20} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {percData.map((d, i) => (
@@ -186,19 +204,30 @@ export default function MonteCarloChart() {
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {[
-              { color: percColor("aggressive"), label: "P10 — Aggressive / low risk" },
-              { color: percColor("unlikely"),   label: "P30 — Unlikely" },
-              { color: percColor("coin_toss"),  label: "P50 — Median" },
-              { color: percColor("probable"),   label: "P70 — Probable" },
-              { color: percColor("likely"),     label: "P85 — SLE / likely" },
-              { color: percColor("safe"),       label: "P95–P98 — Safe to near-certain" },
-            ].map(({ color, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 10, background: color, borderRadius: 2, opacity: 0.8 }} />
-                <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("aggressive"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P10 — Aggressive / low risk</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("unlikely"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P30 — Unlikely</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("coin_toss"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P50 — Median</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("probable"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P70 — Probable</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("likely"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P85 — SLE / likely</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: percColor("safe"), borderRadius: 2, opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P95–P98 — Safe to near-certain</span>
+            </div>
           </div>
         </div>
 
@@ -221,27 +250,18 @@ export default function MonteCarloChart() {
             overflowX: "auto" }}>
             <div style={{ fontSize: 11, color: MUTED, marginBottom: 10, letterSpacing: "0.05em",
               textTransform: "uppercase" }}>Stratification Decisions</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  {["TYPE", "ELIGIBLE", "VOLUME", "P85 CT", "NOTE"].map(h => (
-                    <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: MUTED,
-                      fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>TYPE</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>ELIGIBLE</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>VOLUME</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>P85 CT</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>NOTE</th>
                 </tr>
               </thead>
               <tbody>
-                {strat.map((s, i) => (
-                  <tr key={s.type} style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
-                    <td style={{ padding: "8px 8px", color: s.eligible ? TEXT : MUTED, whiteSpace: "nowrap" }}>{s.type}</td>
-                    <td style={{ padding: "8px 8px", color: s.eligible ? POSITIVE : ALARM, whiteSpace: "nowrap" }}>
-                      {s.eligible ? "Yes" : "No"}</td>
-                    <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{s.volume}</td>
-                    <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{s.p85_cycle_time?.toFixed(1) || "—"}d</td>
-                    <td style={{ padding: "8px 8px", color: MUTED, fontSize: 10 }}>
-                      {s.reason || (s.eligible ? "independently modeled" : "")}</td>
-                  </tr>
-                ))}
+                {strat.map((s, i) => <StratRow key={s.type} s={s} i={i} />)}
               </tbody>
             </table>
           </div>

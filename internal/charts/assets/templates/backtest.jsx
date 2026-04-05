@@ -56,10 +56,7 @@ function Swatch({ color, label, dashed }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
       {dashed
-        ? <svg width={20} height={10}>
-            <line x1={0} y1={5} x2={20} y2={5}
-              stroke={color} strokeDasharray={dashed} strokeWidth={1.5} />
-          </svg>
+        ? <div style={{ width: 20, height: 0, borderTop: `1.5px dashed ${color}` }} />
         : <div style={{ width: 14, height: 10, background: color,
             borderRadius: 2, opacity: 0.85 }} />
       }
@@ -74,6 +71,25 @@ const shortDate = iso => {
   const parts = iso.split("-");
   return `${parts[1]}/${parts[2]}`;
 };
+
+// ── TABLE ROW COMPONENTS ──────────────────────────────────────────────────────
+
+function MissRow({ d, i, isDuration, unitLong }) {
+  const over = isDuration ? d.actual < d.p50 : d.actual > d.p50;
+  const dirLabel = isDuration
+    ? (over ? "Under (faster)" : "Over (slower)")
+    : (over ? "Over (more)" : "Under (less)");
+  return (
+    <tr style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
+      <td style={{ padding: "5px 8px", color: CAUTION }}>{d.date}</td>
+      <td style={{ padding: "5px 8px", color: ALARM, fontWeight: 700 }}>{d.actual.toFixed(1)}{unitLong}</td>
+      <td style={{ padding: "5px 8px", color: SECONDARY }}>{d.p50}{unitLong}</td>
+      <td style={{ padding: "5px 8px", color: CAUTION }}>{d.p85}{unitLong}</td>
+      <td style={{ padding: "5px 8px", color: PRIMARY }}>{d.p95}{unitLong}</td>
+      <td style={{ padding: "5px 8px", color: over ? POSITIVE : ALARM }}>{dirLabel}</td>
+    </tr>
+  );
+}
 
 // ── BACKTEST PANEL ────────────────────────────────────────────────────────────
 
@@ -185,7 +201,7 @@ function BacktestPanel({ data, isDuration }) {
               angle={-45} textAnchor="end" height={50} interval={1} />
             <YAxis domain={[0, yMax]} tickFormatter={v => `${v}${unitShort}`}
               tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-            <Tooltip content={<CheckpointTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+            <Tooltip content={CheckpointTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
             <Bar dataKey="actual" barSize={16} radius={[3, 3, 0, 0]} isAnimationActive={false}>
               {chartData.map((d, i) => (
                 <Cell key={`cell-${i}`}
@@ -210,33 +226,19 @@ function BacktestPanel({ data, isDuration }) {
           overflowX: "auto" }}>
           <div style={{ fontSize: 11, color: MUTED, marginBottom: 10, letterSpacing: "0.05em",
             textTransform: "uppercase" }}>Miss Details ({missRows.length})</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <table style={{ width: "100%", minWidth: 500, borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                {["DATE", "ACTUAL", "P50", "P85", "P95", "DIRECTION"].map(h => (
-                  <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: MUTED,
-                    fontSize: 10, fontWeight: 700 }}>{h}</th>
-                ))}
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>DATE</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>ACTUAL</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>P50</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>P85</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>P95</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700 }}>DIRECTION</th>
               </tr>
             </thead>
             <tbody>
-              {missRows.map((d, i) => {
-                const over = isDuration ? d.actual < d.p50 : d.actual > d.p50;
-                const dirLabel = isDuration
-                  ? (over ? "Under (faster)" : "Over (slower)")
-                  : (over ? "Over (more)" : "Under (less)");
-                return (
-                  <tr key={d.date} style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
-                    <td style={{ padding: "5px 8px", color: CAUTION }}>{d.date}</td>
-                    <td style={{ padding: "5px 8px", color: ALARM, fontWeight: 700 }}>
-                      {d.actual.toFixed(1)}{unitLong}</td>
-                    <td style={{ padding: "5px 8px", color: SECONDARY }}>{d.p50}{unitLong}</td>
-                    <td style={{ padding: "5px 8px", color: CAUTION }}>{d.p85}{unitLong}</td>
-                    <td style={{ padding: "5px 8px", color: PRIMARY }}>{d.p95}{unitLong}</td>
-                    <td style={{ padding: "5px 8px", color: over ? POSITIVE : ALARM }}>{dirLabel}</td>
-                  </tr>
-                );
-              })}
+              {missRows.map((d, i) => <MissRow key={d.date} d={d} i={i} isDuration={isDuration} unitLong={unitLong} />)}
             </tbody>
           </table>
         </div>

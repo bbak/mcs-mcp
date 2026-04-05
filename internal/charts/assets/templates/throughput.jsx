@@ -15,10 +15,10 @@ const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
 const CFG = {
-  mainChartHeight: 400,
-  mrChartHeight:   180,
-  mainMargin:      { top: 10, right: 20, bottom: 60, left: 10 },
-  mrMargin:        { top: 10, right: 20, bottom: 60, left: 10 },
+  mainChartHeight: 360,
+  mrChartHeight:   160,
+  mainMargin:      { top: 10, right: 20, bottom: 5, left: 10 },
+  mrMargin:        { top: 10, right: 20, bottom: 5, left: 10 },
   ySnapStep:       5,
   xTickCount:      10,
   partialOpacity:  0.4,
@@ -73,9 +73,19 @@ const yDomain = (max) => Math.ceil((max * 1.2) / CFG.ySnapStep) * CFG.ySnapStep;
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
 
-const CustomTooltip = ({ active, payload }) => {
+function TooltipTypeRow({ t, count }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <span style={{ color: TYPE_COLORS[t] }}>{t}</span>
+      <span>{count} items</span>
+    </div>
+  );
+}
+
+function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const b = payload[0].payload;
+  const typeRows = ACTIVE_TYPES.filter(t => b[t] > 0);
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`,
       borderRadius: 8, padding: "10px 14px", fontFamily: FONT_STACK,
@@ -83,12 +93,7 @@ const CustomTooltip = ({ active, payload }) => {
       <div style={{ fontWeight: 700, marginBottom: 2 }}>{b.label}</div>
       <div style={{ color: MUTED, marginBottom: 6, fontSize: 11 }}>{b.startDate} – {b.endDate}</div>
       <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 6 }}>
-        {ACTIVE_TYPES.map(t => b[t] > 0 && (
-          <div key={t} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-            <span style={{ color: TYPE_COLORS[t] }}>{t}</span>
-            <span>{b[t]} items</span>
-          </div>
-        ))}
+        {typeRows.map(t => <TooltipTypeRow key={t} t={t} count={b[t]} />)}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16,
           fontWeight: 700, borderTop: `1px solid ${BORDER}`, marginTop: 4, paddingTop: 4 }}>
           <span>Total</span><span>{b.total} items</span>
@@ -103,7 +108,7 @@ const CustomTooltip = ({ active, payload }) => {
       </div>
     </div>
   );
-};
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -160,7 +165,7 @@ export default function ThroughputChart() {
                 tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
                 label={{ value: `Items / ${BUCKET_LABEL}`, angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               {ACTIVE_TYPES.map(t => (
                 <Bar key={t} dataKey={t} stackId="tp" fill={TYPE_COLORS[t]} isAnimationActive={false}>
                   {BUCKETS.map((b, i) => (
@@ -190,23 +195,24 @@ export default function ThroughputChart() {
           {/* Legend */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
             {ACTIVE_TYPES.map(t => (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <svg width={14} height={12}><rect x={0} y={0} width={14} height={12} fill={TYPE_COLORS[t]} /></svg>
-                <span style={{ fontSize: 11, color: MUTED }}>{t}</span>
-              </div>
+              <span key={t} style={{ fontSize: 11, color: MUTED }}>
+                <span style={{ color: TYPE_COLORS[t] }}>●</span>{" "}{t}
+              </span>
             ))}
-            {[
-              { stroke: XMR_UNPL, dash: "6 3", label: "UNPL" },
-              { stroke: XMR_MEAN, dash: "4 4", label: "X̄ Mean" },
-              ...(LNPL > 0 ? [{ stroke: XMR_LNPL, dash: "6 3", label: "LNPL" }] : []),
-            ].map(({ stroke, dash, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <svg width={24} height={12}>
-                  <line x1={0} y1={6} x2={24} y2={6} stroke={stroke} strokeDasharray={dash} strokeWidth={1.5} />
-                </svg>
-                <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_UNPL}` }} />
+              <span style={{ fontSize: 11, color: MUTED }}>UNPL</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_MEAN}` }} />
+              <span style={{ fontSize: 11, color: MUTED }}>X̄ Mean</span>
+            </div>
+            {LNPL > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_LNPL}` }} />
+                <span style={{ fontSize: 11, color: MUTED }}>LNPL</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -227,7 +233,7 @@ export default function ThroughputChart() {
                 tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
                 label={{ value: "Moving Range", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <Bar dataKey="mr" isAnimationActive={false}>
                 {BUCKETS.map((b, i) => (
                   <Cell key={i}

@@ -200,7 +200,7 @@ export default function ProcessEvolutionChart() {
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-              <Tooltip content={<DotTooltip />} cursor={false} />
+              <Tooltip content={DotTooltip} cursor={false} />
 
               {HAS_SHIFT && (
                 <ReferenceArea
@@ -225,41 +225,40 @@ export default function ProcessEvolutionChart() {
 
           {/* Legend */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {[
-              { color: PRIMARY, opacity: 0.7, label: "Normal" },
-              { color: CAUTION, opacity: 0.7, label: "Shift zone" },
-              { color: ALARM,   opacity: 0.9, label: "Above UNPL" },
-            ].map(({ color, opacity, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={14} height={12}><circle cx={6} cy={6} r={3} fill={color} fillOpacity={opacity} /></svg>
-                <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, opacity: 0.7 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Normal</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: CAUTION, opacity: 0.7 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Shift zone</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: ALARM, opacity: 0.9 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Above UNPL</span>
+            </div>
             <div style={{ width: 1, height: 14, background: BORDER }} />
-            {[
-              { color: TEXT,    label: "Avg (normal)" },
-              { color: CAUTION, label: "Avg (shift)" },
-              { color: ALARM,   label: "Avg (above UNPL)" },
-            ].map(({ color, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={24} height={12}>
-                  <line x1={0} y1={6} x2={24} y2={6} stroke={color} strokeWidth={2.5} strokeLinecap="round" />
-                </svg>
-                <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 2.5, background: TEXT, borderRadius: 1 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Avg (normal)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 2.5, background: CAUTION, borderRadius: 1 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Avg (shift)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 2.5, background: ALARM, borderRadius: 1 }} />
+              <span style={{ fontSize: 11, color: MUTED }}>Avg (above UNPL)</span>
+            </div>
             <div style={{ width: 1, height: 14, background: BORDER }} />
-            {[
-              { stroke: XMR_MEAN, dash: "4 4", label: "X̄ avg" },
-              { stroke: XMR_UNPL, dash: "6 3", label: "UNPL" },
-            ].map(({ stroke, dash, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={24} height={12}>
-                  <line x1={0} y1={6} x2={24} y2={6} stroke={stroke} strokeDasharray={dash} strokeWidth={1.5} />
-                </svg>
-                <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_MEAN}` }} />
+              <span style={{ fontSize: 11, color: MUTED }}>X̄ avg</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_UNPL}` }} />
+              <span style={{ fontSize: 11, color: MUTED }}>UNPL</span>
+            </div>
           </div>
         </div>
 

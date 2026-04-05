@@ -168,7 +168,7 @@ export default function WipStabilityChart() {
               tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
               label={{ value: "Active WIP (items)", angle: -90, position: "insideLeft",
                 fill: MUTED, fontSize: 10, dy: 56 }} />
-            <Tooltip content={<TT />} />
+            <Tooltip content={TT} />
             <Area dataKey="count" fill="url(#wipGrad)" stroke="none"
               dot={false} activeDot={false} isAnimationActive={false} />
             <Line dataKey="count" stroke={SECONDARY} strokeWidth={1.5}
@@ -185,19 +185,30 @@ export default function WipStabilityChart() {
 
         {/* Legend */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 6 }}>
-          {[
-            [<line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeWidth={1.5} />,                           "Daily WIP"],
-            [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_UNPL} strokeDasharray="6 3" strokeWidth={1.5} />,       "UNPL"],
-            [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_MEAN} strokeDasharray="4 4" strokeWidth={1.5} />,       "X̄ Mean"],
-            [<line x1={0} y1={6} x2={24} y2={6} stroke={XMR_LNPL} strokeDasharray="6 3" strokeWidth={1} />,         "LNPL"],
-            [<circle cx={6} cy={6} r={4} fill={ALARM} />,                                                            "Above UNPL"],
-            [<circle cx={6} cy={6} r={4} fill={POSITIVE} />,                                                         "Below LNPL"],
-          ].map(([el, label]) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}>{el}</svg>
-              <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-            </div>
-          ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 24, height: 1.5, background: SECONDARY }} />
+            <span style={{ fontSize: 10, color: MUTED }}>Daily WIP</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_UNPL}` }} />
+            <span style={{ fontSize: 10, color: MUTED }}>UNPL</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_MEAN}` }} />
+            <span style={{ fontSize: 10, color: MUTED }}>X̄ Mean</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 24, height: 0, borderTop: `1px dashed ${XMR_LNPL}` }} />
+            <span style={{ fontSize: 10, color: MUTED }}>LNPL</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: ALARM }} />
+            <span style={{ fontSize: 10, color: MUTED }}>Above UNPL</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: POSITIVE }} />
+            <span style={{ fontSize: 10, color: MUTED }}>Below LNPL</span>
+          </div>
         </div>
       </div>
 

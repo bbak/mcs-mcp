@@ -79,6 +79,19 @@ function siVerdict(si) {
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
+function OutlierRow({ d, i }) {
+  return (
+    <tr style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
+      <td style={{ padding: "8px 8px", color: outlierColor(d.wip), fontWeight: 700, whiteSpace: "nowrap" }}>{d.key}</td>
+      <td style={{ padding: "8px 8px", color: typeColorMap[d.type] || MUTED, whiteSpace: "nowrap" }}>{d.type}</td>
+      <td style={{ padding: "8px 8px", color: MUTED, fontSize: 10, whiteSpace: "nowrap" }}>{d.status}</td>
+      <td style={{ padding: "8px 8px", color: outlierColor(d.wip), fontWeight: 700, whiteSpace: "nowrap" }}>{d.wip.toFixed(1)}d</td>
+      <td style={{ padding: "8px 8px", color: SECONDARY, whiteSpace: "nowrap" }}>{d.statusAge}d</td>
+      <td style={{ padding: "8px 8px", color: ALARM, whiteSpace: "nowrap" }}>P{d.pct}</td>
+    </tr>
+  );
+}
+
 
 const Swatch = ({ color, label }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -267,7 +280,7 @@ export default function WipItemAgeChart() {
                     tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <YAxis type="category" dataKey="key" width={138}
                     tick={{ fill: MUTED, fontSize: 9, fontFamily: FONT_STACK }} />
-                  <Tooltip content={<RankingTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+                  <Tooltip content={RankingTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="wip" radius={[0, 3, 3, 0]} isAnimationActive={false}>
                     {filtered.map((d, i) => (
                       <Cell key={`cell-${i}`}
@@ -289,18 +302,18 @@ export default function WipItemAgeChart() {
                 <Swatch color={CAUTION} label="85-119d — outlier" />
                 <Swatch color={PRIMARY} label="< P85 — normal (dimmed)" />
                 <div style={{ width: 1, height: 14, background: BORDER }} />
-                {[
-                  { stroke: ALARM,    dash: "4 2", label: `P95 ${P95.toFixed(0)}d` },
-                  { stroke: CAUTION,  dash: "6 3", label: `P85 ${P85.toFixed(0)}d` },
-                  { stroke: POSITIVE, dash: "3 3", label: `P50 ${P50.toFixed(0)}d` },
-                ].map(({ stroke, dash, label }) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <svg width={24} height={12}>
-                      <line x1={0} y1={6} x2={24} y2={6} stroke={stroke} strokeDasharray={dash} strokeWidth={1.5} />
-                    </svg>
-                    <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-                  </div>
-                ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${ALARM}` }} />
+                  <span style={{ fontSize: 11, color: MUTED }}>{`P95 ${P95.toFixed(0)}d`}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${CAUTION}` }} />
+                  <span style={{ fontSize: 11, color: MUTED }}>{`P85 ${P85.toFixed(0)}d`}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${POSITIVE}` }} />
+                  <span style={{ fontSize: 11, color: MUTED }}>{`P50 ${P50.toFixed(0)}d`}</span>
+                </div>
               </div>
             </>
           )}
@@ -316,7 +329,7 @@ export default function WipItemAgeChart() {
                   <XAxis dataKey="status" angle={-35} textAnchor="end" height={70}
                     tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-                  <Tooltip content={<StatusTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+                  <Tooltip content={StatusTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="outliers" stackId="s" fill={ALARM}   fillOpacity={0.85} isAnimationActive={false} />
                   <Bar dataKey="normal"   stackId="s" fill={PRIMARY} fillOpacity={0.5}  radius={[3, 3, 0, 0]} isAnimationActive={false} />
                 </BarChart>
@@ -339,7 +352,7 @@ export default function WipItemAgeChart() {
                   <XAxis dataKey="type"
                     tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                   <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-                  <Tooltip content={<TypeTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+                  <Tooltip content={TypeTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
                   <Bar dataKey="outliers" stackId="t" fill={ALARM}   fillOpacity={0.85} isAnimationActive={false} />
                   <Bar dataKey="normal"   stackId="t" fill={PRIMARY} fillOpacity={0.5}  radius={[3, 3, 0, 0]} isAnimationActive={false} />
                 </BarChart>
@@ -361,26 +374,19 @@ export default function WipItemAgeChart() {
               textTransform: "uppercase" }}>
               Aging Outliers ({outlierRows.length})
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <table style={{ width: "100%", minWidth: 540, borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  {["ITEM", "TYPE", "STATUS", "WIP AGE", "IN STATUS", "PCT"].map(h => (
-                    <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: MUTED,
-                      fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>ITEM</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>TYPE</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>STATUS</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>WIP AGE</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>IN STATUS</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", color: MUTED, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>PCT</th>
                 </tr>
               </thead>
               <tbody>
-                {outlierRows.map((d, i) => (
-                  <tr key={d.key} style={{ background: i % 2 === 0 ? "transparent" : `${PRIMARY}05` }}>
-                    <td style={{ padding: "8px 8px", color: outlierColor(d.wip), fontWeight: 700, whiteSpace: "nowrap" }}>{d.key}</td>
-                    <td style={{ padding: "8px 8px", color: typeColorMap[d.type] || MUTED, whiteSpace: "nowrap" }}>{d.type}</td>
-                    <td style={{ padding: "8px 8px", color: MUTED, fontSize: 10, whiteSpace: "nowrap" }}>{d.status}</td>
-                    <td style={{ padding: "8px 8px", color: outlierColor(d.wip), fontWeight: 700, whiteSpace: "nowrap" }}>{d.wip.toFixed(1)}d</td>
-                    <td style={{ padding: "8px 8px", color: SECONDARY, whiteSpace: "nowrap" }}>{d.statusAge}d</td>
-                    <td style={{ padding: "8px 8px", color: ALARM, whiteSpace: "nowrap" }}>P{d.pct}</td>
-                  </tr>
-                ))}
+                {outlierRows.map((d, i) => <OutlierRow key={d.key} d={d} i={i} />)}
               </tbody>
             </table>
           </div>
