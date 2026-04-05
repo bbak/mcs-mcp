@@ -148,6 +148,11 @@ var toolDescriptions = map[string]string{
 	"import_history_expand": "Extend the historical dataset backwards without creating gaps. Returns number of items fetched and used OMRC (oldest most recent change) boundary. Also triggers a catch-up.",
 
 	"import_history_update": "Fetch newer items since the last sync to ensure the cache is up to date. Returns number of items fetched and used NMRC (newest most recent change) boundary.",
+
+	"open_in_browser": "Opens a chart render URL in the system default browser. " +
+		"Use this tool whenever you receive a chart_url from an analysis tool. " +
+		"Only localhost render-charts URLs are accepted; all other URLs are rejected. " +
+		"Do not use any external browser-control tool for this purpose.",
 }
 
 // customSchemas maps Go enum types to their JSON Schema representations.
@@ -400,6 +405,12 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 	must(addTool(mcpSrv, s, "import_history_update",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryUpdateInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleCacheCatchUp(args.ProjectKey, args.BoardID)
+			return handleResult(s, data, err)
+		}))
+
+	must(addTool(mcpSrv, s, "open_in_browser",
+		func(_ context.Context, _ *mcp.CallToolRequest, args OpenInBrowserInput) (*mcp.CallToolResult, any, error) {
+			data, err := s.handleOpenInBrowser(args.URL)
 			return handleResult(s, data, err)
 		}))
 

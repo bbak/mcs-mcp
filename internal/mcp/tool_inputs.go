@@ -288,3 +288,8 @@ type ImportHistoryUpdateInput struct {
 	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
 }
 
+// OpenInBrowserInput holds arguments for the open_in_browser tool.
+type OpenInBrowserInput struct {
+	URL string `json:"url" jsonschema:"The chart render URL to open (must be a localhost render-charts URL)"`
+}
+
