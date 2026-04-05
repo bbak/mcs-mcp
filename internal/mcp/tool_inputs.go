@@ -112,20 +112,20 @@ type ImportBoardContextInput struct {
 type ForecastMonteCarloInput struct {
 	ProjectKey             string             `json:"project_key" jsonschema:"The project key"`
 	BoardID                int                `json:"board_id" jsonschema:"The board ID"`
-	Mode                   SimulationMode     `json:"mode" jsonschema:"Simulation mode: duration (forecast completion date for a number of work items) or scope (forecast delivery volume)."`
-	IncludeExistingBacklog bool               `json:"include_existing_backlog,omitempty" jsonschema:"If true automatically counts and includes all unstarted items (Demand Tier or Backlog) from Jira for this board/filter."`
-	IncludeWIP             bool               `json:"include_wip,omitempty" jsonschema:"If true ALSO includes items already in progress (passed the Commitment Point or started)."`
-	AdditionalItems        int                `json:"additional_items,omitempty" jsonschema:"Additional items to include (e.g. new initiative/scope not yet in Jira)."`
-	TargetDays             int                `json:"target_days,omitempty" jsonschema:"Number of days (required for scope mode)."`
-	TargetDate             string             `json:"target_date,omitempty" jsonschema:"Optional: Target date (YYYY-MM-DD). If provided target_days is calculated automatically."`
-	StartStatus            string             `json:"start_status,omitempty" jsonschema:"Optional: Start status (Commitment Point)."`
-	EndStatus              string             `json:"end_status,omitempty" jsonschema:"Optional: End status (Resolution Point)."`
-	IssueTypes             []string           `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include (e.g. Story)."`
-	HistoryWindowDays      int                `json:"history_window_days,omitempty" jsonschema:"Optional: Lookback window in days for historical baseline."`
-	HistoryStartDate       string             `json:"history_start_date,omitempty" jsonschema:"Optional: Explicit start date for the historical baseline (YYYY-MM-DD)."`
-	HistoryEndDate         string             `json:"history_end_date,omitempty" jsonschema:"Optional: Explicit end date for the historical baseline (YYYY-MM-DD). Default: Today."`
-	Targets                map[string]int     `json:"targets,omitempty" jsonschema:"Optional: Exact counts of items to simulate (e.g. Story 10 Bug 5). If provided additional_items is ignored and the simulation targets these specific counts."`
-	MixOverrides           map[string]float64 `json:"mix_overrides,omitempty" jsonschema:"Optional: Shifting the historical capacity distribution (e.g. Bug 0.1). The float values (0.0-1.0) represent the target share of capacity. Remaining capacity is distributed proportionally to other types."`
+	Mode                   SimulationMode     `json:"mode" jsonschema:"duration: forecast the completion date for a known set of items (deadline question). scope: forecast how many items will be done by a given date (capacity question)."`
+	IncludeExistingBacklog bool               `json:"include_existing_backlog,omitempty" jsonschema:"If true automatically counts and includes all unstarted items (Demand Tier or Backlog) from Jira. Set both include_existing_backlog and include_wip to true for real commitment forecasts — omitting either understates total scope."`
+	IncludeWIP             bool               `json:"include_wip,omitempty" jsonschema:"If true also includes items already in progress (past the Commitment Point). Set both include_wip and include_existing_backlog to true for real commitment forecasts — omitting either understates total scope."`
+	AdditionalItems        int                `json:"additional_items,omitempty" jsonschema:"Additional items to include beyond what Jira contains (e.g. new initiative not yet in Jira). Ignored if targets is provided."`
+	TargetDays             int                `json:"target_days,omitempty" jsonschema:"Number of days to forecast into the future (required for scope mode). Calculated automatically if target_date is provided."`
+	TargetDate             string             `json:"target_date,omitempty" jsonschema:"Target date (YYYY-MM-DD). If provided target_days is calculated automatically."`
+	StartStatus            string             `json:"start_status,omitempty" jsonschema:"Override the Commitment Point status (default: configured commitment point)."`
+	EndStatus              string             `json:"end_status,omitempty" jsonschema:"Override the Resolution Point status (default: Finished tier)."`
+	IssueTypes             []string           `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
+	HistoryWindowDays      int                `json:"history_window_days,omitempty" jsonschema:"Lookback window in days for the throughput sample. Default: all available history. Narrow to 30–60 days after a process change. Use recommended_window_days from analyze_residence_time when that tool returns a non-stationary signal (λ/θ > 1.1)."`
+	HistoryStartDate       string             `json:"history_start_date,omitempty" jsonschema:"Explicit start date for the historical baseline (YYYY-MM-DD). Overrides history_window_days."`
+	HistoryEndDate         string             `json:"history_end_date,omitempty" jsonschema:"Explicit end date for the historical baseline (YYYY-MM-DD). Default: today."`
+	Targets                map[string]int     `json:"targets,omitempty" jsonschema:"Exact counts of items to simulate per type (e.g. Story:10 Bug:5). If provided additional_items is ignored."`
+	MixOverrides           map[string]float64 `json:"mix_overrides,omitempty" jsonschema:"Override the historical capacity distribution per type (e.g. Bug:0.1). Values (0.0–1.0) represent target share of capacity; remaining capacity is distributed proportionally to other types."`
 }
 
 // AnalyzeCycleTimeInput holds arguments for the analyze_cycle_time tool.
@@ -147,62 +147,62 @@ type AnalyzeStatusPersistenceInput struct {
 type AnalyzeWorkItemAgeInput struct {
 	ProjectKey string     `json:"project_key" jsonschema:"The project key"`
 	BoardID    int        `json:"board_id" jsonschema:"The board ID"`
-	AgeType    AgeType    `json:"age_type" jsonschema:"Type of age to calculate: total (since creation) or wip (since commitment)."`
-	TierFilter TierFilter `json:"tier_filter,omitempty" jsonschema:"Optional: Filter results to specific tiers. WIP (Work-in-process default) excludes Demand and Finished."`
+	AgeType    AgeType    `json:"age_type" jsonschema:"'wip': age since commitment point (standard SLE comparison — requires correct commitment point mapping). 'total': age since creation (surfaces items that entered the system long ago but have not yet committed)."`
+	TierFilter TierFilter `json:"tier_filter,omitempty" jsonschema:"Filter results to a specific tier. Default 'WIP' excludes Demand and Finished (shows only in-flight items). Use 'Upstream' or 'Downstream' to focus on a specific stage. Use 'All' to include Demand and Finished items."`
 }
 
 // AnalyzeThroughputInput holds arguments for the analyze_throughput tool.
 type AnalyzeThroughputInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
-	IncludeAbandoned   bool   `json:"include_abandoned,omitempty" jsonschema:"If true includes items with abandoned outcome (default: false)."`
-	Bucket             string `json:"bucket,omitempty" jsonschema:"Group data by week or month (default: week)."`
+	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
+	IncludeAbandoned   bool   `json:"include_abandoned,omitempty" jsonschema:"If true includes items with abandoned outcome. Default: false (delivered items only)."`
+	Bucket             string `json:"bucket,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
 }
 
 // AnalyzeProcessStabilityInput holds arguments for the analyze_process_stability tool.
 type AnalyzeProcessStabilityInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
-	IncludeRawSeries   bool   `json:"include_raw_series,omitempty" jsonschema:"If true includes the full Values and MovingRange arrays in the response (default: false)."`
+	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
+	IncludeRawSeries   bool   `json:"include_raw_series,omitempty" jsonschema:"If true includes the full Values and MovingRange arrays in the response. Default: false. Enable when you need to inspect individual data points or plot the raw series."`
 }
 
 // AnalyzeFlowDebtInput holds arguments for the analyze_flow_debt tool.
 type AnalyzeFlowDebtInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
-	BucketSize         string `json:"bucket_size,omitempty" jsonschema:"Group data by week or month (default: week)"`
+	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
+	BucketSize         string `json:"bucket_size,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
 }
 
 // GenerateCFDDataInput holds arguments for the generate_cfd_data tool.
 type GenerateCFDDataInput struct {
 	ProjectKey         string      `json:"project_key" jsonschema:"The project key"`
 	BoardID            int         `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
-	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity: daily (default) or weekly. Weekly keeps only the last data point per ISO week reducing payload size."`
+	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
+	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) gives the full picture. 'weekly' keeps only the last data point per ISO week — use this to reduce payload size for long windows or low-volume teams."`
 }
 
 // AnalyzeWIPStabilityInput holds arguments for the analyze_wip_stability tool.
 type AnalyzeWIPStabilityInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
+	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a team size change or WIP limit policy change."`
 }
 
 // AnalyzeWIPAgeStabilityInput holds arguments for the analyze_wip_age_stability tool.
 type AnalyzeWIPAgeStabilityInput struct {
 	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
 	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 26)"`
+	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change to measure only the new regime."`
 }
 
 // AnalyzeProcessEvolutionInput holds arguments for the analyze_process_evolution tool.
 type AnalyzeProcessEvolutionInput struct {
 	ProjectKey          string `json:"project_key" jsonschema:"The project key"`
 	BoardID             int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowMonths int    `json:"history_window_months,omitempty" jsonschema:"Number of months to analyze (default: 12 supports up to 60 for deep history)"`
+	HistoryWindowMonths int    `json:"history_window_months,omitempty" jsonschema:"Number of months to analyze. Default: 12. Increase to 24–60 for deep audits or post-reorganization analysis. Call 'import_history_expand' first if the local cache does not cover the requested range."`
 }
 
 // AnalyzeYieldInput holds arguments for the analyze_yield tool.
@@ -270,9 +270,9 @@ type ForecastBacktestInput struct {
 type AnalyzeResidenceTimeInput struct {
 	ProjectKey         string      `json:"project_key" jsonschema:"The project key"`
 	BoardID            int         `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Number of weeks to analyze (default: 52)"`
-	IssueTypes         []string    `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include (e.g. Story Bug)."`
-	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity: daily (default) or weekly."`
+	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 52 (longer than other tools — Sample Path analysis needs sufficient path length). Reduce to 26 if only the recent regime is relevant or after a major process reset."`
+	IssueTypes         []string    `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
+	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) for full resolution. 'weekly' to reduce payload size for long windows."`
 }
 
 // ImportHistoryExpandInput holds arguments for the import_history_expand tool.

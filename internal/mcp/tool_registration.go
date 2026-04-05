@@ -15,142 +15,230 @@ import (
 // toolDescriptions holds the long description strings for tools.
 // Kept here to avoid cluttering the registration logic.
 var toolDescriptions = map[string]string{
-	"import_projects": "Search for Jira projects by name or key. Guidance: If you plan to run analysis, you MUST find the project's boards using 'import_boards' next. Use 'import_project_context' only for general project metadata.",
 
-	"import_boards": "Search for Agile boards, optionally filtering by project key or name. Guidance: Call 'import_board_context' next to anchor on the data shape context.",
+	// ── GROUP: Diagnostics — Process, Cycle Time, WIP & Flow ──────────────────
 
-	"import_project_context": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for a project. Note: Analytical tools (simulations, cycle time) require a Board ID; use 'import_board_context' if you plan to run diagnostics or forecasts.",
-
-	"import_board_context": "Get a Data Shape Anchor (Whole dataset volumes vs. Sample distributions) for an Agile board. MUST be called before workflow discovery.",
-
-	"forecast_monte_carlo": "Run a Monte-Carlo simulation to forecast project outcomes (How Much / When) based solely on historical THROUGHPUT (work items / time). \n\n" +
-		"NOT FOR CYCLE TIME: This tool does NOT analyze lead times or individual item durations. Use it for scope/date forecasting only.\n" +
-		"CRITICAL: PROPER WORKFLOW MAPPING IS REQUIRED FOR RELIABLE RESULTS. \n\n" +
-		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY.\n" +
-		"DO NOT provide date ranges or probability estimates (e.g., 'There is an 85% chance...') if the tool fails or returns zero throughput. \n" +
-		"If the simulation result is unexpectedly far in the future (e.g., years instead of months), YOU MUST warn the user that the historical throughput sampling might be too low due to filtered resolutions or issue types.\n\n" +
-		"STATIONARITY ASSESSMENT: The result includes a 'stationarity_assessment' in the 'context' field. This evaluates whether the process is stable enough for uniform-random throughput sampling to be valid. Key fields:\n" +
-		"- 'stationary' (bool): false means the process is non-stationary — forecasts may be optimistic.\n" +
-		"- 'convergence': 'converging' (stable), 'diverging' (WIP accumulating), or 'metastable' (noisy but not trending).\n" +
-		"- 'lambda_theta_ratio': Arrival rate / Departure rate. Values > 1.3 indicate WIP is growing faster than it's being completed.\n" +
-		"- 'coherence_gap_ratio': How much active WIP is aging beyond completed items. Values > 0.5 indicate stalled or harder items remain.\n" +
-		"- 'recommended_window_days': When non-stationary, suggests a narrower sampling window. Present the recommendation to the user.\n" +
-		"When 'stationary' is false, you MUST surface the stationarity warnings to the user and suggest re-running with the recommended sample_days.",
-
-	"analyze_cycle_time": "Calculate Service Level Expectations (SLE) for a single item based on historical CYCLE TIMES (Lead Time). \n\n" +
-		"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results. \n" +
-		"Use this to answer 'How long does a single item typically take?' - this is the foundation for probabilistic Lead-Time expectations.\n\n" +
-		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. \n" +
-		"DO NOT calculate percentiles, probabilities, or dates using your own internal reasoning if this tool returns an error or no data. \n" +
+	"analyze_cycle_time": "Measures how long individual items take to complete (Lead Time / Cycle Time) and derives Service Level Expectations (SLE).\n\n" +
+		"WHEN TO USE: User asks 'How long does a single item typically take?', 'What is our SLE?', 'What percentile should we commit to?'\n" +
+		"WHEN NOT TO USE: Do not use to assess delivery volume stability — use 'analyze_throughput' for that. Do not use to assess predictability of the process — use 'analyze_process_stability' for that.\n\n" +
+		"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results.\n\n" +
+		"INTERPRETATION: Primary signals are the Fat-Tail Ratio and P85 (SLE). A Fat-Tail Ratio > 1.5 means the distribution has a long tail — P85 is a more reliable SLE than the mean.\n\n" +
+		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. " +
+		"DO NOT calculate percentiles, probabilities, or dates using your own internal reasoning if this tool returns an error or no data. " +
 		"If the tool fails, you MUST report the error to the user and ask for clarification.",
 
-	"analyze_status_persistence": "Analyze how long items spend in each status to identify bottlenecks. \n\n" +
-		"PREREQUISITE: Proper workflow mapping is required for accurate results. Results provide SUBPAR context if tiers (Upstream/Downstream) are not correctly mapped.\n" +
-		"CRITICAL: This tool ONLY analyzes items that have successfully finished ('delivered'). It ignores active WIP to ensure the historical norms are not artificially lowered by incomplete items.\n" +
-		"The analysis includes statistical dispersion metrics (IQR, Inner80) for each status to help identify not just where items spend time, but where they spend it inconsistently.",
+	"analyze_process_stability": "Measures the predictability of Lead Times (Cycle Time) using Wheeler XmR Process Behavior Charts.\n\n" +
+		"WHEN TO USE: Use as the FIRST diagnostic step when users ask about forecasting reliability, prediction confidence, or whether historical data is a valid proxy for the future. " +
+		"Ask: 'Is our process stable enough to forecast?'\n" +
+		"WHEN NOT TO USE: Do not use to measure delivery volume — use 'analyze_throughput' for that. " +
+		"Do not use for long-term trend analysis spanning many months — use 'analyze_process_evolution' for that.\n\n" +
+		"PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset.\n\n" +
+		"INTERPRETATION: Primary signals are UNPL and the total number of signals (outliers + shifts). " +
+		"If stability is low (many signals), simulations will produce MISLEADING results. " +
+		"Combine with 'analyze_residence_time' when λ/θ > 1.1 to understand why cycle times are unstable.",
 
-	"analyze_work_item_age": "Identify which items are aging relative to historical norms. \n\n" +
-		"PREREQUISITE: Proper workflow mapping (Commitment Point) is MANDATORY for accurate 'WIP Age'. Results are UNRELIABLE if the commitment point is incorrectly defined.\n" +
-		"Allows choosing between 'WIP Age' (time since commitment) and 'Total Age' (time since creation).\n\n" +
-		"The 'is_aging_outlier' flag indicates an item is older than the historical 85th percentile (P85). \n" +
-		"IMPORTANT: An aging outlier is NOT necessarily blocked or impeded; it simply exceeds the normal historical residency for that status.",
+	"analyze_process_evolution": "Performs a longitudinal strategic audit of Lead Time predictability over many months using Three-Way Control Charts.\n\n" +
+		"WHEN TO USE: Deep history analysis, post-reorganization audits, quarterly/annual process reviews. " +
+		"User asks: 'Has our delivery capability improved over the past year?' or 'When did the process change?'\n" +
+		"WHEN NOT TO USE: Not for routine analysis — use 'analyze_process_stability' for that. Throughput-agnostic: does not measure delivery volume.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_months: Default 12. Increase to 24–60 for deeper audits; call 'import_history_expand' first if the local cache does not cover that range.\n\n" +
+		"INTERPRETATION: Primary signals are detected regime shifts (process resets) and the long-term capability trend. " +
+		"Month-to-month subgroups reveal structural drift that short-window XmR charts miss.",
 
-	"analyze_throughput": "Analyze the weekly pulse of delivery THROUGHPUT VOLUME - the number of items completed per week - to detect flow vs. batching.\n" +
-		"THROUGHPUT STABILITY (XmR): This tool automatically calculates Wheeler Process Behavior Chart (XmR) limits for the delivery cadence.\n" +
-		"Use this tool to determine if the team's delivery volume is predictable and stable over time, or if there are systemic variations (zero-count weeks, extreme surges).\n" +
-		"The response includes both the raw aggregated volumes and the calculated statistically-derived Limits (UNPL/LNPL) via the 'stability' object.",
+	"analyze_status_persistence": "Analyzes how long completed items spent in each workflow status, revealing bottlenecks and inconsistency hotspots.\n\n" +
+		"WHEN TO USE: User asks 'Where do items get stuck?', 'Which status has the most variability?', 'What is causing long cycle times?'\n" +
+		"WHEN NOT TO USE: Do not use for active WIP — this tool only analyzes finished items. " +
+		"Do not confuse with 'analyze_process_stability', which measures overall Lead Time predictability, not per-status breakdown.\n\n" +
+		"PREREQUISITE: Proper workflow mapping (Upstream/Downstream tiers) is required. Results are SUBPAR if tiers are unmapped.\n\n" +
+		"INTERPRETATION: Primary signal is IQR concentration — a status with high median but low IQR is a consistent queue; " +
+		"high IQR indicates unpredictable, variable dwell time worth investigating.",
 
-	"generate_cfd_data": "Calculate daily population counts per status and issue type to generate a Cumulative Flow Diagram (CFD).\n" +
-		"CFD: This tool provides the raw time-series data needed to visualize the work-in-progress (WIP), congestion, and stability of a system over time.\n" +
-		"The output is stratified by Issue Type and Status, allowing the Agent to detect specific stage bottlenecks or bloating work types.\n" +
-		"Note: This tool produces structured data. It is primarily intended for subsequent visualization or deep structural analysis of flow dynamics.",
+	"analyze_throughput": "Measures delivery volume stability — the number of items completed per week or month — using Wheeler XmR Process Behavior Charts.\n\n" +
+		"WHEN TO USE: User asks 'How many items do we deliver per week?', 'Is our delivery cadence stable?', 'Do we have batching or zero-delivery weeks?'\n" +
+		"WHEN NOT TO USE: Do not use to measure how long individual items take — use 'analyze_cycle_time' for that. " +
+		"Do not use to assess Lead Time predictability — use 'analyze_process_stability' for that.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26. Use 8–12 after a process change. Use 4–6 to measure only current cadence.\n" +
+		"- bucket: Default 'week'. Switch to 'month' for low-volume teams where weekly counts are too sparse to be meaningful.\n\n" +
+		"INTERPRETATION: Primary signals are UNPL and zero-count weeks. " +
+		"Zero-delivery weeks signal batching or blockage. UNPL breaches signal unusual surges. " +
+		"Use 'analyze_flow_debt' as a leading indicator if throughput is declining.",
 
-	"analyze_flow_debt": "Analyze the systemic balance between incoming work (Arrival Rate / Commitment) and outgoing work (Departure Rate / Delivery).\n" +
-		"FLOW DEBT: This tool calculates the 'Debt' - the gap between arrivals and departures - to detect leading indicators of cycle time inflation.\n" +
-		"A positive Flow Debt (Arrivals > Departures) means WIP is growing, which mathematically GUARANTEES higher cycle times in the future (Little's Law).\n" +
-		"Use this tool to find the root cause of 'Flow Clog' before it manifests as delayed delivery dates.",
+	"analyze_wip_stability": "Measures Work-In-Progress (WIP) count stability over time using XmR charts and a daily run chart.\n\n" +
+		"WHEN TO USE: User asks 'Is our WIP under control?', 'Are we respecting WIP limits?', 'How variable is the number of active items?'\n" +
+		"WHEN NOT TO USE: WIP count stability does NOT imply age stability — a stable count of 10 items can still be accumulating age. " +
+		"Follow up with 'analyze_wip_age_stability' to check this. Do not use to detect individual aging items — use 'analyze_work_item_age' for that.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26. Use 8–12 after a team size change or WIP limit policy change.\n\n" +
+		"INTERPRETATION: Primary signals are UNPL breaches and the trend direction. " +
+		"A rising trend in WIP count, even within limits, is an early warning. Combine with 'analyze_residence_time' when λ/θ > 1.1.",
 
-	"analyze_process_stability": "Analyze process stability and predictability using XmR charts. \n" +
-		"PROCESS STABILITY: Measures the predictability of Lead Times (Cycle-Time). High stability means future delivery dates are more certain. It is NOT about throughput volume.\n" +
-		"Stability is high if most items fall within Natural Process Limits. Chaos is high if many points are beyond limits (signals).\n\n" +
-		"PREREQUISITE: Proper workflow mapping is required for accurate results. \n" +
-		"Use 'analyze_process_stability' as the FIRST diagnostic step when users ask about forecasting/predictions. This determines if historical data is a reliable proxy for the future. If stability is low, simulations will produce MISLEADING results.\n" +
-		"NOTE: If you want to analyze the stability of Delivery Cadence/Volume, DO NOT use this tool. Use 'analyze_throughput' instead.",
+	"analyze_wip_age_stability": "Measures the cumulative age burden of all active WIP items over time using XmR charts — a leading indicator of future delivery problems.\n\n" +
+		"WHEN TO USE: After 'analyze_wip_stability' — stable WIP count does not guarantee stable age. " +
+		"User asks: 'Are items stagnating even though count looks fine?', 'Is the total age of WIP growing?'\n" +
+		"WHEN NOT TO USE: Do not use to measure WIP count — use 'analyze_wip_stability' for that. " +
+		"Do not use to find which specific items are aging — use 'analyze_work_item_age' for that.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26. Use 8–12 after a process change to measure only the new regime.\n\n" +
+		"INTERPRETATION: Primary signal is UNPL breaches of total age (not average). " +
+		"Growing total WIP age signals trouble before throughput drops. XmR is applied to total age, not the mean.",
 
-	"analyze_wip_stability": "Analyze system population (Work-In-Progress) stability over time using XmR charts and a historical daily Run Chart. \n" +
-		"WIP STABILITY: A highly variable WIP size violates the assumptions of Little's Law, making systems fundamentally unpredictable. \n" +
-		"This tool generates a daily run-chart of active WIP, bounded by strict weekly XmR statistically-derived Process Limits to detect volatile WIP management.",
+	"analyze_work_item_age": "Identifies which active items are aging beyond historical norms, flagging outliers relative to P85 of historical cycle times.\n\n" +
+		"WHEN TO USE: User asks 'Which items are taking too long?', 'What is at risk of breaching SLE?', 'Show me aging WIP.'\n" +
+		"WHEN NOT TO USE: Do not use to assess overall WIP stability — use 'analyze_wip_stability' or 'analyze_wip_age_stability' for that. " +
+		"An aging outlier is NOT necessarily blocked — it simply exceeds historical P85 for its current status.\n\n" +
+		"PREREQUISITE: Commitment Point MUST be correctly mapped via 'workflow_set_mapping' for accurate 'WIP Age'. Results are UNRELIABLE otherwise.\n\n" +
+		"INTERPRETATION: Primary signals are 'stability_index', outlier count, and P85/P95 thresholds. " +
+		"Use 'age_type=wip' for standard SLE comparison; use 'age_type=total' to surface items that entered the system long ago but have not yet committed.",
 
-	"analyze_wip_age_stability": "Analyze Total WIP Age stability over time using XmR charts and a historical daily Run Chart. \n" +
-		"TOTAL WIP AGE: Measures the cumulative age burden of all items currently in progress. " +
-		"While WIP Count tells how many items are active, Total WIP Age tells how long they have collectively been there. \n" +
-		"A growing Total WIP Age is a leading indicator of delivery problems — it signals trouble before throughput drops. \n" +
-		"Even with stable WIP count, Total WIP Age can grow if items stagnate. XmR is applied to Total WIP Age, not the average.",
+	"analyze_flow_debt": "Measures the systemic imbalance between item arrivals (commitments) and departures (deliveries) — a leading indicator of cycle time inflation.\n\n" +
+		"WHEN TO USE: Use before 'forecast_monte_carlo' to validate that WIP is not growing. " +
+		"User asks: 'Are we taking on more work than we finish?', 'Is WIP accumulating?', 'Why are cycle times increasing?'\n" +
+		"WHEN NOT TO USE: Do not confuse with 'analyze_residence_time' — Flow Debt is a leading indicator (arrival vs. departure counts); " +
+		"Residence Time is a Little's Law analysis (L = λ · W) unifying cycle time, WIP age, and flow balance into a single coherent view.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26. Use 8–12 after a process change.\n" +
+		"- bucket_size: Default 'week'. Use 'month' for low-volume teams.\n\n" +
+		"INTERPRETATION: Primary signals are 'totalDebt' and the oscillation pattern. " +
+		"Sustained positive debt (Arrivals > Departures) mathematically guarantees higher future cycle times (Little's Law). " +
+		"Oscillating debt is less concerning than a monotonically growing one.",
 
-	"analyze_process_evolution": "Perform a longitudinal 'Strategic Audit' of process behavior over longer time periods using Three-Way Control Charts. \n\n" +
-		"PROCESS EVOLUTION: Measures long-term predictability and capability of Lead Times (Cycle-Time). It is THROUGHPUT-AGNOSTIC.\n" +
-		"AI MUST use this for deep history analysis or after significant organizational changes. NOT intended for routine daily analysis.\n" +
-		"Detects systemic shifts, process drift, and long-term capability changes by analyzing monthly subgroups.",
+	"analyze_residence_time": "Performs a Sample Path Analysis (Little's Law: L = Λ · W) unifying cycle time, WIP age, WIP stability, and flow balance into a single coherent view.\n\n" +
+		"WHEN TO USE: When you need to understand *why* a system is non-stationary — connects flow debt, WIP age, and cycle time into one analysis. " +
+		"Use when 'analyze_wip_stability' or 'analyze_flow_debt' raises concerns and you want to quantify the severity.\n" +
+		"WHEN NOT TO USE: Do not use as a first-line diagnostic — start with 'analyze_process_stability' or 'analyze_throughput'. " +
+		"Do not confuse with 'analyze_flow_debt': Flow Debt counts arrivals vs. departures; Residence Time measures how long items actually accumulate in the system.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 52 (longer than other tools because Sample Path analysis needs sufficient path length). " +
+		"Reduce to 26 if only recent regime is relevant.\n\n" +
+		"INTERPRETATION: Primary signals are the λ/θ ratio, coherence gap, and 'stationary' flag. " +
+		"λ/θ > 1.1 means arrivals outpace completions — system is accumulating. " +
+		"Coherence gap > 0.5 means active WIP is significantly older than completed items — stalled work is hiding in the system. " +
+		"When 'stationary' is false, pass 'recommended_window_days' to 'forecast_monte_carlo' as 'history_window_days'.\n\n" +
+		"NOTE: This tool ALWAYS applies backflow reset (uses the LAST commitment date), diverging from configurable backflow reset in other tools.",
 
-	"analyze_yield": "Analyze delivery efficiency across tiers. AI MUST ensure workflow tiers (Demand, Upstream, Downstream) have been verified with the user before interpreting these results.",
+	"analyze_yield": "Measures delivery efficiency across workflow tiers — what fraction of committed work reaches delivery vs. abandonment at each stage.\n\n" +
+		"WHEN TO USE: User asks 'How much work do we abandon?', 'Where in the funnel do we lose the most?', 'What is our downstream abandonment rate?'\n" +
+		"WHEN NOT TO USE: Do not use for throughput volume — use 'analyze_throughput'. " +
+		"Do not use for cycle time — use 'analyze_cycle_time'. Yield measures outcome rates, not timing.\n\n" +
+		"PREREQUISITE: Workflow tiers (Demand, Upstream, Downstream) and resolution outcomes MUST be verified with the user before interpreting results.\n\n" +
+		"INTERPRETATION: Primary signal is 'overallYieldRate' per tier. " +
+		"Downstream abandonment (items that passed the commitment point and were then discarded) is the most severe signal — it represents consumed capacity with no value delivered.",
 
-	"workflow_discover_mapping": "Probe project status categories, residence times, and resolution frequencies into a semantic workflow mapping. \n\n" +
-		"AI MUST use this to verify the workflow tiers, roles, AND the 'Commitment Point' (where clock starts) with the user before diagnostics. \n" +
-		"The response provides a split view: 'Whole' (deterministic volumes) and 'Sample' (probabilistic characterization).\n" +
-		"OUTCOME HIERARCHY: 1. Jira Resolutions (Primary) > 2. Finished-tier Status mapping (Secondary).\n" +
-		"TIER VISIBILITY: AI MUST show the confirmed mapping of Statuses to Tiers to the user.\n\n" +
-		"STATUS ORDER: The response includes a 'status_order' array — the canonical chronological ordering of workflow statuses. " +
-		"AI MUST present this order to the user for verification. If the user confirms or corrects it, AI MUST call 'workflow_set_order' to persist the final order. " +
-		"This order is critical for CFD visualization, flow debt analysis, and other range-based analytics.\n\n" +
+	"generate_cfd_data": "Calculates daily (or weekly) item counts per status to produce Cumulative Flow Diagram (CFD) data.\n\n" +
+		"WHEN TO USE: User asks for a CFD visualization, wants to see WIP accumulation over time by status, or needs to detect stage-level congestion.\n" +
+		"WHEN NOT TO USE: This tool returns raw structured data — it is not a standalone diagnostic. " +
+		"For overall WIP count stability, use 'analyze_wip_stability'. For arrival/departure imbalance, use 'analyze_flow_debt'.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_weeks: Default 26.\n" +
+		"- granularity: Default 'daily'. Use 'weekly' to reduce payload size for long windows or low-volume teams.\n\n" +
+		"INTERPRETATION: Primary signals are band width changes (widening = accumulation) and which status bands are growing. " +
+		"A widening Downstream band with a flat Finished band means delivery is stalling.",
+
+	"analyze_item_journey": "Provides a single-item deep-dive into where one Jira issue spent its time across all workflow steps.\n\n" +
+		"WHEN TO USE: User asks about a specific item: 'Why is PROJ-123 taking so long?', 'Where did this ticket get stuck?', 'Show me the history of this item.'\n" +
+		"WHEN NOT TO USE: This is NOT a population-level diagnostic. For patterns across many items, use 'analyze_status_persistence' or 'analyze_work_item_age'.",
+
+	// ── GROUP: Forecast & Simulation ─────────────────────────────────────────
+
+	"forecast_monte_carlo": "Runs a Monte-Carlo simulation to forecast project outcomes based on historical throughput.\n\n" +
+		"WHEN TO USE:\n" +
+		"- mode=duration: 'When will a known set of items be done?' (deadline question — fixed scope, unknown date)\n" +
+		"- mode=scope: 'How much will be done by a given date?' (capacity question — fixed date, unknown scope)\n" +
+		"WHEN NOT TO USE: Does NOT analyze lead times or individual item durations — use 'analyze_cycle_time' for that.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- history_window_days: Default uses all available history. Narrow to 30–60 days after a process change, or use 'recommended_window_days' from 'analyze_residence_time' when that tool returns a non-stationary signal (λ/θ > 1.1).\n" +
+		"- include_wip + include_existing_backlog: Set both to true for real commitment forecasts — this counts ALL outstanding work (started + unstarted). Omitting either understates the total scope.\n\n" +
+		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. " +
+		"DO NOT provide date ranges or probability estimates if the tool fails or returns zero throughput. " +
+		"If the result is unexpectedly far in the future, warn the user that throughput sampling may be too low due to filtered resolutions or issue types.\n\n" +
+		"STATIONARITY ASSESSMENT: The result includes 'stationarity_assessment' in the 'context' field. " +
+		"When 'stationary' is false, surface the warnings to the user and suggest re-running with 'recommended_window_days'. " +
+		"Run 'forecast_backtest' first when stationarity is uncertain.",
+
+	"forecast_backtest": "Validates Monte-Carlo forecast accuracy via Walk-Forward Analysis — reconstructs past system states and checks whether actual outcomes fell within predicted ranges.\n\n" +
+		"WHEN TO USE: Before committing to a forecast when stationarity is uncertain. " +
+		"User asks: 'How accurate are our forecasts historically?', 'Should we trust the Monte Carlo result?'\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- simulation_mode: Use the same decision rule as 'forecast_monte_carlo' — duration for deadline questions, scope for capacity questions.\n" +
+		"- history_window_days: Controls how many checkpoints are generated (default 175 days = ~25 weekly checkpoints). " +
+		"This is NOT the per-checkpoint sampling window — each checkpoint always samples from a fixed 90-day window ending at that point.\n\n" +
+		"INTERPRETATION: Key field is 'stationarity_correlation.signal'. " +
+		"'predictive' means non-stationary checkpoints miss at >2x the rate of stationary ones — the stationarity guardrail is validated for this project; surface stationarity warnings prominently. " +
+		"'not_predictive' means both groups miss at similar rates — stationarity may not be the main accuracy driver here.",
+
+	// ── GROUP: Import & Setup ─────────────────────────────────────────────────
+	// Canonical setup sequence:
+	// import_projects → import_boards → import_board_context →
+	// workflow_discover_mapping → workflow_set_mapping →
+	// workflow_set_order → [Diagnostics tools]
+
+	"import_projects": "Searches for Jira projects by name or key.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"Next step: call 'import_boards' with the project key to find the board ID needed for all analytical tools.",
+
+	"import_boards": "Searches for Agile boards, optionally filtering by project key or name.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"Next step: call 'import_board_context' with the board ID to anchor the data shape context.",
+
+	"import_board_context": "Returns a Data Shape Anchor — whole dataset volumes vs. sample distributions — for a specific Agile board.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"MUST be called before 'workflow_discover_mapping'. Next step: call 'workflow_discover_mapping'.",
+
+	"import_project_context": "Returns a Data Shape Anchor for a project (not board-level). Use for general project metadata only.\n\n" +
+		"NOTE: All analytical tools require a Board ID. If you plan to run diagnostics or forecasts, use 'import_board_context' instead.",
+
+	"import_history_expand": "Extends the local historical dataset backwards in time without creating gaps.\n\n" +
+		"WHEN TO USE: When 'analyze_process_evolution' or a long-window 'analyze_residence_time' call requires more history than the local cache contains. " +
+		"Also use when the board was recently set up and the default cache is too shallow for reliable XmR limits.\n\n" +
+		"This is a full backward fetch — use 'import_history_update' for lightweight incremental syncs.",
+
+	"import_history_update": "Incrementally fetches items changed since the last sync to keep the local cache current.\n\n" +
+		"WHEN TO USE: At the start of any session to ensure analysis reflects recent Jira changes. This is a lightweight sync — it does NOT extend history backwards. " +
+		"Use 'import_history_expand' to extend the historical range.",
+
+	"workflow_discover_mapping": "Probes status categories, residence times, and resolution frequencies to propose a semantic workflow mapping for user verification.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"AI MUST present the proposed tier mapping AND the 'status_order' array to the user for verification. " +
+		"After user confirms or corrects BOTH, AI MUST call 'workflow_set_mapping' AND 'workflow_set_order' to persist them. " +
+		"Without persisting both, all Diagnostics tools will return subpar or incorrect results.\n\n" +
 		"METAWORKFLOW GUIDANCE:\n" +
 		"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin). Not applicable for 'Finished' tier.\n" +
-		"- OUTCOMES: 'delivered' (Value Provided), 'abandoned' (Work Discarded).",
+		"- OUTCOMES: 'delivered' (Value Provided), 'abandoned' (Work Discarded).\n" +
+		"- OUTCOME HIERARCHY: Jira Resolutions (Primary) > Finished-tier Status mapping (Secondary).",
 
-	"workflow_set_mapping": "Store user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. This is the MANDATORY persistence step after the 'Inform & Veto' loop. \n\n" +
-		"AI MUST verify with the user:\n" +
-		"1. Tiers: (Demand, Upstream, Downstream, Finished).\n" +
-		"2. Outcomes: Specify outcome for 'Finished' statuses ONLY if Jira resolutions are missing or unreliable.\n" +
-		"3. Commitment Point: The 'Downstream' status where the clock starts.\n\n" +
-		"WITHOUT this mapping, analytical tools will provide SUBPAR or WRONG results.\n\n" +
+	"workflow_set_mapping": "Persists user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"This is the MANDATORY persistence step after the user verifies the mapping from 'workflow_discover_mapping'. " +
+		"WITHOUT this step, ALL analytical tools will return subpar or incorrect results.\n\n" +
+		"AI MUST verify with the user before calling:\n" +
+		"1. Tier assignments (Demand, Upstream, Downstream, Finished) for all statuses.\n" +
+		"2. Commitment Point: the first Downstream status where the clock starts.\n" +
+		"3. Outcomes: only required for Finished-tier statuses when Jira resolutions are missing or unreliable.\n\n" +
 		"METAWORKFLOW GUIDANCE:\n" +
 		"- TIERS: 'Demand' (Backlog), 'Upstream' (Analysis/Refinement), 'Downstream' (Development/Execution/Testing), 'Finished' (Terminal).\n" +
 		"- ROLES: 'active' (Value-adding work), 'queue' (Waiting), 'ignore' (Admin). Omit for 'Finished' tier.\n" +
 		"- OUTCOMES: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
 
-	"workflow_set_order": "Persist the user-confirmed chronological order of workflow statuses. " +
-		"AI MUST call this after 'workflow_discover_mapping' once the user has verified or corrected the proposed 'status_order'. " +
-		"If the user accepts the discovered order as-is, pass it back unchanged. If the user reorders statuses, pass the corrected order. " +
-		"This order is the primary means for ordering statuses in CFD charts, flow debt, and all range-based analytics.",
+	"workflow_set_order": "Persists the user-confirmed chronological order of workflow statuses.\n\n" +
+		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
+		"MUST be called after 'workflow_discover_mapping' once the user has verified or corrected the proposed 'status_order'. " +
+		"This order drives CFD charts, flow debt analysis, and all range-based analytics. " +
+		"If the user accepts the discovered order unchanged, pass it back as-is.",
 
-	"workflow_set_evaluation_date": "Set a custom evaluation date for time-sensitive analyses. All time-based calculations will use this date instead of today.",
+	"workflow_set_evaluation_date": "Sets a custom evaluation date so all time-based calculations use that date instead of today.\n\n" +
+		"WHEN TO USE: Historical scenario analysis, or when the user wants to evaluate the system state as of a specific past date.",
 
-	"analyze_item_journey": "Get a detailed breakdown of where a single item spent its time across all workflow steps. Guidance: This tool requires a Project Key and Board ID to ensure workflow interpretation is accurate.",
+	"guide_diagnostic_roadmap": "Returns a recommended sequence of analysis steps tailored to a specific analytical goal.\n\n" +
+		"WHEN TO USE: At the start of a session when the user's goal is clear but the right tool sequence is not. " +
+		"Goals: 'forecasting', 'bottlenecks', 'capacity_planning', 'system_health'.",
 
-	"guide_diagnostic_roadmap": "Returns a recommended sequence of analysis steps based on the user's specific goal (e.g., forecasting, bottleneck analysis, capacity planning). Use this to align your analytical strategy with the project's current state.",
-
-	"forecast_backtest": "Perform a 'Walk-Forward Analysis' (Backtesting) to empirically validate the accuracy of Monte-Carlo Forecasts. \n\n" +
-		"This tool uses Time-Travel logic to reconstruct the state of the system at past points in time, runs a simulation, and checks if the ACTUAL outcome fell within the predicted cone. \n" +
-		"Drift Protection: The analysis automatically stops blindly backtesting if it detects a System Drift (Process Shift via 3-Way Chart).\n\n" +
-		"STATIONARITY CORRELATION: Each checkpoint includes 'convergence' and 'non_stationary' fields from residence time analysis. " +
-		"The result includes a 'stationarity_correlation' object that compares miss rates between stationary and non-stationary checkpoints:\n" +
-		"- 'signal': 'predictive' means non-stationary checkpoints miss forecasts at > 2x the rate of stationary ones — the stationarity guardrail is validated for this project.\n" +
-		"- 'not_predictive' means both groups miss at similar rates. 'insufficient_data' means not enough checkpoints in each group.\n" +
-		"When 'signal' is 'predictive', recommend the user pay close attention to stationarity warnings in forecast_monte_carlo results.",
-
-	"analyze_residence_time": "Perform a Sample Path Analysis (Stidham 1972, El-Taha & Stidham 1999) to compute the finite version of Little's Law: L(T) = Λ(T) · w(T).\n\n" +
-		"RESIDENCE TIME: The time an item accumulates in the system within the observation window. Applies to both completed and still-active items.\n" +
-		"SOJOURN TIME (W*): The special case for completed items — full duration from commitment to resolution (what 'analyze_cycle_time' measures).\n" +
-		"The COHERENCE GAP between average residence time w(T) and average sojourn time W*(T) reveals the 'end effect' of active items on the system.\n\n" +
-		"This tool provides a unified view that ties together what existing tools measure separately (cycle time, WIP age, WIP stability, flow debt).\n" +
-		"IMPORTANT: This tool ALWAYS applies backflow reset (uses the LAST commitment date), which diverges from the configurable commitmentBackflowReset in other tools.",
-
-	"import_history_expand": "Extend the historical dataset backwards without creating gaps. Returns number of items fetched and used OMRC (oldest most recent change) boundary. Also triggers a catch-up.",
-
-	"import_history_update": "Fetch newer items since the last sync to ensure the cache is up to date. Returns number of items fetched and used NMRC (newest most recent change) boundary.",
-
-	"open_in_browser": "Opens a chart render URL in the system default browser. " +
-		"Use this tool whenever you receive a chart_url from an analysis tool. " +
+	"open_in_browser": "Opens a chart render URL in the system default browser.\n\n" +
+		"Use this tool whenever you receive a 'chart_url' from an analysis tool. " +
 		"Only localhost render-charts URLs are accepted; all other URLs are rejected. " +
 		"Do not use any external browser-control tool for this purpose.",
 }
@@ -206,6 +294,12 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 		}
 	}
 
+	// GROUP: Import & Setup
+	//   import_projects, import_boards, import_board_context, import_project_context,
+	//   import_history_update, import_history_expand,
+	//   workflow_discover_mapping, workflow_set_mapping, workflow_set_order,
+	//   workflow_set_evaluation_date, guide_diagnostic_roadmap, open_in_browser
+
 	must(addTool(mcpSrv, s, "import_projects",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ImportProjectsInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleImportProjects(args.Query)
@@ -230,6 +324,9 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			return handleResult(s, "import_board_context", data, err)
 		}))
 
+	// GROUP: Forecast & Simulation
+	//   forecast_monte_carlo, forecast_backtest
+
 	must(addTool(mcpSrv, s, "forecast_monte_carlo",
 		func(_ context.Context, _ *mcp.CallToolRequest, args ForecastMonteCarloInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleRunSimulation(
@@ -243,6 +340,12 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			)
 			return handleResult(s, "forecast_monte_carlo", data, err)
 		}))
+
+	// GROUP: Diagnostics — Process, Cycle Time, WIP & Flow
+	//   analyze_cycle_time, analyze_process_stability, analyze_process_evolution,
+	//   analyze_status_persistence, analyze_throughput, analyze_wip_stability,
+	//   analyze_wip_age_stability, analyze_work_item_age, analyze_flow_debt,
+	//   analyze_residence_time, analyze_yield, generate_cfd_data, analyze_item_journey
 
 	must(addTool(mcpSrv, s, "analyze_cycle_time",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeCycleTimeInput) (*mcp.CallToolResult, any, error) {
