@@ -197,7 +197,7 @@ export default function ResidenceTimeChart() {
                 tick={{ fill: CAUTION, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "W* (days)", angle: 90, position: "insideRight",
                   fill: CAUTION, fontSize: 10, dy: -30 }} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <Area yAxisId="left" dataKey="gap" fill="url(#gapGrad)"
                 stroke={ALARM} strokeWidth={1.5} strokeOpacity={0.7}
                 dot={false} activeDot={false} isAnimationActive={false} />
@@ -213,19 +213,19 @@ export default function ResidenceTimeChart() {
           {/* Legend Panel 1 */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={PRIMARY} strokeWidth={2} /></svg>
+              <div style={{ width: 24, height: 2, background: PRIMARY }} />
               <span style={{ fontSize: 11, color: MUTED }}>Residence w̄(T)</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={TERTIARY} strokeWidth={2} strokeDasharray="6 2" /></svg>
+              <div style={{ width: 24, height: 0, borderTop: `2px dashed ${TERTIARY}` }} />
               <span style={{ fontSize: 11, color: MUTED }}>w′(T) per departure</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={CAUTION} strokeWidth={2} strokeDasharray="4 3" /></svg>
+              <div style={{ width: 24, height: 0, borderTop: `2px dashed ${CAUTION}` }} />
               <span style={{ fontSize: 11, color: MUTED }}>Sojourn W*(T)</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={14} height={10}><rect width={14} height={10} fill={ALARM} opacity={0.4} rx={2} /></svg>
+              <div style={{ width: 14, height: 10, background: ALARM, borderRadius: 2, opacity: 0.4 }} />
               <span style={{ fontSize: 11, color: MUTED }}>Coherence Gap</span>
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function ResidenceTimeChart() {
                 tick={{ fill: SECONDARY, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: `rate (/${periodLabel})`, angle: -90, position: "insideLeft",
                   fill: SECONDARY, fontSize: 10, dy: 40 }} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <ReferenceLine y={1.0} stroke={MUTED} strokeDasharray="4 4"
                 label={{ value: "1.0", fill: MUTED, fontSize: 10, position: "right" }} />
               <Line dataKey="lambda" stroke={SECONDARY} strokeWidth={2}
@@ -260,15 +260,15 @@ export default function ResidenceTimeChart() {
           {/* Legend Panel 2 */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={SECONDARY} strokeWidth={2} /></svg>
+              <div style={{ width: 24, height: 2, background: SECONDARY }} />
               <span style={{ fontSize: 11, color: MUTED }}>Λ(T) Arrival rate</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={POSITIVE} strokeWidth={2} strokeDasharray="5 2" /></svg>
+              <div style={{ width: 24, height: 0, borderTop: `2px dashed ${POSITIVE}` }} />
               <span style={{ fontSize: 11, color: MUTED }}>Θ(T) Departure rate</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}><line x1={0} y1={6} x2={24} y2={6} stroke={MUTED} strokeDasharray="4 4" strokeWidth={1.5} /></svg>
+              <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${MUTED}` }} />
               <span style={{ fontSize: 11, color: MUTED }}>1.0 reference</span>
             </div>
           </div>

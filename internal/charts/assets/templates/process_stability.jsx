@@ -16,9 +16,9 @@ const __MCS_WORKFLOW__ = __MCS_ENVELOPE__.workflow;
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
 const CFG = {
-  mainChartHeight:   380,
+  mainChartHeight:   440,
   miniChartHeight:   140,
-  mainMargin:        { top: 10, right: 20, bottom: 60, left: 10 },
+  mainMargin:        { top: 4, right: 20, bottom: 50, left: 10 },
 
   siClogged:         1.3,
   siMarginal:        0.9,
@@ -123,18 +123,19 @@ const CustomTooltip = ({ active, payload, mean, unpl }) => {
 
 // ── MINI CHART ────────────────────────────────────────────────────────────────
 
-const MiniChart = ({ type, data, mean, unpl }) => {
+function MiniDot({ cx, cy, payload, color }) {
+  if (cx == null || cy == null) return null;
+  const dotColor   = payload.isOutlier ? ALARM : payload.isShift ? CAUTION : color;
+  const dotOpacity = payload.isOutlier ? 0.85 : 0.5;
+  const r          = payload.isOutlier ? CFG.dotOutlierRadius : CFG.dotNormalRadius;
+  return <circle cx={cx} cy={cy} r={r} fill={dotColor} fillOpacity={dotOpacity} stroke="none"/>;
+}
+
+function MiniChart({ type, data, mean, unpl }) {
   const color  = TYPE_COLORS[type];
   const yMax   = Math.ceil((Math.max(...data.map(d => d.value), unpl) * 1.1) / CFG.ySnapStep) * CFG.ySnapStep;
   const xMax   = Math.max(data.length - 1, 1);
   const scData = data.map((d, i) => ({ x: i, y: d.value, isOutlier: d.isOutlier, isShift: d.isShift }));
-  const MiniDot = ({ cx, cy, payload }) => {
-    if (cx == null || cy == null) return null;
-    const dotColor   = payload.isOutlier ? ALARM : payload.isShift ? CAUTION : color;
-    const dotOpacity = payload.isOutlier ? 0.85 : 0.5;
-    const r          = payload.isOutlier ? CFG.dotOutlierRadius : CFG.dotNormalRadius;
-    return <circle cx={cx} cy={cy} r={r} fill={dotColor} fillOpacity={dotOpacity} stroke="none"/>;
-  };
   return (
     <div style={{ height: CFG.miniChartHeight }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -143,23 +144,54 @@ const MiniChart = ({ type, data, mean, unpl }) => {
           <XAxis type="number" dataKey="x" domain={[0, xMax]} hide/>
           <YAxis type="number" dataKey="y" domain={[0, yMax]} hide/>
           <ReferenceLine y={unpl} stroke={XMR_UNPL} strokeDasharray="4 2" strokeWidth={1}/>
-          <ReferenceLine y={mean} stroke={color}             strokeDasharray="4 4" strokeWidth={1}/>
-          <Scatter data={scData} shape={MiniDot} isAnimationActive={false}/>
+          <ReferenceLine y={mean} stroke={color} strokeDasharray="4 4" strokeWidth={1}/>
+          <Scatter data={scData} shape={(props) => <MiniDot {...props} color={color} />} isAnimationActive={false}/>
         </ScatterChart>
       </ResponsiveContainer>
     </div>
   );
-};
+}
 
+
+// ── TYPE SUMMARY CARD ─────────────────────────────────────────────────────────
+
+function TypeCard({ item }) {
+  return (
+    <div style={{ background: PANEL_BG, borderRadius: 10,
+      border: `1px solid ${BORDER}`, padding: "14px 12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between",
+        alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, color: TYPE_COLORS[item.type], fontSize: 13 }}>{item.type}</span>
+        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4,
+          background: `${siColor(item.si)}15`, border: `1px solid ${siColor(item.si)}40`,
+          color: siColor(item.si) }}>{siLabel(item.si)}</span>
+      </div>
+      <div style={{ fontSize: 11, color: MUTED, marginBottom: 8,
+        display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 3 }}>
+        <span>X̄ <b style={{ color: TEXT }}>{item.mean.toFixed(1)}d</b></span>
+        <span>UNPL <b style={{ color: ALARM }}>{item.unpl.toFixed(1)}d</b></span>
+        <span>P50 <b style={{ color: SECONDARY }}>{item.elt}d</b></span>
+        <span>SI <b style={{ color: siColor(item.si) }}>{item.si.toFixed(2)}</b></span>
+        {item.outliers > 0 && <span style={{ color: ALARM }}>⚠ {item.outliers} outlier{item.outliers > 1 ? "s" : ""}</span>}
+        {item.shifts   > 0 && <span style={{ color: CAUTION }}>⇶ {item.shifts} shift{item.shifts > 1 ? "s" : ""}</span>}
+      </div>
+      <MiniChart type={item.type} data={item.data} mean={item.mean} unpl={item.unpl}/>
+    </div>
+  );
+}
 
 // ── CHART PANEL ───────────────────────────────────────────────────────────────
 
-const ChartPanel = ({ data, mean, unpl, lnpl, typeColor }) => {
+function ChartPanel({ data, mean, unpl, lnpl, typeColor }) {
   const [logScale, setLogScale] = useState(CFG.defaultLogScale);
   const yMax     = Math.ceil((Math.max(...data.map(d => d.value), unpl) * 1.1) / CFG.ySnapStep) * CFG.ySnapStep;
   const interval = Math.max(1, Math.floor(data.length / CFG.xTickCount));
   const outlierCount = data.filter(d => d.isOutlier).length;
   const shiftCount   = data.filter(d => d.isShift).length;
+
+  function TooltipWithCtx(props) {
+    return <CustomTooltip {...props} mean={mean} unpl={unpl} />;
+  }
 
   return (
     <div style={{ background: PANEL_BG, borderRadius: 12,
@@ -194,7 +226,7 @@ const ChartPanel = ({ data, mean, unpl, lnpl, typeColor }) => {
               tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
               label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
                 fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}/>
-            <Tooltip content={<CustomTooltip mean={mean} unpl={unpl}/>}/>
+            <Tooltip content={TooltipWithCtx}/>
             <ReferenceLine y={unpl} stroke={XMR_UNPL} strokeDasharray="6 3" strokeWidth={1.5}
               label={{ value: "UNPL", fill: XMR_UNPL, fontSize: 10,
                 fontFamily: FONT_STACK, position: "insideTopRight" }}/>
@@ -213,22 +245,30 @@ const ChartPanel = ({ data, mean, unpl, lnpl, typeColor }) => {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
-        {[
-          { svg: <circle cx={6} cy={6} r={2.5} fill={typeColor} fillOpacity={0.5}/>, label: "Cycle Time (individual items)" },
-          { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={XMR_UNPL} strokeDasharray="6 3" strokeWidth={1.5}/>, label: "UNPL" },
-          { svg: <line x1={0} y1={6} x2={24} y2={6} stroke={typeColor} strokeDasharray="4 4" strokeWidth={1.5}/>, label: "X̄ Mean" },
-          { svg: <circle cx={6} cy={6} r={5} fill={ALARM}/>, label: "Outlier (above UNPL)" },
-          { svg: <circle cx={6} cy={6} r={4} fill={CAUTION}/>, label: "Process Shift anchor" },
-        ].map(({ svg, label }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width={24} height={12}>{svg}</svg>
-            <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-          </div>
-        ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: typeColor, opacity: 0.5 }} />
+          <span style={{ fontSize: 11, color: MUTED }}>Cycle Time (individual items)</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${XMR_UNPL}` }} />
+          <span style={{ fontSize: 11, color: MUTED }}>UNPL</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${typeColor}` }} />
+          <span style={{ fontSize: 11, color: MUTED }}>X̄ Mean</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: ALARM }} />
+          <span style={{ fontSize: 11, color: MUTED }}>Outlier (above UNPL)</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: CAUTION }} />
+          <span style={{ fontSize: 11, color: MUTED }}>Process Shift anchor</span>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -337,28 +377,7 @@ export default function ProcessStabilityChart() {
             gridTemplateColumns: `repeat(${Math.min(typeSummary.length, 3)}, 1fr)`,
             gap: 16, marginBottom: 24,
           }}>
-            {typeSummary.map(({ type, data, mean, unpl, si, elt, outliers, shifts }) => (
-              <div key={type} style={{ background: PANEL_BG, borderRadius: 10,
-                border: `1px solid ${BORDER}`, padding: "14px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between",
-                  alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontWeight: 700, color: TYPE_COLORS[type], fontSize: 13 }}>{type}</span>
-                  <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4,
-                    background: `${siColor(si)}15`, border: `1px solid ${siColor(si)}40`,
-                    color: siColor(si) }}>{siLabel(si)}</span>
-                </div>
-                <div style={{ fontSize: 11, color: MUTED, marginBottom: 8,
-                  display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 3 }}>
-                  <span>X̄ <b style={{ color: TEXT }}>{mean.toFixed(1)}d</b></span>
-                  <span>UNPL <b style={{ color: ALARM }}>{unpl.toFixed(1)}d</b></span>
-                  <span>P50 <b style={{ color: SECONDARY }}>{elt}d</b></span>
-                  <span>SI <b style={{ color: siColor(si) }}>{si.toFixed(2)}</b></span>
-                  {outliers > 0 && <span style={{ color: ALARM   }}>⚠ {outliers} outlier{outliers > 1 ? "s" : ""}</span>}
-                  {shifts   > 0 && <span style={{ color: CAUTION }}>⇶ {shifts} shift{shifts > 1 ? "s" : ""}</span>}
-                </div>
-                <MiniChart type={type} data={data} mean={mean} unpl={unpl}/>
-              </div>
-            ))}
+            {typeSummary.map(item => <TypeCard key={item.type} item={item} />)}
           </div>
         )}
 

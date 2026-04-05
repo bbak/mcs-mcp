@@ -81,7 +81,16 @@ function buildChartData(raw, selectedTypes) {
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
-const CustomTooltip = ({ active, payload, label, visibleStatuses }) => {
+function TooltipStatusRow({ s, value }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <span style={{ color: statusColors[s] }}>{s}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function CustomTooltip({ active, payload, label, visibleStatuses }) {
   if (!active || !payload?.length) return null;
   const byName = Object.fromEntries(payload.map(p => [p.dataKey, p.value]));
   const total = statusesForLegend.reduce((s, st) =>
@@ -92,27 +101,21 @@ const CustomTooltip = ({ active, payload, label, visibleStatuses }) => {
     catch { return d; }
   };
 
+  const visibleRows = statusesForLegend.filter(s => visibleStatuses.has(s) && byName[s]);
+
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
       padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT,
       minWidth: 180 }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{fmtDate(label)}</div>
-      {statusesForLegend.map(s => {
-        if (!visibleStatuses.has(s) || !byName[s]) return null;
-        return (
-          <div key={s} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-            <span style={{ color: statusColors[s] }}>{s}</span>
-            <span>{byName[s]}</span>
-          </div>
-        );
-      })}
+      {visibleRows.map(s => <TooltipStatusRow key={s} s={s} value={byName[s]} />)}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16,
         fontWeight: 700, borderTop: `1px solid ${BORDER}`, marginTop: 4, paddingTop: 4 }}>
         <span>Total</span><span>{total}</span>
       </div>
     </div>
   );
-};
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -165,6 +168,10 @@ export default function CfdChart() {
     catch { return d; }
   };
   const interval = Math.max(1, Math.floor(chartData.length / 10));
+
+  function TooltipWithState(props) {
+    return <CustomTooltip {...props} visibleStatuses={visibleStatuses} />;
+  }
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
@@ -220,8 +227,7 @@ export default function CfdChart() {
               <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "Items", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 10 }} />
-              <Tooltip content={props =>
-                <CustomTooltip {...props} visibleStatuses={visibleStatuses} />} />
+              <Tooltip content={TooltipWithState} />
               {statusesForChart.map(s => (
                 visibleStatuses.has(s) ? (
                   <Area key={s} type="monotone" dataKey={s} stackId="1"

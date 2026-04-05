@@ -88,21 +88,21 @@ const topBottleneck = [...POOL_DATA]
   .filter(dd => dd.tier === "Downstream")
   .sort((a, b) => b.likely - a.likely)[0] || POOL_DATA[0] || { statusName: "—", likely: 0 };
 
-const maxPoolP95 = Math.max(...poolRows.map(dd => dd.p85 + dd.p95ext));
-const maxTypeP85 = Math.max(
+const maxPoolP95 = Math.ceil(Math.max(...poolRows.map(dd => dd.p85 + dd.p95ext)) * 1.05);
+const maxTypeP85 = Math.ceil(Math.max(
   ...typeChartData.flatMap(row => ALL_ISSUE_TYPES.map(t => row[t] || 0))
-);
+) * 1.05);
 
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 
 
 function TierTick({ x, y, payload }) {
   const row = POOL_DATA.find(dd => dd.statusName === payload.value);
-  const tierColor = row ? tierColor(row.tier) || MUTED : MUTED;
+  const dotColor = row ? tierColor(row.tier) || MUTED : MUTED;
   const roleColor = row ? ROLE_COLORS[row.role] || MUTED : MUTED;
   return (
     <g transform={`translate(${x},${y})`}>
-      <circle cx={-8} cy={0} r={3} fill={tierColor} opacity={0.8} />
+      <circle cx={-8} cy={0} r={3} fill={dotColor} opacity={0.8} />
       <text x={-16} y={0} dy={4} textAnchor="end"
         fill={roleColor} fontSize={10}
         fontFamily={FONT_STACK}>{abbrev(payload.value)}</text>
@@ -110,7 +110,7 @@ function TierTick({ x, y, payload }) {
   );
 }
 
-const PoolTooltip = ({ active, payload }) => {
+function PoolTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const dd = payload[0].payload;
   return (
@@ -130,27 +130,32 @@ const PoolTooltip = ({ active, payload }) => {
       </div>
     </div>
   );
-};
+}
 
-const StratTooltip = ({ active, payload, label }) => {
+function StratTooltipRow({ t, v }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <span style={{ color: ISSUE_TYPE_COLORS[t] }}>{t}</span>
+      <span>{v}d</span>
+    </div>
+  );
+}
+
+function StratTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
-  const row = typeChartData.find(dd => dd.label === label);
+  const row = payload[0].payload;
+  const rows = ALL_ISSUE_TYPES.map(t => ({ t, v: row[t] || 0 })).filter(x => x.v > 0);
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
       padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
-      <div style={{ fontWeight: 700, marginBottom: 6 }}>{row?.statusName || label}</div>
-      {ALL_ISSUE_TYPES.map(t => {
-        const v = row?.[t];
-        return v != null && v > 0 ? (
-          <div key={t} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-            <span style={{ color: ISSUE_TYPE_COLORS[t] }}>{t}</span>
-            <span>{v}d</span>
-          </div>
-        ) : null;
-      })}
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>{row.statusName || label}</div>
+      {rows.length === 0
+        ? <div style={{ color: MUTED }}>No data for this status</div>
+        : rows.map(({ t, v }) => <StratTooltipRow key={t} t={t} v={v} />)
+      }
     </div>
   );
-};
+}
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
@@ -194,23 +199,42 @@ export default function StatusPersistenceChart() {
 
         {/* Panel 1: Tier Summary */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-          {["Demand", "Upstream", "Downstream"].map(tier => {
-            const ts = TIER_SUMMARY[tier];
-            if (!ts) return null;
-            const tc = tierColor(tier);
-            return (
-              <div key={tier} style={{ flex: "1 1 200px", background: PAGE_BG,
-                border: `1px solid ${tc}4d`, borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: tc, marginBottom: 8 }}>{tier}</div>
-                <div style={{ fontSize: 11, color: MUTED, display: "grid",
-                  gridTemplateColumns: "1fr 1fr", rowGap: 4 }}>
-                  <span>P50 <b style={{ color: SECONDARY }}>{round1(ts.combined_median)}d</b></span>
-                  <span>P85 <b style={{ color: CAUTION }}>{round1(ts.combined_p85)}d</b></span>
-                  <span>Items <b style={{ color: TEXT }}>{ts.count}</b></span>
-                </div>
+          {TIER_SUMMARY["Demand"] && (
+            <div style={{ flex: "1 1 200px", background: PAGE_BG,
+              border: `1px solid ${tierColor("Demand")}4d`, borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tierColor("Demand"), marginBottom: 8 }}>Demand</div>
+              <div style={{ fontSize: 11, color: MUTED, display: "grid",
+                gridTemplateColumns: "1fr 1fr", rowGap: 4 }}>
+                <span>P50 <b style={{ color: SECONDARY }}>{round1(TIER_SUMMARY["Demand"].combined_median)}d</b></span>
+                <span>P85 <b style={{ color: CAUTION }}>{round1(TIER_SUMMARY["Demand"].combined_p85)}d</b></span>
+                <span>Items <b style={{ color: TEXT }}>{TIER_SUMMARY["Demand"].count}</b></span>
               </div>
-            );
-          })}
+            </div>
+          )}
+          {TIER_SUMMARY["Upstream"] && (
+            <div style={{ flex: "1 1 200px", background: PAGE_BG,
+              border: `1px solid ${tierColor("Upstream")}4d`, borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tierColor("Upstream"), marginBottom: 8 }}>Upstream</div>
+              <div style={{ fontSize: 11, color: MUTED, display: "grid",
+                gridTemplateColumns: "1fr 1fr", rowGap: 4 }}>
+                <span>P50 <b style={{ color: SECONDARY }}>{round1(TIER_SUMMARY["Upstream"].combined_median)}d</b></span>
+                <span>P85 <b style={{ color: CAUTION }}>{round1(TIER_SUMMARY["Upstream"].combined_p85)}d</b></span>
+                <span>Items <b style={{ color: TEXT }}>{TIER_SUMMARY["Upstream"].count}</b></span>
+              </div>
+            </div>
+          )}
+          {TIER_SUMMARY["Downstream"] && (
+            <div style={{ flex: "1 1 200px", background: PAGE_BG,
+              border: `1px solid ${tierColor("Downstream")}4d`, borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tierColor("Downstream"), marginBottom: 8 }}>Downstream</div>
+              <div style={{ fontSize: 11, color: MUTED, display: "grid",
+                gridTemplateColumns: "1fr 1fr", rowGap: 4 }}>
+                <span>P50 <b style={{ color: SECONDARY }}>{round1(TIER_SUMMARY["Downstream"].combined_median)}d</b></span>
+                <span>P85 <b style={{ color: CAUTION }}>{round1(TIER_SUMMARY["Downstream"].combined_p85)}d</b></span>
+                <span>Items <b style={{ color: TEXT }}>{TIER_SUMMARY["Downstream"].count}</b></span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Panel 2: Pool Persistence */}
@@ -223,11 +247,11 @@ export default function StatusPersistenceChart() {
             <BarChart data={poolRows} layout="vertical"
               margin={{ top: 4, right: 80, left: 10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-              <XAxis type="number" domain={[0, maxPoolP95 * 1.05]} tickFormatter={v => `${v}d`}
+              <XAxis type="number" domain={[0, maxPoolP95]} tickFormatter={v => `${v}d`}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
               <YAxis type="category" dataKey="statusName" width={200}
                 tick={<TierTick />} />
-              <Tooltip content={<PoolTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+              <Tooltip content={PoolTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
               <Bar dataKey="p85" stackId="a" barSize={18} radius={[0, 0, 0, 0]} isAnimationActive={false}>
                 {poolRows.map((dd, i) => (
                   <Cell key={`p85-${i}`} fill={ROLE_COLORS[dd.role]} fillOpacity={0.75} />
@@ -242,23 +266,31 @@ export default function StatusPersistenceChart() {
           </ResponsiveContainer>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {[
-              { color: SECONDARY, opacity: 0.75, label: "Active (value-adding)" },
-              { color: ALARM,     opacity: 0.75, label: "Queue (waiting / flow debt)" },
-              { color: MUTED,     opacity: 0.25, label: "P95 extension" },
-            ].map(({ color, opacity, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 10, background: color, borderRadius: 2, opacity }} />
-                <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: SECONDARY, borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Active (value-adding)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: ALARM, borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Queue (waiting / flow debt)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: MUTED, borderRadius: 2, opacity: 0.25 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>P95 extension</span>
+            </div>
             <div style={{ width: 1, height: 14, background: BORDER }} />
-            {["Demand", "Upstream", "Downstream"].map(tier => (
-              <div key={tier} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <svg width={10} height={10}><circle cx={5} cy={5} r={3} fill={tierColor(tier)} opacity={0.8} /></svg>
-                <span style={{ fontSize: 10, color: MUTED }}>{tier}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: tierColor("Demand"), opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Demand</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: tierColor("Upstream"), opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Upstream</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: tierColor("Downstream"), opacity: 0.8 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Downstream</span>
+            </div>
             <span style={{ fontSize: 10, color: MUTED }}>(dot = tier)</span>
           </div>
         </div>
@@ -274,11 +306,11 @@ export default function StatusPersistenceChart() {
               <BarChart data={typeChartData} layout="vertical"
                 margin={{ top: 4, right: 80, left: 10, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-                <XAxis type="number" domain={[0, maxTypeP85 * 1.05]} tickFormatter={v => `${v}d`}
+                <XAxis type="number" domain={[0, maxTypeP85]} tickFormatter={v => `${v}d`}
                   tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                 <YAxis type="category" dataKey="label" width={200}
                   tick={{ fill: TEXT, fontSize: 10, fontFamily: FONT_STACK }} />
-                <Tooltip content={<StratTooltip />} cursor={{ fill: `${PRIMARY}0c` }} />
+                <Tooltip content={StratTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
                 {ALL_ISSUE_TYPES.map(t => (
                   <Bar key={t} dataKey={t} barSize={7} radius={[0, 3, 3, 0]}
                     fill={ISSUE_TYPE_COLORS[t]} fillOpacity={0.75} isAnimationActive={false} />
@@ -288,11 +320,9 @@ export default function StatusPersistenceChart() {
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
               {ALL_ISSUE_TYPES.map(t => (
-                <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%",
-                    background: ISSUE_TYPE_COLORS[t] }} />
-                  <span style={{ fontSize: 10, color: MUTED }}>{t}</span>
-                </div>
+                <span key={t} style={{ fontSize: 10, color: MUTED }}>
+                  <span style={{ color: ISSUE_TYPE_COLORS[t] }}>●</span>{" "}{t}
+                </span>
               ))}
             </div>
           </div>

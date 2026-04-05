@@ -98,9 +98,9 @@ export default function FlowDebtChart() {
   const weeksNegative = BUCKETS.filter(b => b.debt < 0).length;
   const debtColor = TOTAL_DEBT > 0 ? ALARM : TOTAL_DEBT < 0 ? POSITIVE : MUTED;
 
-  const maxVol     = Math.max(...BUCKETS.map(b => Math.max(b.arrivals, b.departures)));
-  const debtExtent = Math.max(...BUCKETS.map(b => Math.abs(b.debt)), 1);
-  const cumExtent  = Math.max(...enriched.map(b => Math.abs(b.cumDebt)), 1);
+  const maxVol     = Math.ceil(Math.max(...BUCKETS.map(b => Math.max(b.arrivals, b.departures))) * 1.15);
+  const debtExtent = Math.ceil(Math.max(...BUCKETS.map(b => Math.abs(b.debt)), 1));
+  const cumExtent  = Math.ceil(Math.max(...enriched.map(b => Math.abs(b.cumDebt)), 1));
 
   const step  = Math.max(1, Math.ceil(enriched.length / 8));
   const xTick = (value, index) => index % step === 0 ? value : "";
@@ -150,17 +150,17 @@ export default function FlowDebtChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="short" tickFormatter={xTick}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-              <YAxis yAxisId="vol" domain={[0, maxVol * 1.15]}
+              <YAxis yAxisId="vol" domain={[0, maxVol]}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "items", angle: -90, position: "insideLeft",
                   fill: MUTED, fontSize: 10 }} />
               <YAxis yAxisId="debt" orientation="right"
-                domain={[round1(-debtExtent * 1.2), round1(debtExtent * 1.2)]}
+                domain={[-debtExtent, debtExtent]}
                 tick={{ fill: CAUTION, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "debt", angle: 90, position: "insideRight",
                   fill: CAUTION, fontSize: 10, dy: -20 }} />
               <ReferenceLine yAxisId="debt" y={0} stroke={MUTED} strokeDasharray="4 4" />
-              <Tooltip content={<MainTooltip />} />
+              <Tooltip content={MainTooltip} />
               <Bar yAxisId="vol" dataKey="arrivals"   barSize={10} fill={PRIMARY}
                 fillOpacity={0.75} radius={[3, 3, 0, 0]} isAnimationActive={false} />
               <Bar yAxisId="vol" dataKey="departures" barSize={10} fill={SECONDARY}
@@ -177,20 +177,17 @@ export default function FlowDebtChart() {
           </ResponsiveContainer>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {[
-              { color: PRIMARY,   label: "Arrivals (commitments)" },
-              { color: SECONDARY, label: "Departures (deliveries)" },
-            ].map(({ color, label }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 10, background: color, borderRadius: 2, opacity: 0.75 }} />
-                <span style={{ fontSize: 10, color: MUTED }}>{label}</span>
-              </div>
-            ))}
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}>
-                <line x1={0} y1={6} x2={18} y2={6} stroke={CAUTION} strokeWidth={2} />
-                <circle cx={21} cy={6} r={3} fill={ALARM} />
-              </svg>
+              <div style={{ width: 14, height: 10, background: PRIMARY, borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Arrivals (commitments)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 14, height: 10, background: SECONDARY, borderRadius: 2, opacity: 0.75 }} />
+              <span style={{ fontSize: 10, color: MUTED }}>Departures (deliveries)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 16, height: 2, background: CAUTION }} />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: ALARM }} />
               <span style={{ fontSize: 10, color: MUTED }}>Weekly debt (dot: red=positive, green=negative)</span>
             </div>
           </div>
@@ -213,12 +210,12 @@ export default function FlowDebtChart() {
               <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
               <XAxis dataKey="short" tickFormatter={xTick}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-              <YAxis domain={[round1(-cumExtent * 1.2), round1(cumExtent * 1.2)]}
+              <YAxis domain={[-cumExtent, cumExtent]}
                 tick={{ fill: ALARM, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: "cumulative debt", angle: -90, position: "insideLeft",
                   fill: ALARM, fontSize: 10, dy: 50 }} />
               <ReferenceLine y={0} stroke={MUTED} strokeDasharray="4 4" />
-              <Tooltip content={<CumTooltip />} />
+              <Tooltip content={CumTooltip} />
               <Area dataKey="cumDebt" type="monotone"
                 stroke={ALARM} strokeWidth={2} fill="url(#cumGrad)"
                 dot={false} activeDot={false} isAnimationActive={false} />
@@ -227,9 +224,7 @@ export default function FlowDebtChart() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width={24} height={12}>
-                <line x1={0} y1={6} x2={24} y2={6} stroke={ALARM} strokeWidth={2} />
-              </svg>
+              <div style={{ width: 24, height: 2, background: ALARM }} />
               <span style={{ fontSize: 10, color: MUTED }}>Cumulative debt (above zero = net over-commitment)</span>
             </div>
           </div>
