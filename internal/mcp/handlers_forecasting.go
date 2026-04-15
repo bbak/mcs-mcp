@@ -48,11 +48,14 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 	}
 
 	// 2. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	oldestUpdated, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
 	s.activeRegistry = reg
+	if !oldestUpdated.IsZero() {
+		s.activeOldestUpdated = &oldestUpdated
+	}
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}
@@ -292,11 +295,14 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 		return nil, err
 	}
 
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	oldestUpdated2, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
 	s.activeRegistry = reg
+	if !oldestUpdated2.IsZero() {
+		s.activeOldestUpdated = &oldestUpdated2
+	}
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}
@@ -365,11 +371,14 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		return nil, err
 	}
 
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	oldestUpdated3, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
 	s.activeRegistry = reg
+	if !oldestUpdated3.IsZero() {
+		s.activeOldestUpdated = &oldestUpdated3
+	}
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}

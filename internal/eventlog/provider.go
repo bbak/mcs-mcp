@@ -40,7 +40,11 @@ func (p *LogProvider) getRegistryHelper(projectKey string) *jira.NameRegistry {
 }
 
 // Hydrate ensures the event log is populated with sufficient history for analysis.
-func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, reg *jira.NameRegistry) (*jira.NameRegistry, error) {
+// It returns the oldest Jira updated timestamp seen across all Stage 1 batches (zero if
+// incremental or loaded from cache without a fresh Jira sweep). Callers should persist
+// this as the upper boundary for history expansion so that Stage 2 resolved-item fetches
+// do not corrupt the expansion boundary.
+func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, reg *jira.NameRegistry) (time.Time, *jira.NameRegistry, error) {
 	const (
 		MinTotalItems    = 1000
 		MinResolvedItems = 200
@@ -59,7 +63,7 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 	// We rely purely on what was just loaded from cache.
 	if sourceID == "MCSTEST_0" || filepath.Base(sourceID) == "MCSTEST" {
 		log.Info().Str("source", sourceID).Msg("Hydrate: MCSTEST detected, skipping Jira sync")
-		return reg, nil
+		return time.Time{}, reg, nil
 	}
 
 	latest := p.store.GetLatestTimestamp(sourceID)
@@ -89,6 +93,11 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 	resolvedFetched := 0
 	targetDate := time.Now().AddDate(-1, 0, 0) // 1 year ago for initial baseline
 
+	// oldestUpdated tracks the oldest Jira updated timestamp seen across all Stage 1
+	// batches. It is returned to the caller for use as the ExpandHistory upper boundary,
+	// ensuring Stage 2 resolved-item fetches do not corrupt that boundary.
+	var oldestUpdated int64
+
 	// Determine JQL and Ordering
 	var hydrateJQL string
 	if isIncremental {
@@ -109,7 +118,7 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 	for {
 		resp, err := p.client.SearchIssues(hydrateJQL, totalFetched, BatchSize)
 		if err != nil {
-			return registry, fmt.Errorf("hydration failed at offset %d: %w", totalFetched, err)
+			return time.Time{}, registry, fmt.Errorf("hydration failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -128,8 +137,12 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 			}
 
 			if upd, err := jira.ParseTime(dto.Fields.Updated); err == nil {
-				if upd.UnixMicro() < oldestInBatch || oldestInBatch == 0 {
-					oldestInBatch = upd.UnixMicro()
+				ts := upd.UnixMicro()
+				if oldestInBatch == 0 || ts < oldestInBatch {
+					oldestInBatch = ts
+				}
+				if !isIncremental && (oldestUpdated == 0 || ts < oldestUpdated) {
+					oldestUpdated = ts
 				}
 			}
 		}
@@ -196,8 +209,13 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 		}
 	}
 
-	log.Info().Int("total", totalFetched).Int("resolved", resolvedFetched).Msg("Hydration complete")
-	return registry, nil
+	var oldestUpdatedTime time.Time
+	if oldestUpdated > 0 {
+		oldestUpdatedTime = time.UnixMicro(oldestUpdated)
+	}
+
+	log.Info().Int("total", totalFetched).Int("resolved", resolvedFetched).Time("oldest_updated", oldestUpdatedTime).Msg("Hydration complete")
+	return oldestUpdatedTime, registry, nil
 }
 
 func (p *LogProvider) GetIssuesInRange(sourceID string, start, end time.Time) []IssueEvent {
@@ -282,30 +300,37 @@ func (p *LogProvider) CatchUp(sourceID string, projectKey string, jql string, re
 }
 
 // ExpandHistory fetches older items for a source.
-func (p *LogProvider) ExpandHistory(sourceID string, projectKey string, jql string, chunks int, reg *jira.NameRegistry) (int, time.Time, *jira.NameRegistry, error) {
-	omrc, _ := p.store.GetMostRecentUpdates(sourceID)
-	if omrc.IsZero() {
-		return 0, time.Time{}, nil, fmt.Errorf("cannot expand history: no existing cache for %s", sourceID)
+// oldestUpdated is the oldest Jira updated timestamp seen during Stage 1 of the initial
+// hydration; it is used as the upper boundary for the backwards JQL query. If zero (e.g.
+// old cache without the field), it falls back to OMRC for backward compatibility.
+func (p *LogProvider) ExpandHistory(sourceID string, projectKey string, jql string, chunks int, oldestUpdated time.Time, reg *jira.NameRegistry) (int, time.Time, *jira.NameRegistry, error) {
+	boundary := oldestUpdated
+	if boundary.IsZero() {
+		// Fallback: use OMRC for caches that predate the oldest_updated field
+		boundary, _ = p.store.GetMostRecentUpdates(sourceID)
+	}
+	if boundary.IsZero() {
+		return 0, time.Time{}, nil, fmt.Errorf("cannot expand history: no boundary available for %s", sourceID)
 	}
 
 	const BatchSize = 300
 	totalFetched := 0
 	limit := chunks * BatchSize
 
-	tsStr := omrc.Format("2006-01-02 15:04")
-	expandJQL := fmt.Sprintf("(%s) AND updated <= \"%s\" ORDER BY updated DESC", jql, tsStr)
+	tsStr := boundary.Format("2006-01-02 15:04")
+	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, tsStr)
 
 	registry := reg
 	if registry == nil {
 		registry = p.getRegistryHelper(projectKey)
 	}
 
-	log.Info().Str("source", sourceID).Time("omrc", omrc).Int("limit", limit).Msg("Starting history expansion")
+	log.Info().Str("source", sourceID).Time("boundary", boundary).Int("limit", limit).Msg("Starting history expansion")
 
 	for totalFetched < limit {
 		resp, err := p.client.SearchIssues(expandJQL, totalFetched, BatchSize)
 		if err != nil {
-			return totalFetched, omrc, registry, fmt.Errorf("expansion failed at offset %d: %w", totalFetched, err)
+			return totalFetched, boundary, registry, fmt.Errorf("expansion failed at offset %d: %w", totalFetched, err)
 		}
 
 		if len(resp.Issues) == 0 {
@@ -338,5 +363,5 @@ func (p *LogProvider) ExpandHistory(sourceID string, projectKey string, jql stri
 	}
 
 	log.Info().Int("fetched", totalFetched).Msg("History expansion complete")
-	return totalFetched, omrc, registry, nil
+	return totalFetched, boundary, registry, nil
 }

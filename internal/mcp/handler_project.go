@@ -31,11 +31,14 @@ func (s *Server) handleGetProjectDetails(projectKey string) (any, error) {
 	}
 
 	// 3. Hydrate Protocol (Synchronous Eager Ingestion)
-	reg, err := s.events.Hydrate(projectKey, projectKey, ctx.JQL, s.activeRegistry)
+	oldestUpdated, reg, err := s.events.Hydrate(projectKey, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		log.Error().Err(err).Str("project", projectKey).Msg("Hydration failed")
 	}
 	s.activeRegistry = reg
+	if !oldestUpdated.IsZero() {
+		s.activeOldestUpdated = &oldestUpdated
+	}
 	if err := s.saveWorkflow(projectKey, 0); err != nil {
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}

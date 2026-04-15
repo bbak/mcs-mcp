@@ -264,6 +264,26 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 		return nil, fmt.Errorf("failed to decode Jira response: %w", err)
 	}
 
+	// Truncation repair: Jira caps embedded changelogs at 100 entries regardless of total.
+	// When maxResults < total, the embedded data is incomplete and the ordering is not
+	// guaranteed, so we discard it and replace it with a full paginated fetch.
+	for i := range result.Issues {
+		dto := &result.Issues[i]
+		if dto.Changelog != nil && dto.Changelog.MaxResults > 0 && dto.Changelog.MaxResults < dto.Changelog.Total {
+			log.Warn().
+				Str("key", dto.Key).
+				Int("maxResults", dto.Changelog.MaxResults).
+				Int("total", dto.Changelog.Total).
+				Msg("Embedded changelog truncated; fetching full changelog")
+			full, err := c.fetchFullChangelog(dto.Key)
+			if err != nil {
+				log.Error().Err(err).Str("key", dto.Key).Msg("Failed to fetch full changelog; proceeding with truncated data")
+			} else {
+				dto.Changelog = full
+			}
+		}
+	}
+
 	c.addToCache(cacheKey, &result, 10*time.Minute)
 
 	return &result, nil
@@ -303,9 +323,93 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 		return nil, fmt.Errorf("failed to decode issue response: %w", err)
 	}
 
+	// Truncation repair: same as in searchInternal — discard and replace any capped
+	// embedded changelog before caching the IssueDTO.
+	if result.Changelog != nil && result.Changelog.MaxResults > 0 && result.Changelog.MaxResults < result.Changelog.Total {
+		log.Warn().
+			Str("key", key).
+			Int("maxResults", result.Changelog.MaxResults).
+			Int("total", result.Changelog.Total).
+			Msg("Embedded changelog truncated; fetching full changelog")
+		full, err := c.fetchFullChangelog(key)
+		if err != nil {
+			log.Error().Err(err).Str("key", key).Msg("Failed to fetch full changelog; proceeding with truncated data")
+		} else {
+			result.Changelog = full
+		}
+	}
+
 	c.addToCache(cacheKey, &result, 10*time.Minute)
 
 	return &result, nil
+}
+
+// fetchFullChangelog retrieves the complete changelog for an issue by paginating
+// through the dedicated Jira changelog endpoint. It is called transparently when
+// the embedded changelog returned by the search or issue endpoint is detected as
+// truncated (maxResults < total). The result is injected into the parent IssueDTO
+// or SearchResponse before caching, so no separate cache entry is needed here.
+//
+// Both Jira Cloud (v3, response key: "values") and Jira DC (v2, response key: "histories")
+// expose this endpoint at the same resource path; restPath() selects the correct version,
+// and ChangelogDTO.UnmarshalJSON normalises the response key difference transparently.
+func (c *dcClient) fetchFullChangelog(key string) (*ChangelogDTO, error) {
+	const pageSize = 100
+	var allHistories []HistoryDTO
+	startAt := 0
+
+	for {
+		c.throttle(false)
+
+		params := url.Values{}
+		params.Set("startAt", fmt.Sprintf("%d", startAt))
+		params.Set("maxResults", fmt.Sprintf("%d", pageSize))
+		changelogURL := c.restPath("", fmt.Sprintf("issue/%s/changelog", key)) + "?" + params.Encode()
+
+		log.Debug().Str("key", key).Int("startAt", startAt).Str("url", changelogURL).Msg("Fetching full changelog page")
+
+		req, err := http.NewRequest("GET", changelogURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build changelog request for %s: %w", key, err)
+		}
+		c.authenticateRequest(req)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("changelog request failed for %s: %w", key, err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("changelog API returned status %d for issue %s", resp.StatusCode, key)
+		}
+
+		var page ChangelogDTO
+		decodeErr := json.NewDecoder(resp.Body).Decode(&page)
+		resp.Body.Close() // explicit close per iteration, not deferred
+		if decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode changelog page for %s: %w", key, decodeErr)
+		}
+
+		allHistories = append(allHistories, page.Histories...)
+
+		if len(page.Histories) < pageSize {
+			break
+		}
+		if page.Total > 0 && len(allHistories) >= page.Total {
+			break
+		}
+		startAt += len(page.Histories)
+	}
+
+	log.Info().Str("key", key).Int("total", len(allHistories)).Msg("Fetched full changelog")
+
+	return &ChangelogDTO{
+		StartAt:    0,
+		MaxResults: len(allHistories),
+		Total:      len(allHistories),
+		Histories:  allHistories,
+	}, nil
 }
 
 func (c *dcClient) GetProject(key string) (any, error) {
