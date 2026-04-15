@@ -49,7 +49,7 @@ func TestLogProvider_HistoryExpansion(t *testing.T) {
 
 	// 2. Mock Expansion
 	past := now.Add(-24 * time.Hour)
-	expandJQL := fmt.Sprintf("(%s) AND updated <= \"%s\" ORDER BY updated DESC", jql, now.Format("2006-01-02 15:04"))
+	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, now.Format("2006-01-02 15:04"))
 	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, now.Format("2006-01-02 15:04"))
 
 	mockJira.SearchIssuesFunc = func(q string, startAt, maxResults int) (*jira.SearchResponse, error) {
@@ -73,8 +73,8 @@ func TestLogProvider_HistoryExpansion(t *testing.T) {
 		return nil, fmt.Errorf("unexpected JQL: %s", q)
 	}
 
-	// Execute Expansion
-	fetched, usedOMRC, _, err := p.ExpandHistory(sourceID, "PROJ", jql, 1, nil)
+	// Execute Expansion — pass the OMRC directly as the boundary (simulates a fresh hydration)
+	fetched, usedOMRC, _, err := p.ExpandHistory(sourceID, "PROJ", jql, 1, omrc, nil)
 	if err != nil {
 		t.Fatalf("ExpandHistory failed: %v", err)
 	}

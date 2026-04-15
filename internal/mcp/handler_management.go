@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"time"
 
 	"mcs-mcp/internal/stats"
 
@@ -62,7 +63,11 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 	}
 
 	// 3. Expand History
-	fetched, omrc, reg, err := s.events.ExpandHistory(sourceID, projectKey, ctx.JQL, chunks, s.activeRegistry)
+	boundary := time.Time{}
+	if s.activeOldestUpdated != nil {
+		boundary = *s.activeOldestUpdated
+	}
+	fetched, usedBoundary, reg, err := s.events.ExpandHistory(sourceID, projectKey, ctx.JQL, chunks, boundary, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
@@ -80,13 +85,13 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 	}
 
 	msg := fmt.Sprintf("%d work items fetched that were updated before %s. Updated DiscoveryCutoff: %s.",
-		fetched, omrc.Format("2006-01-02 15:04"), cutoffStr)
+		fetched, usedBoundary.Format("2006-01-02 15:04"), cutoffStr)
 
 	// The ExpandHistory internal call already triggered its own catch-up log, but we return a clean integrated message.
 	res := map[string]any{
-		"message": msg,
-		"fetched": fetched,
-		"omrc":    omrc,
+		"message":  msg,
+		"fetched":  fetched,
+		"boundary": usedBoundary,
 	}
 
 	diagnostics := map[string]any{

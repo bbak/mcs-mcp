@@ -1,6 +1,9 @@
 package jira
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // SearchResponse is the top-level container for Jira search results.
 type SearchResponse struct {
@@ -43,8 +46,39 @@ type FieldsDTO struct {
 }
 
 // ChangelogDTO contains historical transitions.
+// StartAt, MaxResults, and Total are populated from the Jira pagination envelope
+// and are used solely for truncation detection; they are not passed downstream.
 type ChangelogDTO struct {
-	Histories []HistoryDTO `json:"histories"`
+	StartAt    int          `json:"startAt"`
+	MaxResults int          `json:"maxResults"`
+	Total      int          `json:"total"`
+	Histories  []HistoryDTO `json:"histories"`
+}
+
+// UnmarshalJSON handles both the embedded-changelog format (key: "histories") used by
+// the search and single-issue endpoints, and the dedicated changelog endpoint format
+// (key: "values") used by the Jira Cloud standalone changelog API.
+func (c *ChangelogDTO) UnmarshalJSON(data []byte) error {
+	type alias struct {
+		StartAt    int          `json:"startAt"`
+		MaxResults int          `json:"maxResults"`
+		Total      int          `json:"total"`
+		Histories  []HistoryDTO `json:"histories"`
+		Values     []HistoryDTO `json:"values"`
+	}
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	c.StartAt = a.StartAt
+	c.MaxResults = a.MaxResults
+	c.Total = a.Total
+	if len(a.Histories) > 0 {
+		c.Histories = a.Histories
+	} else {
+		c.Histories = a.Values
+	}
+	return nil
 }
 
 // HistoryDTO is a single entry in the changelog.

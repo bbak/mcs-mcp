@@ -374,7 +374,7 @@ func (s *Server) handleGetItemJourney(projectKey string, boardID int, issueKey s
 	// 2. Fallback to context-locked hydration if not found
 	if len(events) == 0 {
 		lockedJQL := fmt.Sprintf("(%s) AND key = %s", ctx.JQL, issueKey)
-		reg, err := s.events.Hydrate(sourceID, projectKey, lockedJQL, s.activeRegistry)
+		_, reg, err := s.events.Hydrate(sourceID, projectKey, lockedJQL, s.activeRegistry)
 		if err != nil {
 			return nil, err
 		}

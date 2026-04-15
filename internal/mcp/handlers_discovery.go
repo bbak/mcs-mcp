@@ -26,11 +26,14 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	}
 
 	// 2. Hydrate
-	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	oldestUpdated, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
 	s.activeRegistry = reg
+	if !oldestUpdated.IsZero() {
+		s.activeOldestUpdated = &oldestUpdated
+	}
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
