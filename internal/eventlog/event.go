@@ -1,3 +1,7 @@
+// Package eventlog is the event-sourced storage layer. It transforms Jira
+// changelogs into an immutable chronological stream of atomic IssueEvents,
+// persists them as JSON-Lines, and reconstructs point-in-time jira.Issue
+// snapshots via ReconstructIssue. Carries no analytical semantics.
 package eventlog
 
 import "fmt"

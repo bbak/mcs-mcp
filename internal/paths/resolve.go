@@ -1,3 +1,6 @@
+// Package paths resolves the shared data directory via a fallback chain:
+// explicit DATA_PATH env var, executable directory, system temp, or current
+// working directory.
 package paths
 
 import (

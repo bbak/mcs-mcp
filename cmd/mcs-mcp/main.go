@@ -1,3 +1,5 @@
+// Command mcs-mcp is the Monte-Carlo Simulation MCP server. It serves analytical
+// and forecasting tools to AI agents over the Model Context Protocol.
 package main
 
 //go:generate goversioninfo -platform-specific

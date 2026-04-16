@@ -444,7 +444,7 @@ The codebase follows a strict acyclic dependency model designed for stability du
 - **`internal/eventlog`**: The agnostic storage layer. It knows how to transform and persist Jira events but has NO awareness of analytical metrics.
 - **`internal/stats`**: The analytical engine. It depends on `eventlog` for data but contains all the business logic for metrics, residency, and projections.
 - **`internal/jira`**: The DTO and Mapping layer. Houses the objective Jira domain models and transformation logic.
-- **`internal/stats/discovery`**: A specialized sub-package for non-deterministic "Best Guess" workflow heuristics, keeping the core `stats` package focused on pure mathematics.
+- **`internal/discovery`**: A specialized top-level package for non-deterministic "Best Guess" workflow heuristics. Fuses `eventlog` + `jira` + `stats` to infer the semantic workflow mapping. Promoted from `internal/stats/discovery` because it is not a statistics subset — it is a distinct concern that happens to consume stats.
 
 ### 8.5 Discovery Sampling
 

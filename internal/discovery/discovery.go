@@ -1,3 +1,7 @@
+// Package discovery infers the semantic workflow mapping (tiers, roles,
+// outcomes, commitment point, status order) from objective Jira transition
+// history. Fuses eventlog, jira, and stats to propose a mapping that the user
+// then confirms.
 package discovery
 
 import (

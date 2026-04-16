@@ -1,3 +1,6 @@
+// Package jira provides the Jira domain model (Issue, StatusTransition,
+// NameRegistry, SourceContext), the Client interface, and Data Center /
+// Cloud API implementations. All external API boundary concerns live here.
 package jira
 
 import (
@@ -86,12 +89,9 @@ func (nr *NameRegistry) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// GetIDByName returns the ID for a given status name, or empty if not found.
-func (nr *NameRegistry) GetStatusID(name string) string {
-	if nr == nil {
-		return ""
-	}
-	for id, n := range nr.Statuses {
+// idByName performs a case-insensitive reverse lookup in the given map.
+func idByName(m map[string]string, name string) string {
+	for id, n := range m {
 		if strings.EqualFold(n, name) {
 			return id
 		}
@@ -99,17 +99,20 @@ func (nr *NameRegistry) GetStatusID(name string) string {
 	return ""
 }
 
+// GetStatusID returns the ID for a given status name, or empty if not found.
+func (nr *NameRegistry) GetStatusID(name string) string {
+	if nr == nil {
+		return ""
+	}
+	return idByName(nr.Statuses, name)
+}
+
 // GetResolutionID returns the ID for a given resolution name, or empty if not found.
 func (nr *NameRegistry) GetResolutionID(name string) string {
 	if nr == nil {
 		return ""
 	}
-	for id, n := range nr.Resolutions {
-		if strings.EqualFold(n, name) {
-			return id
-		}
-	}
-	return ""
+	return idByName(nr.Resolutions, name)
 }
 
 // GetStatusName returns the name for a status ID, or empty if not found.

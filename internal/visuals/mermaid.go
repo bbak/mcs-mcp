@@ -1,3 +1,7 @@
+// Package visuals renders text-based Mermaid diagrams (XmR control charts,
+// CFD, persistence bars, yield pies) from analytical results. Used only when
+// ENABLE_MERMAID_CHARTS is set; the primary rendering path is the server-side
+// React chart pipeline in charts/.
 package visuals
 
 import (

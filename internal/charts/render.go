@@ -1,3 +1,7 @@
+// Package charts renders self-contained HTML chart pages by bundling embedded
+// JSX templates with a pre-built React/Recharts vendor bundle via the esbuild
+// Go API. Each tool result becomes one interactive page served from the MRU
+// buffer.
 package charts
 
 import (

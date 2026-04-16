@@ -5,7 +5,7 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/stats/discovery"
+	"mcs-mcp/internal/discovery"
 )
 
 func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {

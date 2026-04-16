@@ -103,7 +103,7 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 	if isIncremental {
 		// Incremental Sync: Fetch EVERYTHING between latest and now
 		// Order by ASC to ensure we process changes in chronological sequence
-		tsStr := latest.Format("2006-01-02 15:04")
+		tsStr := latest.Format(DateTimeFormat)
 		hydrateJQL = fmt.Sprintf("(%s) AND updated >= \"%s\" ORDER BY updated ASC", jql, tsStr)
 	} else {
 		// Initial Hydration: Fetch enough for a robust baseline, but bounded by time and volume
@@ -257,7 +257,7 @@ func (p *LogProvider) CatchUp(sourceID string, projectKey string, jql string, re
 	const BatchSize = 300
 	totalFetched := 0
 
-	tsStr := nmrc.Format("2006-01-02 15:04")
+	tsStr := nmrc.Format(DateTimeFormat)
 	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, tsStr)
 
 	registry := reg
@@ -317,7 +317,7 @@ func (p *LogProvider) ExpandHistory(sourceID string, projectKey string, jql stri
 	totalFetched := 0
 	limit := chunks * BatchSize
 
-	tsStr := boundary.Format("2006-01-02 15:04")
+	tsStr := boundary.Format(DateTimeFormat)
 	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, tsStr)
 
 	registry := reg

@@ -1,3 +1,7 @@
+// Package stats holds the analytical engine: cycle-time, throughput, aging,
+// residence, persistence, flow-debt, stability (XmR), yield, and related flow
+// metrics. Consumes eventlog and jira for data; exposes pure calculators plus
+// the AnalysisSession orchestrator.
 package stats
 
 import (

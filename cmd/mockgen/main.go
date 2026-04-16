@@ -1,3 +1,5 @@
+// Command mockgen generates synthetic Jira event logs for offline testing of
+// the MCS-MCP analytical pipelines under MCSTEST sources.
 package main
 
 import (

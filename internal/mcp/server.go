@@ -1,3 +1,7 @@
+// Package mcp is the MCP server implementation: tool registration, request
+// dispatch, per-session state (active project/board context, workflow
+// mapping, evaluation date), and handler orchestration. The protocol adapter
+// that ties every other internal package together.
 package mcp
 
 import (
@@ -15,7 +19,7 @@ import (
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/stats/discovery"
+	"mcs-mcp/internal/discovery"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/zerolog/log"

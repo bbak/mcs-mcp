@@ -1,3 +1,6 @@
+// Package httpd runs a lightweight localhost HTTP server that serves rendered
+// chart pages from chartbuf via UUID lookup. Binds to a random port in
+// [3000, 4000] alongside the stdio MCP transport.
 package httpd
 
 import (

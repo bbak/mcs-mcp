@@ -19,8 +19,7 @@ type StratificationDecision struct {
 
 // Round rounds numeric fields to 2 decimal places for output compactness.
 func (d *StratificationDecision) Round() {
-	d.P85CycleTime = stats.Round2(d.P85CycleTime)
-	d.DistanceToPool = stats.Round2(d.DistanceToPool)
+	roundFields(&d.P85CycleTime, &d.DistanceToPool)
 }
 
 // AssessStratificationNeeds analyzes a set of delivered issues to decide which types should be stratified.
@@ -56,7 +55,8 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 		return nil
 	}
 
-	pooledP85 := calculateP85(allCycleTimes)
+	slices.Sort(allCycleTimes)
+	pooledP85 := stats.CalculatePercentile(allCycleTimes, 0.85)
 	decisions := make([]StratificationDecision, 0)
 
 	// 2. Evaluate each type
@@ -73,7 +73,8 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 			Volume: len(cts),
 		}
 
-		decision.P85CycleTime = calculateP85(cts)
+		slices.Sort(cts)
+		decision.P85CycleTime = stats.CalculatePercentile(cts, 0.85)
 
 		// Distance to pool
 		if pooledP85 > 0 {
@@ -99,11 +100,6 @@ func AssessStratificationNeeds(issues []jira.Issue) []StratificationDecision {
 	}
 
 	return decisions
-}
-
-func calculateP85(values []float64) float64 {
-	slices.Sort(values)
-	return stats.CalculatePercentile(values, 0.85)
 }
 
 // CalculateCorrelation calculates Pearson correlation between two daily throughput series.

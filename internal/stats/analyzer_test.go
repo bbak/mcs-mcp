@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/stats/discovery"
+	"mcs-mcp/internal/discovery"
 	"reflect"
 	"strings"
 	"testing"

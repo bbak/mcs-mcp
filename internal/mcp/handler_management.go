@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/stats"
 
 	"github.com/rs/zerolog/log"
@@ -37,7 +38,7 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error)
 	}
 
 	res := map[string]any{
-		"message": fmt.Sprintf("%d items fetched that were updated since %s", fetched, nmrc.Format("2006-01-02 15:04")),
+		"message": fmt.Sprintf("%d items fetched that were updated since %s", fetched, nmrc.Format(eventlog.DateTimeFormat)),
 		"fetched": fetched,
 		"nmrc":    nmrc,
 	}
@@ -85,7 +86,7 @@ func (s *Server) handleCacheExpandHistory(projectKey string, boardID int, chunks
 	}
 
 	msg := fmt.Sprintf("%d work items fetched that were updated before %s. Updated DiscoveryCutoff: %s.",
-		fetched, usedBoundary.Format("2006-01-02 15:04"), cutoffStr)
+		fetched, usedBoundary.Format(eventlog.DateTimeFormat), cutoffStr)
 
 	// The ExpandHistory internal call already triggered its own catch-up log, but we return a clean integrated message.
 	res := map[string]any{

@@ -49,8 +49,8 @@ func TestLogProvider_HistoryExpansion(t *testing.T) {
 
 	// 2. Mock Expansion
 	past := now.Add(-24 * time.Hour)
-	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, now.Format("2006-01-02 15:04"))
-	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, now.Format("2006-01-02 15:04"))
+	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, now.Format(DateTimeFormat))
+	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, now.Format(DateTimeFormat))
 
 	mockJira.SearchIssuesFunc = func(q string, startAt, maxResults int) (*jira.SearchResponse, error) {
 		if q == expandJQL {

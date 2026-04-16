@@ -1,3 +1,6 @@
+// Package logging initialises zerolog with a dual sink: human-readable
+// console output on stderr and a rotating file sink under the shared data
+// path.
 package logging
 
 import (

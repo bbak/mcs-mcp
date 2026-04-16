@@ -1,3 +1,6 @@
+// Package config loads runtime configuration from the process environment and
+// the .env file. It aggregates Jira auth, engine selection, chart buffer
+// size, and path resolution fallbacks into a single AppConfig value.
 package config
 
 import (

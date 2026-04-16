@@ -1,3 +1,7 @@
+// Package chartbuf is a thread-safe MRU ring buffer that holds the most recent
+// analytical tool results keyed by UUID. The HTTP chart server retrieves
+// entries on demand to render interactive charts without re-running the
+// analysis.
 package chartbuf
 
 import (

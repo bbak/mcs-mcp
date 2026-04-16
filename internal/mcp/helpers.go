@@ -49,6 +49,21 @@ func (s *Server) prepareHandler(projectKey string, boardID int) (*handlerContext
 	return &handlerContext{SourceID: sourceID, Ctx: ctx}, nil
 }
 
+// activeCutoff returns the active discovery cutoff, or the zero time if none is set.
+func (s *Server) activeCutoff() time.Time {
+	if s.activeDiscoveryCutoff != nil {
+		return *s.activeDiscoveryCutoff
+	}
+	return time.Time{}
+}
+
+// openSession loads the events for the given window and returns a new AnalysisSession
+// anchored to the handler context.
+func (s *Server) openSession(hctx *handlerContext, window stats.AnalysisWindow) *stats.AnalysisSession {
+	events := s.events.GetIssuesInRange(hctx.SourceID, window.Start, window.End)
+	return stats.NewAnalysisSession(events, hctx.SourceID, *hctx.Ctx, s.activeMapping, s.activeResolutions, window)
+}
+
 func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.SourceContext, error) {
 	if projectKey == "MCSTEST" {
 		return &jira.SourceContext{
@@ -106,7 +121,7 @@ func (s *Server) resolveSourceContext(projectKey string, boardID int) (*jira.Sou
 	filterObj, ok := cMap["filter"].(map[string]any)
 	if !ok {
 		// Fallback: Try Board Configuration
-		log.Debug().Int("boardId", boardID).Msg("Filter missing in board metadata, trying board configuration")
+		log.Debug().Int("boardID", boardID).Msg("Filter missing in board metadata, trying board configuration")
 		configObj, err := s.jira.GetBoardConfig(boardID)
 		if err == nil {
 			if conf, isMap := configObj.(map[string]any); isMap {
