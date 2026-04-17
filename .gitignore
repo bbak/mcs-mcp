@@ -43,6 +43,7 @@ $RECYCLE.BIN/
 
 # Docs
 docs/reports/*
+docs/ideas.md
 
 # Testing artifacts
 *.actual
