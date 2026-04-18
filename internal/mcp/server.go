@@ -142,7 +142,9 @@ func NewMCPServer(s *Server, version string) (*mcp.Server, error) {
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
 		Name:    "mcs-mcp",
 		Version: version,
-	}, nil)
+	}, &mcp.ServerOptions{
+		Instructions: serverInstructions,
+	})
 	if err := registerTools(mcpSrv, s); err != nil {
 		return nil, fmt.Errorf("register tools: %w", err)
 	}

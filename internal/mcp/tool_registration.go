@@ -18,16 +18,13 @@ var toolDescriptions = map[string]string{
 
 	// ── GROUP: Diagnostics — Process, Cycle Time, WIP & Flow ──────────────────
 
-	"analyze_cycle_time": "Measures how long individual items take to complete (Lead Time / Cycle Time) and derives Service Level Expectations (SLE).\n\n" +
+	"analyze_cycle_time": "Measures how long individual items take to complete (Cycle Time) and derives Service Level Expectations (SLE).\n\n" +
 		"WHEN TO USE: User asks 'How long does a single item typically take?', 'What is our SLE?', 'What percentile should we commit to?'\n" +
 		"WHEN NOT TO USE: Do not use to assess delivery volume stability — use 'analyze_throughput' for that. Do not use to assess predictability of the process — use 'analyze_process_stability' for that.\n\n" +
 		"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results.\n\n" +
-		"INTERPRETATION: Primary signals are the Fat-Tail Ratio and P85 (SLE). A Fat-Tail Ratio > 1.5 means the distribution has a long tail — P85 is a more reliable SLE than the mean.\n\n" +
-		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. " +
-		"DO NOT calculate percentiles, probabilities, or dates using your own internal reasoning if this tool returns an error or no data. " +
-		"If the tool fails, you MUST report the error to the user and ask for clarification.",
+		"INTERPRETATION: Primary signals are the Fat-Tail Ratio and P85 (SLE). A Fat-Tail Ratio > 1.5 means the distribution has a long tail — P85 is a more reliable SLE than the mean.",
 
-	"analyze_process_stability": "Measures the predictability of Lead Times (Cycle Time) using Wheeler XmR Process Behavior Charts.\n\n" +
+	"analyze_process_stability": "Measures the predictability of Cycle Times using Wheeler XmR Process Behavior Charts.\n\n" +
 		"WHEN TO USE: Use as the FIRST diagnostic step when users ask about forecasting reliability, prediction confidence, or whether historical data is a valid proxy for the future. " +
 		"Ask: 'Is our process stable enough to forecast?'\n" +
 		"WHEN NOT TO USE: Do not use to measure delivery volume — use 'analyze_throughput' for that. " +
@@ -39,7 +36,7 @@ var toolDescriptions = map[string]string{
 		"If stability is low (many signals), simulations will produce MISLEADING results. " +
 		"Combine with 'analyze_residence_time' when λ/θ > 1.1 to understand why cycle times are unstable.",
 
-	"analyze_process_evolution": "Performs a longitudinal strategic audit of Lead Time predictability over many months using Three-Way Control Charts.\n\n" +
+	"analyze_process_evolution": "Performs a longitudinal strategic audit of Cycle Time predictability over many months using Three-Way Control Charts.\n\n" +
 		"WHEN TO USE: Deep history analysis, post-reorganization audits, quarterly/annual process reviews. " +
 		"User asks: 'Has our delivery capability improved over the past year?' or 'When did the process change?'\n" +
 		"WHEN NOT TO USE: Not for routine analysis — use 'analyze_process_stability' for that. Throughput-agnostic: does not measure delivery volume.\n\n" +
@@ -51,15 +48,15 @@ var toolDescriptions = map[string]string{
 	"analyze_status_persistence": "Analyzes how long completed items spent in each workflow status, revealing bottlenecks and inconsistency hotspots.\n\n" +
 		"WHEN TO USE: User asks 'Where do items get stuck?', 'Which status has the most variability?', 'What is causing long cycle times?'\n" +
 		"WHEN NOT TO USE: Do not use for active WIP — this tool only analyzes finished items. " +
-		"Do not confuse with 'analyze_process_stability', which measures overall Lead Time predictability, not per-status breakdown.\n\n" +
+		"Do not confuse with 'analyze_process_stability', which measures overall Cycle Time predictability, not per-status breakdown.\n\n" +
 		"PREREQUISITE: Proper workflow mapping (Upstream/Downstream tiers) is required. Results are SUBPAR if tiers are unmapped.\n\n" +
 		"INTERPRETATION: Primary signal is IQR concentration — a status with high median but low IQR is a consistent queue; " +
 		"high IQR indicates unpredictable, variable dwell time worth investigating.",
 
-	"analyze_throughput": "Measures delivery volume stability — the number of items completed per week or month — using Wheeler XmR Process Behavior Charts.\n\n" +
+	"analyze_throughput": "Measures delivery volume — the number of items completed per week or month — and its stability using Wheeler XmR Process Behavior Charts.\n\n" +
 		"WHEN TO USE: User asks 'How many items do we deliver per week?', 'Is our delivery cadence stable?', 'Do we have batching or zero-delivery weeks?'\n" +
 		"WHEN NOT TO USE: Do not use to measure how long individual items take — use 'analyze_cycle_time' for that. " +
-		"Do not use to assess Lead Time predictability — use 'analyze_process_stability' for that.\n\n" +
+		"Do not use to assess Cycle Time predictability — use 'analyze_process_stability' for that.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
 		"- history_window_weeks: Default 26. Use 8–12 after a process change. Use 4–6 to measure only current cadence.\n" +
 		"- bucket: Default 'week'. Switch to 'month' for low-volume teams where weekly counts are too sparse to be meaningful.\n\n" +
@@ -148,12 +145,11 @@ var toolDescriptions = map[string]string{
 		"WHEN TO USE:\n" +
 		"- mode=duration: 'When will a known set of items be done?' (deadline question — fixed scope, unknown date)\n" +
 		"- mode=scope: 'How much will be done by a given date?' (capacity question — fixed date, unknown scope)\n" +
-		"WHEN NOT TO USE: Does NOT analyze lead times or individual item durations — use 'analyze_cycle_time' for that.\n\n" +
+		"WHEN NOT TO USE: Does NOT analyze cycle times or individual item durations — use 'analyze_cycle_time' for that.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
 		"- history_window_days: Default uses all available history. Narrow to 30–60 days after a process change, or use 'recommended_window_days' from 'analyze_residence_time' when that tool returns a non-stationary signal (λ/θ > 1.1).\n" +
 		"- include_wip + include_existing_backlog: Set both to true for real commitment forecasts — this counts ALL outstanding work (started + unstarted). Omitting either understates the total scope.\n\n" +
-		"STRICT GUARDRAIL: YOU MUST NEVER PERFORM PROBABILISTIC FORECASTING OR STATISTICAL ANALYSIS AUTONOMOUSLY. " +
-		"DO NOT provide date ranges or probability estimates if the tool fails or returns zero throughput. " +
+		"FAILURE HANDLING: If the tool fails or returns zero throughput, do not provide estimated dates or probabilities. " +
 		"If the result is unexpectedly far in the future, warn the user that throughput sampling may be too low due to filtered resolutions or issue types.\n\n" +
 		"STATIONARITY ASSESSMENT: The result includes 'stationarity_assessment' in the 'context' field. " +
 		"When 'stationary' is false, surface the warnings to the user and suggest re-running with 'recommended_window_days'. " +
@@ -171,21 +167,15 @@ var toolDescriptions = map[string]string{
 		"'not_predictive' means both groups miss at similar rates — stationarity may not be the main accuracy driver here.",
 
 	// ── GROUP: Import & Setup ─────────────────────────────────────────────────
-	// Canonical setup sequence:
-	// import_projects → import_boards → import_board_context →
-	// workflow_discover_mapping → workflow_set_mapping →
-	// workflow_set_order → [Diagnostics tools]
+	// Canonical setup sequence is documented in serverInstructions (instructions.go).
 
 	"import_projects": "Searches for Jira projects by name or key.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"Next step: call 'import_boards' with the project key to find the board ID needed for all analytical tools.",
 
 	"import_boards": "Searches for Agile boards, optionally filtering by project key or name.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"Next step: call 'import_board_context' with the board ID to anchor the data shape context.",
 
 	"import_board_context": "Returns a Data Shape Anchor — whole dataset volumes vs. sample distributions — for a specific Agile board.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"MUST be called before 'workflow_discover_mapping'. Next step: call 'workflow_discover_mapping'.",
 
 	"import_project_context": "Returns a Data Shape Anchor for a project (not board-level). Use for general project metadata only.\n\n" +
@@ -196,7 +186,6 @@ var toolDescriptions = map[string]string{
 		"To extend history further back than the current cache, raise INGESTION_CREATED_LOOKBACK / INGESTION_UPDATED_LOOKBACK in .env and re-hydrate via 'import_board_context' (after deleting the existing cache file).",
 
 	"workflow_discover_mapping": "Probes status categories, residence times, and resolution frequencies to propose a semantic workflow mapping for user verification.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"AI MUST present the proposed tier mapping AND the 'status_order' array to the user for verification. " +
 		"After user confirms or corrects BOTH, AI MUST call 'workflow_set_mapping' AND 'workflow_set_order' to persist them. " +
 		"Without persisting both, all Diagnostics tools will return subpar or incorrect results.\n\n" +
@@ -207,7 +196,6 @@ var toolDescriptions = map[string]string{
 		"- OUTCOME HIERARCHY: Jira Resolutions (Primary) > Finished-tier Status mapping (Secondary).",
 
 	"workflow_set_mapping": "Persists user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"This is the MANDATORY persistence step after the user verifies the mapping from 'workflow_discover_mapping'. " +
 		"WITHOUT this step, ALL analytical tools will return subpar or incorrect results.\n\n" +
 		"AI MUST verify with the user before calling:\n" +
@@ -220,7 +208,6 @@ var toolDescriptions = map[string]string{
 		"- OUTCOMES: 'delivered' (Successfully finished with value), 'abandoned' (Work stopped/discarded/cancelled).",
 
 	"workflow_set_order": "Persists the user-confirmed chronological order of workflow statuses.\n\n" +
-		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
 		"MUST be called after 'workflow_discover_mapping' once the user has verified or corrected the proposed 'status_order'. " +
 		"This order drives CFD charts, flow debt analysis, and all range-based analytics. " +
 		"If the user accepts the discovered order unchanged, pass it back as-is.",
@@ -243,11 +230,11 @@ var customSchemas = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[SimulationMode]():  {Type: "string", Enum: []any{SimModeDuration, SimModeScope}},
 	reflect.TypeFor[AgeType]():         {Type: "string", Enum: []any{AgeTypeTotal, AgeTypeWIP}},
 	reflect.TypeFor[TierFilter]():      {Type: "string", Enum: []any{TierFilterWIP, TierFilterDemand, TierFilterUpstream, TierFilterDownstream, TierFilterFinished, TierFilterAll}},
-	reflect.TypeFor[DiagnosticGoal]():   {Type: "string", Enum: []any{GoalForecasting, GoalBottlenecks, GoalCapacityPlanning, GoalSystemHealth}},
-	reflect.TypeFor[Granularity]():      {Type: "string", Enum: []any{GranularityDaily, GranularityWeekly}},
-	reflect.TypeFor[WorkflowTier]():     {Type: "string", Enum: []any{TierDemand, TierUpstream, TierDownstream, TierFinished}},
-	reflect.TypeFor[WorkflowRole]():     {Type: "string", Enum: []any{RoleActive, RoleQueue, RoleIgnore}},
-	reflect.TypeFor[WorkflowOutcome]():  {Type: "string", Enum: []any{OutcomeDelivered, OutcomeAbandoned}},
+	reflect.TypeFor[DiagnosticGoal]():  {Type: "string", Enum: []any{GoalForecasting, GoalBottlenecks, GoalCapacityPlanning, GoalSystemHealth}},
+	reflect.TypeFor[Granularity]():     {Type: "string", Enum: []any{GranularityDaily, GranularityWeekly}},
+	reflect.TypeFor[WorkflowTier]():    {Type: "string", Enum: []any{TierDemand, TierUpstream, TierDownstream, TierFinished}},
+	reflect.TypeFor[WorkflowRole]():    {Type: "string", Enum: []any{RoleActive, RoleQueue, RoleIgnore}},
+	reflect.TypeFor[WorkflowOutcome](): {Type: "string", Enum: []any{OutcomeDelivered, OutcomeAbandoned}},
 }
 
 // schemaFor infers a JSON Schema for type T with custom enum type mappings.
