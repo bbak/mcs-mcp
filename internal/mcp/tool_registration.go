@@ -44,7 +44,7 @@ var toolDescriptions = map[string]string{
 		"User asks: 'Has our delivery capability improved over the past year?' or 'When did the process change?'\n" +
 		"WHEN NOT TO USE: Not for routine analysis — use 'analyze_process_stability' for that. Throughput-agnostic: does not measure delivery volume.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
-		"- history_window_months: Default 12. Increase to 24–60 for deeper audits; call 'import_history_expand' first if the local cache does not cover that range.\n\n" +
+		"- history_window_months: Default 12. Increase to 24–60 for deeper audits; raise INGESTION_CREATED_LOOKBACK in .env and re-hydrate if the local cache does not cover that range.\n\n" +
 		"INTERPRETATION: Primary signals are detected regime shifts (process resets) and the long-term capability trend. " +
 		"Month-to-month subgroups reveal structural drift that short-window XmR charts miss.",
 
@@ -191,14 +191,9 @@ var toolDescriptions = map[string]string{
 	"import_project_context": "Returns a Data Shape Anchor for a project (not board-level). Use for general project metadata only.\n\n" +
 		"NOTE: All analytical tools require a Board ID. If you plan to run diagnostics or forecasts, use 'import_board_context' instead.",
 
-	"import_history_expand": "Extends the local historical dataset backwards in time without creating gaps.\n\n" +
-		"WHEN TO USE: When 'analyze_process_evolution' or a long-window 'analyze_residence_time' call requires more history than the local cache contains. " +
-		"Also use when the board was recently set up and the default cache is too shallow for reliable XmR limits.\n\n" +
-		"This is a full backward fetch — use 'import_history_update' for lightweight incremental syncs.",
-
 	"import_history_update": "Incrementally fetches items changed since the last sync to keep the local cache current.\n\n" +
-		"WHEN TO USE: At the start of any session to ensure analysis reflects recent Jira changes. This is a lightweight sync — it does NOT extend history backwards. " +
-		"Use 'import_history_expand' to extend the historical range.",
+		"WHEN TO USE: At the start of any session to ensure analysis reflects recent Jira changes. This is a lightweight forward-only sync. " +
+		"To extend history further back than the current cache, raise INGESTION_CREATED_LOOKBACK / INGESTION_UPDATED_LOOKBACK in .env and re-hydrate via 'import_board_context' (after deleting the existing cache file).",
 
 	"workflow_discover_mapping": "Probes status categories, residence times, and resolution frequencies to propose a semantic workflow mapping for user verification.\n\n" +
 		"Canonical setup sequence: import_projects → import_boards → import_board_context → workflow_discover_mapping → workflow_set_mapping → workflow_set_order → [Diagnostics tools]\n\n" +
@@ -296,7 +291,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 
 	// GROUP: Import & Setup
 	//   import_projects, import_boards, import_board_context, import_project_context,
-	//   import_history_update, import_history_expand,
+	//   import_history_update,
 	//   workflow_discover_mapping, workflow_set_mapping, workflow_set_order,
 	//   workflow_set_evaluation_date, guide_diagnostic_roadmap, open_in_browser
 
@@ -497,12 +492,6 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				args.HistoryStartDate, args.HistoryEndDate,
 			)
 			return handleResult(s, "forecast_backtest", data, err)
-		}))
-
-	must(addTool(mcpSrv, s, "import_history_expand",
-		func(_ context.Context, _ *mcp.CallToolRequest, args ImportHistoryExpandInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleCacheExpandHistory(args.ProjectKey, args.BoardID, args.Chunks)
-			return handleResult(s, "import_history_expand", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "import_history_update",

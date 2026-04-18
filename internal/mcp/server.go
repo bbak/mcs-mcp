@@ -35,7 +35,6 @@ type Server struct {
 	activeStatusOrder     []string
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
-	activeOldestUpdated   *time.Time
 	activeEvaluationDate  *time.Time
 	activeRegistry        *jira.NameRegistry
 	enableMermaidCharts     bool
@@ -86,7 +85,8 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	}
 
 	store := eventlog.NewEventStore(s.Clock)
-	s.events = eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir)
+	s.events = eventlog.NewLogProvider(jiraClient, store, cfg.CacheDir,
+		cfg.IngestionUpdatedLookback, cfg.IngestionCreatedLookback, cfg.IngestionMaxItems)
 
 	return s
 }
@@ -226,7 +226,6 @@ type WorkflowMetadata struct {
 	StatusOrder     []string                        `json:"status_order,omitempty"`
 	CommitmentPoint string                          `json:"commitment_point,omitempty"`
 	DiscoveryCutoff *time.Time                      `json:"discovery_cutoff,omitempty"`
-	OldestUpdated   *time.Time                      `json:"oldest_updated,omitempty"`
 	EvaluationDate  *time.Time                      `json:"evaluation_date,omitempty"`
 	NameRegistry    *jira.NameRegistry              `json:"name_registry,omitempty"`
 }
@@ -240,7 +239,6 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		StatusOrder:     s.activeStatusOrder,
 		CommitmentPoint: s.activeCommitmentPoint,
 		DiscoveryCutoff: s.activeDiscoveryCutoff,
-		OldestUpdated:   s.activeOldestUpdated,
 		EvaluationDate:  s.activeEvaluationDate,
 		NameRegistry:    s.activeRegistry,
 	}
@@ -285,7 +283,6 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 	s.activeStatusOrder = meta.StatusOrder
 	s.activeCommitmentPoint = meta.CommitmentPoint
 	s.activeDiscoveryCutoff = meta.DiscoveryCutoff
-	s.activeOldestUpdated = meta.OldestUpdated
 	s.activeEvaluationDate = meta.EvaluationDate
 	s.activeRegistry = meta.NameRegistry
 

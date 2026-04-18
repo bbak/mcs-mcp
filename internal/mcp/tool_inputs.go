@@ -202,7 +202,7 @@ type AnalyzeWIPAgeStabilityInput struct {
 type AnalyzeProcessEvolutionInput struct {
 	ProjectKey          string `json:"project_key" jsonschema:"The project key"`
 	BoardID             int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowMonths int    `json:"history_window_months,omitempty" jsonschema:"Number of months to analyze. Default: 12. Increase to 24–60 for deep audits or post-reorganization analysis. Call 'import_history_expand' first if the local cache does not cover the requested range."`
+	HistoryWindowMonths int    `json:"history_window_months,omitempty" jsonschema:"Number of months to analyze. Default: 12. Increase to 24–60 for deep audits or post-reorganization analysis. Raise INGESTION_CREATED_LOOKBACK in .env and re-hydrate if the local cache does not cover the requested range."`
 }
 
 // AnalyzeYieldInput holds arguments for the analyze_yield tool.
@@ -273,13 +273,6 @@ type AnalyzeResidenceTimeInput struct {
 	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 52 (longer than other tools — Sample Path analysis needs sufficient path length). Reduce to 26 if only the recent regime is relevant or after a major process reset."`
 	IssueTypes         []string    `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
 	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) for full resolution. 'weekly' to reduce payload size for long windows."`
-}
-
-// ImportHistoryExpandInput holds arguments for the import_history_expand tool.
-type ImportHistoryExpandInput struct {
-	ProjectKey string `json:"project_key" jsonschema:"The project key"`
-	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
-	Chunks     int    `json:"chunks,omitempty" jsonschema:"Optional: Number of additional batches (300 items each) to fetch. Default: 3"`
 }
 
 // ImportHistoryUpdateInput holds arguments for the import_history_update tool.

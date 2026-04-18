@@ -1,7 +1,6 @@
 package eventlog
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -26,75 +25,6 @@ func (m *MockJiraClient) SearchIssues(jql string, startAt int, maxResults int) (
 	return m.SearchIssuesFunc(jql, startAt, maxResults)
 }
 func (m *MockJiraClient) GetRegistry(projectKey string) (*jira.NameRegistry, error) { return nil, nil }
-
-func TestLogProvider_HistoryExpansion(t *testing.T) {
-	store := NewEventStore(nil)
-	mockJira := &MockJiraClient{}
-	p := NewLogProvider(mockJira, store, "")
-
-	sourceID := "PROJ-1"
-	jql := "project = PROJ"
-
-	// 1. Setup initial state: One issue with events
-	now := time.Now().Truncate(time.Minute)
-	initialEvents := []IssueEvent{
-		{IssueKey: "PROJ-1", Timestamp: now.UnixMicro(), EventType: "Created"},
-	}
-	store.Append(sourceID, initialEvents)
-
-	omrc, _ := store.GetMostRecentUpdates(sourceID)
-	if omrc.UnixMicro() != now.UnixMicro() {
-		t.Errorf("Expected OMRC %v, got %v", now.UnixMicro(), omrc.UnixMicro())
-	}
-
-	// 2. Mock Expansion
-	past := now.Add(-24 * time.Hour)
-	expandJQL := fmt.Sprintf("(%s) AND updated < \"%s\" ORDER BY updated DESC", jql, now.Format(DateTimeFormat))
-	catchUpJQL := fmt.Sprintf("(%s) AND updated > \"%s\" ORDER BY updated ASC", jql, now.Format(DateTimeFormat))
-
-	mockJira.SearchIssuesFunc = func(q string, startAt, maxResults int) (*jira.SearchResponse, error) {
-		if q == expandJQL {
-			return &jira.SearchResponse{
-				Issues: []jira.IssueDTO{
-					{
-						Key: "PROJ-2",
-						Fields: jira.FieldsDTO{
-							Updated: past.Format("2006-01-02T15:04:05.000-0700"),
-							Created: past.Format("2006-01-02T15:04:05.000-0700"),
-						},
-						Changelog: &jira.ChangelogDTO{Histories: []jira.HistoryDTO{}},
-					},
-				},
-			}, nil
-		}
-		if q == catchUpJQL {
-			return &jira.SearchResponse{Issues: []jira.IssueDTO{}}, nil
-		}
-		return nil, fmt.Errorf("unexpected JQL: %s", q)
-	}
-
-	// Execute Expansion — pass the OMRC directly as the boundary (simulates a fresh hydration)
-	fetched, usedOMRC, _, err := p.ExpandHistory(sourceID, "PROJ", jql, 1, omrc, nil)
-	if err != nil {
-		t.Fatalf("ExpandHistory failed: %v", err)
-	}
-	if fetched != 1 {
-		t.Errorf("Expected 1 fetched, got %d", fetched)
-	}
-	if usedOMRC.UnixMicro() != now.UnixMicro() {
-		t.Errorf("Expected used OMRC %v, got %v", now.UnixMicro(), usedOMRC.UnixMicro())
-	}
-
-	// 3. Verify Store
-	if store.Count(sourceID) != 2 {
-		t.Errorf("Expected count 2, got %d", store.Count(sourceID))
-	}
-
-	newOMRC, _ := store.GetMostRecentUpdates(sourceID)
-	if newOMRC.UnixMicro() != past.UnixMicro() {
-		t.Errorf("Expected new OMRC %v, got %v", past.UnixMicro(), newOMRC.UnixMicro())
-	}
-}
 
 func TestLogProvider_MergeStrategy(t *testing.T) {
 	now := time.Now().Truncate(time.Minute)
