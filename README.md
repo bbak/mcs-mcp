@@ -167,7 +167,6 @@ These optional variables can be set in the `.env` file:
 | :-------------------------------------- | :----------- | :------------------------------------------------------------------------------------------ |
 | `DATA_PATH`                             | (binary dir) | Base folder for logs and cache.                                                             |
 | `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                                           |
-| `ENABLE_MERMAID_CHARTS`                 | `false`      | Include text-based Mermaid.js charts in analytical tool results.                            |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point.                       |
 | `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.                          |
 | `MCS_CHARTS_BUFFER_SIZE`                | `0`          | Chart rendering buffer (0=off, 1-100=on). Starts HTTP server on localhost.                  |

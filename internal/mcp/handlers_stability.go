@@ -5,7 +5,6 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleGetProcessStability(projectKey string, boardID int, includeRawSeries bool) (any, error) {
@@ -69,10 +68,6 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 		"scatterplot": scatterplot,
 	}
 
-	if s.enableMermaidCharts {
-		res["visual_stability_xmr"] = visuals.GenerateXmRChart(stability)
-	}
-
 	guidance := []string{
 		"XmR charts detect 'Special Cause' variation. If stability is low (outliers/shifts), forecasts are unreliable.",
 		"Stability Index = (WIP / Throughput) / Average Cycle Time. A ratio > 1.3 indicates a 'Clogged' system.",
@@ -116,10 +111,6 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 		},
 	}
 
-	if s.enableMermaidCharts {
-		res["visual_evolution_xmr"] = visuals.GenerateEvolutionChart(evolution)
-	}
-
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), nil), nil
 }
 
@@ -146,10 +137,6 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	res := map[string]any{
 		"yield":      yield,
 		"stratified": stratified,
-	}
-
-	if s.enableMermaidCharts {
-		res["visual_yield_pie"] = visuals.GenerateYieldPie(yield)
 	}
 
 	guidance := []string{

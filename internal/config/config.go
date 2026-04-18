@@ -21,10 +21,9 @@ import (
 // AppConfig holds the complete application configuration.
 type AppConfig struct {
 	Jira                jira.Config
-	DataPath            string
-	LogDir              string
-	CacheDir            string
-	EnableMermaidCharts     bool
+	DataPath                string
+	LogDir                  string
+	CacheDir                string
 	CommitmentBackflowReset bool           // Reset WIP age clock on backflow past the commitment point
 	Engine                  string         // MCS_ENGINE: "crude" (default), "bbak", "auto"
 	EngineWeights           map[string]int // MCS_ENGINE_<NAME>: 0 = disabled, 1-100 = weight
@@ -92,10 +91,9 @@ func Load() (*AppConfig, error) {
 			GCLB:         getEnv("JIRA_GCLB", ""),
 			RequestDelay: time.Duration(delaySecs) * time.Second,
 		},
-		DataPath:            dataPath,
-		LogDir:              logDir,
-		CacheDir:            cacheDir,
-		EnableMermaidCharts:     getEnvBool("ENABLE_MERMAID_CHARTS", false),
+		DataPath:                dataPath,
+		LogDir:                  logDir,
+		CacheDir:                cacheDir,
 		CommitmentBackflowReset: getEnvBool("COMMITMENT_POINT_BACKFLOW_RESET_CLOCK", true),
 		Engine:                  getEnv("MCS_ENGINE", "crude"),
 		EngineWeights: map[string]int{

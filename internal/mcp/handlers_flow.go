@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, windowWeeks int, bucket string, _ bool) (any, error) {
@@ -51,10 +50,6 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, window
 		res["stability"] = throughput.XmR
 	}
 
-	if s.enableMermaidCharts {
-		res["visual_throughput_trend"] = visuals.GenerateThroughputChart(throughput.Pooled, bucketMetadata, throughput.XmR)
-	}
-
 	guidance := []string{
 		"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
 		fmt.Sprintf("The current window uses a %d-week historical baseline anchored at %s, grouped by %s.", windowWeeks, window.Start.Format(stats.DateFormat), bucket),
@@ -88,10 +83,6 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int, windo
 
 	res := map[string]any{
 		"wip_stability": wipStability,
-	}
-
-	if s.enableMermaidCharts {
-		res["visual_wip_run_chart"] = visuals.GenerateWIPRunChart(wipStability)
 	}
 
 	guidance := []string{
@@ -128,10 +119,6 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int, wi
 
 	res := map[string]any{
 		"wip_age_stability": wipAgeStability,
-	}
-
-	if s.enableMermaidCharts {
-		res["visual_wip_age_run_chart"] = visuals.GenerateWIPAgeRunChart(wipAgeStability)
 	}
 
 	guidance := []string{

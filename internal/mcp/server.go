@@ -36,8 +36,7 @@ type Server struct {
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
 	activeEvaluationDate  *time.Time
-	activeRegistry        *jira.NameRegistry
-	enableMermaidCharts     bool
+	activeRegistry          *jira.NameRegistry
 	commitmentBackflowReset bool
 	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)
 	engineRegistry          *simulation.Registry
@@ -73,7 +72,6 @@ func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
 	s := &Server{
 		jira:                    jiraClient,
 		cacheDir:                cfg.CacheDir,
-		enableMermaidCharts:     cfg.EnableMermaidCharts,
 		commitmentBackflowReset: cfg.CommitmentBackflowReset,
 		engineRegistry:          reg,
 		engineName:              engineName,

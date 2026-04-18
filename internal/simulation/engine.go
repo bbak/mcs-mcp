@@ -135,7 +135,6 @@ type Result struct {
 	FatTailRatio      float64        `json:"fat_tail_ratio"`       // P98/P50 (Kanban University heuristic)
 	TailToMedianRatio float64        `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
 	Predictability    string         `json:"predictability"`
-	VisualCDF         string         `json:"visual_cdf,omitempty"`
 	Context           map[string]any `json:"context,omitempty"`
 	Warnings []string `json:"warnings,omitempty"`
 

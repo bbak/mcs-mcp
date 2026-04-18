@@ -7,7 +7,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, _ string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
@@ -194,10 +193,6 @@ func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string
 		resObj.Context["target_days"] = finalTargetDays
 	}
 
-	if s.enableMermaidCharts {
-		resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, mode)
-	}
-
 	warnings := resObj.Warnings
 	insights := resObj.Insights
 	resObj.Warnings = nil
@@ -346,10 +341,6 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 	// Clear from the nested object to avoid duplication
 	resObj.Warnings = nil
 	resObj.Insights = nil
-
-	if s.enableMermaidCharts {
-		resObj.VisualCDF = visuals.GenerateSimulationCDF(resObj.Percentiles, "duration")
-	}
 
 	return WrapResponse(resObj, projectKey, boardID, nil, warnings, insights), nil
 }

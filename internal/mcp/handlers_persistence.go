@@ -6,7 +6,6 @@ import (
 
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/visuals"
 )
 
 func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any, error) {
@@ -33,10 +32,6 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 		"persistence":            persistence,
 		"stratified_persistence": stratified,
 		"tier_summary":           tierSummary,
-	}
-
-	if s.enableMermaidCharts {
-		res["visual_persistence_bar"] = visuals.GeneratePersistenceChart(persistence)
 	}
 
 	guidance := []string{
@@ -97,10 +92,6 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	res := map[string]any{
 		"aging":   aging,
 		"summary": summary,
-	}
-
-	if s.enableMermaidCharts {
-		res["visual_wip_aging"] = visuals.GenerateAgingChart(aging)
 	}
 
 	guidance := []string{
