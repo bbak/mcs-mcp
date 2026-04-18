@@ -22,7 +22,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_cycle_time",
 			func() (any, error) {
-				return srv.handleGetCycleTimeAssessment(testProject, testBoard, "", "", nil)
+				return srv.handleGetCycleTimeAssessment(testProject, testBoard, "", "", nil, 0, 0)
 			},
 		},
 		{

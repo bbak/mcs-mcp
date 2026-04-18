@@ -130,11 +130,13 @@ type ForecastMonteCarloInput struct {
 
 // AnalyzeCycleTimeInput holds arguments for the analyze_cycle_time tool.
 type AnalyzeCycleTimeInput struct {
-	ProjectKey          string   `json:"project_key" jsonschema:"The project key"`
-	BoardID             int      `json:"board_id" jsonschema:"The board ID"`
-	IssueTypes  []string `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include in the calculation (e.g. Story or Bug)."`
-	StartStatus string   `json:"start_status,omitempty" jsonschema:"Optional: Explicit start status (default: Commitment Point)."`
-	EndStatus           string   `json:"end_status,omitempty" jsonschema:"Optional: Explicit end status (default: Finished Tier)."`
+	ProjectKey      string   `json:"project_key" jsonschema:"The project key"`
+	BoardID         int      `json:"board_id" jsonschema:"The board ID"`
+	IssueTypes      []string `json:"issue_types,omitempty" jsonschema:"Optional: List of issue types to include in the calculation (e.g. Story or Bug)."`
+	StartStatus     string   `json:"start_status,omitempty" jsonschema:"Optional: Explicit start status (default: Commitment Point)."`
+	EndStatus       string   `json:"end_status,omitempty" jsonschema:"Optional: Explicit end status (default: Finished Tier)."`
+	SLEPercentile   int      `json:"sle_percentile,omitempty" jsonschema:"Optional: percentile (50, 70, 85, 95) used as the SLE for adherence trending. Default: 85."`
+	SLEDurationDays float64  `json:"sle_duration_days,omitempty" jsonschema:"Optional: fixed SLE duration in days. If supplied, adherence is trended against this constant baseline; otherwise the rolling-window percentile is used."`
 }
 
 // AnalyzeStatusPersistenceInput holds arguments for the analyze_status_persistence tool.

@@ -148,6 +148,7 @@ type Result struct {
 	VolatilityAttribution    map[string]string         `json:"volatility_attribution,omitempty"`
 	TypeSLEs                 map[string]Percentiles    `json:"type_sles,omitempty"`
 	Scatterplot              []stats.ScatterPoint      `json:"scatterplot,omitempty"`
+	SLEAdherence             *stats.SLEAdherenceResult `json:"sle_adherence,omitempty"`
 }
 
 // Round rounds all numeric fields to 2 decimal places for output compactness.

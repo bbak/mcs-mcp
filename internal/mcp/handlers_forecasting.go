@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
 )
@@ -276,7 +277,7 @@ func (s *Server) runMultiEngineBacktest(req simulation.ForecastRequest, engines 
 	return wfa.ExecuteMultiEngine(cfg, engines, s.engineWeights)
 }
 
-func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, startStatus, endStatus string, issueTypes []string) (any, error) {
+func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, startStatus, endStatus string, issueTypes []string, slePercentile int, sleDurationDays float64) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -338,11 +339,93 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 	warnings := append(resObj.Warnings, s.getQualityWarnings(all)...)
 	insights := s.addCommitmentInsights(resObj.Insights, analysisCtx, startStatus)
 
+	adherence, adherenceInsight := s.computeSLEAdherence(matchedIssues, cycleTimes, resObj.Percentiles, slePercentile, sleDurationDays, window)
+	if adherence != nil {
+		resObj.SLEAdherence = adherence
+	}
+	if adherenceInsight != "" {
+		insights = append(insights, adherenceInsight)
+	}
+
 	// Clear from the nested object to avoid duplication
 	resObj.Warnings = nil
 	resObj.Insights = nil
 
 	return WrapResponse(resObj, projectKey, boardID, nil, warnings, insights), nil
+}
+
+// computeSLEAdherence resolves the effective SLE threshold (user-supplied vs. derived),
+// builds the weekly attainment series, and returns an optional AI-facing nudge insight
+// when the SLE was auto-derived (suggesting the agent ask the user for a fixed baseline).
+func (s *Server) computeSLEAdherence(
+	matchedIssues []jira.Issue,
+	cycleTimes []float64,
+	pcts simulation.Percentiles,
+	slePercentile int,
+	sleDurationDays float64,
+	dayWindow stats.AnalysisWindow,
+) (*stats.SLEAdherenceResult, string) {
+	if len(matchedIssues) == 0 || len(cycleTimes) == 0 {
+		return nil, ""
+	}
+
+	var (
+		effectiveSLE  float64
+		effectivePerc int
+		sleSource     string
+		nudge         string
+	)
+
+	switch {
+	case sleDurationDays > 0:
+		effectiveSLE = sleDurationDays
+		effectivePerc = slePercentile // may be 0 when only a duration was supplied
+		sleSource = "user"
+	case slePercentile > 0:
+		effectiveSLE = percentileFromResult(pcts, slePercentile)
+		effectivePerc = slePercentile
+		sleSource = fmt.Sprintf("derived_p%d", slePercentile)
+	default:
+		effectiveSLE = pcts.Likely // P85
+		effectivePerc = 85
+		sleSource = "derived_p85"
+		nudge = "SLE Adherence is currently trended against the auto-derived P85 from the rolling window. " +
+			"For a stable Vacanti-style baseline, ask the user for the team's stated Service Level Expectation " +
+			"(e.g. \"85% of items in 14 days or less\") and re-run with sle_duration_days=<days> " +
+			"(and optionally sle_percentile=<n>)."
+	}
+
+	if effectiveSLE <= 0 {
+		return nil, ""
+	}
+
+	weekWindow := stats.NewAnalysisWindow(dayWindow.Start, dayWindow.End, "week", dayWindow.Cutoff)
+	res := stats.ComputeSLEAdherence(matchedIssues, cycleTimes, effectiveSLE, effectivePerc, sleSource, weekWindow)
+	return &res, nudge
+}
+
+// percentileFromResult maps a percentile (e.g. 85) to the corresponding field of a Percentiles struct.
+// Returns 0 for unknown percentiles, signalling the caller to skip adherence computation.
+func percentileFromResult(p simulation.Percentiles, percentile int) float64 {
+	switch percentile {
+	case 10:
+		return p.Aggressive
+	case 30:
+		return p.Unlikely
+	case 50:
+		return p.CoinToss
+	case 70:
+		return p.Probable
+	case 85:
+		return p.Likely
+	case 90:
+		return p.Conservative
+	case 95:
+		return p.Safe
+	case 98:
+		return p.AlmostCertain
+	}
+	return 0
 }
 
 func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode string, itemsToForecast, forecastHorizon int, issueTypes []string, sampleDays int, sampleStartDate, sampleEndDate string) (any, error) {

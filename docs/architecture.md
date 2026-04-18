@@ -60,7 +60,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_wip_age_stability` | Analyze Total WIP Age stability (cumulative age burden) via daily run chart with XmR bounds. |
 | `analyze_process_evolution` | Perform a longitudinal "Strategic Audit" using Three-Way Control Charts. |
 | `analyze_yield` | Analyze delivery efficiency (delivered vs. abandoned) attributed to workflow tiers. |
-| `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. Includes a Cycle Time Scatterplot array for visualization with SLE reference lines. |
+| `analyze_cycle_time` | Calculate Service Level Expectations (SLE) from historical cycle times. Includes a Cycle Time Scatterplot array for visualization with SLE reference lines, plus a weekly **SLE Adherence Trend** (attainment rate + breach severity) against the auto-derived P85 or a user-supplied fixed SLE. |
 | `analyze_item_journey` | Get a detailed breakdown of a single item's time across all workflow stages. |
 | `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance when Λ(T) ≠ Θ(T). |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
@@ -357,6 +357,42 @@ Process Behavior Charts (XmR) assess whether the system is "in control."
 - **Flow Debt (Arrival vs. Departure)**: Explicitly monitors the gap between items crossing the **Commitment Point** (Arrivals) and items being **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
 - **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
 - **Cycle Time Scatterplot**: Both Process Stability and Cycle Time Analysis responses include a chart-ready `scatterplot` array with per-item completion date, cycle time, pooled moving range, and issue type. Process Stability uses XmR reference lines (X̄, UNPL, LNPL); Cycle Time Analysis uses SLE percentile reference lines (P50, P70, P85, P95).
+- **SLE Adherence Trending**: `analyze_cycle_time` returns an `sle_adherence` block tracking weekly attainment-rate and breach-severity (max cycle time + P95 of breach excess) against a Service Level Expectation. Default SLE = the rolling-window P85; callers may override via `sle_percentile` or `sle_duration_days` to trend against a fixed Vacanti-style baseline. When the SLE is auto-derived, the handler emits an Insight nudging the AI agent to ask the user for the team's stated SLE so subsequent calls can pin a stable threshold. Buckets carry an `is_partial` flag so charts can fade the in-progress current week.
+
+### 6.1 SLE Adherence Trending — Implementation Reference
+
+**Home tool**: `analyze_cycle_time` (handler in `internal/mcp/handlers_forecasting.go`, `handleGetCycleTimeAssessment`). SLE Adherence lives next to SLE derivation — `analyze_process_stability` remains XmR-focused so its chart is not overloaded. Vacanti's recommendation to pair adherence with a stability check is represented as a cross-tool *insight*, not a merged panel.
+
+**Vacanti semantics** (see `docs/ideas.md` for open follow-ups):
+
+- An SLE has two parts: a duration **and** a probability. "85% of items in 14 days or less." Quoting only the duration strips the probabilistic nature of the forecast.
+- **Attainment rate** = share of completed items finishing within the SLE duration per bucket. For a P85 SLE, the *expected* rate is 85% (not 15% — easy to invert, so guard it).
+- **Breach severity** = tail behaviour. Max cycle time + P95 of breach excess per bucket. An item blowing past both P85 and P95 is qualitatively different from one barely over P85.
+
+**Data pipeline**:
+
+1. Handler builds the rolling-window `AnalysisWindow` ("day" bucket) via `stats.NewAnalysisWindow(start, end, "day", cutoff)`. The adherence helper then builds a *week-bucketed* companion window with the same boundaries.
+2. `s.getCycleTimes(...)` returns the aligned `matchedIssues []jira.Issue` + `cycleTimes []float64` pair.
+3. `s.computeSLEAdherence(matchedIssues, cycleTimes, pcts, slePercentile, sleDurationDays, dayWindow)` resolves the effective threshold via `percentileFromResult(pcts, p)` when `slePercentile > 0`, defaulting to `pcts.Likely` (P85) otherwise. Source tag is one of `"user"` / `"derived_p85"` / `"derived_pXX"`.
+4. `stats.ComputeSLEAdherence(...)` bucketises delivered items by `OutcomeDate` (falling back to `ResolutionDate`) using `AnalysisWindow.FindBucketIndex` and emits per-bucket attainment, max CT, and P95 of breach excess. Partial (in-progress) buckets get `is_partial: true`.
+
+**Gotchas**:
+
+- `AnalysisWindow` snapping in `NewAnalysisWindow(start, start.AddDate(0,0,7), "week", …)` extends `end` to the next Sunday, yielding *two* weekly buckets. Build test windows with `start.AddDate(0,0,7*weeks-1)` so only the intended N weeks land.
+- `ExpectedRate = percentile/100`, never `1 - percentile/100`. Golden baseline will catch the inversion if you drift.
+- Computation uses `matchedIssues` aligned by index with `cycleTimes`. Never re-sort one without the other; `stats.ComputeSLEAdherence` assumes pairwise correspondence.
+
+**Chart layout** (`internal/charts/assets/templates/cycle_time.jsx`):
+
+Panels are ordered for the reader's reading flow, not computation order: Stat Cards → Predictability & Spread → Scatterplot (primary visual) → Pool SLE → Per-type SLE → **SLE Attainment Trend** (Panel 5) → **Breach Severity** (Panel 6). Both trend panels are gated on `d.sle_adherence` being present; partial buckets are faded at 45% opacity so viewers don't read the current incomplete week as a regression.
+
+**AI nudge pattern**: when the handler auto-derives the SLE, it appends an Insight instructing the agent to ask the user for the team's stated SLE and re-run with `sle_duration_days=<d>` (+ optional `sle_percentile=<n>`). User-supplied values flip `sle_source` to `"user"` and suppress the nudge. This follows the same Insights-channel pattern used by commitment point discovery (see `handlers_forecasting.go:addCommitmentInsights`).
+
+**Open follow-ups** (tracked in `docs/ideas.md`, not implemented):
+
+- Stationarity-driven SLE invalidation (warn when CT distribution shifts enough to make the historical SLE stale). Would most naturally emit an Insight from `analyze_process_stability` pointing back to `analyze_cycle_time`.
+- Per-issue-type adherence trend. `TypeSLEs` already exists; adding per-type buckets would multiply chart real estate — deferred until v1 is in use.
+- Adaptive weekly→monthly cadence fallback when throughput is too sparse for weekly buckets to be meaningful.
 
 ---
 
@@ -793,6 +829,29 @@ function MyTooltip({ active, payload }) {
 
 Static legend entries (not inside `.map()`) can still use `<div style={{ background: COLOR }} />` safely.
 
+**Caveat — the safe inline pattern has limits.** `<outerSpan><innerSpan>●</innerSpan>{" "}{t}</outerSpan>` survives the minifier only when the map body is *minimal* and the colour is a *direct* lookup. Two ways to break the same pattern and get children stripped:
+
+1. **Fallback expressions on the colour prop**: `style={{ color: TYPE_COLORS[t] ?? PRIMARY }}` gets treated as a non-trivial expression and the inner `<span>` is elided. Use a guaranteed lookup (`TYPE_COLORS[t]`) or precompute the fallback at module scope, e.g. `const colorOf = t => TYPE_COLORS[t] || PRIMARY;`.
+2. **Too many sibling children in the map return**: once the outer `<span>` carries more than ~3 children (e.g. `<span>●</span>{" "}{t} (n={v}){suffix}`), the minifier strips the entire subtree. The symptom in the DOM is a bare `<span>Bug</span>` with no glyph, no spacing, no `(n=…)`.
+
+**If either condition applies, promote to Rule 2**: extract a named legend-item component and have the map call it by reference, moving the string composition into a `label` prop computed before the return.
+
+```jsx
+// ✓ SAFE — named component, single label prop, no fallback expressions
+function TypeLegendItem({ t, label, opacity }) {
+  return (
+    <span style={{ fontSize: 10, color: MUTED, opacity }}>
+      <span style={{ color: TYPE_COLORS[t] }}>●</span>{" "}{label}
+    </span>
+  );
+}
+
+{ALL_TYPES.map(t => {
+  const label = eligible(t) ? `${t} (n=${volume(t)})` : `${t} (n=${volume(t)}) — ${reason(t)}`;
+  return <TypeLegendItem key={t} t={t} label={label} opacity={eligible(t) ? 1 : 0.6} />;
+})}
+```
+
 #### Rule 4 — Never use `.map()` over a fixed known set; inline instead
 
 For small, fixed sets (e.g. tier names `["Demand", "Upstream", "Downstream"]`), inline each element as an explicit sibling rather than mapping. This avoids the map-drop risk entirely and is clearer.
@@ -861,6 +920,8 @@ The same applies when extra props need to be forwarded from a parent component's
 | `.map()` to named component `<Row />` | ✓ Safe | Named component call preserved |
 | `<div style={{ background: DYNAMIC }}>` in map | ✗ Broken | Children dropped by minifier |
 | `<span style={{ color: DYNAMIC }}>●</span>` | ✓ Safe | Single text node, no dropped children |
+| `<span style={{ color: X ?? Y }}>●</span>` | ✗ Broken | Fallback expression on colour prop trips child elision |
+| map body with >3 children around `<span>●</span>` | ✗ Broken | Promote to named legend-item component |
 | `.map()` over fixed known set | ✗ Risky | Prefer inlined explicit siblings |
 | `content={<Tooltip />}` JSX element | ✗ Broken | Recharts cannot call a rendered element as a function |
 | `content={props => <Tooltip />}` arrow | ✗ Broken | Arrow prop body eliminated |

@@ -1,9 +1,10 @@
+import { useState } from "react";
 import {
-  BarChart, Bar, Cell, ComposedChart, Scatter,
+  BarChart, Bar, Cell, ComposedChart, Line, Scatter,
   ReferenceLine, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { ALARM, CAUTION, PRIMARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, percColor, FONT_STACK } from "mcs-mcp";
+import { ALARM, CAUTION, PRIMARY, SECONDARY, POSITIVE, TEXT, MUTED, PAGE_BG, PANEL_BG, BORDER, typeColor, percColor, FONT_STACK } from "mcs-mcp";
 import { StatCard, Badge, TOOLTIP_BG } from "./shared.jsx";
 
 // ── INJECTED DATA ─────────────────────────────────────────────────────────────
@@ -83,17 +84,19 @@ const poolData = PERC_KEYS.map(k => ({
   isSLE: k === "likely",
 }));
 
-// Per-type bar data
+// Per-type bar data — include ALL types (eligible + ineligible).
+// Stratification eligibility still gates the simulation math, but the chart
+// shows every type so users can see how close each stream sits to the pool.
 const typeData = PERC_KEYS.map(k => {
   const row = { key: k, label: PERC_SHORT[k], isSLE: k === "likely" };
-  eligibleTypes.forEach(t => { row[t] = round1(TYPE_SLES[t][k]); });
+  ALL_ISSUE_TYPES.forEach(t => { row[t] = round1(TYPE_SLES[t][k]); });
   return row;
 });
 
 const P85 = round1(POOL.likely);
 const P98 = round1(POOL.almost_certain);
-const maxTypeP98 = eligibleTypes.length > 0
-  ? Math.max(...eligibleTypes.map(t => round1(TYPE_SLES[t].almost_certain || 0)))
+const maxTypeP98Display = ALL_ISSUE_TYPES.length > 0
+  ? Math.max(...ALL_ISSUE_TYPES.map(t => round1(TYPE_SLES[t].almost_certain || 0)), P98)
   : P98;
 
 // ── SCATTERPLOT DATA ─────────────────────────────────────────────────────────
@@ -119,6 +122,40 @@ const scatterYMax = scatterData.length > 0
   : P98;
 
 const scatterInterval = Math.max(1, Math.floor(scatterData.length / 9));
+
+// ── SLE ADHERENCE DATA ───────────────────────────────────────────────────────
+
+const ADHERENCE = d.sle_adherence || null;
+const adherenceData = ADHERENCE
+  ? ADHERENCE.buckets.map(b => ({
+      label:        b.bucket_label,
+      delivered:    b.delivered_count,
+      breaches:     b.breach_count,
+      attainmentPct: Math.round((b.attainment_rate || 0) * 100),
+      maxCT:        round1(b.max_cycle_time_days),
+      p95Excess:    round1(b.p95_breach_magnitude_days),
+      isPartial:    !!b.is_partial,
+    }))
+  : [];
+
+const expectedRatePct = ADHERENCE ? Math.round(ADHERENCE.expected_attainment_rate * 100) : 0;
+const overallRatePct  = ADHERENCE ? Math.round(ADHERENCE.overall_attainment_rate * 100) : 0;
+const sleSourceLabel = ADHERENCE
+  ? (ADHERENCE.sle_source === "user"
+      ? `user-supplied (${ADHERENCE.sle_duration_days}d)`
+      : `auto-derived P${ADHERENCE.sle_percentile} (${ADHERENCE.sle_duration_days}d)`)
+  : "";
+
+const adherenceBarColor = (rate) => {
+  if (rate >= expectedRatePct) return POSITIVE;
+  if (rate >= expectedRatePct - 10) return CAUTION;
+  return ALARM;
+};
+
+const adherenceInterval = Math.max(0, Math.floor(adherenceData.length / 12));
+const severityYMax = adherenceData.length > 0
+  ? Math.ceil(Math.max(...adherenceData.map(a => Math.max(a.maxCT, ADHERENCE.sle_duration_days))) * 1.1)
+  : 0;
 
 function ScatterDot({ cx, cy, payload }) {
   if (!cx || !cy) return null;
@@ -179,9 +216,46 @@ function TypeTooltipRow({ t, v }) {
   );
 }
 
+function TypeLegendItem({ t, label, opacity }) {
+  return (
+    <span style={{ fontSize: 10, color: MUTED, opacity: opacity }}>
+      <span style={{ color: ISSUE_TYPE_COLORS[t] }}>●</span>{" "}{label}
+    </span>
+  );
+}
+
+function AdherenceTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  const delivered = p.delivered;
+  const kept = delivered - p.breaches;
+  return (
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}{p.isPartial ? " (partial)" : ""}</div>
+      <div>Attainment: <b>{p.attainmentPct}%</b> ({kept}/{delivered})</div>
+      <div style={{ color: MUTED, marginTop: 4 }}>Breaches: {p.breaches} · Max CT: {p.maxCT}d</div>
+    </div>
+  );
+}
+
+function SeverityTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
+      padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}{p.isPartial ? " (partial)" : ""}</div>
+      <div>Max CT: <b>{p.maxCT}d</b></div>
+      <div>P95 breach excess: <b>{p.p95Excess}d</b></div>
+      <div style={{ color: MUTED, marginTop: 4 }}>Delivered: {p.delivered} · Breaches: {p.breaches}</div>
+    </div>
+  );
+}
+
 function TypeTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
-  const rows = eligibleTypes.map(t => ({ t, v: payload.find(p => p.dataKey === t)?.value })).filter(r => r.v != null);
+  const rows = ALL_ISSUE_TYPES.map(t => ({ t, v: payload.find(p => p.dataKey === t)?.value })).filter(r => r.v != null);
   return (
     <div style={{ background: TOOLTIP_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
       padding: "10px 14px", fontFamily: FONT_STACK, fontSize: 12, color: TEXT }}>
@@ -195,6 +269,7 @@ function TypeTooltip({ active, payload, label }) {
 
 export default function CycleTimeSleChart() {
   const scale = v => `${Math.min((v / P98) * 100, 100).toFixed(1)}%`;
+  const [scatterLogScale, setScatterLogScale] = useState(false);
 
   return (
     <div style={{ background: PAGE_BG, minHeight: "100vh", padding: "24px 20px",
@@ -266,7 +341,85 @@ export default function CycleTimeSleChart() {
           </div>
         </div>
 
-        {/* Panel 2: Pool SLE */}
+        {/* Panel 2: Cycle Time Scatterplot */}
+        {scatterData.length > 0 && (
+          <div style={{ background: PANEL_BG, borderRadius: 12,
+            border: `1px solid ${BORDER}`, padding: "14px 12px 12px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+              marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: MUTED, letterSpacing: "0.05em",
+                textTransform: "uppercase" }}>
+                Cycle Time Scatterplot — Individual items by completion date · {scatterData.length} items
+              </div>
+              <button
+                onClick={() => setScatterLogScale(s => !s)}
+                style={{
+                  fontSize: 10, fontFamily: FONT_STACK, padding: "4px 10px", borderRadius: 6,
+                  cursor: "pointer", letterSpacing: "0.05em",
+                  background: scatterLogScale ? `${SECONDARY}18` : BORDER,
+                  border: `1.5px solid ${scatterLogScale ? SECONDARY : MUTED}`,
+                  color: scatterLogScale ? SECONDARY : TEXT,
+                }}>
+                {scatterLogScale ? "LOG" : "LINEAR"}
+              </button>
+            </div>
+
+            <ResponsiveContainer width="100%" height={570}>
+              <ComposedChart data={scatterData} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+                <XAxis dataKey="date" tickFormatter={formatDate} interval={scatterInterval}
+                  angle={-45} textAnchor="end" height={60}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
+                <YAxis
+                  scale={scatterLogScale ? "log" : "auto"}
+                  domain={scatterLogScale ? [0.1, scatterYMax] : [0, scatterYMax]}
+                  allowDataOverflow
+                  tickFormatter={v => `${v}d`}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
+                  label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
+                    fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
+                <Tooltip content={ScatterTooltip} />
+                <ReferenceLine y={P50} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P50 ${P50}d`, fill: percColor("coin_toss"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P70} stroke={percColor("probable")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P70 ${P70}d`, fill: percColor("probable"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P85} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}
+                  label={{ value: `P85 SLE ${P85}d`, fill: percColor("likely"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={P95} stroke={percColor("safe")} strokeDasharray="4 4" strokeWidth={1.5}
+                  label={{ value: `P95 ${P95}d`, fill: percColor("safe"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <Scatter dataKey="value" shape={<ScatterDot />} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
+              {ALL_ISSUE_TYPES.map(t => (
+                <TypeLegendItem key={t} t={t} label={t} opacity={1} />
+              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("coin_toss")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P50 Median</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("probable")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P70 Probable</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("likely")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P85 SLE</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("safe")}` }} />
+                <span style={{ fontSize: 10, color: MUTED }}>P95 Safe Bet</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Panel 3: Pool SLE */}
         <div style={{ background: PANEL_BG, borderRadius: 12,
           border: `1px solid ${BORDER}`, padding: "14px 8px 12px", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
@@ -296,18 +449,18 @@ export default function CycleTimeSleChart() {
           </div>
         </div>
 
-        {/* Panel 3: Per-Type SLE */}
-        {eligibleTypes.length > 0 && (
+        {/* Panel 4: Per-Type SLE */}
+        {ALL_ISSUE_TYPES.length > 0 && (
           <div style={{ background: PANEL_BG, borderRadius: 12,
             border: `1px solid ${BORDER}`, padding: "14px 8px 12px", marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
-              Per-type SLE comparison · eligible streams · P85 highlighted
+              Per-type SLE comparison · all streams · P85 highlighted · faded = pooled (ineligible for stratified simulation)
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={typeData} layout="vertical"
                 margin={{ top: 4, right: 80, left: 140, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
-                <XAxis type="number" domain={[0, Math.ceil(maxTypeP98 * 1.05)]} tickFormatter={v => `${v}d`}
+                <XAxis type="number" domain={[0, Math.ceil(maxTypeP98Display * 1.05)]} tickFormatter={v => `${v}d`}
                   tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
                 <YAxis type="category" dataKey="label" width={130}
                   tick={({ x, y, payload }) => (
@@ -319,95 +472,110 @@ export default function CycleTimeSleChart() {
                     </text>
                   )} />
                 <Tooltip content={TypeTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
-                {eligibleTypes.map(t => (
+                {ALL_ISSUE_TYPES.map(t => (
                   <Bar key={t} dataKey={t} barSize={7} radius={[0, 3, 3, 0]}
-                    fill={ISSUE_TYPE_COLORS[t]} fillOpacity={0.75} isAnimationActive={false} />
+                    fill={ISSUE_TYPE_COLORS[t]}
+                    fillOpacity={TYPE_SLES[t].eligible ? 0.75 : 0.3}
+                    isAnimationActive={false} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
 
-            {ineligibleTypes.length > 0 && (
-              <div style={{ fontSize: 10, color: MUTED, marginTop: 8, padding: "0 12px" }}>
-                Ineligible (volume too low — collapsed to pool):{" "}
-                {ineligibleTypes.map((t, i) => (
-                  <span key={t}>
-                    {i > 0 && ", "}
-                    <span style={{ color: ISSUE_TYPE_COLORS[t] }}>{t}</span>
-                    {" "}({TYPE_SLES[t].volume})
-                  </span>
-                ))}
-              </div>
-            )}
-
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center",
               marginTop: 8 }}>
-              {eligibleTypes.map(t => (
-                <span key={t} style={{ fontSize: 10, color: MUTED }}>
-                  <span style={{ color: ISSUE_TYPE_COLORS[t] }}>●</span>{" "}{t} (n={TYPE_SLES[t].volume})
-                </span>
-              ))}
+              {ALL_ISSUE_TYPES.map(t => {
+                const sles = TYPE_SLES[t];
+                const label = sles.eligible
+                  ? `${t} (n=${sles.volume})`
+                  : `${t} (n=${sles.volume}) — ${sles.reason}`;
+                return <TypeLegendItem key={t} t={t} label={label} opacity={sles.eligible ? 1 : 0.6} />;
+              })}
             </div>
           </div>
         )}
 
-        {/* Panel 4: Cycle Time Scatterplot */}
-        {scatterData.length > 0 && (
+        {/* Panel 5: SLE Attainment Trend */}
+        {ADHERENCE && adherenceData.length > 0 && (
+          <div style={{ background: PANEL_BG, borderRadius: 12,
+            border: `1px solid ${BORDER}`, padding: "14px 12px 12px", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: MUTED, marginBottom: 4, letterSpacing: "0.05em",
+              textTransform: "uppercase" }}>
+              SLE Attainment Trend — weekly · {adherenceData.length} buckets
+            </div>
+            <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
+              SLE: <b style={{ color: TEXT }}>{ADHERENCE.sle_duration_days}d</b>
+              {" · source: "}<span style={{ color: TEXT }}>{sleSourceLabel}</span>
+              {" · expected: "}<span style={{ color: percColor("likely") }}>{expectedRatePct}%</span>
+              {" · overall: "}<span style={{ color: TEXT }}>{overallRatePct}%</span>
+              {" · fat-tail (P95/P85): "}<span style={{ color: TEXT }}>{ADHERENCE.fat_tail_ratio_p95_p85}×</span>
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={adherenceData} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+                <XAxis dataKey="label" interval={adherenceInterval} angle={-45} textAnchor="end" height={60}
+                  tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+                <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`}
+                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
+                  label={{ value: "Attainment", angle: -90, position: "insideLeft",
+                    fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
+                <Tooltip content={AdherenceTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
+                <Bar dataKey="attainmentPct" radius={[3, 3, 0, 0]} barSize={18} isAnimationActive={false}>
+                  {adherenceData.map((b, i) => (
+                    <Cell key={`a-${i}`} fill={adherenceBarColor(b.attainmentPct)}
+                      fillOpacity={b.isPartial ? 0.45 : 0.9} />
+                  ))}
+                </Bar>
+                <ReferenceLine y={expectedRatePct} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}
+                  label={{ value: `Expected ${expectedRatePct}%`, fill: percColor("likely"), fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
+                <ReferenceLine y={overallRatePct} stroke={MUTED} strokeDasharray="3 3" strokeWidth={1}
+                  label={{ value: `Overall ${overallRatePct}%`, fill: MUTED, fontSize: 10,
+                    fontFamily: FONT_STACK, position: "insideBottomRight" }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", fontSize: 10,
+              color: MUTED, marginTop: 6 }}>
+              <span><span style={{ color: POSITIVE }}>●</span> at or above expected</span>
+              <span><span style={{ color: CAUTION }}>●</span> within 10pp below</span>
+              <span><span style={{ color: ALARM }}>●</span> further below</span>
+              <span style={{ opacity: 0.5 }}>(faded = partial bucket)</span>
+            </div>
+          </div>
+        )}
+
+        {/* Panel 6: Breach Severity */}
+        {ADHERENCE && adherenceData.length > 0 && (
           <div style={{ background: PANEL_BG, borderRadius: 12,
             border: `1px solid ${BORDER}`, padding: "14px 12px 12px", marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: MUTED, marginBottom: 8, letterSpacing: "0.05em",
               textTransform: "uppercase" }}>
-              Cycle Time Scatterplot — Individual items by completion date · {scatterData.length} items
+              Breach Severity — max cycle time + P95 of breach excess per week
             </div>
-
-            <ResponsiveContainer width="100%" height={380}>
-              <ComposedChart data={scatterData} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={adherenceData} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
-                <XAxis dataKey="date" tickFormatter={formatDate} interval={scatterInterval}
-                  angle={-45} textAnchor="end" height={60}
-                  tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
-                <YAxis domain={[0, scatterYMax]} tickFormatter={v => `${v}d`}
+                <XAxis dataKey="label" interval={adherenceInterval} angle={-45} textAnchor="end" height={60}
+                  tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
+                <YAxis domain={[0, severityYMax || "auto"]} tickFormatter={v => `${v}d`}
                   tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }}
-                  label={{ value: "Cycle Time (days)", angle: -90, position: "insideLeft",
+                  label={{ value: "Days", angle: -90, position: "insideLeft",
                     fill: MUTED, fontSize: 11, fontFamily: FONT_STACK }} />
-                <Tooltip content={ScatterTooltip} />
-                <ReferenceLine y={P50} stroke={percColor("coin_toss")} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P50 ${P50}d`, fill: percColor("coin_toss"), fontSize: 10,
-                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
-                <ReferenceLine y={P70} stroke={percColor("probable")} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P70 ${P70}d`, fill: percColor("probable"), fontSize: 10,
-                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
-                <ReferenceLine y={P85} stroke={percColor("likely")} strokeDasharray="6 3" strokeWidth={1.5}
-                  label={{ value: `P85 SLE ${P85}d`, fill: percColor("likely"), fontSize: 10,
-                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
-                <ReferenceLine y={P95} stroke={percColor("safe")} strokeDasharray="4 4" strokeWidth={1.5}
-                  label={{ value: `P95 ${P95}d`, fill: percColor("safe"), fontSize: 10,
-                    fontFamily: FONT_STACK, position: "insideTopRight" }} />
-                <Scatter dataKey="value" shape={<ScatterDot />} isAnimationActive={false} />
+                <Tooltip content={SeverityTooltip} cursor={{ fill: `${PRIMARY}0c` }} />
+                <Bar dataKey="maxCT" name="Max CT (d)" fill={ALARM} fillOpacity={0.55}
+                  radius={[3, 3, 0, 0]} barSize={18} isAnimationActive={false} />
+                <Line dataKey="p95Excess" name="P95 breach excess (d)" stroke={CAUTION}
+                  strokeWidth={2} dot={{ r: 3, fill: CAUTION }} isAnimationActive={false} />
+                <ReferenceLine y={ADHERENCE.sle_duration_days} stroke={percColor("likely")}
+                  strokeDasharray="6 3" strokeWidth={1.5}
+                  label={{ value: `SLE ${ADHERENCE.sle_duration_days}d`, fill: percColor("likely"),
+                    fontSize: 10, fontFamily: FONT_STACK, position: "insideTopRight" }} />
               </ComposedChart>
             </ResponsiveContainer>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", marginTop: 8 }}>
-              {ALL_ISSUE_TYPES.map(t => (
-                <span key={t} style={{ fontSize: 10, color: MUTED }}>
-                  <span style={{ color: ISSUE_TYPE_COLORS[t] ?? PRIMARY }}>●</span>{" "}{t}
-                </span>
-              ))}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("coin_toss")}` }} />
-                <span style={{ fontSize: 10, color: MUTED }}>P50 Median</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("probable")}` }} />
-                <span style={{ fontSize: 10, color: MUTED }}>P70 Probable</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("likely")}` }} />
-                <span style={{ fontSize: 10, color: MUTED }}>P85 SLE</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 24, height: 0, borderTop: `1.5px dashed ${percColor("safe")}` }} />
-                <span style={{ fontSize: 10, color: MUTED }}>P95 Safe Bet</span>
-              </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", fontSize: 10,
+              color: MUTED, marginTop: 6 }}>
+              <span><span style={{ color: ALARM }}>●</span> Max cycle time per week</span>
+              <span><span style={{ color: CAUTION }}>●</span> P95 of breach excess</span>
+              <span><span style={{ color: percColor("likely") }}>—</span> SLE threshold</span>
             </div>
           </div>
         )}

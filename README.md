@@ -10,6 +10,7 @@
 - **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Uses your team's actual historical throughput, not estimates.
 - **Forecast Backtesting**: Empirically validate how accurate the forecasts would have been by replaying them against your own historical data (Walk-Forward Analysis).
 - **Predictability Guardrails**: Detect "Special Cause" variation using XmR Control Charts — assesses process stability for Cycle Time, WIP populations, and Delivery Cadence.
+- **SLE Adherence Trending**: Trend weekly Service Level Expectation attainment and breach severity (max cycle time + P95 of breach excess). Defaults to the rolling-window P85 SLE; pass an explicit `sle_duration_days` to lock a stable Vacanti-style baseline.
 - **Workflow Semantic Discovery**: Automatically infer the purpose of each workflow status (active work, waiting queues, entry funnel, terminal exit) to identify true bottlenecks rather than administrative overhead.
 - **Process Yield & Abandonment**: Quantify waste by identifying exactly where work is discarded — broken down by work type and workflow stage.
 - **High-Fidelity Aging Analysis**: Identify "neglected" inventory by comparing current WIP age against historical norms at the individual status level.

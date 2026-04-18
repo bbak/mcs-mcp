@@ -1113,13 +1113,268 @@
         "key": "MOCK-9992",
         "issue_type": "Story"
       }
-    ]
+    ],
+    "sle_adherence": {
+      "sle_duration_days": 123.91,
+      "sle_percentile": 85,
+      "sle_source": "derived_p85",
+      "expected_attainment_rate": 0.85,
+      "overall_attainment_rate": 0.87,
+      "fat_tail_ratio_p95_p85": 2.13,
+      "buckets": [
+        {
+          "bucket_start": "2026-01-12T00:00:00Z",
+          "bucket_label": "2026-W03",
+          "delivered_count": 0,
+          "breach_count": 0,
+          "attainment_rate": 0,
+          "max_cycle_time_days": 0,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-01-19T00:00:00Z",
+          "bucket_label": "2026-W04",
+          "delivered_count": 7,
+          "breach_count": 1,
+          "attainment_rate": 0.86,
+          "max_cycle_time_days": 208.42,
+          "p95_breach_magnitude_days": 84.51
+        },
+        {
+          "bucket_start": "2026-01-26T00:00:00Z",
+          "bucket_label": "2026-W05",
+          "delivered_count": 1,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 5.91,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-02-02T00:00:00Z",
+          "bucket_label": "2026-W06",
+          "delivered_count": 4,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 30.19,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-02-09T00:00:00Z",
+          "bucket_label": "2026-W07",
+          "delivered_count": 6,
+          "breach_count": 2,
+          "attainment_rate": 0.67,
+          "max_cycle_time_days": 124.85,
+          "p95_breach_magnitude_days": 0.94
+        },
+        {
+          "bucket_start": "2026-02-16T00:00:00Z",
+          "bucket_label": "2026-W08",
+          "delivered_count": 9,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 48.96,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-02-23T00:00:00Z",
+          "bucket_label": "2026-W09",
+          "delivered_count": 6,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 117.96,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-03-02T00:00:00Z",
+          "bucket_label": "2026-W10",
+          "delivered_count": 4,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 42.88,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-03-09T00:00:00Z",
+          "bucket_label": "2026-W11",
+          "delivered_count": 4,
+          "breach_count": 1,
+          "attainment_rate": 0.75,
+          "max_cycle_time_days": 271.47,
+          "p95_breach_magnitude_days": 147.56
+        },
+        {
+          "bucket_start": "2026-03-16T00:00:00Z",
+          "bucket_label": "2026-W12",
+          "delivered_count": 6,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 114.28,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-03-23T00:00:00Z",
+          "bucket_label": "2026-W13",
+          "delivered_count": 9,
+          "breach_count": 3,
+          "attainment_rate": 0.67,
+          "max_cycle_time_days": 788.33,
+          "p95_breach_magnitude_days": 664.42
+        },
+        {
+          "bucket_start": "2026-03-30T00:00:00Z",
+          "bucket_label": "2026-W14",
+          "delivered_count": 3,
+          "breach_count": 1,
+          "attainment_rate": 0.67,
+          "max_cycle_time_days": 232.01,
+          "p95_breach_magnitude_days": 108.1
+        },
+        {
+          "bucket_start": "2026-04-06T00:00:00Z",
+          "bucket_label": "2026-W15",
+          "delivered_count": 13,
+          "breach_count": 2,
+          "attainment_rate": 0.85,
+          "max_cycle_time_days": 350.15,
+          "p95_breach_magnitude_days": 226.24
+        },
+        {
+          "bucket_start": "2026-04-13T00:00:00Z",
+          "bucket_label": "2026-W16",
+          "delivered_count": 3,
+          "breach_count": 1,
+          "attainment_rate": 0.67,
+          "max_cycle_time_days": 221.63,
+          "p95_breach_magnitude_days": 97.72
+        },
+        {
+          "bucket_start": "2026-04-20T00:00:00Z",
+          "bucket_label": "2026-W17",
+          "delivered_count": 2,
+          "breach_count": 1,
+          "attainment_rate": 0.5,
+          "max_cycle_time_days": 322.87,
+          "p95_breach_magnitude_days": 198.96
+        },
+        {
+          "bucket_start": "2026-04-27T00:00:00Z",
+          "bucket_label": "2026-W18",
+          "delivered_count": 7,
+          "breach_count": 1,
+          "attainment_rate": 0.86,
+          "max_cycle_time_days": 131.28,
+          "p95_breach_magnitude_days": 7.37
+        },
+        {
+          "bucket_start": "2026-05-04T00:00:00Z",
+          "bucket_label": "2026-W19",
+          "delivered_count": 4,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 102.86,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-05-11T00:00:00Z",
+          "bucket_label": "2026-W20",
+          "delivered_count": 8,
+          "breach_count": 1,
+          "attainment_rate": 0.88,
+          "max_cycle_time_days": 196,
+          "p95_breach_magnitude_days": 72.09
+        },
+        {
+          "bucket_start": "2026-05-18T00:00:00Z",
+          "bucket_label": "2026-W21",
+          "delivered_count": 0,
+          "breach_count": 0,
+          "attainment_rate": 0,
+          "max_cycle_time_days": 0,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-05-25T00:00:00Z",
+          "bucket_label": "2026-W22",
+          "delivered_count": 2,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 29.29,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-06-01T00:00:00Z",
+          "bucket_label": "2026-W23",
+          "delivered_count": 3,
+          "breach_count": 1,
+          "attainment_rate": 0.67,
+          "max_cycle_time_days": 134.24,
+          "p95_breach_magnitude_days": 10.33
+        },
+        {
+          "bucket_start": "2026-06-08T00:00:00Z",
+          "bucket_label": "2026-W24",
+          "delivered_count": 0,
+          "breach_count": 0,
+          "attainment_rate": 0,
+          "max_cycle_time_days": 0,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-06-15T00:00:00Z",
+          "bucket_label": "2026-W25",
+          "delivered_count": 7,
+          "breach_count": 2,
+          "attainment_rate": 0.71,
+          "max_cycle_time_days": 596.07,
+          "p95_breach_magnitude_days": 472.16
+        },
+        {
+          "bucket_start": "2026-06-22T00:00:00Z",
+          "bucket_label": "2026-W26",
+          "delivered_count": 1,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 18.99,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-06-29T00:00:00Z",
+          "bucket_label": "2026-W27",
+          "delivered_count": 2,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 32.93,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-07-06T00:00:00Z",
+          "bucket_label": "2026-W28",
+          "delivered_count": 17,
+          "breach_count": 0,
+          "attainment_rate": 1,
+          "max_cycle_time_days": 91.01,
+          "p95_breach_magnitude_days": 0
+        },
+        {
+          "bucket_start": "2026-07-13T00:00:00Z",
+          "bucket_label": "2026-W29",
+          "delivered_count": 0,
+          "breach_count": 0,
+          "attainment_rate": 0,
+          "max_cycle_time_days": 0,
+          "p95_breach_magnitude_days": 0,
+          "is_partial": true
+        }
+      ]
+    }
   },
   "guardrails": {
     "insights": [
       "Fat-Tail Warning (Ratio 19.68): Extreme outliers are in control of this process (Kanban heuristic \u003e= 5.6). Your forecasts are high-risk.",
       "Heavy-Tail Warning (Ratio 4.09): The process is highly volatile, indicating a significant risk of extreme delay (Volatility heuristic \u003e 3).",
-      "Analysis uses EXPLICIT commitment point: '38776'."
+      "Analysis uses EXPLICIT commitment point: '38776'.",
+      "SLE Adherence is currently trended against the auto-derived P85 from the rolling window. For a stable Vacanti-style baseline, ask the user for the team's stated Service Level Expectation (e.g. \"85% of items in 14 days or less\") and re-run with sle_duration_days=\u003cdays\u003e (and optionally sle_percentile=\u003cn\u003e)."
     ],
     "warnings": []
   }
