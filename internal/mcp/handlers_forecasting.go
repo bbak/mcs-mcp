@@ -436,6 +436,7 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 		EvaluationDate:   s.Clock(),
 		CommitmentPoint:  analysisCtx.CommitmentPoint,
 		StatusWeights:    analysisCtx.StatusWeights,
+		SimulationSeed:   s.simulationSeed,
 	}
 
 	res, err := wfa.Execute(cfg)

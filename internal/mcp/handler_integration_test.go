@@ -47,6 +47,7 @@ func TestMCSTEST_Integration(t *testing.T) {
 
 				// Inject the date to guarantee deterministic outputs across all handlers
 				server.activeEvaluationDate = &referenceTime
+				server.simulationSeed = 1
 
 				// 1. Verify Board Details
 				res, err := server.handleGetBoardDetails("MCSTEST", 0)
@@ -127,9 +128,6 @@ func TestMCSTEST_Integration(t *testing.T) {
 					accuracy := res.AccuracyScore
 					t.Logf("[%s/%s] WFA Accuracy: %.2f", dist, scen, accuracy)
 
-					// Smoke test: verify the walk-forward backtest produces a reasonable result.
-					// The exact accuracy depends on DST-corrected calendar arithmetic and
-					// is not pinned to a specific value since the RNG is not seeded here.
 					if accuracy < 0.30 {
 						t.Errorf("Mild WFA Accuracy too low: %.2f (expected > 0.30)", accuracy)
 					}
