@@ -2,13 +2,6 @@
 
 **MCS-MCP** is a Model Context Protocol (MCP) server that connects AI assistants like Claude to your Jira project history, enabling natural-language delivery analytics and probabilistic forecasting. Ask questions like _"When will we finish these 20 items?"_, _"Is our process getting more predictable?"_, or _"Where are items getting stuck?"_ — and get answers grounded in your team's actual historical performance, not estimates or gut feel.
 
-> [!WARNING]
-> Currently, this must be considered _beta_. While it works quite well,
-> the Math is not thoroughly verified. Don't bet your bonus on the
-> forecasts and analysis done by it. Concepts are subject to change, if necessary
-> to make an AI Agent behave the way I envision.
-> I run it in Claude Desktop and Antigravity Agents.
-
 ---
 
 ## 🚀 Key Capabilities
@@ -179,6 +172,9 @@ These optional variables can be set in the `.env` file:
 | `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.                          |
 | `MCS_CHARTS_BUFFER_SIZE`                | `0`          | Chart rendering buffer (0=off, 1-100=on). Starts HTTP server on localhost.                  |
 | `MCS_ALLOW_EXPERIMENTAL`                | `false`      | Enable the experimental feature gate. See [Experimental Features](#-experimental-features). |
+| `INGESTION_UPDATED_LOOKBACK`            | `24`         | Months back for the `updated >=` predicate of the initial Jira hydration JQL.               |
+| `INGESTION_CREATED_LOOKBACK`            | `36`         | Months back for the `created >=` predicate. Captures long-lived items not touched recently. |
+| `INGESTION_MAX_ITEMS`                   | `5000`       | Page-cap on initial hydration. Forward catch-up (`import_history_update`) is uncapped.      |
 
 ---
 

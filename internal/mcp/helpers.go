@@ -35,14 +35,11 @@ func (s *Server) prepareHandler(projectKey string, boardID int) (*handlerContext
 		return nil, err
 	}
 	sourceID := getCombinedID(projectKey, boardID)
-	oldestUpdated, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		return nil, err
 	}
 	s.activeRegistry = reg
-	if !oldestUpdated.IsZero() {
-		s.activeOldestUpdated = &oldestUpdated
-	}
 	if err := s.saveWorkflow(projectKey, boardID); err != nil {
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}

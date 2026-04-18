@@ -36,7 +36,6 @@ A complete reference of all available MCP tools, grouped by category.
 | `import_boards` | Find Agile boards for a project, with optional name filtering. |
 | `import_project_context` | Fetch a Data Shape Anchor (volume and type distribution) for a project-level context. |
 | `import_board_context` | Fetch a Data Shape Anchor for a specific board; triggers an Eager Hydration of event history. |
-| `import_history_expand` | Extend the cached history backwards (from the OMRC boundary) or catch up forwards (from the NMRC boundary). |
 | `import_history_update` | Sync the cache with any Jira updates since the last NMRC. |
 
 #### Workflow Configuration
@@ -386,23 +385,36 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
 
 ## 8. Internal Mechanics (The Event-Sourced Engine)
 
-### 8.1 Staged Ingestion & Persistent Cache
+### 8.1 Single-Pass Ingestion & Persistent Cache
 
 - **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Flagged`, `Unresolved`).
-- **Two-Stage Hydration**:
-  - **Stage 1 (Recent Updates)**: Fetches the last 1000 items sorted by `updated DESC`.
-  - **Stage 2 (Baseline Depth)**: Explicitly fetches resolved items to ensure a minimum baseline (default 200 items).
+- **Single-Pass Hydration**: Initial hydration runs one JQL sweep that captures both recently-touched items and long-lived items born in the window:
+
+  ```text
+  (<base jql>) AND (updated >= startOfDay(-{INGESTION_UPDATED_LOOKBACK}M)
+                     OR created >= startOfDay(-{INGESTION_CREATED_LOOKBACK}M))
+  ORDER BY updated DESC
+  ```
+
+  Paging stops when the running total reaches `INGESTION_MAX_ITEMS`. The wide `OR` predicate makes a separate "resolved-baseline" sweep unnecessary — long-lived deliveries fall into the `created >= …` branch even if they have not been touched recently.
+
+- **Configuration** (set in `.env`):
+  - `INGESTION_UPDATED_LOOKBACK` — months back from today for the `updated >=` predicate (default `24`).
+  - `INGESTION_CREATED_LOOKBACK` — months back from today for the `created >=` predicate (default `36`).
+  - `INGESTION_MAX_ITEMS` — page-cap on initial hydration (default `5000`). Forward catch-up is not subject to this cap.
+
 - **Cache Integrity**:
   - **2-Month Rule**: If the latest cached event is > 2 months old, the system performs a full re-ingestion to clear potential "ghost" items (moved/deleted).
-  - **24-Month Horizon**: Initial hydration is bounded to 24 months.
-  - **8-Page Cap**: Ingestion is capped at 2400 items to prevent memory exhaustion in legacy projects.
-  - **OMRC/NMRC Boundaries**: For targeted extensions, the system uses the Oldest/Newest Most-Recent-Change (OMRC/NMRC) boundary logic to prevent data gaps or overlaps.
-  - **Purge-before-Merge**: Targeted extensions replace existing issue histories to ensure Jira deletions or corrections are reflected.
+  - **NMRC Boundary**: Forward catch-up uses the Newest Most-Recent-Change timestamp from the cache to fetch only items updated since the last sync.
+  - **Purge-before-Merge**: Catch-up replaces existing issue histories to ensure Jira deletions or corrections are reflected.
   - **Atomic File Writes**: Workflow metadata files are written atomically via a temporary file followed by a rename, preventing data loss from crashes or power failures during write operations.
+
 - **Cache Management Tools**:
-  - `import_history_expand`: Fetches older items backwards from the **OMRC** boundary and catch-up forward from **NMRC**.
+  - `import_board_context`: Triggers initial hydration (or a cached load + 2-month-rule check).
   - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
+
 - **WorkflowMetadata Persistence**: Alongside the event cache, each board's confirmed configuration is persisted to `{cacheDir}/{projectKey}_{boardID}_workflow.json`. This file stores the status mapping (ID → Tier/Role/Outcome), resolution mapping (ID → outcome), status order, commitment point, discovery cutoff, evaluation date, and the `NameRegistry`. A workflow file is considered "loaded from cache" (`isCachedMapping = true`) **only** when the file contains a non-empty status mapping — files created by a background hydration save before user confirmation do not qualify.
+
 - **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis. The cutoff is set to the **date of the 5th delivery** after the workflow mapping is confirmed, ensuring the system has demonstrated steady-state delivery capacity before analytical windows are opened. Recalculated automatically whenever `workflow_set_mapping` is called.
 
 ### 8.2 The Unified Outcome Protocol

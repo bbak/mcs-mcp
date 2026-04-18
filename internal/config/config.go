@@ -29,6 +29,10 @@ type AppConfig struct {
 	Engine                  string         // MCS_ENGINE: "crude" (default), "bbak", "auto"
 	EngineWeights           map[string]int // MCS_ENGINE_<NAME>: 0 = disabled, 1-100 = weight
 	ChartsBufferSize        int            // MCS_CHARTS_BUFFER_SIZE: 0 = disabled, 1-100 = enabled
+
+	IngestionUpdatedLookback int // INGESTION_UPDATED_LOOKBACK (months) for initial hydration JQL
+	IngestionCreatedLookback int // INGESTION_CREATED_LOOKBACK (months) for initial hydration JQL
+	IngestionMaxItems        int // INGESTION_MAX_ITEMS — page-cap for initial hydration
 }
 
 // Load loads the configuration from .env files and environment variables.
@@ -99,6 +103,10 @@ func Load() (*AppConfig, error) {
 			"bbak":  getEnvInt("MCS_ENGINE_BBAK", 50),
 		},
 		ChartsBufferSize: chartsBufferSize,
+
+		IngestionUpdatedLookback: getEnvInt("INGESTION_UPDATED_LOOKBACK", 24),
+		IngestionCreatedLookback: getEnvInt("INGESTION_CREATED_LOOKBACK", 36),
+		IngestionMaxItems:        getEnvInt("INGESTION_MAX_ITEMS", 5000),
 	}
 
 	return cfg, nil

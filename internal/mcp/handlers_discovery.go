@@ -26,14 +26,11 @@ func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forc
 	}
 
 	// 2. Hydrate
-	oldestUpdated, reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
+	reg, err := s.events.Hydrate(sourceID, projectKey, ctx.JQL, s.activeRegistry)
 	if err != nil {
 		log.Error().Err(err).Str("source", sourceID).Msg("Hydration failed")
 	}
 	s.activeRegistry = reg
-	if !oldestUpdated.IsZero() {
-		s.activeOldestUpdated = &oldestUpdated
-	}
 
 	// 3. Data Probe (Tier-Neutral Discovery for Summary)
 	events := s.events.GetIssuesInRange(sourceID, time.Time{}, s.Clock())
@@ -305,7 +302,7 @@ func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr
 	msg := "Successfully cleared the evaluation date. Analysis will use real-time time.Now()."
 	if s.activeEvaluationDate != nil {
 		msg = fmt.Sprintf("Successfully set the evaluation date to %s. All analysis models will be evaluated relative to this date.", s.activeEvaluationDate.Format(stats.DateFormat))
-		guidance = append(guidance, "If shifting significantly into the past, you may need to use `import_history_expand` to fetch more historical data.")
+		guidance = append(guidance, "If shifting significantly into the past, you may need to raise INGESTION_CREATED_LOOKBACK in .env and re-hydrate to fetch more historical data.")
 	}
 
 	return WrapResponse(map[string]string{"status": "success", "message": msg}, projectKey, boardID, nil, nil, guidance), nil

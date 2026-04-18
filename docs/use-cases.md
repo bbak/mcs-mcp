@@ -266,17 +266,17 @@ This document describes the primary interaction scenarios between the User (Proj
 
 ---
 
-## UC16: Deep Historical Exploration (Expanding Cache)
+## UC16: Deep Historical Exploration (Configuring Lookback)
 
-**Goal:** Analyze deep historical trends for long-running projects where the initial hydration was insufficient.
+**Goal:** Analyze deep historical trends for long-running projects where the default initial hydration window is insufficient.
 
-- **Primary Actor:** User (Operations Lead / Coach)
+- **Primary Actor:** Operator (with optional AI guidance)
 - **Trigger:** User asks: "I need to see the process evolution for the last 4 years."
 - **Main Success Scenario:**
-    1. AI identifies that the current cache is truncated at the default limit.
-    2. AI calls `import_history_expand` with additional `chunks`.
-    3. MCP Server fetches older items backwards from the **OMRC (Oldest Most Recent Change)** boundary to ensure no gaps or overlaps.
-    4. MCP Server automatically performs a **Catch-Up** to ensure the latest state is also preserved.
+    1. AI identifies that the cached history does not extend far enough back to answer the question.
+    2. AI advises the operator to raise `INGESTION_CREATED_LOOKBACK` (and optionally `INGESTION_UPDATED_LOOKBACK` and `INGESTION_MAX_ITEMS`) in `.env`, then restart the MCP server.
+    3. Operator deletes the existing cache for the board (`{projectKey}_{boardID}.jsonl`) so the next hydration runs fresh.
+    4. Operator calls `import_board_context`. MCP Server runs a single-pass hydration bounded by the new lookback values, capped at `INGESTION_MAX_ITEMS`.
     5. MCP Server recalculates the **Discovery Cutoff** (Warmup Period) for the extended dataset.
     6. AI provides the requested deep-history analysis (e.g., `analyze_process_evolution`).
 
