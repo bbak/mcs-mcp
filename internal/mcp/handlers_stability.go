@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"time"
+
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 )
@@ -79,18 +81,36 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windowMonths int) (any, error) {
+func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, bucket string) (any, error) {
 	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 
-	if windowMonths <= 0 {
-		windowMonths = 12
+	if bucket != "week" {
+		bucket = "month"
 	}
 
-	// 2. Project
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, -windowMonths, 0), s.Clock(), "month", s.activeCutoff())
+	// Process evolution is a long-term trend metric. It anchors at the session
+	// window's End (capped at s.Clock() — never extrapolates past "now") and
+	// looks back a fixed horizon: 12 complete months or 26 complete weeks.
+	// Window Start is intentionally ignored: short ranges defeat the point of
+	// trend detection.
+	_, sessionEnd, _ := s.Window()
+	rightEdge := sessionEnd
+	if rightEdge.After(s.Clock()) {
+		rightEdge = s.Clock()
+	}
+	end := stats.LastCompleteBucketEnd(rightEdge, bucket)
+
+	var start time.Time
+	if bucket == "month" {
+		start = stats.SnapToStart(end.AddDate(0, -11, 0), "month") // 12 buckets inclusive
+	} else {
+		start = stats.SnapToStart(end.AddDate(0, 0, -7*25), "week") // 26 buckets inclusive
+	}
+
+	window := stats.NewAnalysisWindow(start, end, bucket, s.activeCutoff())
 	session := s.openSession(hctx, window)
 
 	delivered := session.GetDelivered()
@@ -104,13 +124,19 @@ func (s *Server) handleGetProcessEvolution(projectKey string, boardID int, windo
 	res := map[string]any{
 		"evolution": evolution,
 		"context": map[string]any{
-			"window_months":  windowMonths,
+			"bucket":         bucket,
+			"window_start":   window.Start.Format(stats.DateFormat),
+			"window_end":     window.End.Format(stats.DateFormat),
 			"total_issues":   len(delivered),
 			"subgroup_count": len(subgroups),
 		},
 	}
 
-	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), nil), nil
+	guidance := []string{
+		"Process evolution is a long-term trend metric. This tool ignores the session window's Start and uses ONLY its End as the right edge. Lookback is fixed: 12 complete months (bucket='month') or 26 complete weeks (bucket='week'). To shift the trend's right edge, set the session window's End via 'set_analysis_window'.",
+	}
+
+	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
 }
 
 func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, error) {

@@ -64,7 +64,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_process_evolution",
 			func() (any, error) {
-				return srv.handleGetProcessEvolution(testProject, testBoard, 12)
+				return srv.handleGetProcessEvolution(testProject, testBoard, "month")
 			},
 		},
 		{

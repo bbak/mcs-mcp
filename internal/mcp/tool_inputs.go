@@ -196,9 +196,9 @@ type AnalyzeWIPAgeStabilityInput struct {
 
 // AnalyzeProcessEvolutionInput holds arguments for the analyze_process_evolution tool.
 type AnalyzeProcessEvolutionInput struct {
-	ProjectKey          string `json:"project_key" jsonschema:"The project key"`
-	BoardID             int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowMonths int    `json:"history_window_months,omitempty" jsonschema:"Number of months to analyze. Default: 12. Increase to 24–60 for deep audits or post-reorganization analysis. Raise INGESTION_CREATED_LOOKBACK in .env and re-hydrate if the local cache does not cover the requested range."`
+	ProjectKey string `json:"project_key" jsonschema:"The project key"`
+	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
+	Bucket     string `json:"bucket,omitempty" jsonschema:"Subgroup granularity: 'month' (default, looks back 12 complete months) or 'week' (looks back 26 complete weeks). Lookback is fixed by bucket type — adjust the right edge via set_analysis_window's End if needed."`
 }
 
 // AnalyzeYieldInput holds arguments for the analyze_yield tool.

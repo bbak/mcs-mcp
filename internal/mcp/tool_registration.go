@@ -41,10 +41,11 @@ var toolDescriptions = map[string]string{
 		"WHEN TO USE: Deep history analysis, post-reorganization audits, quarterly/annual process reviews. " +
 		"User asks: 'Has our delivery capability improved over the past year?' or 'When did the process change?'\n" +
 		"WHEN NOT TO USE: Not for routine analysis — use 'analyze_process_stability' for that. Throughput-agnostic: does not measure delivery volume.\n\n" +
+		"WINDOWING: Long-term trend metric. This tool ignores the session window's range and uses ONLY its End as the right edge. Lookback is FIXED: 12 complete months (bucket='month', default) or 26 complete weeks (bucket='week'). Only complete buckets are included — no partial trailing month/week. To shift the right edge, set the session window's End via 'set_analysis_window'.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
-		"- history_window_months: Default 12. Increase to 24–60 for deeper audits; raise INGESTION_CREATED_LOOKBACK in .env and re-hydrate if the local cache does not cover that range.\n\n" +
+		"- bucket: 'month' (default) for quarterly/annual audits or 'week' for tighter regime-shift detection.\n\n" +
 		"INTERPRETATION: Primary signals are detected regime shifts (process resets) and the long-term capability trend. " +
-		"Month-to-month subgroups reveal structural drift that short-window XmR charts miss.",
+		"Subgroup analysis reveals structural drift that short-window XmR charts miss.",
 
 	"analyze_status_persistence": "Analyzes how long completed items spent in each workflow status, revealing bottlenecks and inconsistency hotspots.\n\n" +
 		"WHEN TO USE: User asks 'Where do items get stuck?', 'Which status has the most variability?', 'What is causing long cycle times?'\n" +
@@ -418,11 +419,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 
 	must(addTool(mcpSrv, s, "analyze_process_evolution",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeProcessEvolutionInput) (*mcp.CallToolResult, any, error) {
-			window := args.HistoryWindowMonths
-			if window == 0 {
-				window = 12
-			}
-			data, err := s.handleGetProcessEvolution(args.ProjectKey, args.BoardID, window)
+			data, err := s.handleGetProcessEvolution(args.ProjectKey, args.BoardID, args.Bucket)
 			return handleResult(s, "analyze_process_evolution", data, err)
 		}))
 

@@ -1,9 +1,11 @@
 {
   "data": {
     "context": {
+      "bucket": "month",
       "subgroup_count": 12,
-      "total_issues": 361,
-      "window_months": 12
+      "total_issues": 342,
+      "window_end": "2026-06-30",
+      "window_start": "2025-07-01"
     },
     "evolution": {
       "subgroups": [
@@ -460,7 +462,9 @@
     }
   },
   "guardrails": {
-    "insights": [],
+    "insights": [
+      "Process evolution is a long-term trend metric. This tool ignores the session window's Start and uses ONLY its End as the right edge. Lookback is fixed: 12 complete months (bucket='month') or 26 complete weeks (bucket='week'). To shift the trend's right edge, set the session window's End via 'set_analysis_window'."
+    ],
     "warnings": []
   }
 }
