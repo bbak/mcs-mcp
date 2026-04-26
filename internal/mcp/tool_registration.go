@@ -18,10 +18,12 @@ var toolDescriptions = map[string]string{
 
 	// ── GROUP: Diagnostics — Process, Cycle Time, WIP & Flow ──────────────────
 
-	"analyze_cycle_time": "Measures how long individual items take to complete (Cycle Time) and derives Service Level Expectations (SLE).\n\n" +
-		"WHEN TO USE: User asks 'How long does a single item typically take?', 'What is our SLE?', 'What percentile should we commit to?'\n" +
-		"WHEN NOT TO USE: Do not use to assess delivery volume stability — use 'analyze_throughput' for that. Do not use to assess predictability of the process — use 'analyze_process_stability' for that.\n\n" +
+	"analyze_cycle_time": "Measures Cycle Time — also called Lead Time, completion time, elapsed time, duration, or time-to-delivery — for individual work items, and derives Service Level Expectations (SLE) such as P50/P70/P85/P95.\n\n" +
+		"WHEN TO USE: User asks 'How long does an item take?', 'What is our cycle time?', 'What is our lead time?', 'How long from commit to done?', 'What is our SLE?', 'What percentile should we commit to?', 'Show the cycle time distribution / histogram / scatterplot', 'How long do stories / bugs typically take?'\n" +
+		"WHEN NOT TO USE: Do not use to assess delivery volume stability — use 'analyze_throughput' for that. Do not use to assess predictability of the process — use 'analyze_process_stability' for that. Do not use for residence time / sample-path analysis — use 'analyze_residence_time' for that.\n\n" +
 		"PREREQUISITE: Proper workflow mapping/commitment point MUST be confirmed via 'workflow_set_mapping' for accurate results.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
+		"OUTPUT: Per-item cycle times, percentile distribution (P50/P70/P85/P95), Fat-Tail Ratio, scatterplot data, and SLE adherence trend.\n\n" +
 		"INTERPRETATION: Primary signals are the Fat-Tail Ratio and P85 (SLE). A Fat-Tail Ratio > 1.5 means the distribution has a long tail — P85 is a more reliable SLE than the mean.",
 
 	"analyze_process_stability": "Measures the predictability of Cycle Times using Wheeler XmR Process Behavior Charts.\n\n" +
@@ -119,6 +121,8 @@ var toolDescriptions = map[string]string{
 		"WHEN NOT TO USE: Do not use for throughput volume — use 'analyze_throughput'. " +
 		"Do not use for cycle time — use 'analyze_cycle_time'. Yield measures outcome rates, not timing.\n\n" +
 		"PREREQUISITE: Workflow tiers (Demand, Upstream, Downstream) and resolution outcomes MUST be verified with the user before interpreting results.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'. " +
+		"Note: this scopes yield to items active in the window, not all-time. Widen the window for project-lifetime totals.\n\n" +
 		"INTERPRETATION: Primary signal is 'overallYieldRate' per tier. " +
 		"Downstream abandonment (items that passed the commitment point and were then discarded) is the most severe signal — it represents consumed capacity with no value delivered.",
 

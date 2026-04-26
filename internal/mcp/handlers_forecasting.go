@@ -301,7 +301,8 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 	if s.activeDiscoveryCutoff != nil {
 		cutoff = *s.activeDiscoveryCutoff
 	}
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -BaselineWindowWeeks*7), s.Clock(), "day", cutoff)
+	winStart, winEnd, _ := s.Window()
+	window := stats.NewAnalysisWindow(winStart, winEnd, "day", cutoff)
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 

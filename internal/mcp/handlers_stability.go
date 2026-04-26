@@ -1,8 +1,6 @@
 package mcp
 
 import (
-	"time"
-
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
 )
@@ -122,8 +120,9 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	}
 	sourceID := hctx.SourceID
 
-	// 2. Project
-	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", s.activeCutoff())
+	// 2. Project using the session analysis window
+	winStart, winEnd, _ := s.Window()
+	window := stats.NewAnalysisWindow(winStart, winEnd, "day", s.activeCutoff())
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()
