@@ -215,6 +215,21 @@ var toolDescriptions = map[string]string{
 	"workflow_set_evaluation_date": "Sets a custom evaluation date so all time-based calculations use that date instead of today.\n\n" +
 		"WHEN TO USE: Historical scenario analysis, or when the user wants to evaluate the system state as of a specific past date.",
 
+	"set_analysis_window": "Sets the session analysis window — a single [start, end] range that ALL windowed diagnostics use.\n\n" +
+		"WHEN TO USE: When the user wants to scope multiple analyses to the same period (e.g. 'analyse Q1', 'look at the last 8 weeks', 'move one month back'). " +
+		"Translate relative requests like 'one month back' to absolute dates and call this tool with start_date/end_date or end_date/duration_days.\n\n" +
+		"PARAMETER GUIDANCE:\n" +
+		"- Provide EITHER start_date OR duration_days, not both. end_date defaults to today (or the active evaluation date).\n" +
+		"- reset=true clears the window and restores the default rolling 26-week range.\n\n" +
+		"SCOPE: Affects every diagnostic that operates on a historical range (throughput, WIP stability, flow debt, cycle time, etc.). " +
+		"analyze_work_item_age uses ONLY the End (point-in-time snapshot). " +
+		"analyze_process_evolution uses ONLY the End (anchor for a fixed long-term lookback — 12 months / 26 weeks). " +
+		"forecast_monte_carlo and forecast_backtest are NOT affected — forecasting keeps its own sampling window auto-sized by the simulation engine.\n\n" +
+		"PERSISTENCE: In-memory only. Resets on board switch and on server restart.",
+
+	"get_analysis_window": "Returns the currently active session analysis window and its source ('session' if explicitly set, 'default' otherwise).\n\n" +
+		"WHEN TO USE: To verify which window will scope subsequent diagnostics before running them, or to confirm a 'set_analysis_window' call took effect.",
+
 	"guide_diagnostic_roadmap": "Returns a recommended sequence of analysis steps tailored to a specific analytical goal.\n\n" +
 		"WHEN TO USE: At the start of a session when the user's goal is clear but the right tool sequence is not. " +
 		"Goals: 'forecasting', 'bottlenecks', 'capacity_planning', 'system_health'.",
@@ -458,6 +473,18 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			return handleResult(s, "workflow_set_evaluation_date", data, err)
 		}))
 
+	must(addTool(mcpSrv, s, "set_analysis_window",
+		func(_ context.Context, _ *mcp.CallToolRequest, args SetAnalysisWindowInput) (*mcp.CallToolResult, any, error) {
+			data, err := s.handleSetAnalysisWindow(args.StartDate, args.EndDate, args.DurationDays, args.Reset)
+			return handleResult(s, "set_analysis_window", data, err)
+		}))
+
+	must(addTool(mcpSrv, s, "get_analysis_window",
+		func(_ context.Context, _ *mcp.CallToolRequest, _ GetAnalysisWindowInput) (*mcp.CallToolResult, any, error) {
+			data, err := s.handleGetAnalysisWindow()
+			return handleResult(s, "get_analysis_window", data, err)
+		}))
+
 	must(addTool(mcpSrv, s, "analyze_item_journey",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeItemJourneyInput) (*mcp.CallToolResult, any, error) {
 			data, err := s.handleGetItemJourney(args.ProjectKey, args.BoardID, args.IssueKey)
@@ -547,11 +574,13 @@ func withPanicRecovery[In any](name string, handler func(context.Context, *mcp.C
 
 // handleResult converts a (data, error) pair to the SDK's 3-return convention.
 // For chart-eligible tools, it also pushes the result into the MRU buffer and
-// injects a chart_url into the response context.
+// injects a chart_url into the response context. It also injects session_context
+// so the agent always sees which analysis window shaped the output.
 func handleResult(s *Server, toolName string, data any, err error) (*mcp.CallToolResult, any, error) {
 	if err != nil {
 		return formatToolError(err), nil, nil
 	}
+	data = s.injectSessionContext(data)
 	data = s.injectChartURL(toolName, data)
 	return formatToolResult(s, data), nil, nil
 }

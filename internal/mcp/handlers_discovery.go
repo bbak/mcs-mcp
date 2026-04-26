@@ -277,6 +277,85 @@ func (s *Server) handleSetWorkflowOrder(projectKey string, boardID int, order []
 	return WrapResponse(map[string]string{"status": "success", "message": fmt.Sprintf("Stored and PERSISTED workflow order for source %s", sourceID)}, projectKey, boardID, nil, nil, nil), nil
 }
 
+func (s *Server) handleSetAnalysisWindow(startDate, endDate string, durationDays int, reset bool) (any, error) {
+	if reset {
+		s.activeWindowStart = nil
+		s.activeWindowEnd = nil
+		start, end, _ := s.Window()
+		return WrapResponse(map[string]any{
+			"status":        "reset",
+			"message":       "Session window cleared. Diagnostics will use the default rolling 26-week range.",
+			"start":         start.Format(stats.DateFormat),
+			"end":           end.Format(stats.DateFormat),
+			"duration_days": stats.CalendarDaysBetween(start, end),
+			"source":        "default",
+		}, "", 0, nil, nil, nil), nil
+	}
+
+	hasStart := startDate != ""
+	hasDuration := durationDays > 0
+	if hasStart == hasDuration {
+		return nil, fmt.Errorf("set_analysis_window requires exactly one of start_date or duration_days (set reset=true to clear)")
+	}
+
+	end := s.Clock()
+	if endDate != "" {
+		t, err := time.Parse(stats.DateFormat, endDate)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end_date format: %w", err)
+		}
+		end = t
+	}
+	if end.After(s.Clock().Add(24 * time.Hour)) {
+		return nil, fmt.Errorf("end_date cannot be in the future relative to the active evaluation date")
+	}
+
+	var start time.Time
+	if hasDuration {
+		start = end.AddDate(0, 0, -durationDays)
+	} else {
+		t, err := time.Parse(stats.DateFormat, startDate)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start_date format: %w", err)
+		}
+		start = t
+	}
+
+	if !start.Before(end) {
+		return nil, fmt.Errorf("start_date must be strictly before end_date")
+	}
+
+	s.activeWindowStart = &start
+	s.activeWindowEnd = &end
+
+	return WrapResponse(map[string]any{
+		"status":        "set",
+		"message":       fmt.Sprintf("Session window set to %s … %s. All windowed diagnostics will use this range until reset or board switch.", start.Format(stats.DateFormat), end.Format(stats.DateFormat)),
+		"start":         start.Format(stats.DateFormat),
+		"end":           end.Format(stats.DateFormat),
+		"duration_days": stats.CalendarDaysBetween(start, end),
+		"source":        "session",
+	}, "", 0, nil, nil, []string{
+		"Session window is in-memory only. It resets on board switch and is not persisted across server restarts.",
+		"analyze_work_item_age and analyze_process_evolution use only the End of this window (snapshot / long-term anchor).",
+		"forecast_monte_carlo and forecast_backtest are NOT affected — they keep their own sampling windows.",
+	}), nil
+}
+
+func (s *Server) handleGetAnalysisWindow() (any, error) {
+	start, end, explicit := s.Window()
+	source := "default"
+	if explicit {
+		source = "session"
+	}
+	return WrapResponse(map[string]any{
+		"start":         start.Format(stats.DateFormat),
+		"end":           end.Format(stats.DateFormat),
+		"duration_days": stats.CalendarDaysBetween(start, end),
+		"source":        source,
+	}, "", 0, nil, nil, nil), nil
+}
+
 func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr string) (any, error) {
 	// Ensure we are anchored before saving
 	if err := s.anchorContext(projectKey, boardID); err != nil {

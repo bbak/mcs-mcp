@@ -243,6 +243,17 @@ type WorkflowSetEvaluationDateInput struct {
 	Date       string `json:"date" jsonschema:"Evaluation date (YYYY-MM-DD)"`
 }
 
+// SetAnalysisWindowInput holds arguments for the set_analysis_window tool.
+type SetAnalysisWindowInput struct {
+	StartDate    string `json:"start_date,omitempty" jsonschema:"Start of the window (YYYY-MM-DD). Required unless duration_days is set."`
+	EndDate      string `json:"end_date,omitempty" jsonschema:"End of the window (YYYY-MM-DD). Defaults to today (or the active evaluation date)."`
+	DurationDays int    `json:"duration_days,omitempty" jsonschema:"Window length in days, anchored at end_date. Mutually exclusive with start_date."`
+	Reset        bool   `json:"reset,omitempty" jsonschema:"If true, clears the session window and restores the default rolling 26-week range."`
+}
+
+// GetAnalysisWindowInput holds arguments for the get_analysis_window tool. Empty payload.
+type GetAnalysisWindowInput struct{}
+
 // AnalyzeItemJourneyInput holds arguments for the analyze_item_journey tool.
 type AnalyzeItemJourneyInput struct {
 	ProjectKey string `json:"project_key" jsonschema:"The project key"`

@@ -215,6 +215,33 @@ func WrapResponse(data any, proj string, board int, diagnostics map[string]any, 
 	}
 }
 
+// injectSessionContext annotates a ResponseEnvelope with the active session
+// analysis window so every tool response shows which window shaped the output.
+// Forecasting tools and tools that use only a single field of the window
+// (work_item_age, process_evolution) still report the full window — the agent
+// reads the per-tool schema to know which field is honoured.
+func (s *Server) injectSessionContext(data any) any {
+	envelope, ok := data.(ResponseEnvelope)
+	if !ok {
+		return data
+	}
+	start, end, explicit := s.Window()
+	source := "default"
+	if explicit {
+		source = "session"
+	}
+	if envelope.Context == nil {
+		envelope.Context = map[string]any{}
+	}
+	envelope.Context["session_window"] = map[string]any{
+		"start":         start.Format(stats.DateFormat),
+		"end":           end.Format(stats.DateFormat),
+		"duration_days": stats.CalendarDaysBetween(start, end),
+		"source":        source,
+	}
+	return envelope
+}
+
 // injectChartURL pushes the tool result into the MRU buffer and returns the
 // data with a chart_url injected into the ResponseEnvelope's Context.
 // If the tool has no chart template or charting is disabled, data is returned unchanged.

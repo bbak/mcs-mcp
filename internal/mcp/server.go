@@ -36,6 +36,8 @@ type Server struct {
 	activeCommitmentPoint string
 	activeDiscoveryCutoff *time.Time
 	activeEvaluationDate  *time.Time
+	activeWindowStart     *time.Time
+	activeWindowEnd       *time.Time
 	activeRegistry          *jira.NameRegistry
 	commitmentBackflowReset bool
 	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)
@@ -53,6 +55,20 @@ func (s *Server) Clock() time.Time {
 		return *s.activeEvaluationDate
 	}
 	return time.Now()
+}
+
+// DefaultWindowWeeks is the lazy-default lookback for the session analysis window.
+const DefaultWindowWeeks = 26
+
+// Window returns the effective [start, end] session analysis window.
+// If unset, returns the lazy default [Clock()-DefaultWindowWeeks, Clock()].
+// The second return value is true when the window is explicitly set by the user.
+func (s *Server) Window() (start, end time.Time, explicit bool) {
+	if s.activeWindowStart != nil && s.activeWindowEnd != nil {
+		return *s.activeWindowStart, *s.activeWindowEnd, true
+	}
+	end = s.Clock()
+	return end.AddDate(0, 0, -DefaultWindowWeeks*7), end, false
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {
@@ -353,6 +369,8 @@ func (s *Server) anchorContext(projectKey string, boardID int) error {
 	s.activeStatusOrder = nil
 	s.activeCommitmentPoint = ""
 	s.activeEvaluationDate = nil
+	s.activeWindowStart = nil
+	s.activeWindowEnd = nil
 	s.activeRegistry = nil
 
 	// 2. Prune EventStore RAM
