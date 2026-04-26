@@ -104,7 +104,7 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** Quarterly review or after a major "Way of Working" change.
 - **Main Success Scenario:**
     1. User asks: "How has our delivery performance evolved over the last 12 months?"
-    2. AI calls `analyze_process_evolution` with `window_months: 12`.
+    2. AI calls `analyze_process_evolution` (default `bucket: month` looks back 12 complete months from the session window's End).
     3. MCP Server calculates **Three-Way Control Charts** (Baseline and Average Chart).
     4. AI detects a systemic "Migration" signal.
     5. AI reports: "Your process has successfully **Migrated** to a new state of stability. Since June, the average cycle time has dropped from 15 to 10 days, and the 'Third Way' chart shows this change is a sustained systemic improvement, not just noise."

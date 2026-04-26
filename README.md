@@ -18,6 +18,7 @@
 - **Sample Path Analysis (Residence Time)**: Compute the finite Little's Law identity L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance. The coherence gap between residence time and sojourn time reveals the "end effect" of active items on the system.
 - **Strategic Evolution Tracking**: Longitudinal audits using Three-Way Control Charts (weekly/monthly) detect systemic improvements or process drift over time.
 - **Historical Time-Travel**: Set a specific past date as the analytical reference point to recreate the state of your process at that moment. Useful for retrospectives, post-mortems, or before/after comparisons following a process change.
+- **Session Analysis Window**: One `[start, end]` range scopes every diagnostic. Set it once with `set_analysis_window` (e.g. `{end_date, duration_days}` or two explicit dates), and every subsequent analysis — throughput, cycle time, flow debt, WIP, yield, residence time, etc. — uses the same window. Shifting "one month back" is a single call, not ten. Forecasting tools keep their own engine-driven sample windows; their accuracy isn't tied to the diagnostic lens.
 - **Guided Analytical Roadmaps**: The server proactively suggests the right sequence of diagnostic steps for a given goal (forecasting, bottleneck analysis, capacity planning), preventing AI agents from guessing at the right path.
 
 ---
@@ -63,7 +64,9 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
    This mapping, along with what "done" means (delivered vs. abandoned) and where the **Commitment Point** is (the status where work is officially started — this defines Cycle Time and WIP), is proposed automatically and confirmed by you. It is cached so you only need to do this once per board.
 
-3. **Diagnostics & Forecasting**: With the data and a clear understanding of what each status _means_, you can ask the AI a wide range of questions about your delivery system's health, predictability, and future throughput.
+3. **Set the Analysis Window**: Diagnostics need a time range — the slice of history they look at. There is **one window per session** that every diagnostic shares: throughput, cycle time, flow debt, WIP stability, yield, residence time, status persistence, process stability, work item age (snapshot at the End), and process evolution (long-term anchor at the End). The window defaults to a rolling 26 weeks ending today; the AI calls `set_analysis_window` to change it (`{end_date, duration_days}` or two explicit dates), and "move one month back" is one call, not ten. Forecasting (`forecast_monte_carlo`, `forecast_backtest`) is intentionally exempt — their sample windows are picked by the simulation engine for forecast accuracy, independent of the diagnostic lens.
+
+4. **Diagnostics & Forecasting**: With the data, a clear understanding of what each status _means_, and a chosen window, you can ask the AI a wide range of questions about your delivery system's health, predictability, and future throughput.
 
 ---
 

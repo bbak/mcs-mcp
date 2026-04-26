@@ -46,6 +46,8 @@ A complete reference of all available MCP tools, grouped by category.
 | `workflow_set_mapping` | Persist the user-confirmed semantic metadata (tier, role, outcome) for statuses and resolutions. Triggers Discovery Cutoff recalculation. |
 | `workflow_set_order` | Define the chronological order of statuses for range-based analytics (CFD, Flow Debt). |
 | `workflow_set_evaluation_date` | Inject a specific date for time-travel analysis. Set to empty to return to real-time mode. |
+| `set_analysis_window` | Set the session-scoped `[start, end]` analysis window consumed by all diagnostics. Accepts `{start_date, end_date}`, `{end_date, duration_days}`, or `{reset: true}`. |
+| `get_analysis_window` | Return the active session window and its `source` (`session` if set explicitly, `default` otherwise — default is rolling 26 weeks anchored at `Clock()`). |
 
 #### Diagnostics
 
@@ -124,6 +126,24 @@ When backflow past the commitment point is detected:
 - **Terminal Sinks**: Statuses with high entry-vs-exit ratios identify logical completion points even if Jira resolutions are missing.
 - **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions (Market-Share confidence > 15%).
 - **Unified Regex Stemming**: Automatically links paired statuses (e.g., "Ready for QA" and "In QA") via semantic cores.
+
+### 2.3 Session Analysis Window
+
+A single in-memory `[start, end]` range scopes every diagnostic. One setter (`set_analysis_window`), one reader (`get_analysis_window`), and a `Server.Window()` accessor that returns either the explicit session range or a lazy default of `[Clock()-26 weeks, Clock()]`.
+
+**Why one window for all diagnostics?** Cross-tool coherence in multi-step analysis sessions (e.g. "analyze the last quarter") used to require passing `history_window_*` to each tool individually. Per-tool window parameters were removed; every diagnostic now reads `s.Window()` directly. The agent sets the window once and shifts it with one call instead of re-parameterising 10+ analyses.
+
+**Resolution rule per handler.** Each handler decides which fields it consumes:
+- **Range-consuming tools** (`analyze_throughput`, `analyze_wip_stability`, `analyze_wip_age_stability`, `analyze_flow_debt`, `generate_cfd_data`, `analyze_process_stability`, `analyze_residence_time`, `analyze_status_persistence`, `analyze_cycle_time`, `analyze_yield`) pass `Window().Start` and `Window().End` straight to `stats.NewAnalysisWindow`.
+- **`analyze_work_item_age`** is a point-in-time metric. It uses **only** `Window().End` as the snapshot date. Start is intentionally ignored — items aren't "in-flight" over a range.
+- **`analyze_process_evolution`** is a long-term trend metric. It uses **only** `Window().End` as the right edge and looks back a fixed horizon (12 complete months for `bucket=month`, 26 complete weeks for `bucket=week`) via `stats.LastCompleteBucketEnd`. Start is intentionally ignored — short ranges defeat trend detection. Partial trailing buckets are excluded.
+- **Forecasting** (`forecast_monte_carlo`, `forecast_backtest`) is exempt. Sample windows are auto-sized by the simulation engine (see §4); forcing the diagnostic window would override that adaptive logic. Forecast tools keep their own `history_window_days` / `history_start_date` / `history_end_date` overrides.
+
+**Lifecycle.** The window lives in memory only — never persisted to disk and never copied into `WorkflowMetadata`. It resets on board switch (alongside `activeEvaluationDate`) and on server restart. Switching boards always starts from the lazy default; setting an evaluation date does not move the window. This preserves "the window is exploration; the eval date is reproducibility anchor."
+
+**Footer in every response.** `handleResult` injects a `session_window` block (`{start, end, duration_days, source}`) into every tool response's `context`, so the agent always sees which window shaped the output and can react if it drifted mid-conversation.
+
+**Clamping.** Existing `stats.NewAnalysisWindow` clamps `Start` against `activeDiscoveryCutoff` to prevent including pre-steady-state events. The session window is the *requested* range; clamping still happens inside the helper, exactly as before.
 
 ---
 
