@@ -14,7 +14,8 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 	}
 
 	// 2. Project
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -BaselineWindowWeeks*7), s.Clock(), "week", s.activeCutoff())
+	winStart, winEnd, _ := s.Window()
+	window := stats.NewAnalysisWindow(winStart, winEnd, "week", s.activeCutoff())
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()

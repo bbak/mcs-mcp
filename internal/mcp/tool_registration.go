@@ -30,8 +30,7 @@ var toolDescriptions = map[string]string{
 		"WHEN NOT TO USE: Do not use to measure delivery volume — use 'analyze_throughput' for that. " +
 		"Do not use for long-term trend analysis spanning many months — use 'analyze_process_evolution' for that.\n\n" +
 		"PREREQUISITE: Proper workflow mapping is required for accurate results.\n\n" +
-		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"INTERPRETATION: Primary signals are UNPL and the total number of signals (outliers + shifts). " +
 		"If stability is low (many signals), simulations will produce MISLEADING results. " +
 		"Combine with 'analyze_residence_time' when λ/θ > 1.1 to understand why cycle times are unstable.",
@@ -57,8 +56,8 @@ var toolDescriptions = map[string]string{
 		"WHEN TO USE: User asks 'How many items do we deliver per week?', 'Is our delivery cadence stable?', 'Do we have batching or zero-delivery weeks?'\n" +
 		"WHEN NOT TO USE: Do not use to measure how long individual items take — use 'analyze_cycle_time' for that. " +
 		"Do not use to assess Cycle Time predictability — use 'analyze_process_stability' for that.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26. Use 8–12 after a process change. Use 4–6 to measure only current cadence.\n" +
 		"- bucket: Default 'week'. Switch to 'month' for low-volume teams where weekly counts are too sparse to be meaningful.\n\n" +
 		"INTERPRETATION: Primary signals are UNPL and zero-count weeks. " +
 		"Zero-delivery weeks signal batching or blockage. UNPL breaches signal unusual surges. " +
@@ -68,8 +67,7 @@ var toolDescriptions = map[string]string{
 		"WHEN TO USE: User asks 'Is our WIP under control?', 'Are we respecting WIP limits?', 'How variable is the number of active items?'\n" +
 		"WHEN NOT TO USE: WIP count stability does NOT imply age stability — a stable count of 10 items can still be accumulating age. " +
 		"Follow up with 'analyze_wip_age_stability' to check this. Do not use to detect individual aging items — use 'analyze_work_item_age' for that.\n\n" +
-		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26. Use 8–12 after a team size change or WIP limit policy change.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"INTERPRETATION: Primary signals are UNPL breaches and the trend direction. " +
 		"A rising trend in WIP count, even within limits, is an early warning. Combine with 'analyze_residence_time' when λ/θ > 1.1.",
 
@@ -78,8 +76,7 @@ var toolDescriptions = map[string]string{
 		"User asks: 'Are items stagnating even though count looks fine?', 'Is the total age of WIP growing?'\n" +
 		"WHEN NOT TO USE: Do not use to measure WIP count — use 'analyze_wip_stability' for that. " +
 		"Do not use to find which specific items are aging — use 'analyze_work_item_age' for that.\n\n" +
-		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26. Use 8–12 after a process change to measure only the new regime.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"INTERPRETATION: Primary signal is UNPL breaches of total age (not average). " +
 		"Growing total WIP age signals trouble before throughput drops. XmR is applied to total age, not the mean.",
 
@@ -96,8 +93,8 @@ var toolDescriptions = map[string]string{
 		"User asks: 'Are we taking on more work than we finish?', 'Is WIP accumulating?', 'Why are cycle times increasing?'\n" +
 		"WHEN NOT TO USE: Do not confuse with 'analyze_residence_time' — Flow Debt is a leading indicator (arrival vs. departure counts); " +
 		"Residence Time is a Little's Law analysis (L = λ · W) unifying cycle time, WIP age, and flow balance into a single coherent view.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26. Use 8–12 after a process change.\n" +
 		"- bucket_size: Default 'week'. Use 'month' for low-volume teams.\n\n" +
 		"INTERPRETATION: Primary signals are 'totalDebt' and the oscillation pattern. " +
 		"Sustained positive debt (Arrivals > Departures) mathematically guarantees higher future cycle times (Little's Law). " +
@@ -129,8 +126,8 @@ var toolDescriptions = map[string]string{
 		"WHEN TO USE: User asks for a CFD visualization, wants to see WIP accumulation over time by status, or needs to detect stage-level congestion.\n" +
 		"WHEN NOT TO USE: This tool returns raw structured data — it is not a standalone diagnostic. " +
 		"For overall WIP count stability, use 'analyze_wip_stability'. For arrival/departure imbalance, use 'analyze_flow_debt'.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.\n\n" +
 		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 26.\n" +
 		"- granularity: Default 'daily'. Use 'weekly' to reduce payload size for long windows or low-volume teams.\n\n" +
 		"INTERPRETATION: Primary signals are band width changes (widening = accumulation) and which status bands are growing. " +
 		"A widening Downstream band with a flat Finished band means delivery is stalling.",
@@ -368,7 +365,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			if bucket == "" {
 				bucket = "week"
 			}
-			data, err := s.handleGetDeliveryCadence(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, bucket, args.IncludeAbandoned)
+			data, err := s.handleGetDeliveryCadence(args.ProjectKey, args.BoardID, bucket, args.IncludeAbandoned)
 			return handleResult(s, "analyze_throughput", data, err)
 		}))
 
@@ -380,25 +377,25 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 
 	must(addTool(mcpSrv, s, "analyze_flow_debt",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeFlowDebtInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleGetFlowDebt(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.BucketSize)
+			data, err := s.handleGetFlowDebt(args.ProjectKey, args.BoardID, args.BucketSize)
 			return handleResult(s, "analyze_flow_debt", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "generate_cfd_data",
 		func(_ context.Context, _ *mcp.CallToolRequest, args GenerateCFDDataInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, string(args.Granularity))
+			data, err := s.handleGetCFDData(args.ProjectKey, args.BoardID, string(args.Granularity))
 			return handleResult(s, "generate_cfd_data", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_wip_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPStabilityInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleAnalyzeWIPStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
+			data, err := s.handleAnalyzeWIPStability(args.ProjectKey, args.BoardID)
 			return handleResult(s, "analyze_wip_stability", data, err)
 		}))
 
 	must(addTool(mcpSrv, s, "analyze_wip_age_stability",
 		func(_ context.Context, _ *mcp.CallToolRequest, args AnalyzeWIPAgeStabilityInput) (*mcp.CallToolResult, any, error) {
-			data, err := s.handleAnalyzeWIPAgeStability(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks)
+			data, err := s.handleAnalyzeWIPAgeStability(args.ProjectKey, args.BoardID)
 			return handleResult(s, "analyze_wip_age_stability", data, err)
 		}))
 

@@ -28,7 +28,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_throughput",
 			func() (any, error) {
-				return srv.handleGetDeliveryCadence(testProject, testBoard, 26, "week", false)
+				return srv.handleGetDeliveryCadence(testProject, testBoard, "week", false)
 			},
 		},
 		{
@@ -52,13 +52,13 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_wip_stability",
 			func() (any, error) {
-				return srv.handleAnalyzeWIPStability(testProject, testBoard, 26)
+				return srv.handleAnalyzeWIPStability(testProject, testBoard)
 			},
 		},
 		{
 			"analyze_wip_age_stability",
 			func() (any, error) {
-				return srv.handleAnalyzeWIPAgeStability(testProject, testBoard, 26)
+				return srv.handleAnalyzeWIPAgeStability(testProject, testBoard)
 			},
 		},
 		{
@@ -76,13 +76,13 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_flow_debt",
 			func() (any, error) {
-				return srv.handleGetFlowDebt(testProject, testBoard, 26, "week")
+				return srv.handleGetFlowDebt(testProject, testBoard, "week")
 			},
 		},
 		{
 			"generate_cfd_data",
 			func() (any, error) {
-				return srv.handleGetCFDData(testProject, testBoard, 26, "")
+				return srv.handleGetCFDData(testProject, testBoard, "")
 			},
 		},
 		{

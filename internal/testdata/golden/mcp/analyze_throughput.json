@@ -406,7 +406,7 @@
   "guardrails": {
     "insights": [
       "Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
-      "The current window uses a 26-week historical baseline anchored at 2026-01-12, grouped by week."
+      "The current window spans 2026-01-12 … 2026-07-19, grouped by week. Adjust via set_analysis_window."
     ],
     "warnings": []
   }

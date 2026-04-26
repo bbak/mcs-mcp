@@ -172,7 +172,7 @@
     "insights": [
       "Positive Flow Debt (Arrivals \u003e Departures) is a leading indicator of cycle time inflation.",
       "Zero or Negative Flow Debt indicates a stable or improving system throughput-to-workload ratio.",
-      "The current window uses a 26-week historical baseline with Commitment Point: 38776."
+      "The current window spans 2026-01-12 … 2026-07-19 with Commitment Point: 38776. Adjust via set_analysis_window."
     ],
     "warnings": []
   }

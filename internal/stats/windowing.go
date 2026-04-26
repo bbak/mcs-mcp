@@ -60,6 +60,28 @@ func SnapToStart(t time.Time, bucket string) time.Time {
 	}
 }
 
+// LastCompleteBucketEnd returns the End of the most recent bucket whose End is
+// at or before `now`. For bucket="month" with now=Apr 26 → Mar 31 23:59…;
+// for bucket="week" with now=Wed → preceding Sunday 23:59…. Used to ensure
+// long-term trend analyses never include a partial trailing bucket.
+func LastCompleteBucketEnd(now time.Time, bucket string) time.Time {
+	end := SnapToEnd(now, bucket)
+	if !end.After(now) {
+		return end
+	}
+	switch bucket {
+	case "month":
+		prevMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, now.Location())
+		return SnapToEnd(prevMonth, "month")
+	case "week":
+		prevWeek := now.AddDate(0, 0, -7)
+		return SnapToEnd(prevWeek, "week")
+	default:
+		prevDay := now.AddDate(0, 0, -1)
+		return SnapToEnd(prevDay, "day")
+	}
+}
+
 // SnapToEnd normalizes a timestamp to the very end of its bucket (23:59:59.999...).
 func SnapToEnd(t time.Time, bucket string) time.Time {
 	if t.IsZero() {

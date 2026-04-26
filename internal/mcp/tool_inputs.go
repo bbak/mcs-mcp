@@ -155,49 +155,43 @@ type AnalyzeWorkItemAgeInput struct {
 
 // AnalyzeThroughputInput holds arguments for the analyze_throughput tool.
 type AnalyzeThroughputInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
-	IncludeAbandoned   bool   `json:"include_abandoned,omitempty" jsonschema:"If true includes items with abandoned outcome. Default: false (delivered items only)."`
-	Bucket             string `json:"bucket,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
+	ProjectKey       string `json:"project_key" jsonschema:"The project key"`
+	BoardID          int    `json:"board_id" jsonschema:"The board ID"`
+	IncludeAbandoned bool   `json:"include_abandoned,omitempty" jsonschema:"If true includes items with abandoned outcome. Default: false (delivered items only)."`
+	Bucket           string `json:"bucket,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
 }
 
 // AnalyzeProcessStabilityInput holds arguments for the analyze_process_stability tool.
 type AnalyzeProcessStabilityInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
-	IncludeRawSeries   bool   `json:"include_raw_series,omitempty" jsonschema:"If true includes the full Values and MovingRange arrays in the response. Default: false. Enable when you need to inspect individual data points or plot the raw series."`
+	ProjectKey       string `json:"project_key" jsonschema:"The project key"`
+	BoardID          int    `json:"board_id" jsonschema:"The board ID"`
+	IncludeRawSeries bool   `json:"include_raw_series,omitempty" jsonschema:"If true includes the full Values and MovingRange arrays in the response. Default: false. Enable when you need to inspect individual data points or plot the raw series."`
 }
 
 // AnalyzeFlowDebtInput holds arguments for the analyze_flow_debt tool.
 type AnalyzeFlowDebtInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
-	BucketSize         string `json:"bucket_size,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
+	ProjectKey string `json:"project_key" jsonschema:"The project key"`
+	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
+	BucketSize string `json:"bucket_size,omitempty" jsonschema:"Group data by 'week' (default) or 'month'. Use 'month' for low-volume teams where weekly counts are too sparse to be meaningful."`
 }
 
 // GenerateCFDDataInput holds arguments for the generate_cfd_data tool.
 type GenerateCFDDataInput struct {
-	ProjectKey         string      `json:"project_key" jsonschema:"The project key"`
-	BoardID            int         `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change or team restructuring. Use 4–6 to measure only the current state after a deliberate reset."`
-	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) gives the full picture. 'weekly' keeps only the last data point per ISO week — use this to reduce payload size for long windows or low-volume teams."`
+	ProjectKey  string      `json:"project_key" jsonschema:"The project key"`
+	BoardID     int         `json:"board_id" jsonschema:"The board ID"`
+	Granularity Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) gives the full picture. 'weekly' keeps only the last data point per ISO week — use this to reduce payload size for long windows or low-volume teams."`
 }
 
 // AnalyzeWIPStabilityInput holds arguments for the analyze_wip_stability tool.
 type AnalyzeWIPStabilityInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a team size change or WIP limit policy change."`
+	ProjectKey string `json:"project_key" jsonschema:"The project key"`
+	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
 }
 
 // AnalyzeWIPAgeStabilityInput holds arguments for the analyze_wip_age_stability tool.
 type AnalyzeWIPAgeStabilityInput struct {
-	ProjectKey         string `json:"project_key" jsonschema:"The project key"`
-	BoardID            int    `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int    `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 26 (6 months) for stable systems. Use 8–12 after a process change to measure only the new regime."`
+	ProjectKey string `json:"project_key" jsonschema:"The project key"`
+	BoardID    int    `json:"board_id" jsonschema:"The board ID"`
 }
 
 // AnalyzeProcessEvolutionInput holds arguments for the analyze_process_evolution tool.
