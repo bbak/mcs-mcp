@@ -103,15 +103,12 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
 }
 
-func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, windowWeeks int, issueTypes []string, granularity string) (any, error) {
+func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, issueTypes []string, granularity string) (any, error) {
 	hctx, err := s.prepareHandler(projectKey, boardID)
 	if err != nil {
 		return nil, err
 	}
 
-	if windowWeeks <= 0 {
-		windowWeeks = 52
-	}
 	if granularity == "" {
 		granularity = "day"
 	}
@@ -141,7 +138,8 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, wind
 	}
 
 	// 4. Extract residence items with backflow-reset logic (always-on)
-	displayWindow := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -windowWeeks*7), s.Clock(), granularity, cutoff)
+	winStart, winEnd, _ := s.Window()
+	displayWindow := stats.NewAnalysisWindow(winStart, winEnd, granularity, cutoff)
 	residenceItems := stats.ExtractResidenceItems(filteredIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, displayWindow.Start)
 
 	// 5. Compute the sample path time series

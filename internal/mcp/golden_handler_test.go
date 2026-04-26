@@ -88,7 +88,7 @@ func TestHandlers_Golden(t *testing.T) {
 		{
 			"analyze_residence_time",
 			func() (any, error) {
-				return srv.handleAnalyzeResidenceTime(testProject, testBoard, 52, nil, "day")
+				return srv.handleAnalyzeResidenceTime(testProject, testBoard, nil, "day")
 			},
 		},
 		{

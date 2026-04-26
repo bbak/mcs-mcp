@@ -275,11 +275,10 @@ type ForecastBacktestInput struct {
 
 // AnalyzeResidenceTimeInput holds arguments for the analyze_residence_time tool.
 type AnalyzeResidenceTimeInput struct {
-	ProjectKey         string      `json:"project_key" jsonschema:"The project key"`
-	BoardID            int         `json:"board_id" jsonschema:"The board ID"`
-	HistoryWindowWeeks int         `json:"history_window_weeks,omitempty" jsonschema:"Lookback window in weeks. Default: 52 (longer than other tools — Sample Path analysis needs sufficient path length). Reduce to 26 if only the recent regime is relevant or after a major process reset."`
-	IssueTypes         []string    `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
-	Granularity        Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) for full resolution. 'weekly' to reduce payload size for long windows."`
+	ProjectKey  string      `json:"project_key" jsonschema:"The project key"`
+	BoardID     int         `json:"board_id" jsonschema:"The board ID"`
+	IssueTypes  []string    `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
+	Granularity Granularity `json:"granularity,omitempty" jsonschema:"Time series granularity. 'daily' (default) for full resolution. 'weekly' to reduce payload size for long windows."`
 }
 
 // ImportHistoryUpdateInput holds arguments for the import_history_update tool.

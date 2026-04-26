@@ -105,9 +105,8 @@ var toolDescriptions = map[string]string{
 		"Use when 'analyze_wip_stability' or 'analyze_flow_debt' raises concerns and you want to quantify the severity.\n" +
 		"WHEN NOT TO USE: Do not use as a first-line diagnostic — start with 'analyze_process_stability' or 'analyze_throughput'. " +
 		"Do not confuse with 'analyze_flow_debt': Flow Debt counts arrivals vs. departures; Residence Time measures how long items actually accumulate in the system.\n\n" +
-		"PARAMETER GUIDANCE:\n" +
-		"- history_window_weeks: Default 52 (longer than other tools because Sample Path analysis needs sufficient path length). " +
-		"Reduce to 26 if only recent regime is relevant.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'. " +
+		"Sample Path analysis benefits from longer windows — widen via 'set_analysis_window' (e.g. 52 weeks) when convergence requires more path length.\n\n" +
 		"INTERPRETATION: Primary signals are the λ/θ ratio, coherence gap, and 'stationary' flag. " +
 		"λ/θ > 1.1 means arrivals outpace completions — system is accumulating. " +
 		"Coherence gap > 0.5 means active WIP is significantly older than completed items — stalled work is hiding in the system. " +
@@ -407,7 +406,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 			} else if granularity == "" {
 				granularity = "day"
 			}
-			data, err := s.handleAnalyzeResidenceTime(args.ProjectKey, args.BoardID, args.HistoryWindowWeeks, args.IssueTypes, granularity)
+			data, err := s.handleAnalyzeResidenceTime(args.ProjectKey, args.BoardID, args.IssueTypes, granularity)
 			return handleResult(s, "analyze_residence_time", data, err)
 		}))
 
