@@ -88,6 +88,7 @@ var toolDescriptions = map[string]string{
 		"WHEN NOT TO USE: Do not use to assess overall WIP stability — use 'analyze_wip_stability' or 'analyze_wip_age_stability' for that. " +
 		"An aging outlier is NOT necessarily blocked — it simply exceeds historical P85 for its current status.\n\n" +
 		"PREREQUISITE: Commitment Point MUST be correctly mapped via 'workflow_set_mapping' for accurate 'WIP Age'. Results are UNRELIABLE otherwise.\n\n" +
+		"WINDOWING: Work item age is a POINT-IN-TIME metric, not a range metric. This tool uses ONLY the End of the session analysis window as the as-of snapshot date — Start is intentionally ignored. Default snapshot is today (or the active evaluation date). Move the snapshot via 'set_analysis_window' (only the End matters for this tool).\n\n" +
 		"INTERPRETATION: Primary signals are 'stability_index', outlier count, and P85/P95 thresholds. " +
 		"Use 'age_type=wip' for standard SLE comparison; use 'age_type=total' to surface items that entered the system long ago but have not yet committed.",
 

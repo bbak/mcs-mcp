@@ -52,8 +52,11 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 		return nil, err
 	}
 
-	// 1. Project
-	window := stats.NewAnalysisWindow(time.Time{}, s.Clock(), "day", s.activeCutoff())
+	// 1. Project — work item age is a point-in-time metric. The session window's
+	// End is the snapshot date; its Start is intentionally ignored (an item is
+	// "in-flight" at a moment, not over a range).
+	_, snapshotEnd, _ := s.Window()
+	window := stats.NewAnalysisWindow(time.Time{}, snapshotEnd, "day", s.activeCutoff())
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()
@@ -96,6 +99,7 @@ func (s *Server) handleGetAgingAnalysis(projectKey string, boardID int, agingTyp
 	}
 
 	guidance := []string{
+		"Work item age is a point-in-time metric, NOT a range metric. This tool ignores the session window's Start and uses ONLY its End as the as-of date for in-flight items and age calculation. To analyse 'as of' a different date, set the session window's End via 'set_analysis_window'.",
 		"Items in 'Demand' or 'Finished' tiers are usually excluded from WIP Age unless explicitly requested.",
 		"PercentileRelative helps identify which individual items are 'neglect' risks compared to historical performance.",
 		"AgeSinceCommitment reflects time since the LAST commitment (resets on backflow to Demand/Upstream).",
