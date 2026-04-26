@@ -49,6 +49,7 @@ var toolDescriptions = map[string]string{
 		"WHEN NOT TO USE: Do not use for active WIP — this tool only analyzes finished items. " +
 		"Do not confuse with 'analyze_process_stability', which measures overall Cycle Time predictability, not per-status breakdown.\n\n" +
 		"PREREQUISITE: Proper workflow mapping (Upstream/Downstream tiers) is required. Results are SUBPAR if tiers are unmapped.\n\n" +
+		"WINDOWING: Uses the session analysis window (default rolling 26 weeks ≈ 6 months). Adjust via 'set_analysis_window'.\n\n" +
 		"INTERPRETATION: Primary signal is IQR concentration — a status with high median but low IQR is a consistent queue; " +
 		"high IQR indicates unpredictable, variable dwell time worth investigating.",
 

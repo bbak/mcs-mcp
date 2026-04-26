@@ -14,8 +14,9 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 		return nil, err
 	}
 
-	// 1. Project on Demand (6-month historical window for persistence)
-	window := stats.NewAnalysisWindow(s.Clock().AddDate(0, 0, -DefaultPersistenceWindowDays), s.Clock(), "day", s.activeCutoff())
+	// 1. Project using the session analysis window
+	winStart, winEnd, _ := s.Window()
+	window := stats.NewAnalysisWindow(winStart, winEnd, "day", s.activeCutoff())
 	session := s.openSession(hctx, window)
 
 	issues := session.GetDelivered()
@@ -35,7 +36,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	}
 
 	guidance := []string{
-		"This tool uses a robust 6-MONTH historical window, making it the primary source for performance and residency analysis.",
+		"Status Persistence uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.",
 		"Status Persistence EXCLUSIVELY analyzes items that have successfully finished ('delivered') to prevent active WIP from skewing historical norms.",
 		"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 		"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
