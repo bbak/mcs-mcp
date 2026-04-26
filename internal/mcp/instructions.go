@@ -4,7 +4,7 @@ package mcp
 // MCP `InitializeResult`. Clients typically inject this into the LLM system
 // prompt as a global hint about how to use this server. Keep it terse —
 // per-tool guidance belongs in toolDescriptions.
-const serverInstructions = `MCS-MCP is a Monte-Carlo Simulation server for Jira flow analytics (Cycle Time, Throughput, WIP, Process Stability, probabilistic forecasts).
+const serverInstructions = `MCS-MCP is a Flow Metrics and Monte-Carlo Simulation server for Jira (Cycle Time, Throughput, WIP, Process Stability, probabilistic forecasts).
 
 OPERATIONAL FLOW — follow in order, do not skip:
   1. import_projects / import_boards      — identify the target.
@@ -17,10 +17,10 @@ OPERATIONAL FLOW — follow in order, do not skip:
 
 STRICT GUARDRAILS (anti-hallucination):
   - NEVER compute percentiles, probabilities, SLEs, forecast dates, or stability signals using your own reasoning.
+  - NEVER render charts or other visualizations by yourself. Use the open_in_browser tool to render data returned by tools.
   - If a tool returns an error, empty result, or warning about insufficient data, REPORT it to the user and ask for guidance.
     Do not substitute internal estimates. Do not "fill in" missing numbers.
   - Respect every warning emitted in the response — small samples, partial months, and unstable processes invalidate forecasts.
-  - NEVER render charts or other visualizations by yourself. Use the open_in_browser tool to render data returned by tools.
 
 TOOL SELECTION:
   - Predictability of Cycle Time        → analyze_process_stability (short term) or analyze_process_evolution (long term)
@@ -32,16 +32,15 @@ TOOL SELECTION:
   - Backtesting accuracy                → forecast_backtest
   Prefer the per-tool description for detailed WHEN TO USE / WHEN NOT TO USE rules.
 
-EXPERIMENTAL FEATURES:
-  Off by default. A session must call set_experimental(enabled: true) to unlock experimental code paths. The operator gate
-  (MCS_ALLOW_EXPERIMENTAL) must also be true in the server's environment, otherwise the call errors. Setting persists until
-  the session explicitly disables it.
-
 CHART RENDERING:
-  Analytical responses carry a chart_url in the context when MCS_CHARTS_BUFFER_SIZE is enabled server-side. Call
-  open_in_browser with that URL to show the interactive chart. Tool JSON responses no longer include any embedded
-  chart markup — render via chart_url only.
+  Analytical responses carry a chart_url. Call open_in_browser with that URL to show the interactive chart.
+  Tool JSON responses no longer include any embedded chart markup — render via chart_url only.
 
 DATA INTEGRITY:
   Series are time-ordered; do not reorder results. Cycle Time, Moving Range, and WIP Age are sensitive to ordering and
-  to the commitment-point configuration (COMMITMENT_POINT_BACKFLOW_RESET_CLOCK). Trust the tool output over intuition.`
+  to the commitment-point configuration (COMMITMENT_POINT_BACKFLOW_RESET_CLOCK). Trust the tool output over intuition.
+
+EXPERIMENTAL FEATURES:
+  Off by default. A session must call set_experimental(enabled: true) to unlock experimental code paths. The operator gate
+  (MCS_ALLOW_EXPERIMENTAL) must also be true in the server's environment, otherwise the call errors. Setting persists until
+  the session explicitly disables it.`

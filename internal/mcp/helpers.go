@@ -215,6 +215,15 @@ func WrapResponse(data any, proj string, board int, diagnostics map[string]any, 
 	}
 }
 
+// windowingGuidance returns the standard agent-facing guidance line for any
+// diagnostic that consumes the session analysis window. Use in handler
+// guidance arrays so the hint stays consistent across tools.
+func (s *Server) windowingGuidance() string {
+	start, end, _ := s.Window()
+	return fmt.Sprintf("This analysis uses the session analysis window (%s … %s). Adjust via 'set_analysis_window' or read it via 'get_analysis_window'.",
+		start.Format(stats.DateFormat), end.Format(stats.DateFormat))
+}
+
 // injectSessionContext annotates a ResponseEnvelope with the active session
 // analysis window so every tool response shows which window shaped the output.
 // Forecasting tools and tools that use only a single field of the window

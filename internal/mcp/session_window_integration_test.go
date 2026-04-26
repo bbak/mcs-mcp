@@ -121,7 +121,7 @@ func TestSessionWindow_PropagationAcrossDiagnostics(t *testing.T) {
 		testProject, testBoard,
 		"scope",
 		false, 0, 60, "",
-		"", "", nil, false,
+		"", nil, false,
 		0, "", "",
 		nil, nil,
 	)

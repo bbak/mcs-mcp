@@ -10,7 +10,11 @@ import (
 	"mcs-mcp/internal/stats"
 )
 
-func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus, _ string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
+// handleRunSimulation does NOT use prepareHandler. Forecasting needs the full
+// jira.SourceContext after hydration to build a simulation.ForecastRequest, and
+// it manages its own sampling window (independent of the session analysis
+// window). Keep the inline anchor/hydrate/save sequence here on purpose.
+func (s *Server) handleRunSimulation(projectKey string, boardID int, mode string, includeExistingBacklog bool, additionalItems int, targetDays int, targetDate string, startStatus string, issueTypes []string, includeWIP bool, sampleDays int, sampleStartDate, sampleEndDate string, targets map[string]int, mixOverrides map[string]float64) (any, error) {
 	ctx, err := s.resolveSourceContext(projectKey, boardID)
 	if err != nil {
 		return nil, err
@@ -297,12 +301,7 @@ func (s *Server) handleGetCycleTimeAssessment(projectKey string, boardID int, st
 		log.Warn().Err(err).Msg("Failed to persist workflow metadata to disk")
 	}
 
-	cutoff := time.Time{}
-	if s.activeDiscoveryCutoff != nil {
-		cutoff = *s.activeDiscoveryCutoff
-	}
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, "day", cutoff)
+	window := s.AnalysisWindow("day")
 	events := s.events.GetIssuesInRange(sourceID, window.Start, window.End)
 	session := stats.NewAnalysisSession(events, sourceID, *ctx, s.activeMapping, s.activeResolutions, window)
 

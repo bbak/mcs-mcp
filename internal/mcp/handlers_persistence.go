@@ -15,8 +15,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	}
 
 	// 1. Project using the session analysis window
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, "day", s.activeCutoff())
+	window := s.AnalysisWindow("day")
 	session := s.openSession(hctx, window)
 
 	issues := session.GetDelivered()
@@ -36,7 +35,7 @@ func (s *Server) handleGetStatusPersistence(projectKey string, boardID int) (any
 	}
 
 	guidance := []string{
-		"Status Persistence uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.",
+		s.windowingGuidance(),
 		"Status Persistence EXCLUSIVELY analyzes items that have successfully finished ('delivered') to prevent active WIP from skewing historical norms.",
 		"Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
 		"Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
@@ -143,8 +142,7 @@ func (s *Server) handleAnalyzeResidenceTime(projectKey string, boardID int, issu
 	}
 
 	// 4. Extract residence items with backflow-reset logic (always-on)
-	winStart, winEnd, _ := s.Window()
-	displayWindow := stats.NewAnalysisWindow(winStart, winEnd, granularity, cutoff)
+	displayWindow := s.AnalysisWindow(granularity)
 	residenceItems := stats.ExtractResidenceItems(filteredIssues, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings, displayWindow.Start)
 
 	// 5. Compute the sample path time series

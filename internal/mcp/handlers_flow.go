@@ -14,8 +14,7 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, bucket
 	}
 
 	// 2. Project
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, bucket, s.activeCutoff())
+	window := s.AnalysisWindow(bucket)
 	session := s.openSession(hctx, window)
 
 	delivered := session.GetDelivered()
@@ -49,8 +48,8 @@ func (s *Server) handleGetDeliveryCadence(projectKey string, boardID int, bucket
 
 	guidance := []string{
 		"Look for 'Batching' (bursts of delivery followed by silence) vs. 'Steady Flow'.",
-		fmt.Sprintf("The current window spans %s … %s, grouped by %s. Adjust via set_analysis_window.",
-			window.Start.Format(stats.DateFormat), window.End.Format(stats.DateFormat), bucket),
+		s.windowingGuidance(),
+		fmt.Sprintf("Throughput is grouped by %s.", bucket),
 	}
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(delivered), guidance), nil
@@ -71,8 +70,7 @@ func (s *Server) handleAnalyzeWIPStability(projectKey string, boardID int) (any,
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 
 	// 3. Bound the chart output strictly to the session analysis window
-	winStart, winEnd, _ := s.Window()
-	displayWindow := stats.NewAnalysisWindow(winStart, winEnd, "day", cutoff)
+	displayWindow := s.AnalysisWindow("day")
 	wipStability := stats.AnalyzeHistoricalWIP(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
 	wipStability.XmR.Round()
 
@@ -104,8 +102,7 @@ func (s *Server) handleAnalyzeWIPAgeStability(projectKey string, boardID int) (a
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, all)
 
 	// 3. Bound the chart output strictly to the session analysis window
-	winStart, winEnd, _ := s.Window()
-	displayWindow := stats.NewAnalysisWindow(winStart, winEnd, "day", cutoff)
+	displayWindow := s.AnalysisWindow("day")
 	wipAgeStability := stats.AnalyzeHistoricalWIPAge(all, displayWindow, analysisCtx.CommitmentPoint, analysisCtx.StatusWeights, analysisCtx.WorkflowMappings)
 	wipAgeStability.XmR.Round()
 
@@ -137,8 +134,7 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, bucket string
 	}
 
 	// 2. Project
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, bucket, s.activeCutoff())
+	window := s.AnalysisWindow(bucket)
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()
@@ -153,8 +149,8 @@ func (s *Server) handleGetFlowDebt(projectKey string, boardID int, bucket string
 	guidance := []string{
 		"Positive Flow Debt (Arrivals > Departures) is a leading indicator of cycle time inflation.",
 		"Zero or Negative Flow Debt indicates a stable or improving system throughput-to-workload ratio.",
-		fmt.Sprintf("The current window spans %s … %s with Commitment Point: %s. Adjust via set_analysis_window.",
-			window.Start.Format(stats.DateFormat), window.End.Format(stats.DateFormat), analysisCtx.CommitmentPoint),
+		s.windowingGuidance(),
+		fmt.Sprintf("Commitment Point: %s.", analysisCtx.CommitmentPoint),
 	}
 
 	return WrapResponse(res, projectKey, boardID, nil, s.getQualityWarnings(all), guidance), nil
@@ -168,6 +164,7 @@ func (s *Server) handleGetCFDData(projectKey string, boardID int, granularity st
 	sourceID := hctx.SourceID
 
 	// 2. Prepare Window and Reconstruction Context
+	// CFD intentionally does not apply the discovery cutoff (full population view).
 	winStart, winEnd, _ := s.Window()
 	window := stats.NewAnalysisWindow(winStart, winEnd, "day", time.Time{})
 

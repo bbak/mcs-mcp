@@ -62,13 +62,22 @@ const DefaultWindowWeeks = 26
 
 // Window returns the effective [start, end] session analysis window.
 // If unset, returns the lazy default [Clock()-DefaultWindowWeeks, Clock()].
-// The second return value is true when the window is explicitly set by the user.
+// The third return value is true when the window is explicitly set by the user.
 func (s *Server) Window() (start, end time.Time, explicit bool) {
 	if s.activeWindowStart != nil && s.activeWindowEnd != nil {
 		return *s.activeWindowStart, *s.activeWindowEnd, true
 	}
 	end = s.Clock()
 	return end.AddDate(0, 0, -DefaultWindowWeeks*7), end, false
+}
+
+// AnalysisWindow returns a fully-resolved stats.AnalysisWindow for the given
+// bucket size, using the session window for [start, end] and activeCutoff for
+// steady-state clamping. Convenience wrapper around Window() +
+// stats.NewAnalysisWindow that every diagnostic handler should use.
+func (s *Server) AnalysisWindow(bucket string) stats.AnalysisWindow {
+	start, end, _ := s.Window()
+	return stats.NewAnalysisWindow(start, end, bucket, s.activeCutoff())
 }
 
 func NewServer(cfg *config.AppConfig, jiraClient jira.Client) *Server {

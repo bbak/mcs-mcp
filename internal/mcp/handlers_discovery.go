@@ -11,6 +11,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// handleGetWorkflowDiscovery does NOT use prepareHandler. Discovery is the tool
+// that PRODUCES the mapping consumed by every other handler — it cannot rely
+// on prepareHandler's anchor-context reset because that path assumes a mapping
+// already exists. Keep the inline loadWorkflow/Hydrate/saveWorkflow sequence
+// on purpose.
 func (s *Server) handleGetWorkflowDiscovery(projectKey string, boardID int, forceRefresh bool) (any, error) {
 	// 1. Resolve Source Context (ensures consistent JQL)
 	ctx, err := s.resolveSourceContext(projectKey, boardID)

@@ -119,7 +119,6 @@ type ForecastMonteCarloInput struct {
 	TargetDays             int                `json:"target_days,omitempty" jsonschema:"Number of days to forecast into the future (required for scope mode). Calculated automatically if target_date is provided."`
 	TargetDate             string             `json:"target_date,omitempty" jsonschema:"Target date (YYYY-MM-DD). If provided target_days is calculated automatically."`
 	StartStatus            string             `json:"start_status,omitempty" jsonschema:"Override the Commitment Point status (default: configured commitment point)."`
-	EndStatus              string             `json:"end_status,omitempty" jsonschema:"Override the Resolution Point status (default: Finished tier)."`
 	IssueTypes             []string           `json:"issue_types,omitempty" jsonschema:"Filter to specific issue types (e.g. Story Bug). If omitted all mapped types are included."`
 	HistoryWindowDays      int                `json:"history_window_days,omitempty" jsonschema:"Lookback window in days for the throughput sample. Default: all available history. Narrow to 30–60 days after a process change. Use recommended_window_days from analyze_residence_time when that tool returns a non-stationary signal (λ/θ > 1.1)."`
 	HistoryStartDate       string             `json:"history_start_date,omitempty" jsonschema:"Explicit start date for the historical baseline (YYYY-MM-DD). Overrides history_window_days."`

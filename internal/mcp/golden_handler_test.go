@@ -98,7 +98,7 @@ func TestHandlers_Golden(t *testing.T) {
 					testProject, testBoard,
 					"scope",
 					false, 0, 60, "", // targetDays=60
-					"", "", nil, false,
+					"", nil, false,
 					90, "", "", nil, nil,
 				)
 			},
@@ -110,7 +110,7 @@ func TestHandlers_Golden(t *testing.T) {
 					testProject, testBoard,
 					"duration",
 					true, 0, 0, "", // includeExistingBacklog=true
-					"", "", nil, true, // includeWIP=true
+					"", nil, true, // includeWIP=true
 					90, "", "", nil, nil,
 				)
 			},

@@ -333,7 +333,7 @@ func registerTools(mcpSrv *mcp.Server, s *Server) error {
 				args.ProjectKey, args.BoardID, string(args.Mode),
 				args.IncludeExistingBacklog, args.AdditionalItems,
 				args.TargetDays, args.TargetDate,
-				args.StartStatus, args.EndStatus,
+				args.StartStatus,
 				args.IssueTypes, args.IncludeWIP,
 				args.HistoryWindowDays, args.HistoryStartDate, args.HistoryEndDate,
 				args.Targets, args.MixOverrides,

@@ -14,8 +14,7 @@ func (s *Server) handleGetProcessStability(projectKey string, boardID int, inclu
 	}
 
 	// 2. Project
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, "week", s.activeCutoff())
+	window := s.AnalysisWindow("week")
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()
@@ -147,8 +146,7 @@ func (s *Server) handleGetProcessYield(projectKey string, boardID int) (any, err
 	sourceID := hctx.SourceID
 
 	// 2. Project using the session analysis window
-	winStart, winEnd, _ := s.Window()
-	window := stats.NewAnalysisWindow(winStart, winEnd, "day", s.activeCutoff())
+	window := s.AnalysisWindow("day")
 	session := s.openSession(hctx, window)
 
 	all := session.GetAllIssues()

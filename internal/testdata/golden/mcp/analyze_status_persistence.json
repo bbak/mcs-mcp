@@ -620,7 +620,7 @@
   },
   "guardrails": {
     "insights": [
-      "Status Persistence uses the session analysis window (default rolling 26 weeks). Adjust via 'set_analysis_window'.",
+      "This analysis uses the session analysis window (2026-01-13 … 2026-07-14). Adjust via 'set_analysis_window' or read it via 'get_analysis_window'.",
       "Status Persistence EXCLUSIVELY analyzes items that have successfully finished ('delivered') to prevent active WIP from skewing historical norms.",
       "Persistence stats (coin_toss, likely, etc.) measure INTERNAL residency time WITHIN one status. They ARE NOT end-to-end completion forecasts.",
       "Inner80 and IQR help distinguish between 'Stable Flow' and 'High Variance' bottlenecks.",
