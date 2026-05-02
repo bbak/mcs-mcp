@@ -1,12 +1,12 @@
 # MCS-MCP Architecture & Operational Manual
 
-This document provides a comprehensive overview of the MCS-MCP (Monte-Carlo Simulation Model Context Protocol) server. It is designed to serve as both a high-level conceptual map and a technical reference for AI agents.
+Conceptual map and technical reference for MCS-MCP (Monte-Carlo Simulation Model Context Protocol) server. Audience: AI agents.
 
 ---
 
 ## 1. Operational Flow (The Interaction Model)
 
-To achieve reliable forecasts, the interaction with MCS-MCP follows a specific analytical sequence.
+Reliable forecasts require the following analytical sequence.
 
 ```mermaid
 graph TD
@@ -26,7 +26,7 @@ graph TD
 
 ### 1.1 Tool Directory
 
-A complete reference of all available MCP tools, grouped by category.
+All MCP tools, grouped by category.
 
 #### Data Ingestion
 
@@ -67,7 +67,7 @@ A complete reference of all available MCP tools, grouped by category.
 | `analyze_residence_time` | Perform Sample Path Analysis (finite Little's Law) — compute L(T) = Λ(T) · w(T) to unify cycle time, WIP age, and flow debt into a single coherent view. Includes w'(T) (departure-denominated residence time) and Θ(T) (departure rate) to detect flow imbalance when Λ(T) ≠ Θ(T). |
 | `generate_cfd_data` | Calculate daily population counts per status and issue type for CFD visualization. |
 
-> **Sample Path Population Rule**: The sample path population for `analyze_residence_time` consists of all items whose transition history shows at least one crossing of the commitment boundary (from a status below the commitment weight to at-or-above it). Items without commitment boundary evidence have zero residence time and are excluded — the server does not fabricate commitment dates. This means D(T) may be lower than throughput from `analyze_throughput`, which counts all items with `Outcome == "delivered"` regardless of transition evidence. This is by design: including zero-residence-time items would inject artificial near-zero sojourn times that distort w(T), W*(T), and the coherence gap.
+> **Sample Path Population Rule**: `analyze_residence_time` only includes items whose transition history shows at least one crossing of the commitment boundary (status below commitment weight → at-or-above). Items without commitment evidence have zero residence time and are excluded — the server does not fabricate commitment dates. Consequence: D(T) may be lower than throughput from `analyze_throughput`, which counts all `Outcome == "delivered"` items regardless of transition evidence. By design: including zero-residence-time items would inject artificial near-zero sojourn times that distort w(T), W*(T), and the coherence gap.
 
 #### Forecasting
 
@@ -86,11 +86,11 @@ A complete reference of all available MCP tools, grouped by category.
 
 ## 2. Core analytical Principles: "Fact-Based Archeology"
 
-MCS-MCP rejects reliance on often-misconfigured Jira metadata (like `statusCategory`). Instead, it infers process reality from objective transition logs.
+Jira metadata (`statusCategory` etc.) is often misconfigured. MCS-MCP infers process reality from objective transition logs instead.
 
 ### 2.1 The 4-Tier Meta-Workflow Model
 
-Every status is mapped to a logical process layer to ensure specialized clock behavior:
+Every status is mapped to a logical process layer for specialized clock behavior:
 
 | Tier           | Meaning                          | Clock Behavior                                        |
 | :------------- | :------------------------------- | :---------------------------------------------------- |
@@ -101,13 +101,13 @@ Every status is mapped to a logical process layer to ensure specialized clock be
 
 ### 2.1.1 Work In Progress (WIP) Definition
 
-An item is considered **Work In Progress (WIP)** once it crosses the **Commitment Point**. WIP encompasses all statuses whose workflow weight is at or above the commitment point weight, up to (but excluding) the **Finished** tier. The commitment point is freely configurable and may sit anywhere in the workflow — including within the Upstream tier, between Upstream and Downstream, or within Downstream itself. This means WIP is not synonymous with "Downstream": when the commitment point sits within the Upstream tier, upstream statuses at or past that point also contribute to WIP time.
+An item is **WIP** once it crosses the **Commitment Point**. WIP = all statuses with workflow weight ≥ commitment point weight, up to (excluding) the **Finished** tier. The commitment point is freely configurable and may sit anywhere — including inside Upstream, between Upstream and Downstream, or inside Downstream. WIP is therefore not synonymous with "Downstream"; when the commitment point sits inside Upstream, upstream statuses at or past it also contribute to WIP time.
 
-The `cumulative_wip_days` metric in inventory aging analysis reflects this definition: it sums residency time across all statuses from the commitment point onward, excluding Finished.
+`cumulative_wip_days` (inventory aging) reflects this: residency from the commitment point onward, excluding Finished.
 
 ### 2.1.2 Backflow & Clock Reset Behavior
 
-A **backflow** occurs when an item transitions to a status whose weight is below the **commitment point** weight — i.e., the item moves backwards past the point where work was considered committed. Backflow is detected purely via weight comparison against the commitment point, not via tier membership, because the commitment point is freely configurable and may sit anywhere in the workflow (including mid-Downstream).
+**Backflow**: item transitions to a status whose weight is below the **commitment point** weight — moves backwards past the committed boundary. Detected purely by weight comparison against the commitment point (not tier membership), because the commitment point may sit anywhere (including mid-Downstream).
 
 When backflow past the commitment point is detected:
 
@@ -118,73 +118,74 @@ When backflow past the commitment point is detected:
 | **WIP Run Chart**  | Item exits WIP on backflow (same as crossing the delivery point) and re-enters on recommitment.                     |
 | **Status Age**     | Unaffected (always measures time in current status only).                                                           |
 
-> **Design Note**: A future enhancement will make the delivery point similarly configurable, allowing operators to freely position both "clock start" and "clock stop" in the workflow.
+> **Design Note**: future enhancement will make the delivery point similarly configurable — both "clock start" and "clock stop" freely positionable.
 
 ### 2.2 Discovery Heuristics
 
-- **Birth Status**: The earliest entry point identifies the system's primary source of demand.
-- **Terminal Sinks**: Statuses with high entry-vs-exit ratios identify logical completion points even if Jira resolutions are missing.
-- **Backbone Order**: The "Happy Path" is derived from the most frequent sequence of transitions (Market-Share confidence > 15%).
-- **Unified Regex Stemming**: Automatically links paired statuses (e.g., "Ready for QA" and "In QA") via semantic cores.
+- **Birth Status**: earliest entry point = primary source of demand.
+- **Terminal Sinks**: statuses with high entry-vs-exit ratios = logical completion points even when Jira resolutions are missing.
+- **Backbone Order**: "Happy Path" derived from most frequent transition sequence (Market-Share confidence > 15%).
+- **Unified Regex Stemming**: links paired statuses (e.g. "Ready for QA" / "In QA") via semantic cores.
 
 ### 2.3 Session Analysis Window
 
-A single in-memory `[start, end]` range scopes every diagnostic. One setter (`set_analysis_window`), one reader (`get_analysis_window`), and a `Server.Window()` accessor that returns either the explicit session range or a lazy default of `[Clock()-26 weeks, Clock()]`.
+One in-memory `[start, end]` range scopes every diagnostic. One setter (`set_analysis_window`), one reader (`get_analysis_window`), and `Server.Window()` returning either the explicit session range or lazy default `[Clock()-26 weeks, Clock()]`.
 
-**Why one window for all diagnostics?** Cross-tool coherence in multi-step analysis sessions (e.g. "analyze the last quarter") used to require passing `history_window_*` to each tool individually. Per-tool window parameters were removed; every diagnostic now reads `s.Window()` directly. The agent sets the window once and shifts it with one call instead of re-parameterising 10+ analyses.
+**Why one window for all diagnostics?** Cross-tool coherence in multi-step sessions (e.g. "analyze the last quarter") previously required passing `history_window_*` per tool. Per-tool window params were removed; every diagnostic reads `s.Window()` directly. Set once, shift with one call.
 
-**Resolution rule per handler.** Each handler decides which fields it consumes:
-- **Range-consuming tools** (`analyze_throughput`, `analyze_wip_stability`, `analyze_wip_age_stability`, `analyze_flow_debt`, `generate_cfd_data`, `analyze_process_stability`, `analyze_residence_time`, `analyze_status_persistence`, `analyze_cycle_time`, `analyze_yield`) pass `Window().Start` and `Window().End` straight to `stats.NewAnalysisWindow`.
-- **`analyze_work_item_age`** is a point-in-time metric. It uses **only** `Window().End` as the snapshot date. Start is intentionally ignored — items aren't "in-flight" over a range.
-- **`analyze_process_evolution`** is a long-term trend metric. It uses **only** `Window().End` as the right edge and looks back a fixed horizon (12 complete months for `bucket=month`, 26 complete weeks for `bucket=week`) via `stats.LastCompleteBucketEnd`. Start is intentionally ignored — short ranges defeat trend detection. Partial trailing buckets are excluded.
-- **Forecasting** (`forecast_monte_carlo`, `forecast_backtest`) is exempt. Sample windows are auto-sized by the simulation engine (see §4); forcing the diagnostic window would override that adaptive logic. Forecast tools keep their own `history_window_days` / `history_start_date` / `history_end_date` overrides.
+**Resolution rule per handler.**
 
-**Lifecycle.** The window lives in memory only — never persisted to disk and never copied into `WorkflowMetadata`. It resets on board switch (alongside `activeEvaluationDate`) and on server restart. Switching boards always starts from the lazy default; setting an evaluation date does not move the window. This preserves "the window is exploration; the eval date is reproducibility anchor."
+- **Range-consuming tools** (`analyze_throughput`, `analyze_wip_stability`, `analyze_wip_age_stability`, `analyze_flow_debt`, `generate_cfd_data`, `analyze_process_stability`, `analyze_residence_time`, `analyze_status_persistence`, `analyze_cycle_time`, `analyze_yield`): pass `Window().Start` and `Window().End` to `stats.NewAnalysisWindow`.
+- **`analyze_work_item_age`**: point-in-time. Uses **only** `Window().End` as snapshot date. Start ignored — items aren't "in-flight" over a range.
+- **`analyze_process_evolution`**: long-term trend. Uses **only** `Window().End` as right edge, looks back a fixed horizon (12 complete months for `bucket=month`, 26 complete weeks for `bucket=week`) via `stats.LastCompleteBucketEnd`. Start ignored — short ranges defeat trend detection. Partial trailing buckets excluded.
+- **Forecasting** (`forecast_monte_carlo`, `forecast_backtest`): exempt. Sample windows auto-sized by the simulation engine (§4); forcing the diagnostic window would override adaptive logic. Forecast tools keep their own `history_window_days` / `history_start_date` / `history_end_date` overrides.
 
-**Footer in every response.** `handleResult` injects a `session_window` block (`{start, end, duration_days, source}`) into every tool response's `context`, so the agent always sees which window shaped the output and can react if it drifted mid-conversation.
+**Lifecycle.** In-memory only — never persisted, never copied into `WorkflowMetadata`. Resets on board switch (alongside `activeEvaluationDate`) and on server restart. Board switch always starts from lazy default; setting evaluation date does not move the window. Preserves "window = exploration; eval date = reproducibility anchor."
 
-**Clamping.** Existing `stats.NewAnalysisWindow` clamps `Start` against `activeDiscoveryCutoff` to prevent including pre-steady-state events. The session window is the *requested* range; clamping still happens inside the helper, exactly as before.
+**Footer in every response.** `handleResult` injects `session_window` (`{start, end, duration_days, source}`) into every tool response's `context`, so the agent sees which window shaped the output.
+
+**Clamping.** `stats.NewAnalysisWindow` clamps `Start` against `activeDiscoveryCutoff` to exclude pre-steady-state events. Session window is the *requested* range; clamping happens inside the helper.
 
 ---
 
 ## 3. Workflow Outcome Alignment (Throughput Integrity)
 
-The server distinguishes **how**, **when**, and **where** work exits the process to ensure throughput accurately reflects value-providing capacity and cycle times are deterministic.
+Server distinguishes **how**, **when**, **where** work exits — ensures throughput reflects value-providing capacity and cycle times are deterministic.
 
 ### 3.1 The 2-Step Outcome Protocol (ID-First)
 
-Jira's raw state representation is often too chaotic to be used directly by analytical functions. To protect these functions from signature bloat and recalculation inconsistencies, the core `jira.Issue` struct is explicitly augmented with an `Outcome` (`"delivered"` or `"abandoned"`) and an `OutcomeDate` during the historical reconstruction phase.
+Jira's raw state is too chaotic for direct analytical use. The core `jira.Issue` struct is augmented with `Outcome` (`"delivered"` or `"abandoned"`) and `OutcomeDate` during historical reconstruction.
 
-This is performed by `stats.DetermineOutcome` using a strict **ID-First** evaluation:
+Performed by `stats.DetermineOutcome`, strict **ID-First**:
 
-1. **Primary Signal (Explicit ResolutionID):** The system first checks the Jira `ResolutionID`. It must be mapped to an outcome via the `activeResolutions` configuration. If the ID is found, `OutcomeDate` is bound to the issue's `ResolutionDate`. If the `ResolutionID` is not in the map, the system falls back to looking up the resolution's human-readable *name* (`issue.Resolution`) before defaulting to `"delivered"` with a warning log.
-2. **Fallback Signal (Workflow Mapping):** If no `ResolutionID` exists, the system checks if the item's current `StatusID` belongs to the `"Finished"` tier. If true, it assigns the Outcome mapped to that Status. The `OutcomeDate` is synthesized by walking backwards through the item's transition history to find the beginning of the current uninterrupted streak in the Finished tier — i.e., the exact moment the item first transitioned into its terminal state.
+1. **Primary (Explicit ResolutionID):** check Jira `ResolutionID` against `activeResolutions`. If found, `OutcomeDate` = `ResolutionDate`. If `ResolutionID` not in map, fall back to resolution *name* lookup (`issue.Resolution`); if still unmapped, default `"delivered"` with warning log.
+2. **Fallback (Workflow Mapping):** if no `ResolutionID`, check whether the current `StatusID` belongs to `"Finished"` tier. If true, use the Outcome mapped to that Status. `OutcomeDate` synthesized by walking back through transitions to the start of the current uninterrupted Finished-tier streak — first moment the item entered terminal state.
 
 ### 3.2 Downstream Isolation (The "Outcome" Guardrail)
 
-**Crucially, all downstream analytical functions are decoupled from raw Jira metadata.**
+**All downstream analytical functions are decoupled from raw Jira metadata.**
 
-Functions that calculate Throughput, Flow Cadence, Cycle-Time, Monte-Carlo simulations, and Stability (XmR) **must solely rely** on `issue.Outcome` and `issue.OutcomeDate`. They do not check `ResolutionDate`, `StatusCategory`, or `Tier` themselves.
+Throughput, Flow Cadence, Cycle-Time, Monte-Carlo, Stability (XmR) **must solely use** `issue.Outcome` and `issue.OutcomeDate`. They never check `ResolutionDate`, `StatusCategory`, or `Tier`.
 
-- **Throughput & Simulation**: Only aggregates items where `issue.Outcome == "delivered"`. Items mapped as `"abandoned"` (e.g., "Won't Do", "Discarded") are excluded from capacity forecasting but remain vital for Yield Analysis.
-- **Cycle Time**: Chronological subtraction is performed against `issue.OutcomeDate` to ensure that items moving silently into "Done" columns are still assigned accurate terminal dates.
+- **Throughput & Simulation**: aggregate only `issue.Outcome == "delivered"`. `"abandoned"` items (e.g. "Won't Do", "Discarded") excluded from capacity forecasting; still used by Yield Analysis.
+- **Cycle Time**: chronological subtraction against `issue.OutcomeDate`, so items moving silently into "Done" still get accurate terminal dates.
 
 ### 3.3 Yield Analysis Attribution
 
-The server calculates the "Yield Rate" by attributing abandonment to specific tiers:
+Yield Rate attributes abandonment to specific tiers:
 
-- **Heuristic Attribution**: Backtracks through the item's `Transitions` to the last active status if the outcome is `abandoned`.
+- **Heuristic Attribution**: backtrack through `Transitions` to the last active status when outcome is `abandoned`.
 
 ### 3.4 Workflow Discovery Response Format
 
-`workflow_discover_mapping` returns different content depending on whether a confirmed mapping already exists on disk.
+`workflow_discover_mapping` content depends on whether a confirmed mapping exists on disk:
 
-- **`NEWLY_PROPOSED`**: No confirmed mapping was found (or `force_refresh` was requested). The response includes a `workflow.proposed_resolutions` block — a map of every resolution name seen in the sample to its inferred outcome (`"delivered"` or `"abandoned"`). The AI **must** present this proposal to the user for confirmation before calling `workflow_set_mapping`.
-- **`LOADED_FROM_CACHE`**: A previously user-confirmed mapping was found on disk with a non-empty status mapping. The cached tiers, order, commitment point, and resolution mapping are returned as-is. The `workflow.proposed_resolutions` block is **omitted**; the AI should simply reconfirm the existing mapping with the user.
+- **`NEWLY_PROPOSED`**: no confirmed mapping found (or `force_refresh` requested). Response includes `workflow.proposed_resolutions` — every resolution name in the sample mapped to inferred outcome (`"delivered"` or `"abandoned"`). The AI **must** present this for user confirmation before calling `workflow_set_mapping`.
+- **`LOADED_FROM_CACHE`**: previously user-confirmed mapping exists on disk with non-empty status mapping. Cached tiers, order, commitment point, and resolution mapping returned as-is. `workflow.proposed_resolutions` **omitted**; AI reconfirms with user.
 
-The `discovery_source` field in the `diagnostics` envelope carries this value. The `_metadata.is_cached` boolean mirrors it for quick checks.
+`discovery_source` (in `diagnostics` envelope) carries this value. `_metadata.is_cached` mirrors it.
 
-**Default Resolution Fallbacks (`getResolutionMap`):** When no confirmed mapping exists, the system seeds the discovery heuristics with these name-keyed defaults:
+**Default Resolution Fallbacks (`getResolutionMap`):** when no confirmed mapping exists, discovery seeds with these name-keyed defaults:
 
 | Resolution Name | Default Outcome |
 | :--- | :--- |
@@ -195,28 +196,28 @@ The `discovery_source` field in the `diagnostics` envelope carries this value. T
 
 ## 4. High-Fidelity Simulation Engine
 
-MCS-MCP uses a **Hybrid Simulation Model** that integrates historical capability with current reality.
+**Hybrid Simulation Model** — integrates historical capability with current reality.
 
 ### 4.1 Three Layers of Accuracy
 
-1. **Statistical Capability**: Builds a throughput distribution using **Delivered-Only** outcomes from a sliding window (default: 90 days).
-2. **Current Reality (WIP Analysis)**: Explicitly analyzes the stability and age of in-flight work.
-3. **Demand Expansion**: Automatically models the "Invisible Friction" of background work (Bugs, Admin) based on historical type distribution.
-4. **Stratified Coordinated Sampling**: Detects and isolates distinct delivery streams to model capacity clashes (Bug-Tax).
+1. **Statistical Capability**: throughput distribution from **Delivered-Only** outcomes over a sliding window (default 90 days).
+2. **Current Reality (WIP Analysis)**: stability and age of in-flight work.
+3. **Demand Expansion**: models "Invisible Friction" of background work (Bugs, Admin) from historical type distribution.
+4. **Stratified Coordinated Sampling**: isolates distinct delivery streams to model capacity clashes (Bug-Tax).
 
 ### 4.2 Stratified Coordinated Sampling (Advanced Modeling)
 
-The engine can transition from a **Pooled** to a **Stratified** model if work item types show significantly different delivery profiles.
+Engine switches from **Pooled** to **Stratified** when work item types show significantly different delivery profiles.
 
-- **Dynamic Eligibility**: Stratification is only enabled if a type has sufficient volume (>15 items) and its Cycle Time variance is >15% from the pooled average. This isolates unstable or bursty processes without over-fitting to sparse data.
-- **Capacity Coordination (Preventing the Capacity Fallacy)**: Independent strata are sampled concurrently butcoordinated by a **Daily Capacity Cap** (P95 of historical total throughput). This prevents the "stacking" of independent samples from generating unrealistic velocity that exceeds the team's theoretical limit.
-- **The 'Bug-Tax' (Statistical Correlation)**: The engine automatically detects negative correlations between throughput strata. If "Type A" (the Taxer) has high volume on days where "Type B" (the Taxed) is low, the simulation mirrors this constraint, ensuring that an increase in Bugs correctly constrains Story delivery.
-- **Bayesian Blending**: For types with sparse historical data, the engine "blends" stratified behavior with the pooled average (30% bias) to maintain statistical stability while honoring unique type attributes.
-- **Modeling Transparency**: Every result includes a `modeling_insight` field that discloses if the simulation used a pooled or stratified approach and why.
+- **Dynamic Eligibility**: stratification only when a type has sufficient volume (>15 items) and Cycle Time variance >15% from pooled average. Isolates unstable/bursty processes without over-fitting sparse data.
+- **Capacity Coordination (Preventing the Capacity Fallacy)**: independent strata sampled concurrently but coordinated by a **Daily Capacity Cap** (P95 of historical total throughput). Prevents stacked samples from exceeding the team's theoretical limit.
+- **The 'Bug-Tax' (Statistical Correlation)**: engine detects negative correlations between throughput strata. If Type A (Taxer) has high volume on days where Type B (Taxed) is low, simulation mirrors this constraint — increased Bugs correctly constrains Story delivery.
+- **Bayesian Blending**: types with sparse history blend stratified behavior with pooled average (30% bias) for statistical stability.
+- **Modeling Transparency**: every result includes `modeling_insight` disclosing pooled vs stratified and why.
 
 ### 4.3 Standardized Percentile Interpretation
 
-To ensure consistency across simulations, aging, and persistence, the following standardized mapping is used:
+Standardized mapping across simulations, aging, persistence:
 
 | Naming           | Percentile | Meaning                                                 |
 | :--------------- | :--------- | :------------------------------------------------------ |
@@ -231,42 +232,42 @@ To ensure consistency across simulations, aging, and persistence, the following 
 
 ### 4.4 Simulation Safeguards
 
-To prevent nonsensical forecasts, the engine implements several integrity thresholds:
+Integrity thresholds preventing nonsensical forecasts:
 
-- **Throughput Collapse Barrier**: If the median simulation result exceeds 10 years, a `WARNING` is issued. This usually indicates that filters (`issue_types` or `resolutions`) have reduced the sample size so much that outliers dominate.
-- **Resolution Density Check**: Monitors the ratio of "Delivered" items vs. "Dropped" items. If **Resolution Density < 20%**, a `CAUTION` flag is raised, warning that the throughput baseline may be unrepresentative.
-- **Unforecastable Type Exclusion**: Target types with zero delivery history are automatically excluded from duration simulations. A `CAUTION` guardrail names the excluded types and item count so the user understands what was dropped.
-- **Stationarity Guardrail**: Before each simulation, a lightweight residence time analysis is computed over the sampling window. The `StationarityAssessment` inspects three signals:
-  - **Diverging process** (`convergence == "diverging"`): average item age is increasing, indicating WIP accumulation. MCS's uniform sampling assumption may be optimistic.
-  - **Flow imbalance** (`Λ/Θ > 1.3`): arrival rate exceeds departure rate by 30%+. WIP is growing; future throughput may be lower than historical samples.
-  - **Aging WIP** (`|CoherenceGap|/W* > 0.5`): active items are aging significantly beyond completed items, suggesting harder or stalled items remain.
-  When non-stationarity is detected, a window recommendation is emitted as an insight, advising the user to narrow the sampling window to the period after the detected inflection point. The `stationarity_assessment` is included in the simulation result's `context` for transparency.
+- **Throughput Collapse Barrier**: median simulation result > 10 years → `WARNING`. Usually means filters (`issue_types` or `resolutions`) shrank the sample so much that outliers dominate.
+- **Resolution Density Check**: ratio of Delivered vs Dropped items. **Density < 20%** → `CAUTION`: throughput baseline may be unrepresentative.
+- **Unforecastable Type Exclusion**: target types with zero delivery history excluded from duration simulations. `CAUTION` guardrail names excluded types and count.
+- **Stationarity Guardrail**: before each simulation, lightweight residence time analysis over the sampling window. `StationarityAssessment` inspects three signals:
+  - **Diverging process** (`convergence == "diverging"`): average item age increasing → WIP accumulation. MCS uniform sampling assumption may be optimistic.
+  - **Flow imbalance** (`Λ/Θ > 1.3`): arrival rate exceeds departure rate by 30%+. WIP growing; future throughput may be lower than historical samples.
+  - **Aging WIP** (`|CoherenceGap|/W* > 0.5`): active items aging significantly beyond completed items → harder/stalled items remain.
+  When non-stationarity is detected, a window recommendation is emitted as an insight (narrow sampling window to period after the detected inflection point). `stationarity_assessment` is included in simulation result's `context`.
 
 ### 4.5 Walk-Forward Analysis (Backtesting)
 
-The system provides `forecast_backtest` to validate the reliability of Monte-Carlo simulations via historical backtesting.
+`forecast_backtest` validates Monte-Carlo reliability via historical backtesting.
 
-- **Adaptive Validation Batching**: If not provided, the number of items to forecast is automatically set to **2x the median weekly throughput** of the last 10 weeks. This ensures the forecast horizon is always relevant to the team's actual velocity.
-- **Fixed Step Count**: The analysis produces **25 checkpoints** by default (7-day step size, 175-day lookback). This ensures a statistically meaningful sample regardless of the time range. The lookback can be overridden via `history_window_days` or `history_start_date`.
-- **Aligned Sampling Windows**: Each checkpoint builds its capability histogram from the **90 days ending at that checkpoint** — the same default as the single-run MCS. This ensures backtesting and live forecasting use consistent sampling assumptions.
-- **Full-History Event Loading**: Events are loaded from `max(globalCutoff, earliest_checkpoint − 90 days)` so that even the oldest checkpoint's histogram always has backing data.
-- **Drift Protection**: Backtesting automatically terminates if a significant process shift is detected via the Three-Way Control Chart, preventing misleading accuracy results.
-- **Midnight Alignment**: Analysis dates are truncated to midnight to eliminate "partial-day bias," ensuring that daily-bucketed simulations align with real-world outcomes.
-- **Reconstruction Hardening**: The backtesting engine uses terminal status mappings during historical reconstruction to ensure finished items in the past are accurately projected.
-- **Stationarity Correlation**: At each checkpoint, a residence time stationarity assessment is computed and recorded. After all checkpoints, a `StationarityCorrelation` aggregate compares miss rates between stationary and non-stationary checkpoints. If non-stationary checkpoints miss at > 2× the rate of stationary ones, the signal is labeled `"predictive"`, empirically validating the stationarity guardrail for that project.
+- **Adaptive Validation Batching**: if not provided, items-to-forecast = **2× median weekly throughput** of last 10 weeks. Keeps forecast horizon relevant to actual velocity.
+- **Fixed Step Count**: **25 checkpoints** by default (7-day step, 175-day lookback). Statistically meaningful regardless of range. Override lookback via `history_window_days` or `history_start_date`.
+- **Aligned Sampling Windows**: each checkpoint builds its capability histogram from the **90 days ending at that checkpoint** — same default as single-run MCS. Backtest and live forecasting use consistent assumptions.
+- **Full-History Event Loading**: events loaded from `max(globalCutoff, earliest_checkpoint − 90 days)` so even the oldest checkpoint has backing data.
+- **Drift Protection**: backtest terminates automatically if a significant process shift is detected via the Three-Way Control Chart.
+- **Midnight Alignment**: analysis dates truncated to midnight to eliminate partial-day bias; daily-bucketed simulations align with real-world outcomes.
+- **Reconstruction Hardening**: backtesting uses terminal status mappings during historical reconstruction so past finished items project accurately.
+- **Stationarity Correlation**: each checkpoint records a stationarity assessment. After all checkpoints, `StationarityCorrelation` compares miss rates between stationary and non-stationary checkpoints. If non-stationary miss rate > 2× stationary, signal is labeled `"predictive"` — empirically validates the stationarity guardrail for that project.
 
 ### 4.6 Multi-Engine Framework (Empirical Engine Selection)
 
-There is no single Monte Carlo algorithm that universally yields the best forecasting results. Instead of committing to one, MCS-MCP supports **multiple simulation engines** behind a common interface and selects the best one empirically via walk-forward backtesting.
+No single Monte Carlo algorithm wins universally. MCS-MCP supports **multiple simulation engines** behind a common interface and selects empirically via walk-forward backtest.
 
 #### Architecture
 
-Every engine implements the `ForecastEngine` interface:
+Every engine implements `ForecastEngine`:
 
-- **`Name() string`** — unique identifier (e.g., `"crude"`, `"bbak"`).
-- **`Run(req ForecastRequest) (Result, error)`** — executes the full pipeline from raw issues to a `simulation.Result`. Each engine owns the entire flow: histogram construction, optional pre-processing, Monte Carlo trials, and result assembly.
+- **`Name() string`** — unique id (e.g. `"crude"`, `"bbak"`).
+- **`Run(req ForecastRequest) (Result, error)`** — full pipeline from raw issues to `simulation.Result`. Each engine owns the flow: histogram construction, optional pre-processing, Monte Carlo trials, result assembly.
 
-Engines are registered at startup in a `Registry`. The active engine is selected via the `MCS_ENGINE` environment variable.
+Engines registered at startup in a `Registry`. Active engine selected via `MCS_ENGINE` env var.
 
 #### Engine Selection Modes
 
@@ -278,10 +279,10 @@ Engines are registered at startup in a `Registry`. The active engine is selected
 
 #### Per-Engine Weights
 
-Each engine has a corresponding `MCS_ENGINE_<NAME>` setting (integer 0–100):
+Each engine has `MCS_ENGINE_<NAME>` (integer 0–100):
 
-- **0** disables the engine entirely (excluded from `auto` mode).
-- **1–100** enables the engine. In `auto` mode, the weight is used as a tiebreaker when two engines achieve identical backtest accuracy — the higher weight wins.
+- **0**: disabled (excluded from `auto` mode).
+- **1–100**: enabled. In `auto` mode, weight is the tiebreaker when two engines achieve identical backtest accuracy — higher weight wins.
 
 Example: `MCS_ENGINE_CRUDE=50`, `MCS_ENGINE_BBAK=50`.
 
@@ -289,72 +290,72 @@ Example: `MCS_ENGINE_CRUDE=50`, `MCS_ENGINE_BBAK=50`.
 
 When `MCS_ENGINE=auto`:
 
-1. The handler gathers context (issues, window, targets) as usual.
-2. A single walk-forward backtest loop runs all enabled engines at each checkpoint, producing per-engine accuracy scores under identical test conditions.
-3. The engine with the highest hit rate is selected. If tied, the engine with the higher `MCS_ENGINE_<NAME>` weight wins.
-4. The selected engine runs the actual forecast.
-5. The response is **identical** to a single-engine forecast — the consumer sees no difference. The selected engine name is stored internally for logging and debugging only (`Result.Context["auto_selected_engine"]`), but is not surfaced in insights or warnings.
+1. Handler gathers context (issues, window, targets).
+2. One walk-forward backtest loop runs all enabled engines at each checkpoint → per-engine accuracy scores under identical conditions.
+3. Highest hit rate wins. Tie → higher `MCS_ENGINE_<NAME>` weight wins.
+4. Selected engine runs the actual forecast.
+5. Response is **identical** to a single-engine forecast. Selected engine name stored in `Result.Context["auto_selected_engine"]` for logging only — not surfaced in insights or warnings.
 
 ### 4.7 Engine: Crude (Baseline)
 
-The **Crude** engine is the original MCS-MCP simulation algorithm. It is the default and serves as the baseline against which other engines are compared.
+Original algorithm; default; baseline for comparison.
 
 **Algorithm:**
 
-1. Build a throughput histogram from all delivered items within a fixed sampling window (default: 90 days).
-2. Create a Monte Carlo engine from the histogram.
-3. Run N trials (1,000 for duration mode, 10,000 for scope mode), each sampling random days from the histogram with replacement.
-4. Produce percentile-based forecasts from the trial distribution.
+1. Throughput histogram from all delivered items within a fixed sampling window (default 90 days).
+2. Monte Carlo engine from histogram.
+3. Run N trials (1,000 duration, 10,000 scope), each sampling random days from histogram with replacement.
+4. Percentile-based forecasts from trial distribution.
 
 **Characteristics:**
 
-- Uses the full, unfiltered set of delivered items in the window.
-- Fixed sampling window (user-configurable via `history_window_days` or date range parameters).
+- Full, unfiltered delivered set in window.
+- Fixed sampling window (override via `history_window_days` or date range params).
 - No outlier filtering, no adaptive windowing, no post-histogram resampling.
-- Robust and predictable; performs well when the process is stationary.
+- Robust and predictable; performs well when process is stationary.
 
-**When it excels:** Stable teams with consistent throughput and no significant regime changes in the sampling window.
+**Excels at:** stable teams with consistent throughput, no significant regime changes in window.
 
-**When it struggles:** Non-stationary processes, regime shifts within the window, or heavy outliers that skew the histogram.
+**Struggles with:** non-stationary processes, regime shifts in window, heavy histogram-skewing outliers.
 
 ### 4.8 Engine: Bbak (Regime-Aware Sampling)
 
-The **Bbak** engine enhances the baseline with a 5-step pre- and post-processing pipeline (the SPA pipeline) that adapts the sampling window and histogram to the team's current process regime.
+Enhances baseline with a 5-step pre/post-processing pipeline (SPA pipeline) that adapts sampling window and histogram to current process regime.
 
 **Algorithm:**
 
-1. **Convergence Gate**: Evaluate whether the process is converging, diverging, or metastable using residence time analysis (λ_implied vs. λ_observed). If diverging, compute a scale factor to adjust post-histogram throughput.
-2. **Regime Boundary Detection**: Identify process regime transitions using first-difference sign reversals of Λ(T) and W(T), smoothed over a minimum of 14 buckets.
-3. **Outlier Filtering**: Compute sojourn times and apply a Tukey IQR fence (Q3 + 1.5 × IQR). Outliers are only removed if filtering improves the convergence assessment — this prevents unnecessary data loss.
-4. **Adaptive Window**: Walk backwards through departures (not calendar days) until a minimum of 50 non-outlier items are accumulated. If the walk crosses a non-stationary regime boundary, extend to the next clean boundary. Hard ceiling: 365 days.
-5. **Post-Histogram Resampling**: After histogram construction, apply a combined WIP/aging scale factor (λ_implied / histogram mean throughput × divergence factor). Clamped to [0.5, 2.0], snapped to 1.0 within ±0.05.
+1. **Convergence Gate**: classify process as converging, diverging, or metastable via residence time (λ_implied vs λ_observed). If diverging, compute a scale factor for post-histogram throughput.
+2. **Regime Boundary Detection**: identify regime transitions via first-difference sign reversals of Λ(T) and W(T), smoothed over min 14 buckets.
+3. **Outlier Filtering**: sojourn times + Tukey IQR fence (Q3 + 1.5 × IQR). Outliers removed only if filtering improves convergence assessment — prevents unnecessary data loss.
+4. **Adaptive Window**: walk back through departures (not calendar days) until min 50 non-outlier items accumulated. If walk crosses a non-stationary regime boundary, extend to next clean boundary. Hard ceiling: 365 days.
+5. **Post-Histogram Resampling**: combined WIP/aging scale factor (λ_implied / histogram mean throughput × divergence factor). Clamped to [0.5, 2.0], snapped to 1.0 within ±0.05.
 
-After pre-processing, the same Monte Carlo trial engine as Crude runs on the refined histogram.
+After pre-processing, same Monte Carlo trial engine as Crude runs on refined histogram.
 
 **Characteristics:**
 
-- Departure-count-based adaptive window instead of fixed calendar window.
-- Outlier-aware: removes extreme sojourn times only when it improves convergence.
-- Regime-aware: respects process boundaries, avoids mixing data from different process regimes.
-- Post-histogram resampling adjusts for WIP aging and process divergence.
-- Requires a configured commitment point and workflow mapping for residence time analysis. Falls back to Crude behavior if prerequisites are missing.
+- Departure-count-based adaptive window (not fixed calendar).
+- Outlier-aware: removes extreme sojourn times only when convergence improves.
+- Regime-aware: respects process boundaries, avoids mixing regimes.
+- Post-histogram resampling adjusts for WIP aging and divergence.
+- Requires configured commitment point and workflow mapping for residence time. Falls back to Crude if prerequisites missing.
 
-**When it excels:** Teams with evolving processes, regime shifts, or significant WIP aging — where the fixed-window approach includes stale or irrelevant data.
+**Excels at:** teams with evolving processes, regime shifts, significant WIP aging — where fixed-window includes stale data.
 
-**When it struggles:** Very stable teams where the adaptive machinery adds no value (but does no harm — it converges to similar results as Crude).
+**Struggles with:** very stable teams where adaptive machinery adds no value (no harm — converges to Crude-like results).
 
-**Diagnostics:** When Bbak is active, SPA pipeline diagnostics (adaptive window bounds, outlier count, convergence status, scale factors) are attached to `Result.Context["spa_pipeline"]` for transparency.
+**Diagnostics:** SPA pipeline diagnostics (adaptive window bounds, outlier count, convergence status, scale factors) attached to `Result.Context["spa_pipeline"]` when Bbak is active.
 
 ---
 
 ## 5. Volatility & Predictability Metrics
 
-The server provides statistical dispersion metrics to quantify process stability and risk.
+Statistical dispersion metrics quantify process stability and risk.
 
 ### 5.1 Dispersion Metrics (The Spread)
 
-- **IQR (Interquartile Range)**: P75 - P25. Measures the density of the middle 50%. Smaller = higher predictability.
-- **Inner 80%**: P90 - P10. Shows the range where 80% of items fall, providing a robust view of the "middle" without extreme outlier noise.
+- **IQR (Interquartile Range)**: P75 − P25. Density of middle 50%. Smaller = higher predictability.
+- **Inner 80%**: P90 − P10. Robust "middle" range without extreme outlier noise.
 
 ### 5.2 Volatility Heuristics (The Risk)
 
@@ -367,75 +368,75 @@ The server provides statistical dispersion metrics to quantify process stability
 
 ## 6. Stability & Evolution (XmR)
 
-Process Behavior Charts (XmR) assess whether the system is "in control."
+XmR (Process Behavior Charts) assess whether the system is "in control."
 
-- **XmR Individual Chart**: Detects outliers (points above Natural Process Limits) and shifts (8 consecutive points on one side).
-- **Three-Way Tactical Audit**: Uses subgroup averages (weekly/monthly) to detect long-term strategic process drift.
-- **WIP Age Monitoring**: Compares current WIP against historical limits to provide early warnings of a "Clogged" system.
-- **WIP Stability Bounding**: Generates daily WIP run charts bounded by weekly sampled XmR limits to detect Little's Law violations without daily autocorrelation skew.
-- **Throughput Cadence (XmR)**: Applies XmR limits to weekly/monthly delivery volumes to detect batching behavior or "Special Cause" surges/dips in capacity.
-- **Flow Debt (Arrival vs. Departure)**: Explicitly monitors the gap between items crossing the **Commitment Point** (Arrivals) and items being **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
-- **Stability Guardrails (System Pressure)**: Automatically calculates the ratio of blocked (Flagged) items in the current WIP. If **Pressure >= 0.25 (25%)**, the system emits a `SYSTEM PRESSURE WARNING`, indicating that historical throughput is an unreliable proxy for the future due to high impediment stress.
-- **Cycle Time Scatterplot**: Both Process Stability and Cycle Time Analysis responses include a chart-ready `scatterplot` array with per-item completion date, cycle time, pooled moving range, and issue type. Process Stability uses XmR reference lines (X̄, UNPL, LNPL); Cycle Time Analysis uses SLE percentile reference lines (P50, P70, P85, P95).
-- **SLE Adherence Trending**: `analyze_cycle_time` returns an `sle_adherence` block tracking weekly attainment-rate and breach-severity (max cycle time + P95 of breach excess) against a Service Level Expectation. Default SLE = the rolling-window P85; callers may override via `sle_percentile` or `sle_duration_days` to trend against a fixed Vacanti-style baseline. When the SLE is auto-derived, the handler emits an Insight nudging the AI agent to ask the user for the team's stated SLE so subsequent calls can pin a stable threshold. Buckets carry an `is_partial` flag so charts can fade the in-progress current week.
+- **XmR Individual Chart**: detects outliers (points above Natural Process Limits) and shifts (8 consecutive points on one side).
+- **Three-Way Tactical Audit**: subgroup averages (weekly/monthly) detect long-term strategic drift.
+- **WIP Age Monitoring**: compares current WIP against historical limits — early warning for a "Clogged" system.
+- **WIP Stability Bounding**: daily WIP run charts bounded by weekly sampled XmR limits — detects Little's Law violations without daily autocorrelation skew.
+- **Throughput Cadence (XmR)**: XmR limits on weekly/monthly delivery volumes — detects batching or "Special Cause" surges/dips.
+- **Flow Debt (Arrival vs. Departure)**: gap between items crossing the **Commitment Point** (Arrivals) and items **Delivered** (Departures). Positive Flow Debt is a leading indicator of WIP inflation and cycle time degradation.
+- **Stability Guardrails (System Pressure)**: ratio of blocked (Flagged) items in current WIP. **Pressure >= 0.25 (25%)** → `SYSTEM PRESSURE WARNING`: historical throughput unreliable due to impediment stress.
+- **Cycle Time Scatterplot**: Process Stability and Cycle Time Analysis responses include a chart-ready `scatterplot` (per-item completion date, cycle time, pooled moving range, issue type). Process Stability uses XmR reference lines (X̄, UNPL, LNPL); Cycle Time Analysis uses SLE percentile reference lines (P50, P70, P85, P95).
+- **SLE Adherence Trending**: `analyze_cycle_time` returns `sle_adherence` — weekly attainment-rate and breach-severity (max cycle time + P95 of breach excess) against a Service Level Expectation. Default SLE = rolling-window P85; override via `sle_percentile` or `sle_duration_days` for a fixed Vacanti-style baseline. Auto-derived SLE → handler emits Insight nudging the agent to ask user for the stated SLE so subsequent calls pin a stable threshold. Buckets carry `is_partial` so charts can fade the in-progress current week.
 
 ### 6.1 SLE Adherence Trending — Implementation Reference
 
-**Home tool**: `analyze_cycle_time` (handler in `internal/mcp/handlers_forecasting.go`, `handleGetCycleTimeAssessment`). SLE Adherence lives next to SLE derivation — `analyze_process_stability` remains XmR-focused so its chart is not overloaded. Vacanti's recommendation to pair adherence with a stability check is represented as a cross-tool *insight*, not a merged panel.
+**Home tool**: `analyze_cycle_time` (handler `internal/mcp/handlers_forecasting.go`, `handleGetCycleTimeAssessment`). SLE Adherence lives next to SLE derivation — `analyze_process_stability` stays XmR-focused. Vacanti's pairing of adherence with stability is a cross-tool *insight*, not a merged panel.
 
 **Vacanti semantics** (see `docs/ideas.md` for open follow-ups):
 
-- An SLE has two parts: a duration **and** a probability. "85% of items in 14 days or less." Quoting only the duration strips the probabilistic nature of the forecast.
-- **Attainment rate** = share of completed items finishing within the SLE duration per bucket. For a P85 SLE, the *expected* rate is 85% (not 15% — easy to invert, so guard it).
-- **Breach severity** = tail behaviour. Max cycle time + P95 of breach excess per bucket. An item blowing past both P85 and P95 is qualitatively different from one barely over P85.
+- SLE has two parts: duration **and** probability. "85% of items in 14 days or less." Duration alone strips the probabilistic nature.
+- **Attainment rate** = share of completed items finishing within SLE duration per bucket. For a P85 SLE, *expected* rate = 85% (not 15% — easy to invert; guard it).
+- **Breach severity** = tail behaviour. Max cycle time + P95 of breach excess per bucket. An item past both P85 and P95 is qualitatively different from one barely over P85.
 
 **Data pipeline**:
 
-1. Handler builds the rolling-window `AnalysisWindow` ("day" bucket) via `stats.NewAnalysisWindow(start, end, "day", cutoff)`. The adherence helper then builds a *week-bucketed* companion window with the same boundaries.
-2. `s.getCycleTimes(...)` returns the aligned `matchedIssues []jira.Issue` + `cycleTimes []float64` pair.
-3. `s.computeSLEAdherence(matchedIssues, cycleTimes, pcts, slePercentile, sleDurationDays, dayWindow)` resolves the effective threshold via `percentileFromResult(pcts, p)` when `slePercentile > 0`, defaulting to `pcts.Likely` (P85) otherwise. Source tag is one of `"user"` / `"derived_p85"` / `"derived_pXX"`.
-4. `stats.ComputeSLEAdherence(...)` bucketises delivered items by `OutcomeDate` (falling back to `ResolutionDate`) using `AnalysisWindow.FindBucketIndex` and emits per-bucket attainment, max CT, and P95 of breach excess. Partial (in-progress) buckets get `is_partial: true`.
+1. Handler builds rolling-window `AnalysisWindow` ("day" bucket) via `stats.NewAnalysisWindow(start, end, "day", cutoff)`. Adherence helper builds a *week-bucketed* companion with same boundaries.
+2. `s.getCycleTimes(...)` returns aligned `matchedIssues []jira.Issue` + `cycleTimes []float64`.
+3. `s.computeSLEAdherence(matchedIssues, cycleTimes, pcts, slePercentile, sleDurationDays, dayWindow)` resolves threshold via `percentileFromResult(pcts, p)` when `slePercentile > 0`, else defaults to `pcts.Likely` (P85). Source tag: `"user"` / `"derived_p85"` / `"derived_pXX"`.
+4. `stats.ComputeSLEAdherence(...)` bucketises delivered items by `OutcomeDate` (falling back to `ResolutionDate`) using `AnalysisWindow.FindBucketIndex` and emits per-bucket attainment, max CT, P95 of breach excess. Partial buckets get `is_partial: true`.
 
 **Gotchas**:
 
-- `AnalysisWindow` snapping in `NewAnalysisWindow(start, start.AddDate(0,0,7), "week", …)` extends `end` to the next Sunday, yielding *two* weekly buckets. Build test windows with `start.AddDate(0,0,7*weeks-1)` so only the intended N weeks land.
-- `ExpectedRate = percentile/100`, never `1 - percentile/100`. Golden baseline will catch the inversion if you drift.
+- `NewAnalysisWindow(start, start.AddDate(0,0,7), "week", …)` extends `end` to next Sunday → *two* weekly buckets. Build test windows with `start.AddDate(0,0,7*weeks-1)` so only intended N weeks land.
+- `ExpectedRate = percentile/100`, never `1 - percentile/100`. Golden baseline catches inversion.
 - Computation uses `matchedIssues` aligned by index with `cycleTimes`. Never re-sort one without the other; `stats.ComputeSLEAdherence` assumes pairwise correspondence.
 
 **Chart layout** (`internal/charts/assets/templates/cycle_time.jsx`):
 
-Panels are ordered for the reader's reading flow, not computation order: Stat Cards → Predictability & Spread → Scatterplot (primary visual) → Pool SLE → Per-type SLE → **SLE Attainment Trend** (Panel 5) → **Breach Severity** (Panel 6). Both trend panels are gated on `d.sle_adherence` being present; partial buckets are faded at 45% opacity so viewers don't read the current incomplete week as a regression.
+Panel order = reader's flow, not computation order: Stat Cards → Predictability & Spread → Scatterplot (primary visual) → Pool SLE → Per-type SLE → **SLE Attainment Trend** (Panel 5) → **Breach Severity** (Panel 6). Both trend panels gated on `d.sle_adherence`; partial buckets faded at 45% opacity so the current incomplete week isn't read as regression.
 
-**AI nudge pattern**: when the handler auto-derives the SLE, it appends an Insight instructing the agent to ask the user for the team's stated SLE and re-run with `sle_duration_days=<d>` (+ optional `sle_percentile=<n>`). User-supplied values flip `sle_source` to `"user"` and suppress the nudge. This follows the same Insights-channel pattern used by commitment point discovery (see `handlers_forecasting.go:addCommitmentInsights`).
+**AI nudge pattern**: auto-derived SLE → Insight instructs agent to ask user for the stated SLE and re-run with `sle_duration_days=<d>` (+ optional `sle_percentile=<n>`). User-supplied values flip `sle_source` to `"user"` and suppress the nudge. Same Insights-channel pattern as commitment point discovery (`handlers_forecasting.go:addCommitmentInsights`).
 
 **Open follow-ups** (tracked in `docs/ideas.md`, not implemented):
 
-- Stationarity-driven SLE invalidation (warn when CT distribution shifts enough to make the historical SLE stale). Would most naturally emit an Insight from `analyze_process_stability` pointing back to `analyze_cycle_time`.
-- Per-issue-type adherence trend. `TypeSLEs` already exists; adding per-type buckets would multiply chart real estate — deferred until v1 is in use.
-- Adaptive weekly→monthly cadence fallback when throughput is too sparse for weekly buckets to be meaningful.
+- Stationarity-driven SLE invalidation (warn when CT distribution shift makes historical SLE stale). Would emit Insight from `analyze_process_stability` → `analyze_cycle_time`.
+- Per-issue-type adherence trend. `TypeSLEs` already exists; adding per-type buckets multiplies chart real estate — deferred.
+- Adaptive weekly→monthly cadence fallback when throughput too sparse for weekly buckets.
 
 ---
 
 ## 7. Friction Mapping (Impediment Analysis)
 
-MCS-MCP identifies systemic process friction by analyzing "Flagged" events and correlating them with workflow residency.
+Identifies systemic friction via "Flagged" events correlated with workflow residency.
 
 ### 7.1 Methodology: Geometric Intersection
 
-Instead of calculating a prone-to-misuse "Flow Efficiency" ratio, the system identifies absolute signals of impediment:
+Avoids the prone-to-misuse "Flow Efficiency" ratio; uses absolute impediment signals:
 
-1. **Interval Extraction**: The system extracts contiguous "Blocked" intervals from the event-sourced log (from `Flagged` to `Unflagged` or terminal status).
-2. **Status Segmentation**: The item's journey is divided into discrete status residency segments.
-3. **Geometric Intersection**: The system overlays blocked intervals onto status segments. If an item was flagged for 5 days while in "In Development", those 5 days are attributed to that status's `BlockedResidency`.
+1. **Interval Extraction**: contiguous "Blocked" intervals from event-sourced log (`Flagged` → `Unflagged` or terminal).
+2. **Status Segmentation**: journey split into discrete status residency segments.
+3. **Geometric Intersection**: blocked intervals overlaid on status segments. Item flagged for 5 days while "In Development" → 5 days attributed to that status's `BlockedResidency`.
 
 ### 7.2 Impediment Signals
 
-Friction is reported through absolute metrics rather than percentages:
+Absolute metrics, not percentages:
 
-- **Impediment Count (`BlockedCount`)**: The frequency of blocking events within a specific stage.
-- **Impediment Depth (`BlockedP50/P85`)**: The typical duration an item remains blocked once an impediment occurs.
+- **Impediment Count (`BlockedCount`)**: frequency of blocking events per stage.
+- **Impediment Depth (`BlockedP50/P85`)**: typical block duration once an impediment occurs.
 
-This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisely where and for how long teams are held up, without the mathematical noise of efficiency ratios.
+Result: high-fidelity "Friction Heatmap" pinpointing where and how long teams are held up, no efficiency-ratio noise.
 
 ---
 
@@ -443,8 +444,8 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
 
 ### 8.1 Single-Pass Ingestion & Persistent Cache
 
-- **Event-Sourced Architecture**: The system maintains an immutable, chronological log of atomic events (`Change`, `Created`, `Flagged`, `Unresolved`).
-- **Single-Pass Hydration**: Initial hydration runs one JQL sweep that captures both recently-touched items and long-lived items born in the window:
+- **Event-Sourced Architecture**: immutable chronological log of atomic events (`Change`, `Created`, `Flagged`, `Unresolved`).
+- **Single-Pass Hydration**: initial hydration runs one JQL sweep capturing both recently-touched items and long-lived items born in the window:
 
   ```text
   (<base jql>) AND (updated >= startOfDay(-{INGESTION_UPDATED_LOOKBACK}M)
@@ -452,30 +453,30 @@ This approach provides a high-fidelity "Friction Heatmap" that pinpoint precisel
   ORDER BY updated DESC
   ```
 
-  Paging stops when the running total reaches `INGESTION_MAX_ITEMS`. The wide `OR` predicate makes a separate "resolved-baseline" sweep unnecessary — long-lived deliveries fall into the `created >= …` branch even if they have not been touched recently.
+  Paging stops at `INGESTION_MAX_ITEMS`. Wide `OR` makes a separate "resolved-baseline" sweep unnecessary — long-lived deliveries fall into the `created >= …` branch even if untouched recently.
 
-- **Configuration** (set in `.env`):
-  - `INGESTION_UPDATED_LOOKBACK` — months back from today for the `updated >=` predicate (default `24`).
-  - `INGESTION_CREATED_LOOKBACK` — months back from today for the `created >=` predicate (default `36`).
-  - `INGESTION_MAX_ITEMS` — page-cap on initial hydration (default `5000`). Forward catch-up is not subject to this cap.
+- **Configuration** (`.env`):
+  - `INGESTION_UPDATED_LOOKBACK` — months for `updated >=` (default `24`).
+  - `INGESTION_CREATED_LOOKBACK` — months for `created >=` (default `36`).
+  - `INGESTION_MAX_ITEMS` — page-cap on initial hydration (default `5000`). Forward catch-up not capped.
 
 - **Cache Integrity**:
-  - **2-Month Rule**: If the latest cached event is > 2 months old, the system performs a full re-ingestion to clear potential "ghost" items (moved/deleted).
-  - **NMRC Boundary**: Forward catch-up uses the Newest Most-Recent-Change timestamp from the cache to fetch only items updated since the last sync.
-  - **Purge-before-Merge**: Catch-up replaces existing issue histories to ensure Jira deletions or corrections are reflected.
-  - **Atomic File Writes**: Workflow metadata files are written atomically via a temporary file followed by a rename, preventing data loss from crashes or power failures during write operations.
+  - **2-Month Rule**: latest cached event > 2 months old → full re-ingestion clears potential "ghost" items (moved/deleted).
+  - **NMRC Boundary**: forward catch-up uses Newest Most-Recent-Change timestamp from cache to fetch only updates since last sync.
+  - **Purge-before-Merge**: catch-up replaces existing issue histories so Jira deletions/corrections are reflected.
+  - **Atomic File Writes**: workflow metadata files written via temp-file + rename — no data loss from crashes mid-write.
 
 - **Cache Management Tools**:
-  - `import_board_context`: Triggers initial hydration (or a cached load + 2-month-rule check).
-  - `import_history_update`: Syncs the cache with any updates made in Jira since the last **NMRC**.
+  - `import_board_context`: initial hydration (or cached load + 2-month-rule check).
+  - `import_history_update`: syncs cache with Jira updates since last **NMRC**.
 
-- **WorkflowMetadata Persistence**: Alongside the event cache, each board's confirmed configuration is persisted to `{cacheDir}/{projectKey}_{boardID}_workflow.json`. This file stores the status mapping (ID → Tier/Role/Outcome), resolution mapping (ID → outcome), status order, commitment point, discovery cutoff, evaluation date, and the `NameRegistry`. A workflow file is considered "loaded from cache" (`isCachedMapping = true`) **only** when the file contains a non-empty status mapping — files created by a background hydration save before user confirmation do not qualify.
+- **WorkflowMetadata Persistence**: each board's confirmed config persisted to `{cacheDir}/{projectKey}_{boardID}_workflow.json`. Stores status mapping (ID → Tier/Role/Outcome), resolution mapping (ID → outcome), status order, commitment point, discovery cutoff, evaluation date, `NameRegistry`. A file qualifies as "loaded from cache" (`isCachedMapping = true`) **only** when status mapping is non-empty — background-hydration saves before user confirmation don't qualify.
 
-- **Dynamic Discovery Cutoff**: Automatically calculates a "Warmup Period" (Dynamic Discovery Cutoff) to exclude noisy bootstrapping periods from analysis. The cutoff is set to the **date of the 5th delivery** after the workflow mapping is confirmed, ensuring the system has demonstrated steady-state delivery capacity before analytical windows are opened. Recalculated automatically whenever `workflow_set_mapping` is called.
+- **Dynamic Discovery Cutoff**: auto-computed "Warmup Period" excludes noisy bootstrap from analysis. Cutoff = **date of 5th delivery** after workflow mapping is confirmed, ensuring steady-state capacity before analytical windows open. Recalculated whenever `workflow_set_mapping` runs.
 
 ### 8.2 The Unified Outcome Protocol
 
-To ensure conceptual integrity and clear separation of concerns, MCS-MCP utilizes a streamlined pipeline for rebuilding the state of work items.
+Streamlined pipeline rebuilds work-item state with strict separation of concerns.
 
 ```mermaid
 graph TD
@@ -493,81 +494,81 @@ graph TD
     L3 -->|Augmented Issue| Analytics[Stability / Cycle Time / Simulations]
 ```
 
-1. **Event Stream**: Chronological extraction of atomic facts. The stream is strictly masked by the app-wide `Clock()`, ensuring 100% deterministic time-travel analysis.
-2. **Mechanical Flattening**: Aggregates the event stream into a `jira.Issue` DTO. It calculates raw status residency but ignores workflow meaning.
-3. **Outcome Augmentation**: The "Smart" layer. It applies the confirmed project config (Mappings, Resolutions) to determine **how** and **when** the item reached a terminal state. This ensures that downstream algorithms (like Cadence or Monte-Carlo) are decoupled from the noise of inconsistent raw Jira metadata.
+1. **Event Stream**: chronological extraction of atomic facts. Strictly masked by app-wide `Clock()` → 100% deterministic time-travel.
+2. **Mechanical Flattening**: aggregates events into `jira.Issue` DTO. Computes raw status residency; ignores workflow meaning.
+3. **Outcome Augmentation**: "Smart" layer. Applies confirmed project config (Mappings, Resolutions) to determine **how** and **when** the item reached terminal state. Decouples downstream (Cadence, Monte-Carlo) from inconsistent raw Jira metadata.
 
 ### 8.3 Analytical Orchestration (`AnalysisSession`)
 
-To reduce boilerplate and ensure consistency across tools, the system utilizes a centralized **AnalysisSession** (Orchestrator).
+Centralized **AnalysisSession** (Orchestrator) reduces boilerplate, ensures consistency.
 
-- **Encapsulated Pipeline**: The session handles the entire hydration-to-projection pipeline (Context -> Events -> Items -> Filtered Samples).
-- **Consolidated Projections**: All analytical projections (Scope, WIP, Throughput) are anchored to the session's temporal window, ensuring that different tools (e.g., Simulation and Aging) ALWAYS operate on the same data snapshot.
-- **Windowed Context**: The session maintains the **AnalysisWindow**, providing a single point of truth for "Now" vs "Then" during historical reconstructions.
+- **Encapsulated Pipeline**: handles full hydration-to-projection (Context → Events → Items → Filtered Samples).
+- **Consolidated Projections**: Scope, WIP, Throughput anchored to session's temporal window — Simulation and Aging always see the same snapshot.
+- **Windowed Context**: session holds the **AnalysisWindow** — single source of truth for "Now" vs "Then" during reconstruction.
 
 ### 8.4 Strategic Decoupling (Package Boundaries)
 
-The codebase follows a strict acyclic dependency model designed for stability during rapid refactoring:
+Strict acyclic dependency model:
 
-- **`internal/eventlog`**: The agnostic storage layer. It knows how to transform and persist Jira events but has NO awareness of analytical metrics.
-- **`internal/stats`**: The analytical engine. It depends on `eventlog` for data but contains all the business logic for metrics, residency, and projections.
-- **`internal/jira`**: The DTO and Mapping layer. Houses the objective Jira domain models and transformation logic.
-- **`internal/discovery`**: A specialized top-level package for non-deterministic "Best Guess" workflow heuristics. Fuses `eventlog` + `jira` + `stats` to infer the semantic workflow mapping. Promoted from `internal/stats/discovery` because it is not a statistics subset — it is a distinct concern that happens to consume stats.
+- **`internal/eventlog`**: agnostic storage. Transforms and persists Jira events; no analytical-metric awareness.
+- **`internal/stats`**: analytical engine. Depends on `eventlog`; owns metrics, residency, projections.
+- **`internal/jira`**: DTO and Mapping layer. Objective Jira domain models and transformation.
+- **`internal/discovery`**: top-level package for non-deterministic "Best Guess" workflow heuristics. Fuses `eventlog` + `jira` + `stats` to infer semantic mapping. Promoted from `internal/stats/discovery` because it's a distinct concern that consumes stats, not a stats subset.
 
 ### 8.5 Discovery Sampling
 
-The active discovery path uses **`ProjectNeutralSample`** (recency-biased): issues are sorted by their latest event timestamp (descending) and the top N are selected. This ensures discovery reflects the **active process** rather than the oldest historical records.
+Active discovery path: **`ProjectNeutralSample`** (recency-biased) — issues sorted by latest event timestamp desc, top N selected. Reflects the **active process**, not oldest history.
 
-A complementary utility, `SelectDiscoverySample`, implements an **adaptive date-window strategy** (prioritising the last 365 days, expanding to 2–3 years when the priority pool has fewer than 100 items, and strictly excluding items older than 3 years). This function is available for targeted use but is not the primary discovery path.
+Companion utility `SelectDiscoverySample` implements an **adaptive date-window strategy** (last 365 days first, expand to 2–3 years if priority pool has < 100 items, hard exclude items > 3 years). Available for targeted use; not the primary path.
 
 ### 8.6 Backward Boundary Scanning (History Transformation)
 
-To ensure analytical integrity when issues move between projects or change workflows, the system uses a **Backward Boundary Scanning** strategy during transformation:
+Preserves analytical integrity when issues move projects or change workflows:
 
-- **Directionality**: Histories are processed **backwards** from the current state (Truth) towards the birth.
-- **Boundary Detection**: The system identifies process boundaries by detecting a change in identity (`Key`) signifying entering the target project.
-- **Arrival Anchoring**: The moment a boundary is hit, the scan terminates. The state transition at this boundary defines the item's **Arrival Status** in the target project.
-- **Synthetic Birth**: While the Jira `Created` date (Biological Birth) is preserved, the issue is conceptually re-born into the target project at that arrival status. This ensures that its initial duration correctly reflects its time spent in the project's entry point.
-- **Throughput Integrity**: The system ignores `Created` events for delivery dating. Throughput is only attributed to true `Change` events (resolutions or terminal status transitions), ensuring moved items are counted at their arrival/completion point rather than their biological birth.
+- **Directionality**: histories processed **backwards** from current state (Truth) towards birth.
+- **Boundary Detection**: process boundary = identity (`Key`) change indicating entry into target project.
+- **Arrival Anchoring**: scan stops at boundary. State transition at boundary defines **Arrival Status** in target project.
+- **Synthetic Birth**: Jira `Created` (Biological Birth) preserved; issue conceptually re-born into target project at arrival status, so initial duration reflects time at project's entry point.
+- **Throughput Integrity**: `Created` events ignored for delivery dating. Throughput attributed only to true `Change` events (resolutions, terminal transitions) — moved items count at arrival/completion, not biological birth.
 
 ### 8.7 Technical Precision
 
-- **Microsecond Sequencing**: Changlogs are processed with integer microsecond precision for deterministic ordering.
-- **Residency**: Residency tracking uses exact seconds (`int64`), converted to days only at the reporting boundary (`Days = seconds / 86400`).
-- **Touch-and-Go Automation Filter**: Any status residency under 60 seconds is automatically discarded during persistence analytics. This prevents high-speed Jira automation rules or bulk-transitions from artificially dragging down stage medians with unrepresentative 0-day flow debt.
-- **Zero-Day Safeguard**: Current aging metrics are rounded up to the nearest 0.1 to avoid misleading "0.0 days" results.
+- **Microsecond Sequencing**: changelogs processed at integer-microsecond precision for deterministic ordering.
+- **Residency**: tracked as exact seconds (`int64`), converted to days only at reporting boundary (`Days = seconds / 86400`).
+- **Touch-and-Go Automation Filter**: status residency < 60s discarded during persistence analytics. Prevents high-speed Jira automation/bulk-transitions from dragging stage medians toward 0.
+- **Zero-Day Safeguard**: current aging metrics rounded up to nearest 0.1 to avoid misleading "0.0 days".
 
 ### 8.8 The ID-First Canonical Key Strategy
 
-To ensure robust data integration and cross-localization compatibility, MCS-MCP implements an "ID-First" architecture for all internal state and processing.
+ID-First architecture for all internal state ensures cross-localization compatibility.
 
-- **Canonical Processing**: Internally, the analytical pipelines (e.g., Residency, CFD, Aging, and Simulations) strictly key off immutable and stable Jira Object IDs (e.g., Status IDs, Resolution IDs). This eliminates mathematical fragility caused by human-readable names changing over time or being returned in the user's native language by the Jira Cloud API.
-- **API Boundary Translation**: Human-readable strings are used exclusively at the external API boundaries. When interacting with the AI Agent or the user, the server automatically translates IDs back to their human-readable equivalents (via a bidirectional `NameRegistry`) to ensure discovery, exploration, and generated metrics remain intuitive and conversational.
-- **NameRegistry**: The `NameRegistry` struct holds two maps — `Statuses` (status ID → name) and `Resolutions` (resolution ID → name) — with case-insensitive reverse lookups in both directions (`GetStatusID`, `GetStatusName`, `GetResolutionID`, `GetResolutionName`). The registry is populated during every Hydration call and is **persisted inside `WorkflowMetadata`** so that ID↔Name translations survive server restarts without requiring a live Jira connection.
-- **Ingress Migration**: When loading a previously saved workflow (`loadWorkflow`), the server performs a migration pass over the stored mappings. Any entry keyed by a human-readable name is re-keyed to its stable ID using `GetStatusID` / `GetResolutionID`. Conversely, any entry with a missing or corrupted `Name` field is healed using `GetStatusName` / `GetResolutionName`. This ensures the on-disk format remains correct even if older versions stored name-keyed entries.
+- **Canonical Processing**: pipelines (Residency, CFD, Aging, Simulations) strictly key off immutable Jira Object IDs (Status IDs, Resolution IDs). Removes fragility from name changes or localized Jira Cloud API responses.
+- **API Boundary Translation**: human-readable strings only at external boundaries. Server translates IDs back via bidirectional `NameRegistry` for the agent/user.
+- **NameRegistry**: struct holds two maps — `Statuses` (ID → name), `Resolutions` (ID → name) — with case-insensitive reverse lookups (`GetStatusID`, `GetStatusName`, `GetResolutionID`, `GetResolutionName`). Populated every Hydration; **persisted inside `WorkflowMetadata`** so ID↔Name translation survives restarts without a live Jira connection.
+- **Ingress Migration**: `loadWorkflow` migrates stored mappings. Name-keyed entries re-keyed to stable IDs via `GetStatusID` / `GetResolutionID`. Missing/corrupt `Name` healed via `GetStatusName` / `GetResolutionName`. On-disk format stays correct even from older versions.
 
 ### 8.9 App-Wide Time Injection (Time-Travel Anchoring)
 
-To enable true deterministic testing and allow users to analyze system states as they existed on specific past dates, MCS-MCP implements **App-Wide Time Injection**:
+Enables deterministic testing and historical state analysis.
 
-- **Centralized Clock**: The `mcp.Server` abstains from using raw `time.Now()` across its diagnostics, discovery, and forecasting handlers. Instead, it routes time requests through a centralized `Clock() time.Time` method.
-- **Runtime Dynamics**: By default, `Clock()` returns real-time `time.Now()`. However, users or AI Agents can call the `workflow_set_evaluation_date` tool to inject a specific `activeEvaluationDate`.
-- **Context Persistence**: The evaluation date is persisted in `WorkflowMetadata` (`*_workflow.json`) alongside the board's mapping and resolutions, ensuring that "time-travel" mode survives server reboots.
-- **WFA Determinism**: The Walk-Forward Analysis (`WalkForwardConfig`) accepts this injected `EvaluationDate`. In integration testing, the server and the mock-data generator are pinned to the exact same reference date, fully eliminating ISO-week boundary drift and producing 100% deterministic backtest accuracy scores.
+- **Centralized Clock**: `mcp.Server` never calls raw `time.Now()` in handlers; routes through `Clock() time.Time`.
+- **Runtime Dynamics**: default `Clock() = time.Now()`. `workflow_set_evaluation_date` injects a specific `activeEvaluationDate`.
+- **Context Persistence**: evaluation date persisted in `WorkflowMetadata` (`*_workflow.json`) — time-travel mode survives reboots.
+- **WFA Determinism**: `WalkForwardConfig` accepts injected `EvaluationDate`. In integration tests, server and mock-data generator pin the same reference date — eliminates ISO-week drift, 100% deterministic backtest scores.
 
 ### 8.10 Workflow State Lifecycle (Handler Context Strategy)
 
-MCS-MCP uses two distinct strategies for managing server state across handler invocations, separating read-only discovery from state-mutating confirmation.
+Two strategies separate read-only discovery from state-mutating confirmation.
 
-- **`resolveSourceContext` (Read-Only)**: Performs a stateless JQL/board metadata lookup. It validates the project/board combination and normalises the filter JQL, but does **not** set `s.activeSourceID` or modify any server state. Used by `workflow_discover_mapping` so that discovery can run at any time without forcing a context switch.
+- **`resolveSourceContext` (Read-Only)**: stateless JQL/board metadata lookup. Validates project/board combo, normalises filter JQL. Does **not** set `s.activeSourceID` or mutate state. Used by `workflow_discover_mapping` so discovery runs without forcing a context switch.
 
-- **`anchorContext` (State-Mutating)**: Switches the server's active context to a new project/board. It clears all previously active state (mapping, resolutions, order, commitment point, evaluation date), prunes the in-memory event store to free RAM (`PruneExcept`), and loads the persisted `WorkflowMetadata` from disk for the new source. Short-circuits immediately if the source is already active (`s.activeSourceID == sourceID`). Used by all configuration tools (`workflow_set_mapping`, `workflow_set_order`, `workflow_set_evaluation_date`) **and all diagnostic handlers** (`analyze_flow_debt`, `analyze_process_stability`, `analyze_process_evolution`, etc.) to guarantee that workflow metadata (mapping, commitment point, status order) is always initialised before analysis runs. Without this, a fresh-start diagnostic call would operate on empty state and overwrite the persisted workflow file with that empty state via `saveWorkflow`.
+- **`anchorContext` (State-Mutating)**: switches active context to new project/board. Clears prior state (mapping, resolutions, order, commitment point, evaluation date), prunes in-memory event store (`PruneExcept`), loads persisted `WorkflowMetadata` for new source. Short-circuits if source already active (`s.activeSourceID == sourceID`). Used by all configuration tools (`workflow_set_mapping`, `workflow_set_order`, `workflow_set_evaluation_date`) **and all diagnostic handlers** (`analyze_flow_debt`, `analyze_process_stability`, `analyze_process_evolution`, etc.) to guarantee workflow metadata is initialised before analysis. Without this, a fresh-start diagnostic call would run on empty state and overwrite the persisted workflow file via `saveWorkflow`.
 
-This separation means that browsing or re-running discovery across multiple boards does not corrupt the active analytical context, while all state-mutating and analytical operations are always applied to an explicitly anchored source.
+Net effect: browsing/re-running discovery across boards never corrupts the active analytical context; mutating and analytical operations always apply to an explicitly anchored source.
 
 ### 8.11 Response Envelope
 
-All tool responses are wrapped in a standard envelope by `WrapResponse`:
+All tool responses wrapped by `WrapResponse`:
 
 ```json
 {
@@ -583,42 +584,40 @@ All tool responses are wrapped in a standard envelope by `WrapResponse`:
 }
 ```
 
-- **`data`**: The primary analytical result (metrics, projections, workflow blocks, etc.).
-- **`diagnostics`**: Operational metadata specific to the tool invocation (e.g., `discovery_source`, sampling details). Intended for the AI Agent, not the end user.
-- **`warnings`**: Data quality flags emitted by the analytical pipeline (e.g., insufficient sample size, system pressure, low resolution density). These may affect the reliability of results and should be surfaced to the user.
-- **`insights`**: Strategic guidance for the AI Agent about how to present or act on the result (e.g., `"PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK"`, `"NOTE: This is a NEW PROPOSAL — verify with the user before proceeding"`).
+- **`data`**: primary analytical result (metrics, projections, workflow blocks, etc.).
+- **`diagnostics`**: operational metadata for the invocation (e.g. `discovery_source`, sampling details). For the agent, not the end user.
+- **`warnings`**: data-quality flags from the pipeline (insufficient sample size, system pressure, low resolution density, etc.). May affect reliability — surface to user.
+- **`insights`**: strategic guidance for the agent on how to present/act on the result (e.g. `"PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK"`, `"NOTE: This is a NEW PROPOSAL — verify with the user before proceeding"`).
 
 ---
 
 ## 9. Data Security & GRC Principles
 
-MCS-MCP is designed with **Security-by-Design** and **Data Minimization** at its core.
+**Security-by-Design** and **Data Minimization** at the core.
 
 ### 9.1 Principle: Need-to-Know
 
-The system strictly adheres to the "Need-to-Know" principle by ingests and persisting only the analytical metadata required for flow analysis.
+Only analytical metadata required for flow analysis is ingested and persisted.
 
-- **Analytical Metadata (Fetched & Persisted)**: Issue Keys, **Issue Types**, Status Transitions, Timestamps, Resolution names, and **Flagged/Blocked history**.
-- **Sensitive Content (DROPPED)**: While Jira may return full objects, the ingestion and transformation layer strictly **drops** fields such as **Summary (Title), Description, Acceptance Criteria, and Assignees** at the first processing step.
-- **Impact**: This ensures that sensitive information is never exposed to the analytical models, never persisted to the cache, and never made available to the AI Agent.
+- **Analytical Metadata (Fetched & Persisted)**: Issue Keys, **Issue Types**, Status Transitions, Timestamps, Resolution names, **Flagged/Blocked history**.
+- **Sensitive Content (DROPPED)**: ingestion strictly **drops** **Summary (Title), Description, Acceptance Criteria, Assignees** at first processing step, even when Jira returns full objects.
+- **Impact**: sensitive data never reaches analytical models, cache, or the agent.
 
 ### 9.2 Principle: Transparency (Auditability)
 
-The system maintains absolute transparency in how data is stored and used.
-
-- **Human-Readable Storage**: Long-term caches (Event Logs, Workflow Metadata) are stored in plain-text JSON/JSONL formats.
-- **Auditability**: Security officers can at any time inspect the `cache` directory to verify that no sensitive data has been leaked during the ingestion process.
-- **Fact-Based Archeology**: By deriving the workflow from transition logs rather than configuration metadata, the system ensures that the analytical view remains objective and untainted by human-entered (and potentially sensitive) configuration details.
+- **Human-Readable Storage**: long-term caches (Event Logs, Workflow Metadata) in plain-text JSON/JSONL.
+- **Auditability**: security officers can inspect the `cache` directory anytime to verify no sensitive leakage.
+- **Fact-Based Archeology**: workflow derived from transition logs, not configuration metadata — analytical view stays objective and free of human-entered (potentially sensitive) config details.
 
 ---
 
 ## 10. Comprehensive Stratified Analytics
 
-MCS-MCP implements **Type-Stratification** as a core architectural baseline across all diagnostics. This ensures that process insights are not diluted by a heterogeneous mix of work (e.g., mixing 2-day Bugs with 20-day Stories).
+**Type-Stratification** is a core baseline across all diagnostics — prevents dilution from heterogeneous work mixes (e.g. 2-day Bugs + 20-day Stories).
 
 ### 10.1 The Architecture of Consistency
 
-Every analytical tool in the server has been extended to provide both pooled (system-wide) and stratified (type-specific) results:
+Every analytical tool returns both pooled (system-wide) and stratified (type-specific) results:
 
 | Tool                | Stratified Capability                                                    | Rationale                                                               |
 | :------------------ | :----------------------------------------------------------------------- | :---------------------------------------------------------------------- |
@@ -634,74 +633,74 @@ Every analytical tool in the server has been extended to provide both pooled (sy
 
 ### 10.2 Statistical Integrity Guards
 
-To maintain reliability, stratification follows strict defensive heuristics:
+Defensive heuristics for stratification:
 
-- **Volume Thresholds**: Smaller cohorts are automatically blended with pooled averages using **Bayesian Weighting** to prevent outlier spikes from dominating the analysis.
-- **Temporal Alignment**: All stratified time-series (XmR, Cadence) are aligned to the same analytical windows and bucket boundaries (Midnight UTC) to allow for across-tool correlation.
-- **Conceptual Coherence**: By using the same work item types and outcome semantics across every tool, the system provides a unified "Process Signature" for the project.
+- **Volume Thresholds**: smaller cohorts blended with pooled averages via **Bayesian Weighting** — prevents outlier spikes from dominating.
+- **Temporal Alignment**: all stratified time-series (XmR, Cadence) aligned to the same windows and bucket boundaries (Midnight UTC) for across-tool correlation.
+- **Conceptual Coherence**: same work-item types and outcome semantics across every tool → unified "Process Signature" per project.
 
 ---
 
 ## 11. Golden File Integration Testing (Mathematical Hardening)
 
-To guarantee the absolute integrity of statistical and probabilistic projections during refactoring, MCS-MCP relies on an end-to-end **Golden File Integration Testing** framework.
+End-to-end **Golden File Integration Testing** framework guarantees integrity of statistical/probabilistic projections during refactoring.
 
 ### 11.1 The Adversarial Dataset
 
-Rather than mocking isolated 2-issue scenarios, the test suite injects a massive `simulated_events.json` database into the analytical pipelines.
+Test suite injects a massive `simulated_events.json` database — no isolated 2-issue mocks.
 
-- **Real-World Origins**: Derived from an anonymized, high-volume production Jira log to ensure authentic process chaos.
-- **Edge-Case Injection**: The timeline is deliberately spiked with mathematical anomalies (e.g., fractional-millisecond residency, cyclic status ping-ponging, and zero-throughput gaps) to stress-test division-by-zero guards and aging thresholds.
+- **Real-World Origins**: derived from anonymized, high-volume production Jira log → authentic process chaos.
+- **Edge-Case Injection**: timeline spiked with mathematical anomalies (fractional-millisecond residency, cyclic status ping-ponging, zero-throughput gaps) to stress-test division-by-zero guards and aging thresholds.
 
 ### 11.2 Deterministic Execution
 
-To ensure byte-for-byte consistency across test runs, the system enforces strict determinism:
+Byte-for-byte consistency requires strict determinism:
 
-- **Simulation Seeding**: The Monte-Carlo Engine receives a fixed random seed (`SetSeed(42)`), disabling entropy so complex distributions can be byte-verified.
-- **Temporal Anchoring**: Instead of relative `time.Now()` calculations, functions like `CalculateInventoryAge` accept an injected `evaluationTime`. The testing harness computes the exact maximum timestamp present in the anonymized dataset to serve as the definitive "Now".
+- **Simulation Seeding**: Monte-Carlo Engine uses fixed seed (`SetSeed(42)`), disabling entropy.
+- **Temporal Anchoring**: functions like `CalculateInventoryAge` accept injected `evaluationTime`. Testing harness computes the exact max timestamp in the anonymized dataset as definitive "Now".
 
 ### 11.3 Per-Handler Golden Baselines
 
-Each MCP handler has its own golden baseline file under `internal/testdata/golden/mcp/` (e.g., `analyze_cycle_time.json`, `forecast_monte_carlo_scope.json`). The `TestHandlers_Golden` test exercises every analytical handler end-to-end through the full server stack (handler → hydrate → stats → response envelope).
+Each MCP handler has its own baseline under `internal/testdata/golden/mcp/` (e.g. `analyze_cycle_time.json`, `forecast_monte_carlo_scope.json`). `TestHandlers_Golden` exercises every analytical handler end-to-end (handler → hydrate → stats → response envelope).
 
-- **Granular Drift Detection**: Each handler's output is compared byte-for-byte against its own baseline. A change in one metric does not obscure changes in another.
-- **Selective Regeneration**: Baselines can be regenerated individually or all at once via `go test ./internal/mcp/ -run TestHandlers_Golden -update`.
-- **Fixture Integrity**: A SHA-256 hash of `simulated_events.jsonl` is tracked in a sidecar file. When the fixture changes, all baselines must be regenerated.
+- **Granular Drift Detection**: each handler's output compared byte-for-byte against its own baseline. One metric change does not obscure others.
+- **Selective Regeneration**: regenerate individually or all via `go test ./internal/mcp/ -run TestHandlers_Golden -update`.
+- **Fixture Integrity**: SHA-256 hash of `simulated_events.jsonl` tracked in a sidecar file. Fixture change → all baselines must be regenerated.
 
 ### 11.4 External Mathematical Verification (Nave Benchmarking)
 
-To ensure universal validity of the internal analytical logic, the system's core metrics have been benchmarked against **Nave**, a reference standard for flow analytics.
+Core metrics benchmarked against **Nave** (reference standard for flow analytics):
 
-- **Throughput Integrity**: Weekly and monthly throughput calculations match the Nave reference engine exactly (100% parity).
-- **Cycle Time Precision**: Percentile calculations for Cycle Time (P98, P95, P70, P50, and P30) show near-perfect alignment with Nave's statistical output.
-  - **Cycle Time P85 Bias**: Internal P85 calculations for Cycle Time are verified to be approximately 6% higher (more conservative) than Nave's P85. This slight delta is an intentional safeguard to ensure commitments remain robust against minor process variability. (another cause may be one "ghost" item in Nave)
-- **WIP/Day Alignment**: Daily Inventory (WIP) levels are verified to be generally very close to Nave's results, with minor fluctuations (occasionally higher or lower) that remain within acceptable analytical bounds.
-- **WIP Age Accuracy**: The "WIP Age since commitment" metrics match Nave's results near-perfectly, ensuring reliable aging diagnostics for in-flight work.
-- **Monte Carlo Calibration**: For long-range forecasts (e.g., 20 items over 4 months), the internal engine is verified to be slightly more conservative (~1 week longer at P85) than standard external models. This is an intentional result of **Demand Expansion** (modeling historical distributions of background work) and ensures that commitments remain realistic.
+- **Throughput Integrity**: weekly and monthly throughput match Nave 100%.
+- **Cycle Time Precision**: percentiles (P98, P95, P70, P50, P30) near-perfect alignment with Nave.
+  - **Cycle Time P85 Bias**: internal P85 ~6% higher (more conservative) than Nave's P85. Intentional safeguard for commitments. (Possible co-cause: one "ghost" item in Nave.)
+- **WIP/Day Alignment**: daily Inventory (WIP) close to Nave with minor fluctuations within acceptable bounds.
+- **WIP Age Accuracy**: "WIP Age since commitment" near-perfect match with Nave.
+- **Monte Carlo Calibration**: long-range forecasts (e.g. 20 items over 4 months) ~1 week longer at P85 than standard external models. Intentional — result of **Demand Expansion** modeling background work.
 
 > [!IMPORTANT]
-> These metrics have been mathematically verified and hardened. Any modification to the underlying statistical functions (`internal/stats` or `internal/simulation`) must be accompanied by a re-verification against these benchmarks and an update to the Golden File baseline.
+> These metrics are mathematically verified and hardened. Any change to `internal/stats` or `internal/simulation` requires re-verification against these benchmarks and a Golden File baseline update.
 
 ---
 
 ## 12. Server-Side Chart Rendering
 
-MCS-MCP can render interactive charts server-side, eliminating the need for agents to write large JSON payloads into JSX templates.
+Server renders interactive charts so agents don't need to inline large JSON into JSX templates.
 
 ### 12.1 Architecture
 
-When `MCS_CHARTS_BUFFER_SIZE` is set to 1-100 in `.env`, the server:
+`MCS_CHARTS_BUFFER_SIZE` set to 1-100 in `.env` → server:
 
-1. Starts an HTTP listener on a random localhost port (3000-4000) alongside the stdio MCP transport.
-2. Maintains an MRU (Most Recently Used) buffer of the configured size, storing the JSON results of analytical tool calls.
-3. Injects a `chart_url` into the `context` field of every chart-eligible tool response.
+1. Starts HTTP listener on a random localhost port (3000-4000) alongside stdio MCP transport.
+2. Maintains MRU (Most Recently Used) buffer of configured size, storing JSON results of tool calls.
+3. Injects `chart_url` into `context` of every chart-eligible response.
 
-When the URL is accessed (browser or agent), the server:
+URL access (browser or agent) → server:
 
-1. Looks up the UUID in the MRU buffer.
-2. Loads the corresponding JSX template from an embedded filesystem.
-3. Bundles it with esbuild (Go API, in-process) using pre-bundled React/Recharts vendor libraries.
-4. Serves a self-contained HTML page with the chart.
+1. Looks up UUID in MRU buffer.
+2. Loads JSX template from embedded filesystem.
+3. Bundles via esbuild (Go API, in-process) with pre-bundled React/Recharts vendor.
+4. Serves self-contained HTML page.
 
 ### 12.2 Packages
 
@@ -721,31 +720,31 @@ Chart templates receive data via `window.__MCS_PAYLOAD__` with the structure:
 
 ### 12.4 Configuration
 
-- `MCS_CHARTS_BUFFER_SIZE=0` (default): Chart rendering disabled, no HTTP server started.
-- `MCS_CHARTS_BUFFER_SIZE=20`: Buffer holds 20 most recent results, HTTP server active.
-- Values above 100 cause the server to refuse to start.
+- `MCS_CHARTS_BUFFER_SIZE=0` (default): chart rendering disabled, no HTTP server.
+- `MCS_CHARTS_BUFFER_SIZE=20`: buffer = 20 most recent results, HTTP server active.
+- Values > 100: server refuses to start.
 
 ### 12.5 Agent Guidance: Opening Chart URLs
 
-Every chart-eligible tool response includes a `chart_url` in its `context` field, e.g.:
+Every chart-eligible response includes `chart_url` in `context`, e.g.:
 
 ```
 http://localhost:3412/render-charts/550e8400-e29b-41d4-a716-446655440000
 ```
 
-**How to surface charts to the user:**
+**How to surface charts:**
 
-- **Preferred**: Call the `open_in_browser` tool with the `chart_url`. The server opens the URL in the user's system default browser directly — no browser extension or manual action required.
-- **Fallback**: Present the `chart_url` to the user and ask them to open it in a browser. The page is fully self-contained — no active server interaction is required beyond the initial HTTP GET.
-- **Do not embed the URL in markdown image syntax** (`![](url)`) — it will not render, since the server returns HTML, not an image.
+- **Preferred**: call `open_in_browser` tool with `chart_url`. Server opens URL in user's default browser — no extension/manual step.
+- **Fallback**: present `chart_url` to user. Page is self-contained — no further server interaction beyond initial HTTP GET.
+- **Do not embed URL in markdown image syntax** (`![](url)`) — server returns HTML, not an image.
 
-**Important**: The URL is only valid while the MCP server process is running and the result remains in the MRU buffer. URLs are evicted when the buffer fills. If a URL returns 404, the user should re-run the analysis tool to generate a fresh one.
+**Important**: URL valid only while the MCP server process runs and the result remains in MRU. Evicted on buffer fill. 404 → re-run analysis tool for a fresh URL.
 
-**Removed: Skills-based rendering**: The previous agent-side chart rendering approach (`docs/skills/`, `inject.py`) has been removed. Do not attempt to use `inject.py` or `.skill` files — they are no longer present in the repository.
+**Removed: Skills-based rendering**: agent-side rendering (`docs/skills/`, `inject.py`) is gone. Do not use `inject.py` or `.skill` files.
 
 ### 12.6 JSX Template Authoring Rules
 
-Templates are bundled by esbuild with `MinifyWhitespace: true` and `MinifySyntax: true`. These flags have specific, non-obvious effects on JSX that **must** be understood when writing or modifying templates. `MinifyIdentifiers` is intentionally **disabled** — enabling it causes renamed map-callback parameters to silently collide with outer-scope identifiers, dropping JSX children.
+Templates bundled by esbuild with `MinifyWhitespace: true` and `MinifySyntax: true`. These have specific non-obvious effects on JSX — **must** be understood when authoring/modifying templates. `MinifyIdentifiers` is intentionally **disabled**: enabling it causes renamed map-callback params to collide with outer-scope identifiers, dropping JSX children.
 
 #### Rule 1 — Always use named `function` declarations for components
 
@@ -763,11 +762,11 @@ function MyComponent({ item }) {
 }
 ```
 
-This applies to: top-level components, tooltips, sub-panels, row components, and any inner component declared inside a parent (e.g. `TooltipWithState` inside `CfdChart`).
+Applies to: top-level components, tooltips, sub-panels, row components, and any inner component inside a parent (e.g. `TooltipWithState` inside `CfdChart`).
 
 #### Rule 2 — Extract named components for `.map()` that returns complex JSX
 
-When `.map()` returns any element with multiple styled children — a `<tr>`, a card `<div>`, or even a tooltip row `<div>` — `MinifySyntax` may drop the children of the returned element. This applies **everywhere** `.map()` is used: table bodies, card lists, and inside tooltip function bodies. The fix is always the same: extract a named function component and map to it.
+When `.map()` returns any element with multiple styled children (a `<tr>`, card `<div>`, tooltip row `<div>`, etc.), `MinifySyntax` may drop the children. Applies **everywhere** `.map()` is used: table bodies, card lists, tooltip function bodies. Fix is always the same: extract a named function component and map to it.
 
 ```jsx
 // ✗ BROKEN — children of <tr> are dropped
@@ -828,7 +827,7 @@ function MyTooltip({ active, payload }) {
 
 #### Rule 3 — Use `<span style={{ color }}>●</span>` for dynamic color indicators in legends
 
-`<div style={{ background: DYNAMIC_COLOR }} />` inside a `.map()` has its children dropped. The CSS `color` property on a `<span>` containing a bullet character survives because the span itself is the text node — there are no dropped children.
+`<div style={{ background: DYNAMIC_COLOR }} />` inside `.map()` → children dropped. CSS `color` on a `<span>` containing a bullet survives because the span is itself the text node — no dropped children.
 
 ```jsx
 // ✗ BROKEN — inner <div> and <span> dropped from map
@@ -849,12 +848,12 @@ function MyTooltip({ active, payload }) {
 
 Static legend entries (not inside `.map()`) can still use `<div style={{ background: COLOR }} />` safely.
 
-**Caveat — the safe inline pattern has limits.** `<outerSpan><innerSpan>●</innerSpan>{" "}{t}</outerSpan>` survives the minifier only when the map body is *minimal* and the colour is a *direct* lookup. Two ways to break the same pattern and get children stripped:
+**Caveat — safe inline pattern has limits.** `<outerSpan><innerSpan>●</innerSpan>{" "}{t}</outerSpan>` survives only when map body is *minimal* and colour is a *direct* lookup. Two breakage modes:
 
-1. **Fallback expressions on the colour prop**: `style={{ color: TYPE_COLORS[t] ?? PRIMARY }}` gets treated as a non-trivial expression and the inner `<span>` is elided. Use a guaranteed lookup (`TYPE_COLORS[t]`) or precompute the fallback at module scope, e.g. `const colorOf = t => TYPE_COLORS[t] || PRIMARY;`.
-2. **Too many sibling children in the map return**: once the outer `<span>` carries more than ~3 children (e.g. `<span>●</span>{" "}{t} (n={v}){suffix}`), the minifier strips the entire subtree. The symptom in the DOM is a bare `<span>Bug</span>` with no glyph, no spacing, no `(n=…)`.
+1. **Fallback expressions on the colour prop**: `style={{ color: TYPE_COLORS[t] ?? PRIMARY }}` is treated as a non-trivial expression → inner `<span>` elided. Use a guaranteed lookup (`TYPE_COLORS[t]`) or precompute fallback at module scope (e.g. `const colorOf = t => TYPE_COLORS[t] || PRIMARY;`).
+2. **Too many sibling children in the map return**: once outer `<span>` has > ~3 children (e.g. `<span>●</span>{" "}{t} (n={v}){suffix}`), minifier strips the entire subtree. DOM symptom: bare `<span>Bug</span>` with no glyph, no spacing, no `(n=…)`.
 
-**If either condition applies, promote to Rule 2**: extract a named legend-item component and have the map call it by reference, moving the string composition into a `label` prop computed before the return.
+**If either condition applies, promote to Rule 2**: named legend-item component, map calls by reference, string composition moved into a `label` prop computed before return.
 
 ```jsx
 // ✓ SAFE — named component, single label prop, no fallback expressions
@@ -874,7 +873,7 @@ function TypeLegendItem({ t, label, opacity }) {
 
 #### Rule 4 — Never use `.map()` over a fixed known set; inline instead
 
-For small, fixed sets (e.g. tier names `["Demand", "Upstream", "Downstream"]`), inline each element as an explicit sibling rather than mapping. This avoids the map-drop risk entirely and is clearer.
+For small fixed sets (e.g. `["Demand", "Upstream", "Downstream"]`), inline each element as an explicit sibling. Avoids map-drop risk entirely and is clearer.
 
 ```jsx
 // ✗ RISKY
@@ -890,7 +889,7 @@ For small, fixed sets (e.g. tier names `["Demand", "Upstream", "Downstream"]`), 
 
 #### Rule 5 — Pass Recharts `content` prop as a component reference, not a JSX element or arrow
 
-Recharts calls the `content` prop as a function — it must receive a component reference, not a rendered JSX element. There are two broken forms:
+Recharts calls `content` as a function — must receive a component reference, not a rendered element. Two broken forms:
 
 ```jsx
 // ✗ BROKEN form 1 — JSX element, not a reference; Recharts cannot call it as a function
@@ -903,7 +902,7 @@ Recharts calls the `content` prop as a function — it must receive a component 
 <Tooltip content={CustomTooltip} />
 ```
 
-When the tooltip needs component state (e.g. `visibleStatuses`) that is not available at module scope, declare a named inner function inside the parent component that closes over the state, then pass it by reference:
+When the tooltip needs component state (e.g. `visibleStatuses`) not available at module scope, declare a named inner function inside the parent that closes over state, pass by reference:
 
 ```jsx
 // ✓ CORRECT — named inner function declaration capturing state, passed by reference
@@ -914,7 +913,7 @@ function TooltipWithState(props) {
 <Tooltip content={TooltipWithState} />
 ```
 
-The same applies when extra props need to be forwarded from a parent component's local variables.
+Same applies when extra props need forwarding from a parent's local variables.
 
 #### Rule 6 — Inline `<thead>` cells; never map over header label arrays
 
@@ -948,3 +947,30 @@ The same applies when extra props need to be forwarded from a parent component's
 | `content={NamedFn}` reference | ✓ Safe | Component reference, not an expression |
 | `.map()` for `<th>` headers | ✗ Broken | Children dropped |
 | Explicit `<th>` per column | ✓ Safe | Static JSX preserved |
+
+## 13. Experimental Feature Flag System
+
+Two-layer gate protects experimental paths from production use:
+
+- **Layer 1 — Operator gate**: `MCS_ALLOW_EXPERIMENTAL=true` in `.env`. When false (default), `set_experimental` returns an error and experimental paths are completely unreachable.
+- **Layer 2 — Session activation**: agent/user calls `set_experimental(enabled: true)` once per session. Persists until `set_experimental(enabled: false)` — **not** reset on board switches. User controls it explicitly.
+
+Resolution per handler: `s.allowExperimental && s.experimentalMode`
+
+**Active experiments and their docs** live in `docs/experimental.md`. Read it before working on any experimental code path.
+
+### 13.1 Checklist when adding a new experiment
+
+1. Implement experimental path inline in the relevant handler, guarded by `s.experimentalMode`.
+2. Structured log at the call site:
+
+   ```go
+   log.Info().Str("tool", "<tool_name>").Bool("experimental", s.experimentalMode).Bool("gate_open", s.allowExperimental).Msg("tool executed")
+   ```
+
+3. Add section to `docs/experimental.md`: hypothesis, what it changes, activation conditions, fallback behaviour, known limitations, graduation criteria.
+4. Golden tests must pass with gate off (default) — experimental paths must not affect stable baselines.
+
+### 13.2 Graduating an experiment to stable
+
+Once validated: remove the `s.experimentalMode` guard, remove the entry from `docs/experimental.md`, migrate the doc into `docs/architecture.md`, delete `MCS_ALLOW_EXPERIMENTAL` handling if no other experiments remain.
