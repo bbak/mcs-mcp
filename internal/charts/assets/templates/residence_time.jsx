@@ -76,6 +76,14 @@ function formatDate(label) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+// p-th percentile (0..1) of a sorted numeric array, linear interpolation
+function quantile(sorted, p) {
+  if (!sorted.length) return 0;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
 // Y-axis domains
 const maxW     = Math.max(...RAW.map(d => Math.max(d.w, d.w_prime, d.gap)));
 const Y_L_MAX  = Math.ceil((maxW + 5) / 10) * 10;
@@ -83,8 +91,18 @@ const minWStar = Math.min(...RAW.map(d => d.w_star));
 const maxWStar = Math.max(...RAW.map(d => d.w_star));
 const Y_R_MIN  = Math.floor((minWStar - 2) / 5) * 5;
 const Y_R_MAX  = Math.ceil((maxWStar + 2) / 5) * 5;
-const maxRate  = Math.max(...RAW.map(d => Math.max(d.lambda, d.theta)));
-const Y_L_MAX2 = Math.ceil((maxRate + 1) / 2) * 2;
+// Λ(T)/Θ(T) are cumulative rates A(T)/T, D(T)/T — the small early T produces a
+// 1/T initialization spike that would otherwise set the whole axis scale and
+// compress the informative steady-state band. Clip the domain to the p90 of the
+// combined λ+θ values so the spike overflows the top instead of flattening the rest.
+// The top decile lives entirely in the early 1/T region, so clipping it costs no
+// steady-state signal.
+const RATE_CLIP_PCTL = 0.90;
+const maxRawRate = Math.max(...RAW.map(d => Math.max(d.lambda, d.theta)));
+const rateVals   = RAW.flatMap(d => [d.lambda, d.theta]).sort((a, b) => a - b);
+const ratePctl   = quantile(rateVals, RATE_CLIP_PCTL);
+const Y_L_MAX2   = Math.max(2, Math.ceil((ratePctl + 1) / 2) * 2);
+const rateClipped = maxRawRate > Y_L_MAX2;
 
 const xInterval = isWeekly ? 3 : 6;
 
@@ -235,7 +253,7 @@ export default function ResidenceTimeChart() {
         <div style={{ background: PANEL_BG, borderRadius: 12,
           border: `1px solid ${BORDER}`, padding: "16px 8px 12px", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: MUTED, marginBottom: 8 }}>
-            Flow Rate Balance: Λ(T) Arrival vs Θ(T) Departure — cumulative rates per {isWeekly ? "week" : "day"}
+            Flow Rate Balance: Λ(T) Arrival vs Θ(T) Departure — cumulative rates per {isWeekly ? "week" : "day"}{rateClipped ? " — axis clipped at p90" : ""}
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={data} margin={{ top: 10, right: 70, left: 10, bottom: 10 }}>
@@ -243,7 +261,7 @@ export default function ResidenceTimeChart() {
               <XAxis dataKey="date" tickFormatter={formatDate} interval={xInterval}
                 angle={-45} textAnchor="end" height={60}
                 tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT_STACK }} />
-              <YAxis domain={[0, Y_L_MAX2]} tickFormatter={v => v.toFixed(1)}
+              <YAxis domain={[0, Y_L_MAX2]} allowDataOverflow={true} tickFormatter={v => v.toFixed(1)}
                 tick={{ fill: SECONDARY, fontSize: 10, fontFamily: FONT_STACK }}
                 label={{ value: `rate (/${periodLabel})`, angle: -90, position: "insideLeft",
                   fill: SECONDARY, fontSize: 10, dy: 40 }} />
