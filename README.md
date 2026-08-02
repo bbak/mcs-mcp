@@ -6,7 +6,7 @@
 
 ## 🚀 Key Capabilities
 
-- **Interactive Chart Rendering**: Every analytical tool can render an interactive chart — served directly from the MCP server over localhost HTTP. Charts are self-contained React/Recharts pages requiring no external dependencies. Enable via `MCS_CHARTS_BUFFER_SIZE` in `.env`; each tool response includes a `chart_url` ready to open in any browser.
+- **Interactive Chart Rendering**: Every analytical tool can render an interactive chart — served directly from the MCP server over localhost HTTP. Charts are self-contained React/Recharts pages requiring no external dependencies. On by default (`MCS_CHARTS_BUFFER_SIZE=20`, set to `0` to disable); each tool response includes a `chart_url` ready to open in any browser.
 - **Monte-Carlo Forecasting**: Run 10,000+ simulations to answer "When will it be done?" (Duration) or "How much can we do?" (Scope). Uses your team's actual historical throughput, not estimates.
 - **Forecast Backtesting**: Empirically validate how accurate the forecasts would have been by replaying them against your own historical data (Walk-Forward Analysis).
 - **Predictability Guardrails**: Detect "Special Cause" variation using XmR Control Charts — assesses process stability for Cycle Time, WIP populations, and Delivery Cadence.
@@ -81,9 +81,9 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 ### How-To
 
 1. Build from sources (see [Building from Sources](#building-from-sources)) or download a release.
-2. Copy `mcs-mcp.exe` (or `mcs-mcp`) and `.env-example` to a location of your choice (for builders, look into `dist/`).
-3. Rename `.env-example` to `.env` and modify it accordingly. At a minimum, you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)).
-4. Especially for **MacOS Users**: Make sure that the MCP-Server either has write permissions on the path of the binary (`mcs-mcp`) or use the `DATA_PATH` setting in `.env` to point to directory, where it has, because it needs to create two folders (`cache` and `logs`) and write files to it.
+2. Copy `mcs-mcp.exe` (or `mcs-mcp`) to a location of your choice (for builders, look into `dist/`).
+3. Run it once. It creates a commented `.env` in its data folder — by default next to the binary, see [Where Settings Come From](#where-settings-come-from) — pre-filled with every setting and its default. Edit that file: at a minimum you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)). Your edits are never overwritten. (If you pass `JIRA_TOKEN` through your agent's `env` block instead, no file is written — that is treated as a managed deployment.)
+4. Especially for **MacOS Users**: The server needs to create two folders (`cache` and `logs`) and write files to them. If it cannot write next to the binary, start it with `--data-path /path/to/writable/dir` (or set the `DATA_PATH` environment variable) and it will keep its data — including the `.env` — there instead.
 5. Configure an AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
 6. Chat:
    - Tell the AI Agent which Project and which Board you want to look at.
@@ -93,21 +93,21 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
 ### Authentication
 
-The server supports 3 ways of Authentication through setting variables in the `.env` file.
+The server supports 3 ways of Authentication. Set these in your `.env` file or through your agent's `env` block.
 
-Note: Please make sure that those auth-related variables, that don't apply, are commented out.
+`JIRA_TOKEN_TYPE` is **inferred** and normally does not need to be set: if `JIRA_USER_EMAIL` is present the server uses `api` (Jira Cloud, Basic auth), otherwise `pat` (Data Center, Bearer). Set it explicitly only to override that. On startup the server logs which mode it chose (`mode=basic|bearer|cookie|none`) — check that line first if authentication fails.
+
+Variables that don't apply can be left empty or commented out; empty values are treated as unset.
 
 #### Option A: Personal Access Token (PAT) for Jira Datacenter
 
 ```env
-JIRA_TOKEN_TYPE=pat
 JIRA_TOKEN=your-personal-access-token
 ```
 
 #### Option B: API Token for Jira Cloud
 
 ```env
-JIRA_TOKEN_TYPE=api
 JIRA_TOKEN=your-api-token
 JIRA_USER_EMAIL=your-jira-account-email
 ```
@@ -144,7 +144,7 @@ Untested, but should work.
 make build
 ```
 
-The resulting binary will be located in the `dist/` folder along with a exemplary `.env` file.
+The resulting binary will be located in the `dist/` folder along with an exemplary `.env` file. That example is generated from `internal/config/template.go` — edit the registry there, not `conf/.env-example`, which a test keeps in sync.
 
 ### Agent Configuration
 
@@ -161,7 +161,43 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 }
 ```
 
-Make sure that the Server can write to this directory to create `cache` and `logs` folders - or reconfigure using `DATA_PATH`.
+Make sure that the Server can write to this directory to create `cache` and `logs` folders - or point it elsewhere with `--data-path`:
+
+```json
+{
+	"mcpServers": {
+		"mcs-mcp": {
+			"command": "/path/to/mcs-mcp/mcs-mcp.exe",
+			"args": ["--data-path", "/path/to/writable/folder"],
+			"env": {
+				"JIRA_URL": "https://your-domain.atlassian.net",
+				"JIRA_TOKEN": "your-token",
+				"JIRA_USER_EMAIL": "your-jira-account-email"
+			}
+		}
+	}
+}
+```
+
+Anything in the `env` block outranks the `.env` file (see [Where Settings Come From](#where-settings-come-from)). Supplying `JIRA_TOKEN` there also suppresses the generated `.env` — the server treats it as a managed deployment.
+
+### Where Settings Come From
+
+Settings are resolved in this order, highest priority first:
+
+1. **Process environment** — what your MCP client passes in its `env` block
+2. **`.env` in the data folder** — the file created on first run; this is the one to edit
+3. **`.env` next to the binary** — supported for backward compatibility
+4. **`.env` in the working directory** — for development
+5. **Built-in defaults** — shown in the generated `.env`
+
+At startup the server logs one line per setting recording where its value came from — `flag`, `env`, `dotenv`, `default` or `inferred` — so a value that isn't what you expected can be traced without guesswork. Secrets are logged as present/absent only, never as a value.
+
+**The data folder itself is the exception.** It has to be known before any `.env` can be found, so it is read only from the `--data-path` flag or the `DATA_PATH` environment variable — in that order, then falling back to the binary directory, the system temp folder, and finally the working directory.
+
+Setting `DATA_PATH` inside a `.env` file has **no effect**; the server warns when it finds one.
+
+> **Upgrading?** If you previously set `DATA_PATH` in your `.env`, move it to `--data-path` or a real environment variable. Otherwise the server falls back to the binary directory and will re-ingest from Jira from scratch, because it won't find your existing cache. The server detects this case and says so explicitly in the log.
 
 ### Optional Settings
 
@@ -169,21 +205,33 @@ These optional variables can be set in the `.env` file:
 
 | Variable                                | Default      | Description                                                                                 |
 | :-------------------------------------- | :----------- | :------------------------------------------------------------------------------------------ |
-| `DATA_PATH`                             | (binary dir) | Base folder for logs and cache.                                                             |
+| `JIRA_TOKEN_TYPE`                       | (inferred)   | `api` or `pat`. Inferred from `JIRA_USER_EMAIL` when unset.                                 |
 | `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                                           |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point.                       |
-| `JIRA_REQUEST_DELAY_SECONDS`            | `5`          | Enforced delay (in seconds) between requests to the Jira REST API.                          |
-| `MCS_CHARTS_BUFFER_SIZE`                | `0`          | Chart rendering buffer (0=off, 1-100=on). Starts HTTP server on localhost.                  |
-| `MCS_ALLOW_EXPERIMENTAL`                | `false`      | Enable the experimental feature gate. See [Experimental Features](#-experimental-features). |
+| `JIRA_REQUEST_DELAY_SECONDS`            | `10`         | Enforced delay (in seconds) between requests to the Jira REST API.                          |
+| `MCS_CHARTS_BUFFER_SIZE`                | `20`         | Chart rendering buffer (0=off, 1-100=on). Starts HTTP server on localhost.                  |
+| `MCS_ENGINE`                            | `crude`      | Simulation engine: `crude`, `bbak` (regime-aware), or `auto` (backtest-driven).             |
+| `MCS_ENGINE_CRUDE`                      | `50`         | Weight for the crude engine (0=disabled). Breaks ties in `auto` mode.                       |
+| `MCS_ENGINE_BBAK`                       | `50`         | Weight for the bbak engine (0=disabled). Breaks ties in `auto` mode.                        |
 | `INGESTION_UPDATED_LOOKBACK`            | `24`         | Months back for the `updated >=` predicate of the initial Jira hydration JQL.               |
 | `INGESTION_CREATED_LOOKBACK`            | `36`         | Months back for the `created >=` predicate. Captures long-lived items not touched recently. |
 | `INGESTION_MAX_ITEMS`                   | `5000`       | Page-cap on initial hydration. Forward catch-up (`import_history_update`) is uncapped.      |
+
+`DATA_PATH` is not listed here because it has no effect when set in `.env` — use `--data-path` or the environment variable.
+
+### Command-Line Flags
+
+| Flag          | Description                                                                    |
+| :------------ | :----------------------------------------------------------------------------- |
+| `--data-path` | Base directory for `cache`, `logs` and `.env`. Overrides `DATA_PATH`.          |
 
 ---
 
 ## 📊 Chart Rendering
 
-MCS-MCP renders interactive charts server-side. When `MCS_CHARTS_BUFFER_SIZE` is set to a value between 1 and 100, the server starts an HTTP listener on a random localhost port (3000-4000). Each analytical tool response includes a `chart_url` in the `context` field. Opening that URL in a browser renders a self-contained React/Recharts chart with the tool's data.
+MCS-MCP renders interactive charts server-side. When `MCS_CHARTS_BUFFER_SIZE` is set to a value between 1 and 100, the server starts an HTTP listener on a random localhost port (3000-4000).
+
+> **Changed in this release:** charts are now **on by default** (`MCS_CHARTS_BUFFER_SIZE=20`). Previously the built-in default was `0` and charts were only enabled because the shipped `.env-example` set `20`. If you never set this variable and do not want a local listener, set `MCS_CHARTS_BUFFER_SIZE=0` explicitly. Each analytical tool response includes a `chart_url` in the `context` field. Opening that URL in a browser renders a self-contained React/Recharts chart with the tool's data.
 
 The server buffers the most recent N tool results (MRU). Older entries are evicted when the buffer is full. Charts are rendered on demand when the URL is accessed.
 
@@ -205,16 +253,19 @@ If for any reason the agent doesn't call `open_in_browser`, you can always copy 
 
 ---
 
-## 🧪 Experimental Features
+## 🧪 Simulation Engines
 
-MCS-MCP includes an experimental feature system for testing improvements to the forecasting engine before they become the default. Experimental features are **off by default** and require two deliberate steps to activate:
+Forecasts run on a selectable simulation engine, set via `MCS_ENGINE`:
 
-1. **Operator enables the gate** by setting `MCS_ALLOW_EXPERIMENTAL=true` in `.env`.
-2. **The AI Agent activates experimental mode** for the current session by calling the `set_experimental` tool. This persists until explicitly disabled — it is not reset when switching boards.
+| Value             | Behaviour                                                                      |
+| :---------------- | :----------------------------------------------------------------------------- |
+| `crude` (default) | Baseline Monte Carlo over the empirical throughput histogram.                  |
+| `bbak`            | Regime-aware sampling — weights recent process regimes more heavily.           |
+| `auto`            | Backtests both against your history and uses whichever scored more accurately. |
 
-When both steps are satisfied, the forecasting tools gain access to experimental code paths. When either step is missing, the server behaves identically to stable production mode.
+New forecasting approaches ship as additional engine values and are opt-in until they prove out, so the default behaviour never changes underneath you. The earlier gate-based system (`MCS_ALLOW_EXPERIMENTAL` plus a `set_experimental` tool) has been removed — if you used it, `MCS_ENGINE=bbak` is the replacement.
 
-For details on active experiments — what they do, parameters, known limitations, and graduation criteria — see **[Experimental Features Documentation](docs/experimental.md)**.
+See **[Architecture: Multi-Engine Framework](docs/architecture.md)** sections 4.6–4.8 for how selection and backtesting work.
 
 ---
 

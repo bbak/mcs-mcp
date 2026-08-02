@@ -269,6 +269,8 @@ Every engine implements `ForecastEngine`:
 
 Engines registered at startup in a `Registry`. Active engine selected via `MCS_ENGINE` env var.
 
+The Bbak engine graduated from an experimental feature in v0.19.0. Configurations that previously used `MCS_ALLOW_EXPERIMENTAL=true` plus `set_experimental(enabled: true)` now use `MCS_ENGINE=bbak`; both the gate and the tool have been removed.
+
 #### Engine Selection Modes
 
 | `MCS_ENGINE` value | Behavior |
@@ -455,7 +457,7 @@ Result: high-fidelity "Friction Heatmap" pinpointing where and how long teams ar
 
   Paging stops at `INGESTION_MAX_ITEMS`. Wide `OR` makes a separate "resolved-baseline" sweep unnecessary — long-lived deliveries fall into the `created >= …` branch even if untouched recently.
 
-- **Configuration** (`.env`):
+- **Configuration** (see 8.12 for how these resolve):
   - `INGESTION_UPDATED_LOOKBACK` — months for `updated >=` (default `24`).
   - `INGESTION_CREATED_LOOKBACK` — months for `created >=` (default `36`).
   - `INGESTION_MAX_ITEMS` — page-cap on initial hydration (default `5000`). Forward catch-up not capped.
@@ -514,6 +516,9 @@ Strict acyclic dependency model:
 - **`internal/stats`**: analytical engine. Depends on `eventlog`; owns metrics, residency, projections.
 - **`internal/jira`**: DTO and Mapping layer. Objective Jira domain models and transformation.
 - **`internal/discovery`**: top-level package for non-deterministic "Best Guess" workflow heuristics. Fuses `eventlog` + `jira` + `stats` to infer semantic mapping. Promoted from `internal/stats/discovery` because it's a distinct concern that consumes stats, not a stats subset.
+- **`internal/paths`**: process bootstrap — data path resolution and `.env` loading. Deliberately dependency-free of `config`: the `.env` template is passed in as `[]byte` rather than imported, because `config` depends on `paths` for the resolved data path. Injecting the bytes is what keeps the graph acyclic.
+- **`internal/config`**: assembles `AppConfig` from the environment `paths` has already populated. Owns the variable registry, defaults, and provenance logging.
+- **`internal/logging`**: zerolog dual-sink setup. Takes the data path as a parameter; resolves nothing itself.
 
 ### 8.5 Discovery Sampling
 
@@ -588,6 +593,67 @@ All tool responses wrapped by `WrapResponse`:
 - **`diagnostics`**: operational metadata for the invocation (e.g. `discovery_source`, sampling details). For the agent, not the end user.
 - **`warnings`**: data-quality flags from the pipeline (insufficient sample size, system pressure, low resolution density, etc.). May affect reliability — surface to user.
 - **`insights`**: strategic guidance for the agent on how to present/act on the result (e.g. `"PREVIOUSLY VERIFIED: This mapping was LOADED FROM DISK"`, `"NOTE: This is a NEW PROPOSAL — verify with the user before proceeding"`).
+
+### 8.12 Configuration & Bootstrap
+
+#### Startup order
+
+`PersistentPreRun` runs four steps, in this order and no other:
+
+```
+paths.Bootstrap(Options{DataPath, Template})   // resolve data path, load .env files
+  → logging.Init(boot.DataPath)                // sinks now exist
+  → replayNotes(notes)                         // emit what Bootstrap recorded before them
+  → config.Load(boot)                          // assemble AppConfig
+```
+
+Bootstrap must precede `logging.Init` because `VERBOSE` may come from a `.env` file that only Bootstrap can find. That inverts the usual "log first" instinct and creates a gap: warnings raised while resolving config have no sink yet. Hence `[]Note` — Bootstrap returns its log records instead of emitting them, and the caller replays them once the sinks are up. Without this, the notes users most need (ignored `DATA_PATH`, template written, temp-dir fallback) would reach stderr only, never the logfile.
+
+#### Data path resolution
+
+The data path is a **bootstrap variable**: it has to be known before any `.env` can be located, so it is read only from the command line or the process environment. Precedence:
+
+1. `--data-path` flag
+2. `DATA_PATH` environment variable
+3. binary directory, if a writability probe succeeds
+4. `os.TempDir()/mcs-mcp`
+5. `.` (last resort)
+
+**`DATA_PATH` set inside a `.env` file is read and then ignored**, with a warning. Honouring it would require re-resolving after the logs are already open and `logs/`+`cache/` are already created — orphaned directories and split-brain logging. The warning escalates when the ignored directory contains a `cache/`, because that user is about to silently re-ingest from Jira.
+
+#### Precedence
+
+`.env` files load in order — data path, binary directory, working directory — as three separate `godotenv.Load` calls. `godotenv.Load` never overwrites an already-set variable, so the process environment outranks every file and earlier files outrank later ones:
+
+| Rank | Source | Provenance label |
+| :--- | :--- | :--- |
+| 1 | process environment | `env` |
+| 2 | `<data path>/.env` | `dotenv` |
+| 3 | `<binary dir>/.env` | `dotenv` |
+| 4 | `./.env` | `dotenv` |
+| 5 | code default | `default` |
+
+`godotenv.Load` (non-destructive), never `Overload`. This is the contract the whole layering rests on, so a test pins it — a dependency bump that flipped the semantics would otherwise be silent.
+
+#### Single source of truth
+
+`configVars` in `internal/config/template.go` is the authoritative registry: key, default, docs, secret flag. It generates **both** the `.env` template and the provenance log, so a variable cannot exist in one and be missing from the other. `conf/.env-example` is generated from it and held byte-equal by `TestEnvExampleMatchesTemplate`.
+
+This exists because the previous split — defaults in Go, a hand-written `.env-example` — had drifted on four variables. `.env-example` was the de-facto default (everyone copied it) while the Go defaults were what a user without a config file actually got.
+
+On first run the template is seeded into the data path (`O_EXCL`, `0600` — it will hold a Jira token). Never overwritten. **Skipped** when `JIRA_TOKEN` or `JIRA_SESSION_ID` already come from the process environment: that signals a managed deployment (MCP client `env` block, container, service manager) where writing config into a data volume is wrong.
+
+#### Provenance logging
+
+One `config` line per variable at Info, recording `source` ∈ `flag | env | dotenv | default | inferred`. Config resolves across five layers on machines that cannot be inspected, reported by users who don't know which layer they're in — so the source has to be recoverable from the log alone. Info rather than Debug: requiring `VERBOSE=true` to diagnose config loading is circular when the thing that's broken *is* config loading.
+
+**Secrets log presence only** — never the value, never a prefix, never a length, since length fingerprints the token type. See 9.1.
+
+#### Inference
+
+`JIRA_TOKEN_TYPE` is inferred when unset: a non-empty `JIRA_USER_EMAIL` means `api` (Cloud, Basic auth), otherwise `pat` (Data Center, Bearer). An explicit value is honoured; an invalid one warns and falls back to inference. "Present but empty" counts as unset throughout — `.env` files routinely ship bare `KEY=` lines, and treating those as a value is what made the old `JIRA_TOKEN_TYPE=` case silently select Bearer.
+
+The auth mode chosen is logged once at client construction (`mode=basic|bearer|cookie|none`), not per request. It was previously logged at `Trace`, which the global level never reaches — so the single most useful fact for explaining a 401 was invisible.
 
 ---
 
@@ -689,7 +755,7 @@ Server renders interactive charts so agents don't need to inline large JSON into
 
 ### 12.1 Architecture
 
-`MCS_CHARTS_BUFFER_SIZE` set to 1-100 in `.env` → server:
+`MCS_CHARTS_BUFFER_SIZE` resolved to 1-100 (default 20) → server:
 
 1. Starts HTTP listener on a random localhost port (3000-4000) alongside stdio MCP transport.
 2. Maintains MRU (Most Recently Used) buffer of configured size, storing JSON results of tool calls.
@@ -720,9 +786,11 @@ Chart templates receive data via `window.__MCS_PAYLOAD__` with the structure:
 
 ### 12.4 Configuration
 
-- `MCS_CHARTS_BUFFER_SIZE=0` (default): chart rendering disabled, no HTTP server.
-- `MCS_CHARTS_BUFFER_SIZE=20`: buffer = 20 most recent results, HTTP server active.
+- `MCS_CHARTS_BUFFER_SIZE=20` (default): buffer = 20 most recent results, HTTP server active.
+- `MCS_CHARTS_BUFFER_SIZE=0`: chart rendering disabled, no HTTP server.
 - Values > 100: server refuses to start.
+
+The default was `0` before the config restructure; charts were only on because the shipped `.env-example` set `20`. The code default now carries that, so charts are on without a config file — see 8.12.
 
 ### 12.5 Agent Guidance: Opening Chart URLs
 
@@ -948,29 +1016,19 @@ Same applies when extra props need forwarding from a parent's local variables.
 | `.map()` for `<th>` headers | ✗ Broken | Children dropped |
 | Explicit `<th>` per column | ✓ Safe | Static JSX preserved |
 
-## 13. Experimental Feature Flag System
+## 13. Experimental Engines
 
-Two-layer gate protects experimental paths from production use:
+The former two-layer gate (`MCS_ALLOW_EXPERIMENTAL` + the `set_experimental` tool) has been removed. Experimental work now ships as a **named engine** selected by `MCS_ENGINE`, which defaults to `crude`. An experiment is opt-in until it graduates, and is deleted outright if its hypothesis is rejected.
 
-- **Layer 1 — Operator gate**: `MCS_ALLOW_EXPERIMENTAL=true` in `.env`. When false (default), `set_experimental` returns an error and experimental paths are completely unreachable.
-- **Layer 2 — Session activation**: agent/user calls `set_experimental(enabled: true)` once per session. Persists until `set_experimental(enabled: false)` — **not** reset on board switches. User controls it explicitly.
-
-Resolution per handler: `s.allowExperimental && s.experimentalMode`
-
-**Active experiments and their docs** live in `docs/experimental.md`. Read it before working on any experimental code path.
+Engines currently implemented are documented in 4.6–4.8.
 
 ### 13.1 Checklist when adding a new experiment
 
-1. Implement experimental path inline in the relevant handler, guarded by `s.experimentalMode`.
-2. Structured log at the call site:
-
-   ```go
-   log.Info().Str("tool", "<tool_name>").Bool("experimental", s.experimentalMode).Bool("gate_open", s.allowExperimental).Msg("tool executed")
-   ```
-
-3. Add section to `docs/experimental.md`: hypothesis, what it changes, activation conditions, fallback behaviour, known limitations, graduation criteria.
-4. Golden tests must pass with gate off (default) — experimental paths must not affect stable baselines.
+1. Implement the engine behind an `MCS_ENGINE` value, leaving `crude` untouched.
+2. Structured log at the call site recording the engine actually used.
+3. Document it in 4.6–4.8 alongside the existing engines: hypothesis, what it changes, activation conditions, fallback behaviour, known limitations, and the criteria that would make it the default.
+4. Golden tests must pass under the default engine — experimental paths must not affect stable baselines.
 
 ### 13.2 Graduating an experiment to stable
 
-Once validated: remove the `s.experimentalMode` guard, remove the entry from `docs/experimental.md`, migrate the doc into `docs/architecture.md`, delete `MCS_ALLOW_EXPERIMENTAL` handling if no other experiments remain.
+Once validated: make it the default `MCS_ENGINE`, drop the graduation criteria from its section in 4.6–4.8, and record the migration path in the release notes.

@@ -9,6 +9,7 @@ import (
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/logging"
 	"mcs-mcp/internal/mcp"
+	"mcs-mcp/internal/paths"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -32,11 +33,21 @@ var rootCmd = &cobra.Command{
 	Long: `A specialized MCP Server that provides statistical forecasting (throughput histograms, fat-tail analysis)
 using Monte-Carlo-Simulation based on Jira data.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		logging.Init()
+		// Bootstrap resolves the data path and loads the .env files. It runs
+		// before logging so that VERBOSE from those files takes effect, which
+		// means its own notes have to be replayed once the sinks exist.
+		dataPath, _ := cmd.Flags().GetString("data-path")
+		boot, notes := paths.Bootstrap(paths.Options{
+			DataPath: dataPath,
+			Template: config.Template(),
+		})
+
+		logging.Init(boot.DataPath)
+		replayNotes(notes)
 
 		// Load configuration
 		var err error
-		cfg, err = config.Load()
+		cfg, err = config.Load(boot)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to load configuration")
 		}
@@ -77,9 +88,26 @@ using Monte-Carlo-Simulation based on Jira data.`,
 	},
 }
 
+// replayNotes emits the records paths.Bootstrap collected before the log sinks
+// existed, so they land in the logfile rather than only on stderr.
+func replayNotes(notes []paths.Note) {
+	for _, n := range notes {
+		e := log.Info()
+		if n.Level == "warn" {
+			e = log.Warn()
+		}
+		for k, v := range n.Fields {
+			e = e.Str(k, v)
+		}
+		e.Msg(n.Msg)
+	}
+}
+
 func Execute() error {
 	return rootCmd.Execute()
 }
 
 func init() {
+	rootCmd.PersistentFlags().String("data-path", "",
+		"Base directory for logs and cache (overrides the DATA_PATH environment variable)")
 }

@@ -7,33 +7,32 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
-	"mcs-mcp/internal/paths"
-
-	"github.com/joho/godotenv"
 	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Init initializes the global logger with dual sinks: os.Stderr and a rotating file.
-func Init() {
-	// 0. Load .env from binary directory to ensure LOGS_FOLDER is available.
-	// We do this here because Init is called before config.Load.
-	exePath, err := os.Executable()
-	if err == nil {
-		exeDir := filepath.Dir(exePath)
-		_ = godotenv.Load(filepath.Join(exeDir, ".env"))
+// verboseLevel maps the VERBOSE setting to a log level. Anything unparseable
+// counts as off, matching the previous strict comparison, but "1", "TRUE" and
+// the other forms strconv accepts now work as users expect.
+func verboseLevel(raw string) zerolog.Level {
+	if verbose, err := strconv.ParseBool(strings.TrimSpace(raw)); err == nil && verbose {
+		return zerolog.DebugLevel
 	}
+	return zerolog.InfoLevel
+}
 
+// Init initializes the global logger with dual sinks: os.Stderr and a rotating
+// file under dataPath. The caller resolves dataPath via paths.Bootstrap, which
+// also loads the .env files, so VERBOSE is already in the environment here.
+func Init(dataPath string) {
 	// 1. Determine log level
-	level := zerolog.InfoLevel
-	if os.Getenv("VERBOSE") == "true" {
-		level = zerolog.DebugLevel
-	}
-	zerolog.SetGlobalLevel(level)
+	zerolog.SetGlobalLevel(verboseLevel(os.Getenv("VERBOSE")))
 
 	// 2. Setup Stderr Writer (Console)
 	isTerminal := isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
@@ -43,12 +42,7 @@ func Init() {
 		NoColor:    !isTerminal,
 	}
 
-	// 3. Setup File Writer (Rotating) using shared data path resolution
-	var exeDir string
-	if err == nil {
-		exeDir = filepath.Dir(exePath)
-	}
-	dataPath := paths.ResolveDataPath(exeDir)
+	// 3. Setup File Writer (Rotating) under the resolved data path
 	logDir := filepath.Join(dataPath, "logs")
 
 	var writers []io.Writer

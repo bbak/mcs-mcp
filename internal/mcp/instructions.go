@@ -38,9 +38,4 @@ CHART RENDERING:
 
 DATA INTEGRITY:
   Series are time-ordered; do not reorder results. Cycle Time, Moving Range, and WIP Age are sensitive to ordering and
-  to the commitment-point configuration (COMMITMENT_POINT_BACKFLOW_RESET_CLOCK). Trust the tool output over intuition.
-
-EXPERIMENTAL FEATURES:
-  Off by default. A session must call set_experimental(enabled: true) to unlock experimental code paths. The operator gate
-  (MCS_ALLOW_EXPERIMENTAL) must also be true in the server's environment, otherwise the call errors. Setting persists until
-  the session explicitly disables it.`
+  to the commitment-point configuration (COMMITMENT_POINT_BACKFLOW_RESET_CLOCK). Trust the tool output over intuition.`

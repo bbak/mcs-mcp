@@ -274,7 +274,7 @@ This document describes the primary interaction scenarios between the User (Proj
 - **Trigger:** User asks: "I need to see the process evolution for the last 4 years."
 - **Main Success Scenario:**
     1. AI identifies that the cached history does not extend far enough back to answer the question.
-    2. AI advises the operator to raise `INGESTION_CREATED_LOOKBACK` (and optionally `INGESTION_UPDATED_LOOKBACK` and `INGESTION_MAX_ITEMS`) in `.env`, then restart the MCP server.
+    2. AI advises the operator to raise `INGESTION_CREATED_LOOKBACK` (and optionally `INGESTION_UPDATED_LOOKBACK` and `INGESTION_MAX_ITEMS`) in `.env` or the agent's `env` block, then restart the MCP server.
     3. Operator deletes the existing cache for the board (`{projectKey}_{boardID}.jsonl`) so the next hydration runs fresh.
     4. Operator calls `import_board_context`. MCP Server runs a single-pass hydration bounded by the new lookback values, capped at `INGESTION_MAX_ITEMS`.
     5. MCP Server recalculates the **Discovery Cutoff** (Warmup Period) for the extended dataset.

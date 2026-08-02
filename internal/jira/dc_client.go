@@ -38,6 +38,7 @@ func NewDataCenterClient(cfg Config) Client {
 	if cfg.RequestDelay == 0 {
 		cfg.RequestDelay = 10 * time.Second
 	}
+	logAuthMode(cfg)
 	return &dcClient{
 		cfg: cfg,
 		httpClient: &http.Client{
@@ -123,17 +124,38 @@ func (c *dcClient) throttle(isMetadata bool) {
 	c.lastRequest = time.Now()
 }
 
+// logAuthMode records the auth mode once at construction. Logging it per
+// request would fire on every call, and the mode is the first thing needed to
+// explain a 401 - it must not be invisible.
+func logAuthMode(cfg Config) {
+	mode := "none"
+	switch {
+	case cfg.Token != "" && strings.ToLower(cfg.TokenType) == "api" && cfg.UserEmail != "":
+		mode = "basic" // Jira Cloud: email + API token
+	case cfg.Token != "":
+		mode = "bearer" // Jira Data Center: PAT
+	case cfg.XsrfToken != "" || cfg.SessionID != "" || cfg.RememberMe != "":
+		mode = "cookie"
+	}
+
+	// Never log the token or cookie values; presence only.
+	log.Info().
+		Str("mode", mode).
+		Str("token_type", cfg.TokenType).
+		Str("user_email", cfg.UserEmail).
+		Bool("token_present", cfg.Token != "").
+		Msg("Jira authentication configured")
+}
+
 func (c *dcClient) authenticateRequest(req *http.Request) {
 	// 1. Prioritize Token Authentication
 	if c.cfg.Token != "" {
 		if strings.ToLower(c.cfg.TokenType) == "api" && c.cfg.UserEmail != "" {
 			// Jira Cloud: Basic Auth (email:api_token)
 			req.SetBasicAuth(c.cfg.UserEmail, c.cfg.Token)
-			log.Trace().Msg("Authenticated via Jira Cloud API Token (Basic Auth)")
 		} else {
 			// Jira Data Center: Bearer Token (PAT)
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.cfg.Token))
-			log.Trace().Msg("Authenticated via Jira Personal Access Token (Bearer)")
 		}
 		return
 	}
