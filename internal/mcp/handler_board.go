@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"mcs-mcp/internal/stats"
 	"mcs-mcp/internal/discovery"
+	"mcs-mcp/internal/stats"
 
 	"github.com/rs/zerolog/log"
 )

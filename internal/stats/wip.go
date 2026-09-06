@@ -281,14 +281,14 @@ func CalculateWIPRunChart(issues []jira.Issue, window AnalysisWindow, commitment
 type WIPAgeRunChartPoint struct {
 	Date       time.Time `json:"date"`
 	TotalAge   float64   `json:"total_age"`   // Sum of individual WIP ages in days
-	Count      int       `json:"count"`        // Number of WIP items (for context)
-	AverageAge float64   `json:"average_age"`  // TotalAge / Count (convenience, not used for XmR)
+	Count      int       `json:"count"`       // Number of WIP items (for context)
+	AverageAge float64   `json:"average_age"` // TotalAge / Count (convenience, not used for XmR)
 }
 
 // WIPAgeStabilityResult encapsulates the daily run chart and weekly XmR analysis of Total WIP Age.
 type WIPAgeStabilityResult struct {
 	RunChart []WIPAgeRunChartPoint `json:"run_chart"`
-	XmR      XmRResult             `json:"xmr"`    // XmR applied to Total WIP Age (not average)
+	XmR      XmRResult             `json:"xmr"` // XmR applied to Total WIP Age (not average)
 	Status   string                `json:"status"`
 }
 

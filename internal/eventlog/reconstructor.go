@@ -157,4 +157,3 @@ func ExtractBlockedIntervals(events []IssueEvent, created time.Time, resolved *t
 
 	return intervals
 }
-

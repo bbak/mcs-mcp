@@ -315,4 +315,3 @@ func BuildThroughputProjection(events []eventlog.IssueEvent, mappings map[string
 
 	return result
 }
-

@@ -43,4 +43,3 @@ func (s *Server) handleCacheCatchUp(projectKey string, boardID int) (any, error)
 
 	return WrapResponse(res, projectKey, boardID, nil, nil, nil), nil
 }
-

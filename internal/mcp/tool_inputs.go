@@ -36,10 +36,10 @@ const (
 type DiagnosticGoal string
 
 const (
-	GoalForecasting       DiagnosticGoal = "forecasting"
-	GoalBottlenecks       DiagnosticGoal = "bottlenecks"
-	GoalCapacityPlanning  DiagnosticGoal = "capacity_planning"
-	GoalSystemHealth      DiagnosticGoal = "system_health"
+	GoalForecasting      DiagnosticGoal = "forecasting"
+	GoalBottlenecks      DiagnosticGoal = "bottlenecks"
+	GoalCapacityPlanning DiagnosticGoal = "capacity_planning"
+	GoalSystemHealth     DiagnosticGoal = "system_health"
 )
 
 // Granularity represents the time series granularity.
@@ -73,8 +73,8 @@ const (
 type WorkflowOutcome string
 
 const (
-	OutcomeDelivered  WorkflowOutcome = "delivered"
-	OutcomeAbandoned  WorkflowOutcome = "abandoned"
+	OutcomeDelivered WorkflowOutcome = "delivered"
+	OutcomeAbandoned WorkflowOutcome = "abandoned"
 )
 
 // StatusMappingEntry holds the semantic metadata for a single workflow status.
@@ -217,9 +217,9 @@ type WorkflowDiscoverMappingInput struct {
 type WorkflowSetMappingInput struct {
 	ProjectKey      string                        `json:"project_key" jsonschema:"The project key"`
 	BoardID         int                           `json:"board_id" jsonschema:"The board ID"`
-	Mapping         map[string]StatusMappingEntry  `json:"mapping" jsonschema:"A map of status names to metadata (tier role and optional outcome)."`
-	Resolutions     map[string]WorkflowOutcome     `json:"resolutions,omitempty" jsonschema:"Optional: A map of Jira resolution names to outcomes (delivered or abandoned)."`
-	CommitmentPoint string                         `json:"commitment_point,omitempty" jsonschema:"Optional: The Downstream status where the clock starts."`
+	Mapping         map[string]StatusMappingEntry `json:"mapping" jsonschema:"A map of status names to metadata (tier role and optional outcome)."`
+	Resolutions     map[string]WorkflowOutcome    `json:"resolutions,omitempty" jsonschema:"Optional: A map of Jira resolution names to outcomes (delivered or abandoned)."`
+	CommitmentPoint string                        `json:"commitment_point,omitempty" jsonschema:"Optional: The Downstream status where the clock starts."`
 }
 
 // WorkflowSetOrderInput holds arguments for the workflow_set_order tool.
@@ -290,4 +290,3 @@ type ImportHistoryUpdateInput struct {
 type OpenInBrowserInput struct {
 	URL string `json:"url" jsonschema:"The chart render URL to open (must be a localhost render-charts URL)"`
 }
-

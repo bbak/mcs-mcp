@@ -23,7 +23,7 @@ type ForecastRequest struct {
 	DiscoveryCutoff time.Time
 
 	// Duration mode
-	Targets     map[string]int
+	Targets      map[string]int
 	MixOverrides map[string]float64
 
 	// Scope mode

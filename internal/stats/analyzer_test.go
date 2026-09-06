@@ -2,9 +2,9 @@ package stats_test
 
 import (
 	"fmt"
+	"mcs-mcp/internal/discovery"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/discovery"
 	"reflect"
 	"strings"
 	"testing"

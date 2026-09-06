@@ -3,9 +3,9 @@ package mcp
 import (
 	"fmt"
 
+	"mcs-mcp/internal/discovery"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/discovery"
 )
 
 func (s *Server) handleGetDiagnosticRoadmap(goal string) (any, error) {

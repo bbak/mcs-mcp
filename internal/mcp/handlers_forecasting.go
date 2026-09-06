@@ -508,18 +508,18 @@ func (s *Server) handleGetForecastAccuracy(projectKey string, boardID int, mode 
 	analysisCtx := s.prepareAnalysisContext(projectKey, boardID, nil)
 
 	cfg := simulation.WalkForwardConfig{
-		SourceID:         sourceID,
-		SimulationMode:   mode,
-		LookbackWindow:   lookbackDays,
-		StepSize:         walkForwardStepDays,
-		ForecastHorizon:  forecastHorizon,
-		ItemsToForecast:  itemsToForecast,
-		IssueTypes:       issueTypes,
-		Resolutions:      s.activeResolutions,
-		EvaluationDate:   s.Clock(),
-		CommitmentPoint:  analysisCtx.CommitmentPoint,
-		StatusWeights:    analysisCtx.StatusWeights,
-		SimulationSeed:   s.simulationSeed,
+		SourceID:        sourceID,
+		SimulationMode:  mode,
+		LookbackWindow:  lookbackDays,
+		StepSize:        walkForwardStepDays,
+		ForecastHorizon: forecastHorizon,
+		ItemsToForecast: itemsToForecast,
+		IssueTypes:      issueTypes,
+		Resolutions:     s.activeResolutions,
+		EvaluationDate:  s.Clock(),
+		CommitmentPoint: analysisCtx.CommitmentPoint,
+		StatusWeights:   analysisCtx.StatusWeights,
+		SimulationSeed:  s.simulationSeed,
 	}
 
 	res, err := wfa.Execute(cfg)

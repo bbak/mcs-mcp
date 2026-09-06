@@ -136,10 +136,10 @@ type Result struct {
 	TailToMedianRatio float64        `json:"tail_to_median_ratio"` // P85/P50 (Volatility heuristic)
 	Predictability    string         `json:"predictability"`
 	Context           map[string]any `json:"context,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Warnings          []string       `json:"warnings,omitempty"`
 
 	// Advanced Analytics
-	Composition *Composition `json:"composition,omitempty"`
+	Composition              *Composition              `json:"composition,omitempty"`
 	ThroughputTrend          ThroughputTrend           `json:"throughput_trend"`
 	Insights                 []string                  `json:"insights,omitempty"`
 	PercentileLabels         map[string]string         `json:"percentile_labels,omitempty"`

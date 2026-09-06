@@ -1,8 +1,8 @@
 package stats
 
 import (
-	"mcs-mcp/internal/jira"
 	"math"
+	"mcs-mcp/internal/jira"
 	"testing"
 	"time"
 )
@@ -263,11 +263,11 @@ func TestExtractResidenceItems(t *testing.T) {
 	issues := []jira.Issue{
 		// Issue with transitions: committed Jan 5 (in window)
 		{
-			Key:       "TEST-1",
-			IssueType: "Story",
-			Created:   date(2024, 12, 1),
-			StatusID:  "10003",
-			Status:    "Done",
+			Key:         "TEST-1",
+			IssueType:   "Story",
+			Created:     date(2024, 12, 1),
+			StatusID:    "10003",
+			Status:      "Done",
 			OutcomeDate: datePtr(2025, 1, 20),
 			Transitions: []jira.StatusTransition{
 				{ToStatusID: "10001", FromStatusID: "", Date: date(2024, 12, 1)},
@@ -283,9 +283,9 @@ func TestExtractResidenceItems(t *testing.T) {
 			StatusID:  "10002",
 			Status:    "In Progress",
 			Transitions: []jira.StatusTransition{
-				{ToStatusID: "10002", FromStatusID: "10001", Date: date(2024, 12, 1)}, // first commitment
+				{ToStatusID: "10002", FromStatusID: "10001", Date: date(2024, 12, 1)},  // first commitment
 				{ToStatusID: "10001", FromStatusID: "10002", Date: date(2024, 12, 15)}, // backflow
-				{ToStatusID: "10002", FromStatusID: "10001", Date: date(2025, 1, 10)}, // re-commitment (LAST)
+				{ToStatusID: "10002", FromStatusID: "10001", Date: date(2025, 1, 10)},  // re-commitment (LAST)
 			},
 		},
 		// Issue that never reached commitment — should be excluded

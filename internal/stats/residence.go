@@ -60,9 +60,9 @@ type ResidenceTimeValidation struct {
 
 // ResidenceTimeResult is the top-level response for sample path analysis.
 type ResidenceTimeResult struct {
-	Series     []ResidenceTimeBucket    `json:"series"`
-	Summary    ResidenceTimeSummary     `json:"summary"`
-	Validation ResidenceTimeValidation  `json:"validation"`
+	Series     []ResidenceTimeBucket   `json:"series"`
+	Summary    ResidenceTimeSummary    `json:"summary"`
+	Validation ResidenceTimeValidation `json:"validation"`
 }
 
 // ExtractResidenceItems walks reconstructed issues to find commitment dates using
@@ -390,4 +390,3 @@ func assessConvergence(series []ResidenceTimeBucket) convergenceAssessment {
 	}
 	return convergenceAssessment{Label: "metastable", Beta1: beta1, RMSE: rmse}
 }
-

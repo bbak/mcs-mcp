@@ -259,7 +259,6 @@ func (e *Engine) RunMultiTypeDurationSimulation(targets map[string]int, distribu
 	return res
 }
 
-
 func (e *Engine) simulateDurationTrialStratified(targets map[string]int, capacityCap int, rng *rand.Rand) (int, map[string]int) {
 	days := 0
 	remaining := make(map[string]int)

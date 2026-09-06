@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"mcs-mcp/internal/discovery"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/discovery"
 
 	"github.com/rs/zerolog/log"
 )
@@ -391,4 +391,3 @@ func (s *Server) handleSetEvaluationDate(projectKey string, boardID int, dateStr
 
 	return WrapResponse(map[string]string{"status": "success", "message": msg}, projectKey, boardID, nil, nil, guidance), nil
 }
-

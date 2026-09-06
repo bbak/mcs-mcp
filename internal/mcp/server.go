@@ -16,29 +16,29 @@ import (
 
 	"mcs-mcp/internal/chartbuf"
 	"mcs-mcp/internal/config"
+	"mcs-mcp/internal/discovery"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/simulation"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/discovery"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/zerolog/log"
 )
 
 type Server struct {
-	jira                  jira.Client
-	events                *eventlog.LogProvider
-	cacheDir              string
-	activeSourceID        string
-	activeMapping         map[string]stats.StatusMetadata
-	activeResolutions     map[string]string
-	activeStatusOrder     []string
-	activeCommitmentPoint string
-	activeDiscoveryCutoff *time.Time
-	activeEvaluationDate  *time.Time
-	activeWindowStart     *time.Time
-	activeWindowEnd       *time.Time
+	jira                    jira.Client
+	events                  *eventlog.LogProvider
+	cacheDir                string
+	activeSourceID          string
+	activeMapping           map[string]stats.StatusMetadata
+	activeResolutions       map[string]string
+	activeStatusOrder       []string
+	activeCommitmentPoint   string
+	activeDiscoveryCutoff   *time.Time
+	activeEvaluationDate    *time.Time
+	activeWindowStart       *time.Time
+	activeWindowEnd         *time.Time
 	activeRegistry          *jira.NameRegistry
 	commitmentBackflowReset bool
 	simulationSeed          int64 // 0 = random (production); non-zero = fixed seed (tests)

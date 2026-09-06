@@ -137,8 +137,8 @@ func checkFixtureHash(t *testing.T) {
 	}
 
 	t.Fatalf(
-		"simulated_events.jsonl has changed (hash mismatch).\n"+
-			"Run: go test ./internal/mcp/... -run TestHandlers_Golden -update\n"+
+		"simulated_events.jsonl has changed (hash mismatch).\n" +
+			"Run: go test ./internal/mcp/... -run TestHandlers_Golden -update\n" +
 			"to regenerate all handler golden baselines.",
 	)
 }
@@ -210,14 +210,14 @@ func newGoldenServer(t *testing.T) *Server {
 
 	// 5. Create server and pre-anchor state to bypass loadWorkflow
 	srv := NewServer(&config.AppConfig{CacheDir: cacheDir, CommitmentBackflowReset: true}, &DummyClient{})
-	srv.activeSourceID        = testSourceID
-	srv.activeMapping         = wf.Mapping
-	srv.activeResolutions     = wf.Resolutions
+	srv.activeSourceID = testSourceID
+	srv.activeMapping = wf.Mapping
+	srv.activeResolutions = wf.Resolutions
 	srv.activeCommitmentPoint = wf.CommitmentPoint
 	srv.activeDiscoveryCutoff = discoveryCutoff
-	srv.activeRegistry        = wf.NameRegistry
-	srv.activeEvaluationDate  = &latestTS
-	srv.simulationSeed        = 42
+	srv.activeRegistry = wf.NameRegistry
+	srv.activeEvaluationDate = &latestTS
+	srv.simulationSeed = 42
 
 	return srv
 }

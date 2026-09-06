@@ -311,7 +311,6 @@ func asString(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-
 func (s *Server) getFinishedStatuses() map[string]bool {
 	finished := make(map[string]bool)
 
@@ -375,4 +374,3 @@ func (s *Server) calculateWIPAges(issues []jira.Issue, startStatus string, statu
 	}
 	return ages
 }
-

@@ -39,7 +39,7 @@ func TestBackflowResetAffectsWIPAge(t *testing.T) {
 	// With backflow policy:    WIP Age = 1 day  (only post-backflow downstream)
 
 	now := time.Date(2025, 1, 4, 12, 0, 0, 0, time.UTC)
-	day0 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC) // Created in Upstream
+	day0 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)  // Created in Upstream
 	day1 := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) // -> InProgress (Downstream)
 	day2 := time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC) // -> Backlog (Upstream, backflow)
 	day3 := time.Date(2025, 1, 3, 12, 0, 0, 0, time.UTC) // -> InProgress (Downstream again)

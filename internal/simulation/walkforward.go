@@ -2,10 +2,10 @@ package simulation
 
 import (
 	"fmt"
+	"mcs-mcp/internal/discovery"
 	"mcs-mcp/internal/eventlog"
 	"mcs-mcp/internal/jira"
 	"mcs-mcp/internal/stats"
-	"mcs-mcp/internal/discovery"
 	"slices"
 	"time"
 )
@@ -38,9 +38,9 @@ type ValidationCheckpoint struct {
 	PredictedP50  float64 `json:"predicted_p50"`
 	PredictedP85  float64 `json:"predicted_p85"`
 	PredictedP95  float64 `json:"predicted_p95"`
-	IsWithinCone  bool    `json:"is_within_cone"`  // Is actual between P10 and P95?
-	DriftDetected bool    `json:"drift_detected"`  // If true, this checkpoint is unreliable due to system change
-	IsDegenerate  bool    `json:"is_degenerate,omitempty"` // If true, near-zero throughput made this forecast meaningless
+	IsWithinCone  bool    `json:"is_within_cone"`           // Is actual between P10 and P95?
+	DriftDetected bool    `json:"drift_detected"`           // If true, this checkpoint is unreliable due to system change
+	IsDegenerate  bool    `json:"is_degenerate,omitempty"`  // If true, near-zero throughput made this forecast meaningless
 	Convergence   string  `json:"convergence,omitempty"`    // Residence time convergence at this checkpoint
 	NonStationary bool    `json:"non_stationary,omitempty"` // True if stationarity assessment fired warnings
 }
@@ -48,9 +48,9 @@ type ValidationCheckpoint struct {
 // StationarityCorrelation summarizes whether non-stationarity correlates with forecast misses.
 type StationarityCorrelation struct {
 	NonStationaryCheckpoints int     `json:"non_stationary_checkpoints"`
-	NonStationaryMissRate    float64 `json:"non_stationary_miss_rate"`  // Fraction of non-stationary checkpoints that missed
-	StationaryMissRate       float64 `json:"stationary_miss_rate"`      // Fraction of stationary checkpoints that missed
-	Signal                   string  `json:"signal"`                    // "predictive", "not_predictive", "insufficient_data"
+	NonStationaryMissRate    float64 `json:"non_stationary_miss_rate"` // Fraction of non-stationary checkpoints that missed
+	StationaryMissRate       float64 `json:"stationary_miss_rate"`     // Fraction of stationary checkpoints that missed
+	Signal                   string  `json:"signal"`                   // "predictive", "not_predictive", "insufficient_data"
 }
 
 // WalkForwardResult holds the aggregate results of the analysis.
@@ -445,8 +445,8 @@ func (w *WalkForwardEngine) measureDurationForNItems(allIssues []jira.Issue, sta
 // MultiEngineResult holds per-engine backtest results for auto mode selection.
 type MultiEngineResult struct {
 	PerEngine map[string]WalkForwardResult `json:"per_engine"`
-	Selected  string                        `json:"selected_engine"`
-	Reason    string                        `json:"selection_reason"`
+	Selected  string                       `json:"selected_engine"`
+	Reason    string                       `json:"selection_reason"`
 }
 
 // ExecuteMultiEngine runs a walk-forward backtest using multiple ForecastEngines
