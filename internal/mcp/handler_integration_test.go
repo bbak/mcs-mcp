@@ -45,6 +45,12 @@ func TestMCSTEST_Integration(t *testing.T) {
 					CacheDir: cacheDir,
 				}, &DummyClient{})
 
+				// Anchor first: anchorContext resets session state (including the
+				// evaluation date) on a context switch, so the pin must come after it.
+				if err := server.anchorContext("MCSTEST", 0); err != nil {
+					t.Fatalf("Failed to anchor context: %v", err)
+				}
+
 				// Inject the date to guarantee deterministic outputs across all handlers
 				server.activeEvaluationDate = &referenceTime
 				server.simulationSeed = 1
