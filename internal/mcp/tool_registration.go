@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"runtime/debug"
 
+	"mcs-mcp/internal/jira"
+
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/zerolog/log"
@@ -274,13 +276,57 @@ func formatToolResult(s *Server, data any) *mcp.CallToolResult {
 }
 
 // formatToolError wraps an error into an MCP CallToolResult with IsError set.
+//
+// An operational failure is appended with an explicit instruction. Without
+// one, an agent reads "it didn't work" and reasonably tries the next thing —
+// a different search term, another tool — which cannot fix a rejected
+// credential and buries the real cause under a pile of retries. The user ends
+// up being told nothing is found when in fact nothing was ever queried.
 func formatToolError(err error) *mcp.CallToolResult {
+	text := err.Error()
+	if guidance := agentGuidance(err); guidance != "" {
+		text += "\n\n" + guidance
+	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: err.Error()},
+			&mcp.TextContent{Text: text},
 		},
 		IsError: true,
 	}
+}
+
+// agentGuidance returns what the agent must do about a failure. It is phrased
+// as an instruction, not a hint, because the failure modes it covers are ones
+// the agent cannot resolve by trying harder.
+func agentGuidance(err error) string {
+	var apiErr *jira.APIError
+	if !errors.As(err, &apiErr) {
+		return ""
+	}
+
+	const stop = "STOP. Do not retry, do not try other search terms, and do not call any other tool. " +
+		"This is a configuration problem that only the user can fix."
+
+	switch apiErr.Kind {
+	case jira.KindAuth:
+		return stop + "\nTell the user: Jira rejected the credentials. Ask them to check " +
+			"JIRA_TOKEN (or the session cookies) and JIRA_URL in their configuration, then restart the server."
+	case jira.KindNotFound:
+		return stop + "\nTell the user: Jira returned 404 for this endpoint, which usually means " +
+			"JIRA_URL is wrong, or the Cloud/Data Center detection picked the wrong API dialect. " +
+			"Ask them to check JIRA_URL and, if the instance uses a custom domain, to set " +
+			"JIRA_DEPLOYMENT to cloud or datacenter."
+	case jira.KindTransport:
+		return stop + "\nTell the user: Jira could not be reached. Ask them to check JIRA_URL, " +
+			"their network connection, and any VPN or proxy requirement."
+	case jira.KindUnavailable:
+		return "Jira is reachable but not serving this request right now (it is overloaded, rate-limiting, " +
+			"or temporarily down). Do NOT retry now, and do not retry in a few seconds — an outage or a " +
+			"rate-limit window outlasts anything you can wait out in this conversation, and repeated " +
+			"attempts make rate-limiting worse. Do not substitute a different query to work around it. " +
+			"Tell the user to try again in an hour or so, and end the current line of analysis here."
+	}
+	return ""
 }
 
 // registerTools wires all MCP tools to their handler methods on the Server.

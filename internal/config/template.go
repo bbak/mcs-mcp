@@ -85,9 +85,18 @@ var configVars = []configVar{
 	},
 	{Key: "JIRA_GCLB", Secret: true, Commented: true},
 	{
+		Key:     "JIRA_DEPLOYMENT",
+		Section: "Jira REST API behaviour",
+		Doc: "Which API dialect to use: \"cloud\" (v3) or \"datacenter\" (v2).\n" +
+			"Leave unset to detect it by asking the server. Set it only if that\n" +
+			"detection is unavailable, e.g. a locked-down instance that refuses\n" +
+			"the serverInfo endpoint. A custom domain can front either flavour,\n" +
+			"so the URL alone cannot answer this.",
+		Commented: true,
+	},
+	{
 		Key:     "JIRA_REQUEST_DELAY_SECONDS",
 		Default: fmt.Sprint(defaultRequestDelay),
-		Section: "Jira REST API behaviour",
 		Doc:     "Enforced delay between requests to the Jira REST API.",
 	},
 	{

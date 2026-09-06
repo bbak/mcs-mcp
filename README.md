@@ -124,6 +124,8 @@ JIRA_GCILB=optional-google-cloud-load-balancer-cookie-GCILB
 JIRA_GCLB=optional-google-cloud-load-balancer-cookie-GCLB
 ```
 
+Cookies are only consulted when no token is set. If both are configured the token wins, and the server says so in the log.
+
 Note that Cookies a) might expire from time to time and b) Atlassian may take measures to prevent the use of session cookies this way.
 
 ### Building from Sources
@@ -179,7 +181,7 @@ Make sure that the Server can write to this directory to create `cache` and `log
 }
 ```
 
-Anything in the `env` block outranks the `.env` file (see [Where Settings Come From](#where-settings-come-from)). Supplying `JIRA_TOKEN` there also suppresses the generated `.env` — the server treats it as a managed deployment.
+Anything in the `env` block outranks the `.env` file (see [Where Settings Come From](#where-settings-come-from)), so you can set credentials here and leave the rest of the settings to the file.
 
 ### Where Settings Come From
 
@@ -206,6 +208,7 @@ These optional variables can be set in the `.env` file:
 | Variable                                | Default      | Description                                                                                 |
 | :-------------------------------------- | :----------- | :------------------------------------------------------------------------------------------ |
 | `JIRA_TOKEN_TYPE`                       | (inferred)   | `api` or `pat`. Inferred from `JIRA_USER_EMAIL` when unset.                                 |
+| `JIRA_DEPLOYMENT`                       | (detected)   | `cloud` or `datacenter`. Detected from the server; set only if that fails.                  |
 | `VERBOSE`                               | `false`      | Write detailed debug information to the log file.                                           |
 | `COMMITMENT_POINT_BACKFLOW_RESET_CLOCK` | `true`       | Reset Cycle Time and WIP Age clock on backflow past commitment point.                       |
 | `JIRA_REQUEST_DELAY_SECONDS`            | `10`         | Enforced delay (in seconds) between requests to the Jira REST API.                          |

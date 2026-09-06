@@ -7,6 +7,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -199,19 +200,40 @@ func (s *Server) handleImportProjects(query string) (any, error) {
 
 	if strings.ToUpper(query) != "MCSTEST" {
 		jiraProjects, err := s.jira.FindProjects(query)
-		if err == nil {
+		switch {
+		case err == nil:
 			projects = append(projects, jiraProjects...)
-		} else if !isMockQuery {
+		case isOperationalFailure(err):
+			// Never mask a broken connection with the synthetic project: the
+			// agent would report a successful lookup while Jira was never
+			// actually queried.
+			return nil, err
+		case !isMockQuery:
 			return nil, err
 		}
 	}
 
+	guidance := []string{
+		"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
+	}
+	if len(projects) == 0 {
+		guidance = []string{
+			"No project matched this query. The Jira connection is working — this is a search miss, not a failure.",
+			"Ask the user for a different project name or key, or try a shorter fragment of the name. Do not proceed to any other tool until a project is found.",
+		}
+	}
+
 	return map[string]any{
-		"projects": projects,
-		"_guidance": []string{
-			"Project located. If you plan to run analytical diagnostics (Aging, Simulations, Stability), you MUST find the project's boards using 'import_boards' next.",
-		},
+		"projects":  projects,
+		"_guidance": guidance,
 	}, nil
+}
+
+// isOperationalFailure reports whether an error means the Jira call could not
+// be completed, as opposed to completing with nothing to show.
+func isOperationalFailure(err error) bool {
+	var apiErr *jira.APIError
+	return errors.As(err, &apiErr)
 }
 
 // handleImportBoards searches for Jira boards, injecting mock data for MCSTEST.
@@ -229,18 +251,31 @@ func (s *Server) handleImportBoards(projectKey, nameFilter string) (any, error) 
 
 	if strings.ToUpper(projectKey) != "MCSTEST" {
 		jiraBoards, err := s.jira.FindBoards(projectKey, nameFilter)
-		if err == nil {
+		switch {
+		case err == nil:
 			boards = append(boards, jiraBoards...)
-		} else if !isMockKey {
+		case isOperationalFailure(err):
+			// See handleImportProjects: a broken connection must not be
+			// disguised as a successful lookup of the synthetic board.
+			return nil, err
+		case !isMockKey:
 			return nil, err
 		}
 	}
 
+	guidance := []string{
+		"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
+	}
+	if len(boards) == 0 {
+		guidance = []string{
+			"No board matched. The Jira connection is working — this is a search miss, not a failure.",
+			"Confirm the project key is correct, then ask the user for the board name, or drop the name filter to list every board on the project. Do not proceed to any other tool until a board is found.",
+		}
+	}
+
 	return map[string]any{
-		"boards": boards,
-		"_guidance": []string{
-			"Board located. You MUST now call 'import_board_context' to anchor on the data distribution and metadata before performing workflow discovery.",
-		},
+		"boards":    boards,
+		"_guidance": guidance,
 	}, nil
 }
 

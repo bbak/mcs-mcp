@@ -156,15 +156,40 @@ type Config struct {
 
 	// Token Authentication
 	Token     string
-	TokenType string // "pat" or "api"
+	TokenType string // "pat" (Bearer) or "api" (Basic) — how to authenticate, not which deployment
 	UserEmail string // Required for Jira Cloud (api token)
 
 	// Load Balancer Cookies
 	GCILB string
 	GCLB  string
 
+	// Deployment forces the API dialect: "cloud" or "datacenter". Empty means
+	// detect it — see dcClient.resolveIsCloud.
+	Deployment string
+
 	// Performance Settings
 	RequestDelay time.Duration
+}
+
+// IsCloud guesses the deployment flavour from the host. It is only a fallback:
+// a custom domain may front either Cloud or Data Center, so the URL cannot
+// answer this reliably. Prefer dcClient.resolveIsCloud, which asks the server.
+//
+// Deliberately not derived from TokenType. The two answer different questions
+// — TokenType is about Basic vs Bearer — and conflating them misroutes any
+// deployment where the auth method does not imply the flavour, most obviously
+// cookie-authenticated Data Center.
+func (c Config) IsCloud() bool {
+	host := strings.TrimSpace(strings.ToLower(c.BaseURL))
+	return strings.Contains(host, ".atlassian.net") || strings.Contains(host, ".jira.com")
+}
+
+// hostIsConclusive reports whether the host name settles the question on its
+// own. Only the Atlassian-owned domains do: they are always Cloud. Every other
+// host — including a custom domain fronting Cloud — is ambiguous, so a
+// heuristic answer there is a guess and must be surfaced as one.
+func (c Config) hostIsConclusive() bool {
+	return c.IsCloud()
 }
 
 // NewClient creates a new Jira client based on the provided configuration.

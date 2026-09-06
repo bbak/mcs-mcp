@@ -15,6 +15,20 @@ OPERATIONAL FLOW — follow in order, do not skip:
   4. guide_diagnostic_roadmap              — recommends next tools given the user goal.
   5. Diagnostics / forecasts               — run against the confirmed mapping.
 
+WHEN SETUP FAILS — a failed call and an empty result are NOT the same thing:
+  - CONNECTION OR CONFIGURATION FAILURE (the tool reports an error mentioning credentials, 404, or an
+    unreachable Jira): STOP the entire workflow. Do NOT retry, do NOT try different search terms, do NOT
+    call another tool hoping it works. Tell the user their Jira configuration or authentication needs
+    fixing, quoting the tool's instruction, and wait. No analysis is possible until they resolve it.
+  - JIRA TEMPORARILY UNAVAILABLE (overloaded, rate-limited, or down): do NOT retry now and do NOT retry in
+    a few seconds — such a window outlasts this conversation, and retrying makes rate-limiting worse. Tell
+    the user to try again in an hour or so, and end the current line of analysis.
+  - EMPTY RESULT (the call succeeded, nothing matched): this is a search miss, not a failure. Ask the user
+    for a different name, key, or a shorter fragment, and search again. Do not advance past the current
+    step until the target is found.
+  Never present an empty result as "the connection failed", and never present a failure as "nothing found" —
+  the second tells the user their data is missing when in fact it was never queried.
+
 STRICT GUARDRAILS (anti-hallucination):
   - NEVER compute percentiles, probabilities, SLEs, forecast dates, or stability signals using your own reasoning.
   - NEVER render charts or other visualizations by yourself. Use the open_in_browser tool to render data returned by tools.

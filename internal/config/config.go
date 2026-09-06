@@ -72,6 +72,7 @@ func Load(boot paths.Result) (*AppConfig, error) {
 			UserEmail:    userEmail,
 			GCILB:        getEnv("JIRA_GCILB", ""),
 			GCLB:         getEnv("JIRA_GCLB", ""),
+			Deployment:   getEnv("JIRA_DEPLOYMENT", ""),
 			RequestDelay: time.Duration(delaySecs) * time.Second,
 		},
 		DataPath:                dataPath,

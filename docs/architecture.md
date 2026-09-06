@@ -641,13 +641,45 @@ The data path is a **bootstrap variable**: it has to be known before any `.env` 
 
 This exists because the previous split — defaults in Go, a hand-written `.env-example` — had drifted on four variables. `.env-example` was the de-facto default (everyone copied it) while the Go defaults were what a user without a config file actually got.
 
-On first run the template is seeded into the data path (`O_EXCL`, `0600` — it will hold a Jira token). Never overwritten. **Skipped** when `JIRA_TOKEN` or `JIRA_SESSION_ID` already come from the process environment: that signals a managed deployment (MCP client `env` block, container, service manager) where writing config into a data volume is wrong.
+On first run the template is seeded into the data path (`O_EXCL`, `0600` — it will hold a Jira token). The `O_EXCL` create *is* the "does it already exist" check, atomically and without a race, so an existing file is never overwritten and no separate probe is needed. The only other exclusion is the `.` last resort, where the data path is not somewhere the user chose.
+
+An earlier version also skipped seeding when credentials were present in the environment, on the theory that this marked a managed deployment. That was wrong: a host that injects credentials sets *every* declared variable, so a cookie-authenticated user, whose token field is blank, was denied the very file the cookies belong in. Presence of credentials says nothing about whether the user needs the template.
 
 #### Provenance logging
 
 One `config` line per variable at Info, recording `source` ∈ `flag | env | dotenv | default | inferred`. Config resolves across five layers on machines that cannot be inspected, reported by users who don't know which layer they're in — so the source has to be recoverable from the log alone. Info rather than Debug: requiring `VERBOSE=true` to diagnose config loading is circular when the thing that's broken *is* config loading.
 
 **Secrets log presence only** — never the value, never a prefix, never a length, since length fingerprints the token type. See 9.1.
+
+#### Deployment flavour vs auth method
+
+These are **two independent questions** and must not share a field:
+
+- *How do I authenticate?* — `JIRA_TOKEN_TYPE`: Basic vs Bearer.
+- *Which API dialect?* — Cloud serves v3 and the newer search resources, Data Center serves v2.
+
+`TokenType` previously answered both. That held only while every Cloud user authenticated with an API token; it breaks for cookie-authenticated Data Center, where there is no token to reason from at all, and it silently routed such instances to Cloud v3 endpoints — producing 404s on projects that plainly exist.
+
+The URL cannot answer it either: a custom domain may front either flavour. So `dcClient.resolveIsCloud` resolves it once, lazily, in this order:
+
+1. `JIRA_DEPLOYMENT` (`cloud` / `datacenter`) — always wins
+2. `GET /rest/api/2/serverInfo` — its `deploymentType` field is authoritative, and the endpoint exists on both flavours so the probe cannot 404
+3. the host name, only when the probe fails
+
+Lazy rather than at construction: `NewDataCenterClient` must not perform network I/O. `sync.Once` keeps it to a single request per process.
+
+**The probe result must not be read as a single yes/no.** HTTP does not define whether a server checks authentication before routing — RFC 9110 even permits answering 404 in place of 401 to avoid disclosing what exists — so a non-200 says nothing on its own about which endpoints are present. Failures are therefore classified rather than collapsed:
+
+| Outcome | Meaning | Reported as |
+| :--- | :--- | :--- |
+| 200 + `deploymentType` | authoritative | resolved |
+| 401 / 403 | credentials rejected; says nothing about the deployment | a credentials warning |
+| other status | endpoint unavailable | debug, fall through |
+| transport error | Jira unreachable | a connectivity warning |
+
+Collapsing these was the original defect: bad credentials produced *"guessing from the URL"*, pointing the user at deployment detection when the actual fault was the token.
+
+**Step 3 is a guess, and is only allowed to be silent when it cannot be wrong.** An `*.atlassian.net` host is conclusively Cloud. Every other host — including a custom domain fronting Cloud — is ambiguous, so the fallback there logs a warning naming `JIRA_DEPLOYMENT` as the fix rather than quietly picking one of two answers.
 
 #### Inference
 
@@ -1032,3 +1064,4 @@ Engines currently implemented are documented in 4.6–4.8.
 ### 13.2 Graduating an experiment to stable
 
 Once validated: make it the default `MCS_ENGINE`, drop the graduation criteria from its section in 4.6–4.8, and record the migration path in the release notes.
+

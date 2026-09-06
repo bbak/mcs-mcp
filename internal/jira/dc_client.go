@@ -25,6 +25,10 @@ type dcClient struct {
 	projectInventory []any
 	boardInventory   []any
 	inventoryMutex   sync.RWMutex
+
+	// Deployment flavour, resolved once on first use. See resolveIsCloud.
+	cloudOnce sync.Once
+	isCloud   bool
 }
 
 type cacheEntry struct {
@@ -128,28 +132,51 @@ func (c *dcClient) throttle(isMetadata bool) {
 // request would fire on every call, and the mode is the first thing needed to
 // explain a 401 - it must not be invisible.
 func logAuthMode(cfg Config) {
+	hasToken := strings.TrimSpace(cfg.Token) != ""
+	hasCookies := cfg.XsrfToken != "" || cfg.SessionID != "" || cfg.RememberMe != ""
+
 	mode := "none"
 	switch {
-	case cfg.Token != "" && strings.ToLower(cfg.TokenType) == "api" && cfg.UserEmail != "":
+	case hasToken && strings.ToLower(cfg.TokenType) == "api" && cfg.UserEmail != "":
 		mode = "basic" // Jira Cloud: email + API token
-	case cfg.Token != "":
+	case hasToken:
 		mode = "bearer" // Jira Data Center: PAT
-	case cfg.XsrfToken != "" || cfg.SessionID != "" || cfg.RememberMe != "":
+	case hasCookies:
 		mode = "cookie"
+	}
+
+	// The deployment flavour is resolved lazily by probing the server, so at
+	// construction only the configured intent is known. "detect" means the
+	// probe has yet to run; the real answer is logged by probeDeployment.
+	deployment := "detect"
+	if d := strings.ToLower(strings.TrimSpace(cfg.Deployment)); d != "" {
+		deployment = d
 	}
 
 	// Never log the token or cookie values; presence only.
 	log.Info().
 		Str("mode", mode).
+		Str("deployment", deployment).
 		Str("token_type", cfg.TokenType).
 		Str("user_email", cfg.UserEmail).
-		Bool("token_present", cfg.Token != "").
+		Bool("token_present", hasToken).
 		Msg("Jira authentication configured")
+
+	if hasToken && hasCookies {
+		log.Warn().Msg("Both a Jira token and session cookies are configured; " +
+			"the token takes precedence and the cookies are ignored")
+	}
+	if mode == "none" {
+		log.Warn().Msg("No Jira credentials configured; set JIRA_TOKEN, or session cookies for " +
+			"locked-down Data Center instances")
+	}
 }
 
 func (c *dcClient) authenticateRequest(req *http.Request) {
-	// 1. Prioritize Token Authentication
-	if c.cfg.Token != "" {
+	// 1. Prioritize Token Authentication. A blank token falls through to the
+	// cookie fallback rather than sending an empty credential, so a config
+	// that supplies only cookies still authenticates.
+	if strings.TrimSpace(c.cfg.Token) != "" {
 		if strings.ToLower(c.cfg.TokenType) == "api" && c.cfg.UserEmail != "" {
 			// Jira Cloud: Basic Auth (email:api_token)
 			req.SetBasicAuth(c.cfg.UserEmail, c.cfg.Token)
@@ -186,10 +213,114 @@ func (c *dcClient) authenticateRequest(req *http.Request) {
 	}
 }
 
+// resolveIsCloud determines the deployment flavour once, in this order:
+//
+//  1. an explicit Deployment setting, which always wins
+//  2. GET /rest/api/2/serverInfo — its deploymentType field is authoritative,
+//     and the endpoint exists on both flavours so the probe cannot 404
+//  3. the host heuristic, if the probe cannot be reached
+//
+// The probe exists because a custom domain is genuinely ambiguous: it may
+// front either Cloud or Data Center, so the URL alone cannot answer this.
+func (c *dcClient) resolveIsCloud() bool {
+	c.cloudOnce.Do(func() {
+		switch strings.ToLower(strings.TrimSpace(c.cfg.Deployment)) {
+		case "cloud":
+			c.isCloud = true
+			log.Debug().Msg("Deployment set explicitly to cloud")
+			return
+		case "datacenter", "dc", "server":
+			c.isCloud = false
+			log.Debug().Msg("Deployment set explicitly to datacenter")
+			return
+		}
+
+		if cloud, ok := c.probeDeployment(); ok {
+			c.isCloud = cloud
+			return
+		}
+
+		// Detection failed. The host is the only remaining signal, and it is
+		// conclusive only for the Atlassian-owned domains: a custom domain may
+		// front either flavour, so guessing there is a coin flip and the user
+		// has to be told rather than quietly given one of the two answers.
+		c.isCloud = c.cfg.IsCloud()
+		if c.cfg.hostIsConclusive() {
+			log.Debug().Bool("cloud", c.isCloud).Msg("Deployment taken from the Atlassian host name")
+			return
+		}
+		log.Warn().
+			Str("base_url", c.cfg.BaseURL).
+			Bool("assumed_cloud", c.isCloud).
+			Msg("Could not determine whether this Jira is Cloud or Data Center, and the host name " +
+				"does not say. Assuming Data Center. Set JIRA_DEPLOYMENT to cloud or datacenter " +
+				"to remove the guess")
+	})
+	return c.isCloud
+}
+
+// probeDeployment asks Jira what it is. Reports false, false when the answer
+// cannot be obtained, so the caller can fall back rather than guess silently.
+func (c *dcClient) probeDeployment() (cloud bool, ok bool) {
+	if c.httpClient == nil || strings.TrimSpace(c.cfg.BaseURL) == "" {
+		return false, false
+	}
+
+	url := fmt.Sprintf("%s/rest/api/2/serverInfo", strings.TrimSuffix(c.cfg.BaseURL, "/"))
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return false, false
+	}
+	c.authenticateRequest(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		log.Warn().Err(err).Msg("Could not reach Jira to detect the deployment type")
+		return false, false
+	}
+	defer resp.Body.Close()
+
+	// Classify the failure. HTTP does not define whether authentication or
+	// routing is checked first, so a 401 says nothing about which endpoints
+	// exist - it only says the credentials were rejected. Reporting that as a
+	// detection problem would point the user at the wrong thing entirely.
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusUnauthorized, http.StatusForbidden:
+		log.Warn().Int("status", resp.StatusCode).
+			Msg("Jira rejected the credentials while detecting the deployment type; " +
+				"check JIRA_TOKEN or the session cookies")
+		return false, false
+	default:
+		log.Debug().Int("status", resp.StatusCode).
+			Msg("serverInfo is unavailable; cannot detect the deployment type")
+		return false, false
+	}
+
+	var info struct {
+		DeploymentType string `json:"deploymentType"`
+		Version        string `json:"version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		log.Debug().Err(err).Msg("serverInfo probe returned an undecodable body")
+		return false, false
+	}
+	if info.DeploymentType == "" {
+		return false, false
+	}
+
+	cloud = strings.EqualFold(info.DeploymentType, "Cloud")
+	log.Info().
+		Str("deployment_type", info.DeploymentType).
+		Str("jira_version", info.Version).
+		Msg("Jira deployment detected")
+	return cloud, true
+}
+
 func (c *dcClient) restPath(apiVersion string, resourcePath string) string {
 	// If apiVersion is empty, we detect the appropriate default
 	if apiVersion == "" {
-		if strings.ToLower(c.cfg.TokenType) == "api" {
+		if c.resolveIsCloud() {
 			apiVersion = "3" // Jira Cloud: v3 is the current version
 		} else {
 			apiVersion = "2" // Jira Data Center: v2 is standard
@@ -247,7 +378,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 	// Use restPath() - defaults to v2 for DC, v3 for Cloud.
 	// Jira Cloud recently migrated search to /search/jql
 	resourcePath := "search"
-	if strings.ToLower(c.cfg.TokenType) == "api" {
+	if c.resolveIsCloud() {
 		resourcePath = "search/jql"
 	}
 	searchURL := c.restPath("", resourcePath) + "?" + params.Encode()
@@ -277,7 +408,7 @@ func (c *dcClient) searchInternal(jql string, startAt int, maxResults int, expan
 			}
 			return nil, fmt.Errorf("jira rate limit exceeded (429)")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d; check jira availability", resp.StatusCode)
+			return nil, statusError("issue search", searchURL, resp.StatusCode)
 		}
 	}
 
@@ -337,7 +468,7 @@ func (c *dcClient) GetIssueWithHistory(key string) (*IssueDTO, error) {
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("issue %s not found", key)
 		}
-		return nil, fmt.Errorf("jira API returned status %d for issue %s", resp.StatusCode, key)
+		return nil, statusError("issue lookup "+key, issueURL, resp.StatusCode)
 	}
 
 	var result IssueDTO
@@ -403,7 +534,7 @@ func (c *dcClient) fetchFullChangelog(key string) (*ChangelogDTO, error) {
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			return nil, fmt.Errorf("changelog API returned status %d for issue %s", resp.StatusCode, key)
+			return nil, statusError("changelog fetch "+key, changelogURL, resp.StatusCode)
 		}
 
 		var page ChangelogDTO
@@ -464,7 +595,7 @@ func (c *dcClient) GetProject(key string) (any, error) {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for project %s", resp.StatusCode, key)
+			return nil, statusError("project lookup "+key, url, resp.StatusCode)
 		}
 	}
 
@@ -508,7 +639,7 @@ func (c *dcClient) GetProjectStatuses(key string) (any, error) {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for project %s statuses", resp.StatusCode, key)
+			return nil, statusError("project statuses "+key, url, resp.StatusCode)
 		}
 	}
 
@@ -550,7 +681,7 @@ func (c *dcClient) GetBoard(id int) (any, error) {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for board %d", resp.StatusCode, id)
+			return nil, statusError(fmt.Sprintf("board lookup %d", id), url, resp.StatusCode)
 		}
 	}
 
@@ -576,7 +707,7 @@ func (c *dcClient) FindProjects(query string) ([]any, error) {
 	params.Set("maxResults", "30")
 
 	var searchURL string
-	isCloud := strings.ToLower(c.cfg.TokenType) == "api"
+	isCloud := c.resolveIsCloud()
 
 	if isCloud {
 		// Jira Cloud: Uses project/search (v3 is better)
@@ -600,7 +731,10 @@ func (c *dcClient) FindProjects(query string) ([]any, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("jira API returned status %d for project search", resp.StatusCode)
+		// Name the endpoint: a 404 here almost always means the wrong API
+		// dialect was chosen for the deployment, and the status alone does
+		// not say which URL was tried.
+		return nil, statusError("project search", searchURL, resp.StatusCode)
 	}
 
 	var result []any
@@ -678,7 +812,7 @@ func (c *dcClient) FindBoards(projectKey string, nameFilter string) ([]any, erro
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for board search", resp.StatusCode)
+			return nil, statusError("board search", searchURL, resp.StatusCode)
 		}
 	}
 
@@ -806,7 +940,7 @@ func (c *dcClient) GetBoardConfig(id int) (any, error) {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for board configuration %d", resp.StatusCode, id)
+			return nil, statusError(fmt.Sprintf("board configuration %d", id), url, resp.StatusCode)
 		}
 	}
 
@@ -849,7 +983,7 @@ func (c *dcClient) GetFilter(id string) (any, error) {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return nil, fmt.Errorf("jira authentication failed (401/403); check your session cookies")
 		default:
-			return nil, fmt.Errorf("jira API returned status %d for filter %s", resp.StatusCode, id)
+			return nil, statusError("filter lookup "+id, url, resp.StatusCode)
 		}
 	}
 
