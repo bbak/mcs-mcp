@@ -76,14 +76,14 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 
 - Access to Atlassian Jira (Data Center or Cloud)
 - A MCP-capable AI Agent to chat with (Claude Desktop is mine)
-- Recent Version of Go if you want to build yourself
+- Recent Version of Go if you want to build yourself — not needed if you download a release
 
-### How-To
+### Installation
 
 1. Build from sources (see [Building from Sources](#building-from-sources)) or download a release.
 2. Copy `mcs-mcp.exe` (or `mcs-mcp`) to a location of your choice (for builders, look into `dist/`).
-3. Run it once. It creates a commented `.env` in its data folder — by default next to the binary, see [Where Settings Come From](#where-settings-come-from) — pre-filled with every setting and its default. Edit that file: at a minimum you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)). Your edits are never overwritten. (If you pass `JIRA_TOKEN` through your agent's `env` block instead, no file is written — that is treated as a managed deployment.)
-4. Especially for **MacOS Users**: The server needs to create two folders (`cache` and `logs`) and write files to them. If it cannot write next to the binary, start it with `--data-path /path/to/writable/dir` (or set the `DATA_PATH` environment variable) and it will keep its data — including the `.env` — there instead.
+3. Run it once. It creates a commented `.env` in its data folder — by default the standard per-user location for your platform (`%AppData%\mcs-mcp` on Windows, `~/Library/Application Support/mcs-mcp` on macOS, `~/.config/mcs-mcp` on Linux), see [Where Settings Come From](#where-settings-come-from) — pre-filled with every setting and its default. Edit that file: at a minimum you need to provide information about your Jira instance and how to authenticate (see [Authentication](#authentication)). Your edits are never overwritten.
+4. To keep the data somewhere else, start it with `--data-path /path/to/writable/dir` (or set the `DATA_PATH` environment variable) and it will keep its data — including the `.env` — there instead.
 5. Configure an AI Agent to use it as an MCP tool (see [Agent Configuration](#agent-configuration)). Typically, you need to restart the Agent for the changes to take effect.
 6. Chat:
    - Tell the AI Agent which Project and which Board you want to look at.
@@ -163,7 +163,7 @@ To use as a server for an AI Agent (like Claude or Gemini), point your MCP clien
 }
 ```
 
-Make sure that the Server can write to this directory to create `cache` and `logs` folders - or point it elsewhere with `--data-path`:
+By default the server keeps `cache`, `logs` and `.env` in the per-user location for your platform (see [Where Settings Come From](#where-settings-come-from)). To put them somewhere else, pass `--data-path`:
 
 ```json
 {
@@ -195,11 +195,13 @@ Settings are resolved in this order, highest priority first:
 
 At startup the server logs one line per setting recording where its value came from — `flag`, `env`, `dotenv`, `default` or `inferred` — so a value that isn't what you expected can be traced without guesswork. Secrets are logged as present/absent only, never as a value.
 
-**The data folder itself is the exception.** It has to be known before any `.env` can be found, so it is read only from the `--data-path` flag or the `DATA_PATH` environment variable — in that order, then falling back to the binary directory, the system temp folder, and finally the working directory.
+**The data folder itself is the exception.** It has to be known before any `.env` can be found, so it is read only from the `--data-path` flag or the `DATA_PATH` environment variable — in that order, then falling back to the standard per-user location for your platform (`%AppData%\mcs-mcp`, `~/Library/Application Support/mcs-mcp`, `~/.config/mcs-mcp`), the binary directory, the system temp folder, and finally the working directory.
 
 Setting `DATA_PATH` inside a `.env` file has **no effect**; the server warns when it finds one.
 
-> **Upgrading?** If you previously set `DATA_PATH` in your `.env`, move it to `--data-path` or a real environment variable. Otherwise the server falls back to the binary directory and will re-ingest from Jira from scratch, because it won't find your existing cache. The server detects this case and says so explicitly in the log.
+> **Upgrading from 0.21 or earlier?** The default data folder moved. Earlier versions kept `cache`, `logs` and `.env` next to the binary; the default is now the per-user location listed above. If you never set `--data-path` or `DATA_PATH`, the server starts with an empty cache and re-ingests from Jira. Nothing is deleted — point `--data-path` at the old folder, or move its contents to the new one, to keep your history.
+>
+> If you set `DATA_PATH` inside your `.env`, move it to `--data-path` or a real environment variable; it has never taken effect there. The server detects this case and says so explicitly in the log.
 
 ### Optional Settings
 

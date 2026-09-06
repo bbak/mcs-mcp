@@ -615,9 +615,12 @@ The data path is a **bootstrap variable**: it has to be known before any `.env` 
 
 1. `--data-path` flag
 2. `DATA_PATH` environment variable
-3. binary directory, if a writability probe succeeds
-4. `os.TempDir()/mcs-mcp`
-5. `.` (last resort)
+3. `os.UserConfigDir()/mcs-mcp` — `%AppData%` on Windows, `~/Library/Application Support` on macOS, `~/.config` on Linux
+4. binary directory, if a writability probe succeeds
+5. `os.TempDir()/mcs-mcp`
+6. `.` (last resort)
+
+Candidate 3 outranks the binary directory because the binary often sits somewhere the user does not own, or somewhere an update replaces wholesale — a cache kept beside it is then lost without a word. It also gives each platform the location its users expect. Existing installs that relied on the binary-directory default keep their data by passing `--data-path` or setting `DATA_PATH`.
 
 **`DATA_PATH` set inside a `.env` file is read and then ignored**, with a warning. Honouring it would require re-resolving after the logs are already open and `logs/`+`cache/` are already created — orphaned directories and split-brain logging. The warning escalates when the ignored directory contains a `cache/`, because that user is about to silently re-ingest from Jira.
 

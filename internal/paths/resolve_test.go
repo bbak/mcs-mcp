@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -18,6 +19,24 @@ func isolate(t *testing.T, keys ...string) {
 		os.Unsetenv(k)
 	}
 	t.Chdir(t.TempDir())
+}
+
+// userConfigDir redirects os.UserConfigDir at a temp directory so the fallback
+// chain can be exercised without writing into the developer's real one. The
+// variable it honours differs per platform.
+func userConfigDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	switch runtime.GOOS {
+	case "windows":
+		t.Setenv("AppData", dir)
+	case "darwin":
+		t.Setenv("HOME", dir)
+		return filepath.Join(dir, "Library", "Application Support")
+	default:
+		t.Setenv("XDG_CONFIG_HOME", dir)
+	}
+	return dir
 }
 
 func TestDataPathPrecedence(t *testing.T) {
@@ -46,6 +65,37 @@ func TestDataPathPrecedence(t *testing.T) {
 		}
 		if boot.DataPathSource != SourceEnv {
 			t.Errorf("source = %q, want %q", boot.DataPathSource, SourceEnv)
+		}
+	})
+
+	t.Run("user config dir wins over the exe directory", func(t *testing.T) {
+		isolate(t, "MCS_ENGINE", "INGESTION_MAX_ITEMS")
+		cfgDir := userConfigDir(t)
+
+		// The exe directory must not win: the binary may sit somewhere an
+		// update replaces wholesale, taking the cache with it.
+		boot, _ := Bootstrap(Options{})
+
+		want := filepath.Join(cfgDir, "mcs-mcp")
+		if boot.DataPath != want {
+			t.Errorf("DataPath = %q, want %q", boot.DataPath, want)
+		}
+		if boot.DataPathSource != SourceUserData {
+			t.Errorf("source = %q, want %q", boot.DataPathSource, SourceUserData)
+		}
+		if _, err := os.Stat(want); err != nil {
+			t.Errorf("data path was not created: %v", err)
+		}
+	})
+
+	t.Run("explicit configuration still outranks the user config dir", func(t *testing.T) {
+		isolate(t, "MCS_ENGINE", "INGESTION_MAX_ITEMS")
+		userConfigDir(t)
+		flagDir := t.TempDir()
+
+		boot, _ := Bootstrap(Options{DataPath: flagDir})
+		if boot.DataPath != flagDir {
+			t.Errorf("DataPath = %q, want the flag value %q", boot.DataPath, flagDir)
 		}
 	})
 
@@ -94,15 +144,21 @@ func TestSeedTemplate(t *testing.T) {
 		}
 	})
 
-	t.Run("skipped when credentials come from the environment", func(t *testing.T) {
-		isolate(t, "MCS_ENGINE", "INGESTION_MAX_ITEMS")
-		dir := t.TempDir()
-		t.Setenv("JIRA_TOKEN", "from-the-environment")
+	// Seeding depends only on whether the file is already there. Credentials in
+	// the environment are irrelevant: a host that injects them sets every
+	// declared variable, so keying off them would deny a cookie-authenticated
+	// user (blank token) the very file the cookies belong in.
+	t.Run("written regardless of credentials in the environment", func(t *testing.T) {
+		for _, token := range []string{"", "from-the-environment"} {
+			isolate(t, "MCS_ENGINE", "INGESTION_MAX_ITEMS")
+			dir := t.TempDir()
+			t.Setenv("JIRA_TOKEN", token)
 
-		Bootstrap(Options{DataPath: dir, Template: []byte("# generated\n")})
+			Bootstrap(Options{DataPath: dir, Template: []byte("# generated\n")})
 
-		if _, err := os.Stat(filepath.Join(dir, ".env")); !os.IsNotExist(err) {
-			t.Error("a managed deployment must not have config written into its data directory")
+			if _, err := os.Stat(filepath.Join(dir, ".env")); err != nil {
+				t.Errorf("JIRA_TOKEN=%q: template not written: %v", token, err)
+			}
 		}
 	})
 }

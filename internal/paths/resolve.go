@@ -15,11 +15,12 @@ import (
 type Source string
 
 const (
-	SourceFlag    Source = "flag"
-	SourceEnv     Source = "env"
-	SourceExeDir  Source = "exedir"
-	SourceTempDir Source = "tempdir"
-	SourceCwd     Source = "cwd"
+	SourceFlag     Source = "flag"
+	SourceEnv      Source = "env"
+	SourceUserData Source = "userdata"
+	SourceExeDir   Source = "exedir"
+	SourceTempDir  Source = "tempdir"
+	SourceCwd      Source = "cwd"
 )
 
 // Options configures Bootstrap.
@@ -84,12 +85,11 @@ func Bootstrap(opts Options) (Result, []Note) {
 	}
 
 	// The data path .env is the user-owned config file. Seed it on first run so
-	// the documented defaults are visible and editable. Skipped for the cwd
-	// last resort (do not litter) and when the environment already carries
-	// credentials, which indicates a managed deployment rather than a desktop
-	// install.
+	// the documented defaults are visible and editable. The write is O_EXCL, so
+	// an existing file is left alone; the only other exclusion is the cwd last
+	// resort, where the data path is not somewhere the user chose.
 	dataEnv := filepath.Join(dataPath, ".env")
-	if source != SourceCwd && len(opts.Template) > 0 && !credentialsInEnv(envKeys) {
+	if source != SourceCwd && len(opts.Template) > 0 {
 		seedTemplate(dataEnv, opts.Template, &notes)
 	}
 
@@ -113,9 +113,11 @@ func Bootstrap(opts Options) (Result, []Note) {
 // fallback chain:
 //  1. --data-path flag (explicit configuration)
 //  2. DATA_PATH env var (explicit configuration)
-//  3. exe directory (next to binary, if writable)
-//  4. os.TempDir()/mcs-mcp (system temp, always writable)
-//  5. current directory (last resort)
+//  3. the per-user config directory (%AppData% on Windows, ~/Library/
+//     Application Support on macOS, ~/.config on Linux)
+//  4. exe directory (next to binary, if writable)
+//  5. os.TempDir()/mcs-mcp (system temp, always writable)
+//  6. current directory (last resort)
 func resolveDataPath(flag, exeDir string, notes *[]Note) (string, Source) {
 	// 1. Flag — trust it as-is (user's responsibility)
 	if dp := strings.TrimSpace(flag); dp != "" {
@@ -127,7 +129,17 @@ func resolveDataPath(flag, exeDir string, notes *[]Note) (string, Source) {
 		return dp, SourceEnv
 	}
 
-	// 3. Exe directory — only if we can create subdirectories
+	// 3. Per-user config directory. Preferred over the exe directory: the
+	// binary often lives somewhere the user does not own or that an update
+	// replaces wholesale, and data kept beside it is then silently lost.
+	if base, err := os.UserConfigDir(); err == nil {
+		dir := filepath.Join(base, "mcs-mcp")
+		if err := os.MkdirAll(dir, 0755); err == nil {
+			return dir, SourceUserData
+		}
+	}
+
+	// 4. Exe directory — only if we can create subdirectories
 	if exeDir != "" {
 		probe := filepath.Join(exeDir, ".mcs-mcp-probe")
 		if err := os.MkdirAll(probe, 0755); err == nil {
@@ -136,7 +148,7 @@ func resolveDataPath(flag, exeDir string, notes *[]Note) (string, Source) {
 		}
 	}
 
-	// 4. System temp directory
+	// 5. System temp directory
 	tmp := filepath.Join(os.TempDir(), "mcs-mcp")
 	if err := os.MkdirAll(tmp, 0755); err == nil {
 		*notes = append(*notes, Note{
@@ -147,19 +159,12 @@ func resolveDataPath(flag, exeDir string, notes *[]Note) (string, Source) {
 		return tmp, SourceTempDir
 	}
 
-	// 5. Last resort — current directory
+	// 6. Last resort — current directory
 	*notes = append(*notes, Note{
 		Level: "warn",
 		Msg:   "All data path candidates failed; falling back to current directory",
 	})
 	return ".", SourceCwd
-}
-
-// credentialsInEnv reports whether the process environment already supplies
-// Jira credentials, which marks a managed deployment (MCPB, container,
-// service manager) where writing a config file would be inappropriate.
-func credentialsInEnv(envKeys map[string]bool) bool {
-	return envKeys["JIRA_TOKEN"] || envKeys["JIRA_SESSION_ID"]
 }
 
 // seedTemplate writes the .env template unless the file already exists. The
