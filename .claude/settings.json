@@ -2,5 +2,19 @@
   "permissions": {
     "allow": []
   },
-  "enabledPlugins": {}
+  "enabledPlugins": {},
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\(.*\\)\".*/\\1/p' | { read -r f; f=$(printf '%s' \"$f\" | sed 's/\\\\\\\\/\\//g'); case \"$f\" in *.go) gofmt -w \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "gofmt"
+          }
+        ]
+      }
+    ]
+  }
 }
