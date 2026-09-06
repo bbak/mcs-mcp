@@ -3,15 +3,15 @@ module mcs-mcp
 go 1.25.0
 
 require (
-	github.com/evanw/esbuild v0.28.0
-	github.com/google/jsonschema-go v0.4.2
+	github.com/evanw/esbuild v0.28.1
+	github.com/google/jsonschema-go v0.4.3
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-isatty v0.0.21
-	github.com/modelcontextprotocol/go-sdk v1.5.0
+	github.com/mattn/go-isatty v0.0.24
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
-	github.com/rs/zerolog v1.35.0
+	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.22.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
@@ -24,4 +24,5 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 )
