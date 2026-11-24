@@ -50,6 +50,8 @@ We believe in "No Black Boxes." The server operates primarily from its local cac
 - **Human-Readable Caches**: All persisted data (Event Logs, Workflow Mappings) is stored in standard, human-readable formats (JSON and JSON-Lines) in the data directory.
 - **Verifiable Logic**: You can scan or monitor these files at any time to verify that no sensitive data has leaked into the server's long-term memory.
 
+To report a security issue, see [SECURITY.md](SECURITY.md).
+
 ---
 
 ## 🛠️ How it Works (high-level)

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -152,8 +151,7 @@ func (s *EventStore) GetMostRecentUpdates(sourceID string) (omrc time.Time, nmrc
 func (s *EventStore) Load(cacheDir string, sourceID string) error {
 	s.Clear(sourceID) // Prevent accumulation if Load is called multiple times
 
-	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
-	file, err := os.Open(path)
+	file, err := OpenCacheFile(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil // No cache yet, not an error
@@ -192,7 +190,10 @@ func (s *EventStore) Save(cacheDir string, sourceID string) error {
 		return nil
 	}
 
-	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	path, err := CachePath(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	if err != nil {
+		return err
+	}
 	tmpPath := path + ".tmp"
 
 	file, err := os.Create(tmpPath)
@@ -268,8 +269,11 @@ func (s *EventStore) PruneExcept(keepSourceID string) {
 
 // DeleteCache removes the physical cache file from disk.
 func DeleteCache(cacheDir, sourceID string) error {
-	path := filepath.Join(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
-	err := os.Remove(path)
+	path, err := CachePath(cacheDir, fmt.Sprintf("%s.jsonl", sourceID))
+	if err != nil {
+		return err
+	}
+	err = os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}

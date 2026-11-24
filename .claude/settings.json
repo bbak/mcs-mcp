@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\(.*\\)\".*/\\1/p' | { read -r f; f=$(printf '%s' \"$f\" | sed 's/\\\\\\\\/\\//g'); case \"$f\" in *.go) gofmt -w \"$f\";; esac; } 2>/dev/null || true",
+            "command": "f=$(jq -r \".tool_input.file_path // empty\"); case \"$f\" in *.go) gofmt -w \"$(printf \"%s\" \"$f\" | tr \"\\\\\\\\\" \"/\")\";; esac",
             "statusMessage": "gofmt"
           }
         ]

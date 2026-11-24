@@ -582,8 +582,19 @@ func addTool[In any](mcpSrv *mcp.Server, s *Server, name string, handler func(co
 		Description: desc,
 		InputSchema: schema,
 	}
-	mcp.AddTool(mcpSrv, tool, withPanicRecovery(name, handler))
+	mcp.AddTool(mcpSrv, tool, withPanicRecovery(name, withKeyNormalization(handler)))
 	return nil
+}
+
+// withKeyNormalization normalizes and validates the Jira keys in a tool's
+// input before the handler sees them (see normalizeKeys).
+func withKeyNormalization[In any](handler func(context.Context, *mcp.CallToolRequest, In) (*mcp.CallToolResult, any, error)) func(context.Context, *mcp.CallToolRequest, In) (*mcp.CallToolResult, any, error) {
+	return func(ctx context.Context, req *mcp.CallToolRequest, args In) (*mcp.CallToolResult, any, error) {
+		if err := normalizeKeys(&args); err != nil {
+			return formatToolError(err), nil, nil
+		}
+		return handler(ctx, req, args)
+	}
 }
 
 // withPanicRecovery wraps a tool handler with panic recovery and logging.

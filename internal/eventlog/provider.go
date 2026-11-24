@@ -3,7 +3,6 @@ package eventlog
 import (
 	"fmt"
 	"mcs-mcp/internal/jira"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -75,8 +74,6 @@ func (p *LogProvider) Hydrate(sourceID string, projectKey string, jql string, re
 		p.store.Clear(sourceID)
 		if p.cacheDir != "" {
 			_ = DeleteCache(p.cacheDir, sourceID)
-			workflowPath := filepath.Join(p.cacheDir, fmt.Sprintf("%s-workflow.json", sourceID))
-			_ = os.Remove(workflowPath)
 		}
 		latest = time.Time{} // Treat as fresh
 	}

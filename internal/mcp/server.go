@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -303,7 +302,10 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 		NameRegistry:    s.activeRegistry,
 	}
 
-	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
+	path, err := eventlog.CachePath(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
+	if err != nil {
+		return err
+	}
 	tmp := path + ".tmp"
 	file, err := os.Create(tmp)
 	if err != nil {
@@ -325,8 +327,7 @@ func (s *Server) saveWorkflow(projectKey string, boardID int) error {
 }
 
 func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
-	path := filepath.Join(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
-	file, err := os.Open(path)
+	file, err := eventlog.OpenCacheFile(s.cacheDir, fmt.Sprintf("%s_%d_workflow.json", projectKey, boardID))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -392,7 +393,7 @@ func (s *Server) loadWorkflow(projectKey string, boardID int) (bool, error) {
 		}
 	}
 
-	log.Info().Str("path", path).Msg("Loaded and harmonized workflow metadata from disk")
+	log.Info().Str("path", file.Name()).Msg("Loaded and harmonized workflow metadata from disk")
 	return len(s.activeMapping) > 0, nil
 }
 

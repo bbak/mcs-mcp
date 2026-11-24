@@ -710,6 +710,15 @@ Only analytical metadata required for flow analysis is ingested and persisted.
 - **Auditability**: security officers can inspect the `cache` directory anytime to verify no sensitive leakage.
 - **Fact-Based Archeology**: workflow derived from transition logs, not configuration metadata — analytical view stays objective and free of human-entered (potentially sensitive) config details.
 
+### 9.3 Principle: Input Validation & Cache Confinement
+
+Tool input is written by the agent, and the agent can be steered by prompt injection. Jira keys from tool input reach both file names (cache files are named after the source ID) and JQL, so they are treated as untrusted.
+
+- **One gate at the tool boundary**: `addTool` wraps every handler with `withKeyNormalization` (`internal/mcp/keys.go`). It rewrites every input field tagged `json:"project_key"` or `json:"issue_key"` to upper case, and rejects values that are not Jira keys (`^[A-Z][A-Z0-9_]+$`, `^[A-Z][A-Z0-9_]+-[0-9]+$`). It is generic over the input struct, so a new tool is covered without further code. Empty keys pass unchanged (`import_boards` treats `""` as "no filter").
+- **Upper case, not rejection**: Jira keys only exist in upper case, so `proj` is quietly read as `PROJ`.
+- **Cache confinement**: every read, write and delete in the cache directory goes through `eventlog.CachePath` / `eventlog.OpenCacheFile`, which refuse any name that is not `filepath.IsLocal`. This holds even if a future caller skips the gate.
+- **Legacy lower-case files**: older versions named cache files after the key as the user typed it. When `OpenCacheFile` finds no file with the canonical name but finds its all-lower-case variant, it renames that file once and opens it.
+
 ---
 
 ## 10. Comprehensive Stratified Analytics

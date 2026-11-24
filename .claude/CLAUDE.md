@@ -83,8 +83,6 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - Apply typical Golang community practices regarding file, variable and functions naming conventions as well as directory layout.
 - Ensure Unix-style line endings.
-- I don't have Unix tools like `grep` and others available. Use their Powershell counterparts, except for:
-  - `rg` - alias for `ripgrep`
 - Never commit to `git` unless explicitly asked to do so. I will do that myself. If you think it is time to commit, ask me and provide a commit message.
 - Use Conventional Commits for git commit messages with the following prefixes:
   - `feat`: A new feature
